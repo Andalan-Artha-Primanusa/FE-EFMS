@@ -1,0 +1,10 @@
+.git
+.agents
+.codex
+frontend/node_modules
+frontend/dist
+frontend/*.tsbuildinfo
+backend/.gocache
+backend/.gomodcache
+backend/api.exe
+**/*.log

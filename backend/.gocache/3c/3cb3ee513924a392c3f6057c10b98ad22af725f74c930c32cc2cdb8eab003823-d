@@ -1,0 +1,15 @@
+./accounting_service.go
+./audit_service.go
+./auth_service.go
+./budget_service.go
+./catalog.go
+./catalog_service.go
+./closing_service.go
+./dashboard_service.go
+./json.go
+./models.go
+./operational_service.go
+./reconciliation_service.go
+./reporting_service.go
+./service.go
+./transaction_service.go

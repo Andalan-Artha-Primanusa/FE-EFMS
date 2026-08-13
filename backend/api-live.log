@@ -1,0 +1,47 @@
+
+ ┌───────────────────────────────────────────────────┐ 
+ │                  FinanceERP API                   │ 
+ │                   Fiber v2.52.9                   │ 
+ │               http://127.0.0.1:8080               │ 
+ │       (bound on host 0.0.0.0 and port 8080)       │ 
+ │                                                   │ 
+ │ Handlers ............ 58  Processes ........... 1 │ 
+ │ Prefork ....... Disabled  PID ............. 22536 │ 
+ └───────────────────────────────────────────────────┘ 
+
+
+2026/08/02 11:55:44 [31;1mC:/Users/raulm/Downloads/financeaap/backend/internal/app/auth_service.go:34 [35;1mrecord not found
+[0m[33m[155.603ms] [34;1m[rows:0][0m SELECT u.id, u.name, u.email, r.name AS role, u.status, u.two_factor_enabled, u.last_login_at, u.password_hash, u.failed_logins FROM users AS u JOIN roles r ON r.id = u.role_id WHERE u.email = 'admin@efms.local' LIMIT 1
+
+2026/08/02 11:55:52 [32mC:/Users/raulm/Downloads/financeaap/backend/internal/app/auth_service.go:34 [33mSLOW SQL >= 200ms
+[0m[31;1m[233.655ms] [33m[rows:1][35m SELECT u.id, u.name, u.email, r.name AS role, u.status, u.two_factor_enabled, u.last_login_at, u.password_hash, u.failed_logins FROM users AS u JOIN roles r ON r.id = u.role_id WHERE u.email = 'admin@financeerp.local' LIMIT 1[0m
+
+2026/08/02 11:55:52 [32mC:/Users/raulm/Downloads/financeaap/backend/internal/app/auth_service.go:62 [33mSLOW SQL >= 200ms
+[0m[31;1m[379.148ms] [33m[rows:1][35m UPDATE `users` SET `failed_logins`=0,`last_login_at`=NOW() WHERE id = 1[0m
+
+2026/08/02 11:56:58 [32mC:/Users/raulm/Downloads/financeaap/backend/internal/app/auth_service.go:34 [33mSLOW SQL >= 200ms
+[0m[31;1m[272.941ms] [33m[rows:1][35m SELECT u.id, u.name, u.email, r.name AS role, u.status, u.two_factor_enabled, u.last_login_at, u.password_hash, u.failed_logins FROM users AS u JOIN roles r ON r.id = u.role_id WHERE u.email = 'admin@financeerp.local' LIMIT 1[0m
+
+2026/08/02 11:56:59 [32mC:/Users/raulm/Downloads/financeaap/backend/internal/app/auth_service.go:62 [33mSLOW SQL >= 200ms
+[0m[31;1m[517.202ms] [33m[rows:1][35m UPDATE `users` SET `failed_logins`=0,`last_login_at`=NOW() WHERE id = 1[0m
+
+2026/08/02 11:57:00 [32mC:/Users/raulm/Downloads/financeaap/backend/internal/app/auth_service.go:83 [33mSLOW SQL >= 200ms
+[0m[31;1m[344.887ms] [33m[rows:1][35m SELECT u.id, u.name, u.email, r.name AS role, u.status, u.two_factor_enabled, u.last_login_at FROM users AS u JOIN roles r ON r.id = u.role_id WHERE u.id = 1 LIMIT 1[0m
+
+2026/08/02 11:57:00 [32mC:/Users/raulm/Downloads/financeaap/backend/internal/app/auth_service.go:83 [33mSLOW SQL >= 200ms
+[0m[31;1m[389.730ms] [33m[rows:1][35m SELECT u.id, u.name, u.email, r.name AS role, u.status, u.two_factor_enabled, u.last_login_at FROM users AS u JOIN roles r ON r.id = u.role_id WHERE u.id = 1 LIMIT 1[0m
+
+2026/08/02 11:57:00 [32mC:/Users/raulm/Downloads/financeaap/backend/internal/app/auth_service.go:83 [33mSLOW SQL >= 200ms
+[0m[31;1m[722.525ms] [33m[rows:1][35m SELECT u.id, u.name, u.email, r.name AS role, u.status, u.two_factor_enabled, u.last_login_at FROM users AS u JOIN roles r ON r.id = u.role_id WHERE u.id = 1 LIMIT 1[0m
+
+2026/08/02 11:57:00 [32mC:/Users/raulm/Downloads/financeaap/backend/internal/app/auth_service.go:83 [33mSLOW SQL >= 200ms
+[0m[31;1m[721.814ms] [33m[rows:1][35m SELECT u.id, u.name, u.email, r.name AS role, u.status, u.two_factor_enabled, u.last_login_at FROM users AS u JOIN roles r ON r.id = u.role_id WHERE u.id = 1 LIMIT 1[0m
+
+2026/08/02 11:57:33 [32mC:/Users/raulm/Downloads/financeaap/backend/internal/app/auth_service.go:83 [33mSLOW SQL >= 200ms
+[0m[31;1m[220.514ms] [33m[rows:1][35m SELECT u.id, u.name, u.email, r.name AS role, u.status, u.two_factor_enabled, u.last_login_at FROM users AS u JOIN roles r ON r.id = u.role_id WHERE u.id = 1 LIMIT 1[0m
+
+2026/08/02 11:57:35 [32mC:/Users/raulm/Downloads/financeaap/backend/internal/app/auth_service.go:83 [33mSLOW SQL >= 200ms
+[0m[31;1m[239.868ms] [33m[rows:1][35m SELECT u.id, u.name, u.email, r.name AS role, u.status, u.two_factor_enabled, u.last_login_at FROM users AS u JOIN roles r ON r.id = u.role_id WHERE u.id = 1 LIMIT 1[0m
+
+2026/08/02 11:57:42 [32mC:/Users/raulm/Downloads/financeaap/backend/internal/app/auth_service.go:83 [33mSLOW SQL >= 200ms
+[0m[31;1m[220.000ms] [33m[rows:1][35m SELECT u.id, u.name, u.email, r.name AS role, u.status, u.two_factor_enabled, u.last_login_at FROM users AS u JOIN roles r ON r.id = u.role_id WHERE u.id = 1 LIMIT 1[0m

@@ -1,0 +1,4 @@
+
+> financeerp-frontend@0.1.0 dev
+> vite --config false --host 127.0.0.1 --port 5175 --strictPort
+
