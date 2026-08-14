@@ -58,6 +58,38 @@ func (api *fiberAPI) registerRoutes(f *fiber.App) {
 	secured.Post("/approvals/:id/action", api.approvalAction)
 	secured.Get("/operational-transactions", api.operationalTransactions)
 	secured.Post("/operational-transactions", api.createOperationalTransaction)
+	secured.Get("/finance/dashboard", api.financeDashboard)
+
+	secured.Get("/finance/ba-trackers", api.baTrackers)
+	secured.Post("/finance/ba-trackers", api.saveBATracker)
+	secured.Put("/finance/ba-trackers/:id", api.saveBATracker)
+	secured.Delete("/finance/ba-trackers/:id", api.deleteBATracker)
+
+	secured.Get("/finance/invoices", api.financeInvoices)
+	secured.Post("/finance/invoices", api.saveInvoice)
+	secured.Put("/finance/invoices/:id", api.saveInvoice)
+	secured.Delete("/finance/invoices/:id", api.deleteInvoice)
+
+	secured.Get("/finance/payments", api.financePayments)
+	secured.Post("/finance/payments", api.savePayment)
+	secured.Put("/finance/payments/:id", api.savePayment)
+	secured.Delete("/finance/payments/:id", api.deletePayment)
+
+	secured.Get("/finance/customers", api.financeCustomers)
+	secured.Post("/finance/customers", api.saveCustomer)
+	secured.Put("/finance/customers/:id", api.saveCustomer)
+	secured.Delete("/finance/customers/:id", api.deleteCustomer)
+
+	secured.Get("/master-data/variable-sow", api.variableSOWs)
+	secured.Post("/master-data/variable-sow", api.saveVariableSOW)
+	secured.Put("/master-data/variable-sow/:id", api.saveVariableSOW)
+	secured.Delete("/master-data/variable-sow/:id", api.deleteVariableSOW)
+
+	secured.Get("/finance/variable-sows", api.variableSOWs)
+	secured.Post("/finance/variable-sows", api.saveVariableSOW)
+	secured.Put("/finance/variable-sows/:id", api.saveVariableSOW)
+	secured.Delete("/finance/variable-sows/:id", api.deleteVariableSOW)
+
 	secured.Get("/accounting/runs", api.accountingRuns)
 	secured.Post("/accounting/generate-journal", api.generateJournal)
 	secured.Get("/reconciliations", api.reconciliations)

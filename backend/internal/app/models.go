@@ -211,3 +211,103 @@ type AuditLog struct {
 	Device        string    `json:"device"`
 	CreatedAt     time.Time `json:"createdAt"`
 }
+
+type CustomerMaster struct {
+	ID             int64     `json:"id"`
+	Code           string    `json:"code"`
+	FullName       string    `json:"fullName"`
+	GroupParent    string    `json:"groupParent"`
+	ProjectSite    string    `json:"projectSite"`
+	TerminDays     int       `json:"terminDays"`
+	ContactAR      string    `json:"contactAR"`
+	EmailAR        string    `json:"emailAR"`
+	Phone          string    `json:"phone"`
+	ContractNo     string    `json:"contractNo"`
+	ContractValue  float64   `json:"contractValue"`
+	AvgPaymentDays float64   `json:"avgPaymentDays"`
+	Notes          string    `json:"notes"`
+	CreatedAt      time.Time `json:"createdAt"`
+}
+
+type BATracker struct {
+	ID                 int64      `json:"id"`
+	BANumber           string     `json:"baNumber"`
+	CustomerCode       string     `json:"customerCode"`
+	WorkPeriod         string     `json:"workPeriod"`
+	WorkAmount         float64    `json:"workAmount"`
+	WorkEndDate        *time.Time `json:"workEndDate"`
+	BASubmittedDate    *time.Time `json:"baSubmittedDate"`
+	BASignedDate       *time.Time `json:"baSignedDate"`
+	LeadTimeDays       int        `json:"leadTimeDays"`
+	StatusBA           string     `json:"statusBA"`
+	PICAAP             string     `json:"picAAP"`
+	InvoiceNoLinked    string     `json:"invoiceNoLinked"`
+	InvoiceIssuedDate  *time.Time `json:"invoiceIssuedDate"`
+	LagBAToInvoiceDays int        `json:"lagBAToInvoiceDays"`
+	NotesBottleneck    string     `json:"notesBottleneck"`
+	Notes              string     `json:"notes"`
+	DraftBAPath        string     `json:"draftBAPath"`
+	FinalBAPath        string     `json:"finalBAPath"`
+	CreatedAt          time.Time  `json:"createdAt"`
+}
+
+type InvoiceMaster struct {
+	ID             int64      `json:"id"`
+	InvoiceNo      string     `json:"invoiceNo"`
+	CustomerCode   string     `json:"customerCode"`
+	ProjectSite    string     `json:"projectSite"`
+	ContractNo     string     `json:"contractNo"`
+	Contractor     string     `json:"contractor"`
+	ActivityGroup  string     `json:"activityGroup"`
+	BANoReference  string     `json:"baNoReference"`
+	BADate         *time.Time `json:"baDate"`
+	WorkPeriod     string     `json:"workPeriod"`
+	JobType        string     `json:"jobType"`
+	VolumeUnit     string     `json:"volumeUnit"`
+	Volume         float64    `json:"volume"`
+	Rate           float64    `json:"rate"`
+	RevenueGross   float64    `json:"revenueGross"`
+	SolarDeduction float64    `json:"solarDeduction"`
+	SubTotalDPP    float64    `json:"subTotalDPP"`
+	PPN11          float64    `json:"ppn11"`
+	PPh23          float64    `json:"pph23"`
+	TotalInvoice   float64    `json:"totalInvoice"`
+	OtherDeduction float64    `json:"otherDeduction"`
+	TotalReceipt   float64    `json:"totalReceipt"`
+	InvoiceDate    time.Time  `json:"invoiceDate"`
+	TerminDays     int        `json:"terminDays"`
+	DueDate        time.Time  `json:"dueDate"`
+	TotalPaid      float64    `json:"totalPaid"`
+	Outstanding    float64    `json:"outstanding"`
+	Status         string     `json:"status"`
+	AgingDays      int        `json:"agingDays"`
+	AgingBucket    string     `json:"agingBucket"`
+	Notes          string     `json:"notes"`
+	CreatedAt      time.Time  `json:"createdAt"`
+}
+
+type PaymentLog struct {
+	ID              int64     `json:"id"`
+	InvoiceNo       string    `json:"invoiceNo"`
+	CustomerCode    string    `json:"customerCode"`
+	AmountPaid      float64   `json:"amountPaid"`
+	PaymentDate     time.Time `json:"paymentDate"`
+	ReceivingBank   string    `json:"receivingBank"`
+	RefNo           string    `json:"refNo"`
+	PaymentPeriod   string    `json:"paymentPeriod"`
+	Notes           string    `json:"notes"`
+	DaysLateOrEarly int       `json:"daysLateOrEarly"`
+	CreatedAt       time.Time `json:"createdAt"`
+}
+
+type VariableSOW struct {
+	ID          int64     `json:"id"`
+	Category    string    `json:"category"`
+	ItemName    string    `json:"itemName"`
+	RateUSD     float64   `json:"rateUSD"`
+	Unit        string    `json:"unit"`
+	Customer    string    `json:"customer"`
+	Description string    `json:"description"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"createdAt"`
+}

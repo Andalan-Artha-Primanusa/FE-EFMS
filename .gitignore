@@ -1,0 +1,10 @@
+# Lock files
+~$*.xlsx
+
+# Logs
+*.log
+*.err
+
+# Temp directories
+deps_temp_*
+.vite/deps_temp_*
