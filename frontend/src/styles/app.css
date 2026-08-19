@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Arimo:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -7,13 +7,15 @@
 :root {
   color: #062b4f;
   background: #f4f7fa;
-  font-family: "Arimo", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.4;
 }
 
 * { box-sizing: border-box; }
+html, body, #root, button, input, select, textarea {
+  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
 body { margin: 0; min-width: 320px; }
-button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 
 .login-page {
@@ -164,7 +166,7 @@ textarea { min-height: 94px; resize: vertical; }
   inset: 42px 42px auto auto;
   width: min(460px, 46vw);
   aspect-ratio: 1.4;
-  background: url("/efms-logo-transparent.png") center/contain no-repeat;
+  background: url("/feast-logo.webp") center/contain no-repeat;
   opacity: .16;
   filter: brightness(0) invert(1);
 }

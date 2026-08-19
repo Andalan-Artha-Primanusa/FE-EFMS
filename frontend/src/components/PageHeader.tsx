@@ -13,7 +13,7 @@ export function PageHeader({
 }) {
   return <section className="page-header">
     <div>
-      <p className="eyebrow">EFMS Workspace</p>
+      <p className="eyebrow">FEAST Workspace</p>
       <h1>{title}</h1>
       {description && <p>{description}</p>}
     </div>

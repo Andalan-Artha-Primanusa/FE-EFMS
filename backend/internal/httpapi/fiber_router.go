@@ -13,6 +13,7 @@ func NewFiberApp(service *app.Service, cfg config.Config) *fiber.App {
 	f := fiber.New(fiber.Config{
 		AppName:      "FinanceERP API",
 		ErrorHandler: fiberError,
+		BodyLimit:    100 * 1024 * 1024, // 100 MB Body Limit for large PDF attachments
 	})
 	api.registerRoutes(f)
 	return f
@@ -27,16 +28,18 @@ func (api *fiberAPI) registerRoutes(f *fiber.App) {
 	f.Use(cors.New(cors.Config{
 		AllowOrigins:     api.cfg.CORSOrigin,
 		AllowMethods:     "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-		AllowHeaders:     "Authorization, Content-Type",
+		AllowHeaders:     "Authorization, Content-Type, Accept, Origin, X-Requested-With, Content-Disposition",
 		ExposeHeaders:    "Content-Disposition",
 		AllowCredentials: true,
 		MaxAge:           86400,
 	}))
 	f.Get("/health", api.health)
+	f.Get("/uploads/:filename", api.serveUploadedFile)
 	f.Post("/api/auth/login", api.login)
 	f.Post("/api/auth/forgot-password", api.accepted)
 
 	secured := f.Group("/api", api.auth)
+	secured.Get("/documents/:filename", api.serveUploadedFile)
 	secured.Get("/auth/me", api.me)
 	secured.Post("/auth/logout", api.noContent)
 	secured.Post("/auth/change-password", api.accepted)
@@ -63,15 +66,21 @@ func (api *fiberAPI) registerRoutes(f *fiber.App) {
 	secured.Get("/finance/ba-trackers", api.baTrackers)
 	secured.Post("/finance/ba-trackers", api.saveBATracker)
 	secured.Put("/finance/ba-trackers/:id", api.saveBATracker)
+	secured.Post("/finance/ba-trackers/:id/verify", api.verifyBATracker)
+	secured.Post("/finance/ba-trackers/:id/approve", api.approveBATracker)
 	secured.Delete("/finance/ba-trackers/:id", api.deleteBATracker)
 
 	secured.Get("/finance/invoices", api.financeInvoices)
 	secured.Post("/finance/invoices", api.saveInvoice)
 	secured.Put("/finance/invoices/:id", api.saveInvoice)
+	secured.Post("/finance/invoices/:id/verify", api.verifyInvoice)
+	secured.Post("/finance/invoices/:id/approve-tier1", api.approveInvoiceTier1)
+	secured.Post("/finance/invoices/:id/approve-tier2", api.approveInvoiceTier2)
 	secured.Delete("/finance/invoices/:id", api.deleteInvoice)
 
 	secured.Get("/finance/payments", api.financePayments)
 	secured.Post("/finance/payments", api.savePayment)
+	secured.Put("/finance/payments/:id/verify", api.verifyPayment)
 	secured.Put("/finance/payments/:id", api.savePayment)
 	secured.Delete("/finance/payments/:id", api.deletePayment)
 
@@ -80,15 +89,25 @@ func (api *fiberAPI) registerRoutes(f *fiber.App) {
 	secured.Put("/finance/customers/:id", api.saveCustomer)
 	secured.Delete("/finance/customers/:id", api.deleteCustomer)
 
+	secured.Get("/master-data/bank-accounts", api.bankAccounts)
+	secured.Post("/master-data/bank-accounts", api.saveBankAccount)
+	secured.Put("/master-data/bank-accounts/:id", api.saveBankAccount)
+	secured.Delete("/master-data/bank-accounts/:id", api.deleteBankAccount)
+
 	secured.Get("/master-data/variable-sow", api.variableSOWs)
 	secured.Post("/master-data/variable-sow", api.saveVariableSOW)
 	secured.Put("/master-data/variable-sow/:id", api.saveVariableSOW)
 	secured.Delete("/master-data/variable-sow/:id", api.deleteVariableSOW)
 
-	secured.Get("/finance/variable-sows", api.variableSOWs)
-	secured.Post("/finance/variable-sows", api.saveVariableSOW)
-	secured.Put("/finance/variable-sows/:id", api.saveVariableSOW)
-	secured.Delete("/finance/variable-sows/:id", api.deleteVariableSOW)
+	secured.Get("/master-data/raise-fall", api.raiseFallMasters)
+	secured.Post("/master-data/raise-fall", api.saveRaiseFallMaster)
+	secured.Put("/master-data/raise-fall/:id", api.saveRaiseFallMaster)
+	secured.Delete("/master-data/raise-fall/:id", api.deleteRaiseFallMaster)
+
+	secured.Get("/master-data/daily-exchange-rates", api.dailyExchangeRates)
+	secured.Post("/master-data/daily-exchange-rates", api.saveDailyExchangeRate)
+	secured.Put("/master-data/daily-exchange-rates/:id", api.saveDailyExchangeRate)
+	secured.Post("/master-data/import-bi-exchange-rates", api.importBIExchangeRates)
 
 	secured.Get("/accounting/runs", api.accountingRuns)
 	secured.Post("/accounting/generate-journal", api.generateJournal)

@@ -7,6 +7,39 @@ func (s *Service) Dashboard(ctx context.Context) (Dashboard, error) {
 	if err != nil {
 		return Dashboard{}, err
 	}
+
+	st := getStore()
+	st.mu.Lock()
+	st.recalculateAllInvoices()
+	invoices := make([]InvoiceMaster, len(st.invoices))
+	copy(invoices, st.invoices)
+	st.mu.Unlock()
+
+	var totalAR float64
+	var aging0_30, aging31_60, aging61_90, agingOver90 float64
+	for _, inv := range invoices {
+		if inv.Outstanding > 0 {
+			totalAR += inv.Outstanding
+			switch inv.AgingBucket {
+			case "Not Due", "1-30":
+				aging0_30 += inv.Outstanding
+			case "31-60":
+				aging31_60 += inv.Outstanding
+			case "61-90":
+				aging61_90 += inv.Outstanding
+			case ">90":
+				agingOver90 += inv.Outstanding
+			}
+		}
+	}
+	if totalAR == 0 {
+		totalAR = 2140000000
+		aging0_30 = 980000000
+		aging31_60 = 520000000
+		aging61_90 = 340000000
+		agingOver90 = 300000000
+	}
+
 	return Dashboard{
 		KPIs: []KPI{
 			{"Total saldo kas", 1825000000, 8.2, "good"},
@@ -15,19 +48,41 @@ func (s *Service) Dashboard(ctx context.Context) (Dashboard, error) {
 			{"Pengeluaran bulan berjalan", 2890000000, -4.1, "warning"},
 			{"Laba rugi sementara", 1390000000, 6.8, "good"},
 			{"Total Account Payable", 1180000000, -2.5, "warning"},
-			{"Total Account Receivable", 2140000000, 9.1, "good"},
+			{"Total Account Receivable", totalAR, 9.1, "good"},
 			{"Transaksi menunggu approval", float64(len(pending)), 0, "info"},
 		},
 		MonthlyFinance: []ChartPoint{
-			{"Jan", 3100, 2100, 0, 0, 0}, {"Feb", 3400, 2300, 0, 0, 0}, {"Mar", 3650, 2550, 0, 0, 0}, {"Apr", 3900, 2600, 0, 0, 0}, {"Mei", 4200, 2880, 0, 0, 0}, {"Jun", 4280, 2890, 0, 0, 0},
+			{"Jan", 3100000000, 2100000000, 0, 0, 0},
+			{"Feb", 3400000000, 2300000000, 0, 0, 0},
+			{"Mar", 3650000000, 2550000000, 0, 0, 0},
+			{"Apr", 3900000000, 2600000000, 0, 0, 0},
+			{"Mei", 4200000000, 2880000000, 0, 0, 0},
+			{"Jun", 4280000000, 2890000000, 0, 0, 0},
 		},
 		CashFlow: []ChartPoint{
-			{"W1", 820, 620, 820, 620, 0}, {"W2", 960, 700, 960, 700, 0}, {"W3", 780, 840, 780, 840, 0}, {"W4", 1120, 730, 1120, 730, 0},
+			{"W1", 0, 0, 820000000, 620000000, 0},
+			{"W2", 0, 0, 960000000, 700000000, 0},
+			{"W3", 0, 0, 780000000, 840000000, 0},
+			{"W4", 0, 0, 1120000000, 730000000, 0},
 		},
-		AgingReceivable:  []ChartPoint{{"0-30", 0, 0, 0, 0, 980}, {"31-60", 0, 0, 0, 0, 520}, {"61-90", 0, 0, 0, 0, 340}, {">90", 0, 0, 0, 0, 300}},
-		AgingPayable:     []ChartPoint{{"0-30", 0, 0, 0, 0, 610}, {"31-60", 0, 0, 0, 0, 270}, {"61-90", 0, 0, 0, 0, 180}, {">90", 0, 0, 0, 0, 120}},
+		AgingReceivable: []ChartPoint{
+			{"0-30", 0, 0, 0, 0, aging0_30},
+			{"31-60", 0, 0, 0, 0, aging31_60},
+			{"61-90", 0, 0, 0, 0, aging61_90},
+			{">90", 0, 0, 0, 0, agingOver90},
+		},
+		AgingPayable: []ChartPoint{
+			{"0-30", 0, 0, 0, 0, 610000000},
+			{"31-60", 0, 0, 0, 0, 270000000},
+			{"61-90", 0, 0, 0, 0, 180000000},
+			{">90", 0, 0, 0, 0, 120000000},
+		},
 		PendingApprovals: pending,
-		CashPosition:     []ChartPoint{{"Holding", 0, 0, 0, 0, 4100}, {"Site JKT", 0, 0, 0, 0, 2850}, {"Project", 0, 0, 0, 0, 1640}},
+		CashPosition: []ChartPoint{
+			{"Holding", 0, 0, 0, 0, 4100000000},
+			{"Site JKT", 0, 0, 0, 0, 2850000000},
+			{"Project", 0, 0, 0, 0, 1640000000},
+		},
 	}, nil
 }
 

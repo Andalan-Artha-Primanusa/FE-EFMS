@@ -12,7 +12,12 @@ import (
 )
 
 func Seed(ctx context.Context, db *sql.DB) error {
-	roles := []string{"Super Admin", "Finance Admin", "Accounting", "Account Payable Officer", "Account Receivable Officer", "Cashier", "Treasury", "Budget Controller", "Tax Officer", "Department User", "Department Head", "Finance Manager", "General Manager", "Director", "Auditor"}
+	roles := []string{
+		"Super Admin", "Finance Admin", "SPV Verificator", "Admin Finance Site", "Admin Finance HO",
+		"Accounting", "Account Payable Officer", "Account Receivable Officer", "Cashier", "Treasury",
+		"Budget Controller", "Tax Officer", "Department User", "Department Head", "Finance Manager",
+		"General Manager", "Director", "Auditor",
+	}
 	for _, role := range roles {
 		if _, err := db.ExecContext(ctx, `INSERT IGNORE INTO roles (name, description) VALUES (?, ?)`, role, role+" access profile"); err != nil {
 			return err
@@ -44,7 +49,14 @@ func Seed(ctx context.Context, db *sql.DB) error {
 		name  string
 		email string
 	}{
+		{"Super Admin", "ERP Super Admin", "admin@financeerp.local"},
 		{"Finance Admin", "Finance Admin", "finance.admin@financeerp.local"},
+		{"SPV Verificator", "SPV Site Verificator", "spv@financeerp.local"},
+		{"Admin Finance Site", "Admin Finance Site", "admin.site@financeerp.local"},
+		{"Admin Finance HO", "Admin Finance HO", "admin.ho@financeerp.local"},
+		{"Finance Manager", "Finance Manager", "finance.manager@financeerp.local"},
+		{"Director", "Direktur Utama", "director@financeerp.local"},
+		{"General Manager", "General Manager", "general.manager@financeerp.local"},
 		{"Accounting", "Accounting Officer", "accounting@financeerp.local"},
 		{"Account Payable Officer", "AP Officer", "ap@financeerp.local"},
 		{"Account Receivable Officer", "AR Officer", "ar@financeerp.local"},
@@ -54,9 +66,6 @@ func Seed(ctx context.Context, db *sql.DB) error {
 		{"Tax Officer", "Tax Officer", "tax@financeerp.local"},
 		{"Department User", "Department User", "department.user@financeerp.local"},
 		{"Department Head", "Department Head", "department.head@financeerp.local"},
-		{"Finance Manager", "Finance Manager", "finance.manager@financeerp.local"},
-		{"General Manager", "General Manager", "general.manager@financeerp.local"},
-		{"Director", "Director", "director@financeerp.local"},
 		{"Auditor", "Auditor", "auditor@financeerp.local"},
 	}
 	for _, user := range loginSeeds {

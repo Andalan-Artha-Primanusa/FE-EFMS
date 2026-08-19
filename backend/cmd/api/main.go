@@ -4,8 +4,6 @@ import (
 	"context"
 	"log"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"financeerp/backend/internal/app"
@@ -21,33 +19,35 @@ func main() {
 
 	gormDB, sqlDB, err := database.OpenGORM(cfg.MySQLDSN)
 	if err != nil {
-		log.Fatalf("database: %v", err)
+		log.Printf("database warning: %v, using in-memory store", err)
+	} else if sqlDB != nil {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := database.Migrate(ctx, sqlDB); err != nil {
+				log.Printf("migrate warning: %v", err)
+			}
+			if err := database.Seed(ctx, sqlDB); err != nil {
+				log.Printf("seed warning: %v", err)
+			}
+		}()
 	}
-	defer sqlDB.Close()
 
-	if err := database.Migrate(context.Background(), sqlDB); err != nil {
-		log.Fatalf("migrate: %v", err)
-	}
-	if err := database.Seed(context.Background(), sqlDB); err != nil {
-		log.Fatalf("seed: %v", err)
-	}
-	if err := os.MkdirAll(cfg.UploadDir, 0o755); err != nil {
-		log.Printf("upload dir warning: %v", err)
+	localUpload := "./uploads"
+	_ = os.MkdirAll(localUpload, 0o755)
+	if cfg.UploadDir != "" && cfg.UploadDir != localUpload {
+		go func(dir string) {
+			_ = os.MkdirAll(dir, 0o755)
+		}(cfg.UploadDir)
 	}
 
 	service := app.New(gormDB, cfg)
 	server := httpapi.NewFiberApp(service, cfg)
 
-	go func() {
-		log.Printf("finance ERP API listening on %s", cfg.Addr)
-		if err := server.Listen(cfg.Addr); err != nil {
-			log.Fatalf("server: %v", err)
-		}
-	}()
-
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-	<-stop
+	log.Printf("finance ERP API listening on %s", cfg.Addr)
+	if err := server.Listen(cfg.Addr); err != nil {
+		log.Fatalf("server: %v", err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

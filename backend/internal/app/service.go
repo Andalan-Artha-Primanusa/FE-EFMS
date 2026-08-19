@@ -15,6 +15,9 @@ type Service struct {
 }
 
 func New(db *gorm.DB, cfg config.Config) *Service {
-	sqlDB, _ := db.DB()
+	var sqlDB *sql.DB
+	if db != nil {
+		sqlDB, _ = db.DB()
+	}
 	return &Service{db: db, sql: sqlDB, cfg: cfg}
 }

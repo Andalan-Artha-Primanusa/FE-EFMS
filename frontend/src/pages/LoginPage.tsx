@@ -27,8 +27,8 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
   return (
     <main className="login-page antialiased text-finance-ink">
       <section className="login-panel bg-white">
-        <div className="login-logo"><img src="/efms-logo-transparent.png" alt="EFMS Enterprise Finance Management System" /></div>
-        <p className="eyebrow">Enterprise Finance Management System</p>
+        <div className="login-logo"><img src="/feast-logo.webp" alt="FEAST - Financial Enterprise Andalan System" /></div>
+        <p className="eyebrow">Financial Enterprise Andalan System</p>
         <h1>Masuk ke pusat kendali finance end-to-end.</h1>
         <p className="login-copy">Kelola budget, approval, AP/AR, cash bank, accounting engine, closing, dan management dashboard dalam satu workflow.</p>
         <form onSubmit={submit} className="login-form">

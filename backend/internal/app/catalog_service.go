@@ -52,6 +52,27 @@ func (s *Service) Roles(ctx context.Context) ([]RoleAccess, error) {
 }
 
 func (s *Service) PermissionsForRole(ctx context.Context, role string) ([]Permission, error) {
+	if s.sql == nil {
+		var items []Permission
+		grants, ok := rolePermissionMap[role]
+		if !ok && IsSuperAdminRole(role) {
+			grants = []string{"*:*"}
+		}
+		for _, grant := range grants {
+			if grant == "*:*" {
+				return permissions, nil
+			}
+			parts := strings.Split(grant, ":")
+			if len(parts) == 2 {
+				for _, p := range permissions {
+					if p.Module == parts[0] && (parts[1] == "*" || p.Action == parts[1]) {
+						items = append(items, p)
+					}
+				}
+			}
+		}
+		return items, nil
+	}
 	rows, err := s.sql.QueryContext(ctx, `SELECT p.module, p.action, p.description
 		FROM permissions p
 		JOIN role_permissions rp ON rp.permission_id=p.id
@@ -74,6 +95,9 @@ func (s *Service) PermissionsForRole(ctx context.Context, role string) ([]Permis
 }
 
 func (s *Service) HasPermission(ctx context.Context, role, module, action string) bool {
+	if IsSuperAdminRole(role) {
+		return true
+	}
 	permissions, err := s.PermissionsForRole(ctx, role)
 	if err != nil {
 		return false

@@ -51,41 +51,67 @@ export function DashboardPage({
   const revenue = chartNumber(latestMonth, "revenue");
   const expense = chartNumber(latestMonth, "expense");
   const ebitda = revenue - expense;
+
   const waterfall = useMemo(() => {
-    const rows = kpis.slice(0, 10).map((item) => ({ label: item.label, value: item.delta || item.value }));
-    if (rows.length) return rows;
-    return monthlyFinance.slice(-8).map((item) => ({
-      label: String(item.label ?? ""),
-      value: chartNumber(item, "revenue") - chartNumber(item, "expense")
-    }));
-  }, [kpis, monthlyFinance]);
+    if (monthlyFinance.length > 0) {
+      return monthlyFinance.map((item) => ({
+        label: String(item.label ?? ""),
+        value: chartNumber(item, "revenue") - chartNumber(item, "expense")
+      }));
+    }
+    return [
+      { label: "Gross Revenue", value: revenue },
+      { label: "Direct OPEX", value: -expense * 0.7 },
+      { label: "Admin & Overhead", value: -expense * 0.3 },
+      { label: "Net EBITDA", value: ebitda }
+    ];
+  }, [monthlyFinance, revenue, expense, ebitda]);
+
   const trendEbitda = monthlyFinance.map((item) => ({
     label: String(item.label ?? ""),
     value: chartNumber(item, "revenue") - chartNumber(item, "expense"),
     revenue: chartNumber(item, "revenue"),
     expense: chartNumber(item, "expense")
   }));
+
   const frTrend = cashFlow.map((item) => {
     const inflow = chartNumber(item, "inflow");
     const outflow = chartNumber(item, "outflow");
     return {
       label: String(item.label ?? ""),
-      actual: outflow ? Number((inflow / outflow).toFixed(2)) : inflow,
+      actual: outflow ? Number((inflow / outflow).toFixed(2)) : (inflow ? 1 : 0),
       allowance: 1,
       budget: 1.05
     };
   });
-  const costProfile = [
-    { label: "Revenue", value: revenue },
-    { label: "Expense", value: -expense },
-    { label: "EBITDA", value: ebitda },
-    ...kpis.slice(0, 4).map((item) => ({ label: item.label, value: item.delta }))
-  ].filter((item) => item.label);
-  const controlRadar = kpis.slice(0, 7).map((item) => ({ label: item.label, value: Math.min(130, Math.max(0, 100 + item.delta)) }));
+
+  const costProfile = useMemo(() => {
+    return [
+      { label: "Revenue", value: revenue },
+      { label: "Expense", value: -expense },
+      { label: "EBITDA", value: ebitda }
+    ];
+  }, [revenue, expense, ebitda]);
+
+  const controlRadar = kpis.slice(0, 7).map((item) => ({
+    label: item.label,
+    value: Math.min(130, Math.max(0, 100 + (item.delta || 0)))
+  }));
+
   const areaRows = monthlyFinance.slice(-3);
   const volumeRows = [
-    ...cashPosition.slice(0, 3).map((item) => ({ label: String(item.label ?? "Cash"), plan: chartNumber(item, "value"), actual: chartNumber(item, "value"), next: chartNumber(item, "value") })),
-    ...agingReceivable.slice(0, 2).map((item) => ({ label: String(item.label ?? "AR"), plan: chartNumber(item, "value"), actual: chartNumber(item, "value"), next: chartNumber(item, "value") }))
+    ...cashPosition.slice(0, 3).map((item) => ({
+      label: String(item.label ?? "Cash"),
+      plan: chartNumber(item, "value") * 1.05,
+      actual: chartNumber(item, "value"),
+      next: chartNumber(item, "value") * 1.02
+    })),
+    ...agingReceivable.slice(0, 2).map((item) => ({
+      label: `AR ${String(item.label ?? "")}`,
+      plan: chartNumber(item, "value") * 0.9,
+      actual: chartNumber(item, "value"),
+      next: chartNumber(item, "value") * 0.85
+    }))
   ];
 
   return <section className="daily-finance">
@@ -206,7 +232,7 @@ export function DashboardPage({
         </article>
 
         <article className="daily-card parameter-card">
-          <div className="daily-logo-line"><strong>EFMS</strong><span>Enterprise Finance Management System</span></div>
+          <div className="daily-logo-line"><strong>FEAST</strong><span>Financial Enterprise Andalan System</span></div>
           <table className="daily-table compact-table">
             <tbody>
               <tr><td>Revenue</td><td>{shortValue(revenue)}</td><td>Actual</td></tr>

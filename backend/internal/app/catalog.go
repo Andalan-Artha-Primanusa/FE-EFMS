@@ -27,6 +27,13 @@ var permissions = []Permission{
 	{"approval", "act", "Approve, reject, hold, atau revision"},
 	{"operational_transaction", "read", "Melihat transaksi operasional"},
 	{"operational_transaction", "write", "Membuat transaksi operasional"},
+	{"ba_tracker", "write", "Membuat dan mengupdate status BA"},
+	{"ba_tracker", "verify", "Memverifikasi BA operasional (SPV)"},
+	{"ba_tracker", "approve", "Approve BA operasional (Manager)"},
+	{"invoice", "write", "Membuat draft invoice penagihan"},
+	{"invoice", "verify", "Memverifikasi draft invoice (SPV)"},
+	{"invoice", "approve_tier1", "Approval Tier 1 invoice (Manager)"},
+	{"invoice", "approve_tier2", "Approval Tier 2 invoice (Direktur)"},
 	{"accounting", "read", "Melihat proses accounting engine"},
 	{"accounting", "generate", "Generate jurnal otomatis"},
 	{"accounting", "approve", "Review dan approve jurnal"},
@@ -42,6 +49,14 @@ var permissions = []Permission{
 
 var rolePermissionMap = map[string][]string{
 	"Super Admin":                {"*:*"},
+	"Director":                   {"management_dashboard:read", "financial_report:read", "invoice:approve_tier2", "period_closing:close", "approval:act"},
+	"Direktur":                   {"management_dashboard:read", "financial_report:read", "invoice:approve_tier2", "period_closing:close", "approval:act"},
+	"Finance Manager":            {"master_data:*", "budget:*", "ba_tracker:*", "invoice:*", "approval:act", "accounting:approve", "reconciliation:run", "period_closing:review", "financial_report:read", "management_dashboard:read"},
+	"Manager":                    {"master_data:*", "budget:*", "ba_tracker:*", "invoice:*", "approval:act", "accounting:approve", "reconciliation:run", "period_closing:review", "financial_report:read", "management_dashboard:read"},
+	"SPV Verificator":            {"master_data:read", "ba_tracker:read", "ba_tracker:verify", "invoice:read", "invoice:verify", "operational_transaction:read", "financial_report:read"},
+	"SPV":                        {"master_data:read", "ba_tracker:read", "ba_tracker:verify", "invoice:read", "invoice:verify", "operational_transaction:read", "financial_report:read"},
+	"Admin Finance Site":         {"master_data:read", "ba_tracker:write", "ba_tracker:read", "invoice:write", "invoice:read", "operational_transaction:read"},
+	"Admin Finance HO":           {"master_data:*", "ba_tracker:read", "invoice:read", "invoice:write", "operational_transaction:*", "accounting:generate", "reconciliation:run", "financial_report:read"},
 	"Finance Admin":              {"master_data:*", "budget:*", "transaction_request:*", "approval:act", "operational_transaction:*", "accounting:*", "reconciliation:*", "period_closing:*", "financial_report:read", "management_dashboard:read", "audit_trail:read"},
 	"Accounting":                 {"master_data:read", "transaction_request:read", "accounting:*", "reconciliation:run", "period_closing:review", "financial_report:read"},
 	"Account Payable Officer":    {"master_data:read", "transaction_request:read", "operational_transaction:read", "operational_transaction:write", "accounting:generate", "reconciliation:run", "financial_report:read"},
@@ -52,9 +67,7 @@ var rolePermissionMap = map[string][]string{
 	"Tax Officer":                {"master_data:read", "operational_transaction:read", "operational_transaction:write", "accounting:generate", "reconciliation:run", "financial_report:read"},
 	"Department User":            {"master_data:read", "budget:read", "transaction_request:read", "transaction_request:submit"},
 	"Department Head":            {"budget:read", "transaction_request:read", "approval:act", "management_dashboard:read"},
-	"Finance Manager":            {"budget:approve", "transaction_request:read", "approval:act", "accounting:approve", "reconciliation:run", "period_closing:review", "financial_report:read", "management_dashboard:read"},
 	"General Manager":            {"approval:act", "period_closing:review", "financial_report:read", "management_dashboard:read"},
-	"Director":                   {"approval:act", "period_closing:close", "financial_report:read", "management_dashboard:read"},
 	"Auditor":                    {"master_data:read", "transaction_request:read", "operational_transaction:read", "accounting:read", "reconciliation:run", "period_closing:review", "financial_report:read", "audit_trail:read"},
 }
 
@@ -92,4 +105,9 @@ func RoleAccessCatalog() []RoleAccess {
 
 func RoleGrants(role string) []string {
 	return rolePermissionMap[role]
+}
+
+func IsSuperAdminRole(role string) bool {
+	r := strings.ToLower(strings.TrimSpace(role))
+	return r == "super admin" || r == "erp super admin" || strings.Contains(r, "super admin") || strings.Contains(r, "superadmin")
 }

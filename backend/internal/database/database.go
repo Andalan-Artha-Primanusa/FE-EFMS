@@ -14,6 +14,13 @@ import (
 )
 
 func Open(dsn string) (*sql.DB, error) {
+	if !strings.Contains(dsn, "timeout=") {
+		if strings.Contains(dsn, "?") {
+			dsn += "&timeout=2s&readTimeout=2s&writeTimeout=2s"
+		} else {
+			dsn += "?timeout=2s&readTimeout=2s&writeTimeout=2s"
+		}
+	}
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
@@ -22,7 +29,7 @@ func Open(dsn string) (*sql.DB, error) {
 	db.SetMaxIdleConns(10)
 	db.SetConnMaxLifetime(30 * time.Minute)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if err := db.PingContext(ctx); err != nil {
 		if strings.Contains(err.Error(), "Unknown database") {

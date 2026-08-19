@@ -212,6 +212,19 @@ type AuditLog struct {
 	CreatedAt     time.Time `json:"createdAt"`
 }
 
+type BankAccountMaster struct {
+	ID            int64     `json:"id"`
+	BankCode      string    `json:"bankCode"`
+	BankName      string    `json:"bankName"`
+	AccountNo     string    `json:"accountNo"`
+	AccountHolder string    `json:"accountHolder"`
+	Branch        string    `json:"branch"`
+	COAAccountID  int64     `json:"coaAccountId"`
+	Currency      string    `json:"currency"`
+	Status        string    `json:"status"`
+	CreatedAt     time.Time `json:"createdAt"`
+}
+
 type CustomerMaster struct {
 	ID             int64     `json:"id"`
 	Code           string    `json:"code"`
@@ -229,85 +242,176 @@ type CustomerMaster struct {
 	CreatedAt      time.Time `json:"createdAt"`
 }
 
+type BAItem struct {
+	ID                string  `json:"id"`
+	Category          string  `json:"category"` // "Operating & Mining" or "MDO"
+	Area              string  `json:"area"`     // e.g. "WM1"
+	Material          string  `json:"material"` // e.g. "Top Soil", "Saprolite", "Limonite", "Overburden/ Waste"
+	Unit              string  `json:"unit"`     // "LCM", "BCM", "WMT"
+	DistanceWeightAvg float64 `json:"distanceWeightAvg"`
+	InitialVolume     float64 `json:"initialVolume"`
+	AdjustedVolume    float64 `json:"adjustedVolume"`
+	Rate              float64 `json:"rate"`
+	SubtotalInitial   float64 `json:"subtotalInitial"`
+	SubtotalAdjusted  float64 `json:"subtotalAdjusted"`
+}
+
 type BATracker struct {
-	ID                 int64      `json:"id"`
-	BANumber           string     `json:"baNumber"`
-	CustomerCode       string     `json:"customerCode"`
-	WorkPeriod         string     `json:"workPeriod"`
-	WorkAmount         float64    `json:"workAmount"`
-	WorkEndDate        *time.Time `json:"workEndDate"`
-	BASubmittedDate    *time.Time `json:"baSubmittedDate"`
-	BASignedDate       *time.Time `json:"baSignedDate"`
-	LeadTimeDays       int        `json:"leadTimeDays"`
-	StatusBA           string     `json:"statusBA"`
-	PICAAP             string     `json:"picAAP"`
-	InvoiceNoLinked    string     `json:"invoiceNoLinked"`
-	InvoiceIssuedDate  *time.Time `json:"invoiceIssuedDate"`
-	LagBAToInvoiceDays int        `json:"lagBAToInvoiceDays"`
-	NotesBottleneck    string     `json:"notesBottleneck"`
-	Notes              string     `json:"notes"`
-	DraftBAPath        string     `json:"draftBAPath"`
-	FinalBAPath        string     `json:"finalBAPath"`
-	CreatedAt          time.Time  `json:"createdAt"`
+	ID                  int64      `json:"id"`
+	BANumber            string     `json:"baNumber"`
+	DraftBARefNo        string     `json:"draftBARefNo,omitempty"`
+	SignedBANumber      string     `json:"signedBANumber,omitempty"`
+	CustomerCode        string     `json:"customerCode"`
+	CustomerID          int64      `json:"customerId,omitempty"`
+	WorkPeriod          string     `json:"workPeriod"`
+	WorkAmount          float64    `json:"workAmount"`
+	InitialWorkAmount   float64    `json:"initialWorkAmount"`
+	AdjustedWorkAmount  float64    `json:"adjustedWorkAmount"`
+	Step1Locked         bool       `json:"step1Locked"`
+	Items               []BAItem   `json:"items,omitempty"`
+	WorkEndDate         *time.Time `json:"workEndDate"`
+	BASubmittedDate     *time.Time `json:"baSubmittedDate"`
+	BASentDate          *time.Time `json:"baSentDate"`
+	InternalRoutingDate *time.Time `json:"internalRoutingDate"`
+	BASignedDate        *time.Time `json:"baSignedDate"`
+	LeadTimeDays        int        `json:"leadTimeDays"`
+	StatusBA            string     `json:"statusBA"`
+	PICAAP              string     `json:"picAAP"`
+	InvoiceNoLinked     string     `json:"invoiceNoLinked"`
+	InvoiceID           int64      `json:"invoiceId,omitempty"`
+	InvoiceIssuedDate   *time.Time `json:"invoiceIssuedDate"`
+	LagBAToInvoiceDays  int        `json:"lagBAToInvoiceDays"`
+	NotesBottleneck     string     `json:"notesBottleneck"`
+	Notes               string     `json:"notes"`
+	DraftBAPath         string     `json:"draftBAPath"`
+	FinalBAPath         string     `json:"finalBAPath"`
+	VerifiedBy          string     `json:"verifiedBy,omitempty"`
+	VerifiedAt          *time.Time `json:"verifiedAt,omitempty"`
+	ApprovedBy          string     `json:"approvedBy,omitempty"`
+	ApprovedAt          *time.Time `json:"approvedAt,omitempty"`
+	CreatedAt           time.Time  `json:"createdAt"`
 }
 
 type InvoiceMaster struct {
-	ID             int64      `json:"id"`
-	InvoiceNo      string     `json:"invoiceNo"`
-	CustomerCode   string     `json:"customerCode"`
-	ProjectSite    string     `json:"projectSite"`
-	ContractNo     string     `json:"contractNo"`
-	Contractor     string     `json:"contractor"`
-	ActivityGroup  string     `json:"activityGroup"`
-	BANoReference  string     `json:"baNoReference"`
-	BADate         *time.Time `json:"baDate"`
-	WorkPeriod     string     `json:"workPeriod"`
-	JobType        string     `json:"jobType"`
-	VolumeUnit     string     `json:"volumeUnit"`
-	Volume         float64    `json:"volume"`
-	Rate           float64    `json:"rate"`
-	RevenueGross   float64    `json:"revenueGross"`
-	SolarDeduction float64    `json:"solarDeduction"`
-	SubTotalDPP    float64    `json:"subTotalDPP"`
-	PPN11          float64    `json:"ppn11"`
-	PPh23          float64    `json:"pph23"`
-	TotalInvoice   float64    `json:"totalInvoice"`
-	OtherDeduction float64    `json:"otherDeduction"`
-	TotalReceipt   float64    `json:"totalReceipt"`
-	InvoiceDate    time.Time  `json:"invoiceDate"`
-	TerminDays     int        `json:"terminDays"`
-	DueDate        time.Time  `json:"dueDate"`
-	TotalPaid      float64    `json:"totalPaid"`
-	Outstanding    float64    `json:"outstanding"`
-	Status         string     `json:"status"`
-	AgingDays      int        `json:"agingDays"`
-	AgingBucket    string     `json:"agingBucket"`
-	Notes          string     `json:"notes"`
-	CreatedAt      time.Time  `json:"createdAt"`
+	ID                 int64      `json:"id"`
+	InvoiceNo          string     `json:"invoiceNo"`
+	InvoiceCategory    string     `json:"invoiceCategory,omitempty"` // "Operation & Mining", "MDO", "General"
+	CustomerCode       string     `json:"customerCode"`
+	CustomerID         int64      `json:"customerId,omitempty"`
+	ProjectSite        string     `json:"projectSite"`
+	ContractNo         string     `json:"contractNo"`
+	Contractor         string     `json:"contractor"`
+	ActivityGroup      string     `json:"activityGroup"`
+	BANoReference      string     `json:"baNoReference"`
+	BAID               int64      `json:"baId,omitempty"`
+	BADate             *time.Time `json:"baDate"`
+	WorkPeriod         string     `json:"workPeriod"`
+	JobType            string     `json:"jobType"`
+	VolumeUnit         string     `json:"volumeUnit"`
+	Volume             float64    `json:"volume"`
+	Rate               float64    `json:"rate"`
+	RevenueGross       float64    `json:"revenueGross"`
+	SolarDeduction     float64    `json:"solarDeduction"`
+	SubTotalDPP        float64    `json:"subTotalDPP"`
+	PPN11              float64    `json:"ppn11"`
+	PPNRate            float64    `json:"ppnRate,omitempty"`
+	PPh23              float64    `json:"pph23"`
+	PPhRate            float64    `json:"pphRate,omitempty"`
+	TotalInvoice       float64    `json:"totalInvoice"`
+	OtherDeduction     float64    `json:"otherDeduction"`
+	TotalReceipt       float64    `json:"totalReceipt"`
+	InvoiceDate        time.Time  `json:"invoiceDate"`
+	TerminDays         int        `json:"terminDays"`
+	DueDate            time.Time  `json:"dueDate"`
+	TotalPaid          float64    `json:"totalPaid"`
+	Outstanding        float64    `json:"outstanding"`
+	Status             string     `json:"status"`
+	AgingDays          int        `json:"agingDays"`
+	AgingBucket        string     `json:"agingBucket"`
+	BankAccountID      int64      `json:"bankAccountId,omitempty"`
+	BankName           string     `json:"bankName"`
+	BankAccountName    string     `json:"bankAccountName"`
+	BankAccountNo      string     `json:"bankAccountNo"`
+	BankBranch         string     `json:"bankBranch"`
+	Notes              string     `json:"notes"`
+	VerifiedBy         string     `json:"verifiedBy,omitempty"`
+	VerifiedAt         *time.Time `json:"verifiedAt,omitempty"`
+	ApprovedManagerBy  string     `json:"approvedManagerBy,omitempty"`
+	ApprovedManagerAt  *time.Time `json:"approvedManagerAt,omitempty"`
+	ApprovedDirectorBy string     `json:"approvedDirectorBy,omitempty"`
+	ApprovedDirectorAt *time.Time `json:"approvedDirectorAt,omitempty"`
+	CreatedAt          time.Time  `json:"createdAt"`
+}
+
+type DocumentApprovalAction struct {
+	Action string `json:"action"` // "verify", "approve_tier1", "approve_tier2", "reject"
+	Note   string `json:"note"`
 }
 
 type PaymentLog struct {
-	ID              int64     `json:"id"`
-	InvoiceNo       string    `json:"invoiceNo"`
-	CustomerCode    string    `json:"customerCode"`
-	AmountPaid      float64   `json:"amountPaid"`
-	PaymentDate     time.Time `json:"paymentDate"`
-	ReceivingBank   string    `json:"receivingBank"`
-	RefNo           string    `json:"refNo"`
-	PaymentPeriod   string    `json:"paymentPeriod"`
-	Notes           string    `json:"notes"`
-	DaysLateOrEarly int       `json:"daysLateOrEarly"`
-	CreatedAt       time.Time `json:"createdAt"`
+	ID                 int64      `json:"id"`
+	InvoiceNo          string     `json:"invoiceNo"`
+	InvoiceID          int64      `json:"invoiceId,omitempty"`
+	CustomerCode       string     `json:"customerCode"`
+	CustomerID         int64      `json:"customerId,omitempty"`
+	AmountPaid         float64    `json:"amountPaid"`
+	PaymentDate        time.Time  `json:"paymentDate"`
+	BankAccountID      int64      `json:"bankAccountId,omitempty"`
+	ReceivingBank      string     `json:"receivingBank"`
+	RefNo              string     `json:"refNo"`
+	PaymentPeriod      string     `json:"paymentPeriod"`
+	Notes              string     `json:"notes"`
+	DaysLateOrEarly    int        `json:"daysLateOrEarly"`
+	CreatedBy          string     `json:"createdBy"`
+	VerificationStatus string     `json:"verificationStatus"` // "Verified", "Pending", "Rejected"
+	VerifiedBy         string     `json:"verifiedBy"`
+	VerifiedAt         *time.Time `json:"verifiedAt"`
+	ProofDocumentPath  string     `json:"proofDocumentPath"`
+	CreatedAt          time.Time  `json:"createdAt"`
 }
 
 type VariableSOW struct {
-	ID          int64     `json:"id"`
-	Category    string    `json:"category"`
-	ItemName    string    `json:"itemName"`
-	RateUSD     float64   `json:"rateUSD"`
-	Unit        string    `json:"unit"`
-	Customer    string    `json:"customer"`
-	Description string    `json:"description"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"createdAt"`
+	ID           int64     `json:"id"`
+	Category     string    `json:"category"`
+	ItemName     string    `json:"itemName"`
+	RateUSD      float64   `json:"rateUSD"`
+	RateIDR      float64   `json:"rateIDR"`
+	Unit         string    `json:"unit"`
+	Customer     string    `json:"customer"`
+	CustomerCode string    `json:"customerCode"`
+	ContractNo   string    `json:"contractNo"`
+	Description  string    `json:"description"`
+	Status       string    `json:"status"`
+	CreatedAt    time.Time `json:"createdAt"`
 }
+
+type RaiseFallMaster struct {
+	ID            int64     `json:"id"`
+	Period        string    `json:"period"`
+	CustomerCode  string    `json:"customerCode"`
+	ProjectSite   string    `json:"projectSite"`
+	ContractNo    string    `json:"contractNo"`
+	WeightFuelA   float64   `json:"weightFuelA"`
+	WeightLaborB  float64   `json:"weightLaborB"`
+	WeightFixedC  float64   `json:"weightFixedC"`
+	BaseFuelFo    float64   `json:"baseFuelFo"`
+	BaseLaborLo   float64   `json:"baseLaborLo"`
+	BaseForexXo   float64   `json:"baseForexXo"`
+	ActualFuelFn  float64   `json:"actualFuelFn"`
+	ActualLaborLn float64   `json:"actualLaborLn"`
+	ActualMRateXn float64   `json:"actualMRateXn"`
+	RFIndexResult float64   `json:"rfIndexResult"`
+	Notes         string    `json:"notes"`
+	UpdatedAt     time.Time `json:"updatedAt"`
+}
+
+type DailyExchangeRate struct {
+	ID         int64   `json:"id"`
+	Period     string  `json:"period"`
+	No         int     `json:"no"`
+	DateStr    string  `json:"dateStr"`
+	KursJual   float64 `json:"kursJual"`
+	KursBeli   float64 `json:"kursBeli"`
+	KursTengah float64 `json:"kursTengah"`
+}
+

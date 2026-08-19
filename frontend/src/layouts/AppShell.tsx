@@ -11,6 +11,7 @@ import { ModulePage } from "../pages/ModulePage";
 import { RBACPage } from "../pages/RBACPage";
 
 import { VariableSOWPage } from "../pages/VariableSOWPage";
+import { MasterRaiseFallPage } from "../pages/MasterRaiseFallPage";
 
 export function AppShell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
@@ -84,6 +85,12 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
     loadView(activeView).catch((err) => setNotice(err instanceof Error ? err.message : "Gagal memuat data"));
   }, [activeView]);
 
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(""), 4500);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
   function openView(item: string) {
     setActiveView(item);
     setSidebarOpen(false);
@@ -109,7 +116,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
       <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-brand">
           <div className="sidebar-logo-full">
-            <img src="/efms-logo-transparent.png" alt="EFMS" />
+            <img src={sidebarCollapsed ? "/app-icon.webp" : "/feast-logo.webp"} alt="FEAST Financial Enterprise Andalan System" />
           </div>
         </div>
         <nav>
@@ -148,10 +155,12 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
           ? <RBACPage user={user} roles={roles} myPermissions={permissions} />
           : activeView === "Finance Dashboard"
           ? <DashboardPage dashboard={dashboard} transactions={transactions} query={query} onRefresh={refresh} onCreate={() => setModalOpen(true)} onNotice={setNotice} />
-          : ["Finance & AR Dashboard", "Berita Acara (BA) Tracker", "Invoice Management", "Payment & Receipt Log", "Customer & Credit Terms"].includes(activeView)
-          ? <FinancePage viewTitle={activeView} query={query} onNotice={setNotice} />
+          : ["Finance & AR Dashboard", "Berita Acara (BA) Tracker", "Invoice Management", "Payment & Receipt Log", "Customer & Credit Terms", "Customer Master & Credit Terms"].includes(activeView)
+          ? <FinancePage viewTitle={activeView} query={query} onNotice={setNotice} user={user} />
           : activeView === "Variable SOW"
           ? <VariableSOWPage viewTitle={activeView} query={query} onNotice={setNotice} />
+          : (activeView === "RAISE & FALL" || activeView === "Currency")
+          ? <MasterRaiseFallPage viewTitle={activeView} query={query} onNotice={setNotice} initialTab={activeView === "Currency" ? "mrate" : "monthly"} />
           : <ModulePage
               config={activeConfig}
               rows={viewRows}
@@ -165,7 +174,26 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
       </main>
       <NotificationPanel items={notifications} open={notificationOpen} onClose={() => setNotificationOpen(false)} />
       {modalOpen && <TransactionModal transaction={editingTransaction} onClose={() => setModalOpen(false)} onSaved={async () => { setModalOpen(false); setEditingTransaction(null); setNotice("Pengajuan transaksi disimpan dan masuk approval workflow."); await refreshAll(); }} />}
-      {notice && <div className="toast" onClick={() => setNotice("")}>{notice}<X size={16} /></div>}
+      {notice && (
+        <div
+          className="fixed top-5 left-1/2 -translate-x-1/2 z-[99999] max-w-xl w-[92%] sm:w-auto flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-900 text-white shadow-2xl border border-slate-700/80 backdrop-blur-md transition-all duration-300 pointer-events-auto cursor-pointer"
+          onClick={() => setNotice("")}
+        >
+          <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold">
+            <span>{notice}</span>
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setNotice("");
+            }}
+            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

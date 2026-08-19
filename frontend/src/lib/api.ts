@@ -113,6 +113,17 @@ export async function importCSV(type: string, file: File) {
   });
 }
 
+export async function uploadDocumentFile(file: File, module = "Finance", category = "BA Attachment") {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("module", module);
+  form.append("category", category);
+  return api<{ fileName: string; storedName: string; url: string; sizeBytes: number }>("/api/documents", {
+    method: "POST",
+    body: form
+  });
+}
+
 export function createTransaction(input: { type: string; companyId: number; description: string; amount: number }) {
   return api<Transaction>("/api/transactions", { method: "POST", body: JSON.stringify(input) });
 }
@@ -155,6 +166,26 @@ export function runReconciliation(type: string, period: string) {
 
 export function closePeriod(period: string) {
   return api("/api/closing-periods/close", { method: "POST", body: JSON.stringify({ period }) });
+}
+
+export function verifyBATracker(id: number, action: "verify" | "reject", note: string) {
+  return api(`/api/finance/ba-trackers/${id}/verify`, { method: "POST", body: JSON.stringify({ action, note }) });
+}
+
+export function approveBATracker(id: number, action: "approve" | "reject", note: string) {
+  return api(`/api/finance/ba-trackers/${id}/approve`, { method: "POST", body: JSON.stringify({ action, note }) });
+}
+
+export function verifyInvoice(id: number, action: "verify" | "reject", note: string) {
+  return api(`/api/finance/invoices/${id}/verify`, { method: "POST", body: JSON.stringify({ action, note }) });
+}
+
+export function approveInvoiceTier1(id: number, action: "approve" | "reject", note: string) {
+  return api(`/api/finance/invoices/${id}/approve-tier1`, { method: "POST", body: JSON.stringify({ action, note }) });
+}
+
+export function approveInvoiceTier2(id: number, action: "approve" | "reject", note: string) {
+  return api(`/api/finance/invoices/${id}/approve-tier2`, { method: "POST", body: JSON.stringify({ action, note }) });
 }
 
 export const money = (value: number) =>
