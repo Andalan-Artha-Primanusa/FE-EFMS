@@ -48,6 +48,9 @@ func (api *fiberAPI) baTrackers(c *fiber.Ctx) error {
 }
 
 func (api *fiberAPI) saveBATracker(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "ba_tracker", "write"); err != nil {
+		return err
+	}
 	var body app.BATracker
 	if err := parseCleanJSONBody(c, &body); err != nil {
 		return err
@@ -61,17 +64,24 @@ func (api *fiberAPI) saveBATracker(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "ba_tracker", "save", "BATracker", strconv.FormatInt(res.ID, 10), nil, res, c.IP(), c.Get("User-Agent"))
 	return c.JSON(res)
 }
 
 func (api *fiberAPI) deleteBATracker(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "ba_tracker", "delete"); err != nil {
+		return err
+	}
 	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid ID")
 	}
 	if err := api.service.DeleteBATracker(c.Context(), id); err != nil {
-		return err
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "ba_tracker", "delete", "BATracker", strconv.FormatInt(id, 10), nil, nil, c.IP(), c.Get("User-Agent"))
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
@@ -86,6 +96,9 @@ func (api *fiberAPI) financeInvoices(c *fiber.Ctx) error {
 }
 
 func (api *fiberAPI) saveInvoice(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "invoice", "write"); err != nil {
+		return err
+	}
 	var body app.InvoiceMaster
 	if err := parseCleanJSONBody(c, &body); err != nil {
 		return err
@@ -99,68 +112,43 @@ func (api *fiberAPI) saveInvoice(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "invoice", "save", "InvoiceMaster", strconv.FormatInt(res.ID, 10), nil, res, c.IP(), c.Get("User-Agent"))
 	return c.JSON(res)
 }
 
 func (api *fiberAPI) deleteInvoice(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "invoice", "delete"); err != nil {
+		return err
+	}
 	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid ID")
 	}
 	if err := api.service.DeleteInvoice(c.Context(), id); err != nil {
-		return err
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "invoice", "delete", "InvoiceMaster", strconv.FormatInt(id, 10), nil, nil, c.IP(), c.Get("User-Agent"))
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func checkRolePermission(c *fiber.Ctx, module string, action string) error {
+func checkRolePermission(c *fiber.Ctx, svc *app.Service, module string, action string) error {
 	u := currentFiberUser(c)
 	role := strings.TrimSpace(u.Role)
 	if app.IsSuperAdminRole(role) {
 		return nil
 	}
 
-	allowed := false
-	switch module {
-	case "ba_tracker":
-		switch action {
-		case "verify":
-			allowed = role == "Finance Specialist" || role == "Finance Specialist AAP" || role == "SPV Verificator" || role == "SPV Site" || role == "SPV" || role == "Finance Manager" || role == "FATB Manager" || role == "Manager" || role == "Finance Admin" || role == "Admin Finance HO" || role == "Super Admin" || role == "Superadmin"
-		case "approve":
-			allowed = role == "FATB Manager" || role == "Finance Manager" || role == "Manager" || role == "General Manager" || role == "Director" || role == "Direktur" || role == "Finance Admin" || role == "Super Admin" || role == "Superadmin"
-		case "write", "save", "delete":
-			allowed = role == "Finance Specialist" || role == "Finance Specialist AAP" || role == "Admin Finance Site" || role == "Admin Finance HO" || role == "Finance Admin" || role == "Finance Manager" || role == "FATB Manager" || role == "Manager" || role == "SPV Site" || role == "SPV Verificator" || role == "SPV" || role == "Super Admin" || role == "Superadmin"
-		}
-	case "invoice":
-		switch action {
-		case "verify":
-			allowed = role == "SPV Verificator" || role == "SPV Site" || role == "SPV" || role == "Finance Manager" || role == "Manager" || role == "Finance Admin" || role == "Admin Finance HO"
-		case "approve_tier1":
-			allowed = role == "Finance Manager" || role == "Manager" || role == "General Manager" || role == "Finance Admin"
-		case "approve_tier2":
-			allowed = role == "Director" || role == "Direktur" || role == "General Manager" || role == "Finance Manager" || role == "Manager"
-		case "write", "save", "delete":
-			allowed = role == "Admin Finance Site" || role == "Admin Finance HO" || role == "Finance Admin" || role == "Account Receivable Officer" || role == "Finance Manager" || role == "Manager"
-		}
-	case "payment":
-		switch action {
-		case "verify":
-			allowed = role == "Finance Specialist" || role == "SPV Verificator" || role == "SPV" || role == "Treasury" || role == "Finance Manager" || role == "Manager" || role == "Finance Admin"
-		case "write", "save", "delete":
-			allowed = role == "Treasury Admin" || role == "AR Admin" || role == "Account Receivable Officer" || role == "Treasury" || role == "Finance Admin" || role == "Finance Manager" || role == "Manager"
-		}
-	case "customer", "master_data":
-		allowed = role == "Finance Manager" || role == "Manager" || role == "Finance Admin" || role == "Admin Finance HO" || role == "Account Receivable Officer"
+	if svc != nil && svc.HasPermission(c.UserContext(), role, module, action) {
+		return nil
 	}
 
-	if !allowed {
-		return fiber.NewError(fiber.StatusForbidden, fmt.Sprintf("Akses Ditolak: Role '%s' tidak memiliki izin untuk %s %s", u.Role, action, module))
-	}
-	return nil
+	return fiber.NewError(fiber.StatusForbidden, fmt.Sprintf("Akses Ditolak: Role '%s' tidak memiliki izin untuk %s %s", u.Role, action, module))
 }
 
 func (api *fiberAPI) verifyBATracker(c *fiber.Ctx) error {
-	if err := checkRolePermission(c, "ba_tracker", "verify"); err != nil {
+	if err := checkRolePermission(c, api.service, "ba_tracker", "verify"); err != nil {
 		return err
 	}
 	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
@@ -178,11 +166,12 @@ func (api *fiberAPI) verifyBATracker(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+	api.service.Audit(c.Context(), user.ID, "ba_tracker", "verify", "BATracker", strconv.FormatInt(id, 10), nil, res, c.IP(), c.Get("User-Agent"))
 	return c.JSON(res)
 }
 
 func (api *fiberAPI) approveBATracker(c *fiber.Ctx) error {
-	if err := checkRolePermission(c, "ba_tracker", "approve"); err != nil {
+	if err := checkRolePermission(c, api.service, "ba_tracker", "approve"); err != nil {
 		return err
 	}
 	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
@@ -200,11 +189,12 @@ func (api *fiberAPI) approveBATracker(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+	api.service.Audit(c.Context(), user.ID, "ba_tracker", "approve", "BATracker", strconv.FormatInt(id, 10), nil, res, c.IP(), c.Get("User-Agent"))
 	return c.JSON(res)
 }
 
 func (api *fiberAPI) verifyInvoice(c *fiber.Ctx) error {
-	if err := checkRolePermission(c, "invoice", "verify"); err != nil {
+	if err := checkRolePermission(c, api.service, "invoice", "verify"); err != nil {
 		return err
 	}
 	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
@@ -222,11 +212,12 @@ func (api *fiberAPI) verifyInvoice(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+	api.service.Audit(c.Context(), user.ID, "invoice", "verify", "InvoiceMaster", strconv.FormatInt(id, 10), nil, res, c.IP(), c.Get("User-Agent"))
 	return c.JSON(res)
 }
 
 func (api *fiberAPI) approveInvoiceTier1(c *fiber.Ctx) error {
-	if err := checkRolePermission(c, "invoice", "approve_tier1"); err != nil {
+	if err := checkRolePermission(c, api.service, "invoice", "approve_tier1"); err != nil {
 		return err
 	}
 	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
@@ -244,11 +235,12 @@ func (api *fiberAPI) approveInvoiceTier1(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+	api.service.Audit(c.Context(), user.ID, "invoice", "approve_tier1", "InvoiceMaster", strconv.FormatInt(id, 10), nil, res, c.IP(), c.Get("User-Agent"))
 	return c.JSON(res)
 }
 
 func (api *fiberAPI) approveInvoiceTier2(c *fiber.Ctx) error {
-	if err := checkRolePermission(c, "invoice", "approve_tier2"); err != nil {
+	if err := checkRolePermission(c, api.service, "invoice", "approve_tier2"); err != nil {
 		return err
 	}
 	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
@@ -266,6 +258,7 @@ func (api *fiberAPI) approveInvoiceTier2(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+	api.service.Audit(c.Context(), user.ID, "invoice", "approve_tier2", "InvoiceMaster", strconv.FormatInt(id, 10), nil, res, c.IP(), c.Get("User-Agent"))
 	return c.JSON(res)
 }
 
@@ -280,6 +273,9 @@ func (api *fiberAPI) financePayments(c *fiber.Ctx) error {
 }
 
 func (api *fiberAPI) savePayment(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "payment", "write"); err != nil {
+		return err
+	}
 	var body app.PaymentLog
 	if err := parseCleanJSONBody(c, &body); err != nil {
 		return err
@@ -293,10 +289,15 @@ func (api *fiberAPI) savePayment(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "payment", "save", "PaymentLog", strconv.FormatInt(res.ID, 10), nil, res, c.IP(), c.Get("User-Agent"))
 	return c.JSON(res)
 }
 
 func (api *fiberAPI) verifyPayment(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "payment", "verify"); err != nil {
+		return err
+	}
 	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid ID")
@@ -306,14 +307,23 @@ func (api *fiberAPI) verifyPayment(c *fiber.Ctx) error {
 	}
 	var body reqBody
 	_ = parseCleanJSONBody(c, &body)
-	res, err := api.service.VerifyPayment(c.Context(), id, body.VerifiedBy)
+	user := currentFiberUser(c)
+	verifierName := body.VerifiedBy
+	if verifierName == "" && user.Name != "" {
+		verifierName = fmt.Sprintf("%s (%s)", user.Name, user.Role)
+	}
+	res, err := api.service.VerifyPayment(c.Context(), id, verifierName)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+	api.service.Audit(c.Context(), user.ID, "payment", "verify", "PaymentLog", strconv.FormatInt(id, 10), nil, res, c.IP(), c.Get("User-Agent"))
 	return c.JSON(res)
 }
 
 func (api *fiberAPI) deletePayment(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "payment", "delete"); err != nil {
+		return err
+	}
 	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid ID")
@@ -321,6 +331,8 @@ func (api *fiberAPI) deletePayment(c *fiber.Ctx) error {
 	if err := api.service.DeletePayment(c.Context(), id); err != nil {
 		return err
 	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "payment", "delete", "PaymentLog", strconv.FormatInt(id, 10), nil, nil, c.IP(), c.Get("User-Agent"))
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
@@ -335,6 +347,9 @@ func (api *fiberAPI) financeCustomers(c *fiber.Ctx) error {
 }
 
 func (api *fiberAPI) saveCustomer(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "master_data", "write"); err != nil {
+		return err
+	}
 	var body app.CustomerMaster
 	if err := c.BodyParser(&body); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid JSON body")
@@ -348,10 +363,15 @@ func (api *fiberAPI) saveCustomer(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "customer", "save", "CustomerMaster", strconv.FormatInt(res.ID, 10), nil, res, c.IP(), c.Get("User-Agent"))
 	return c.JSON(res)
 }
 
 func (api *fiberAPI) deleteCustomer(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "master_data", "delete"); err != nil {
+		return err
+	}
 	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid ID")
@@ -359,6 +379,8 @@ func (api *fiberAPI) deleteCustomer(c *fiber.Ctx) error {
 	if err := api.service.DeleteCustomer(c.Context(), id); err != nil {
 		return err
 	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "customer", "delete", "CustomerMaster", strconv.FormatInt(id, 10), nil, nil, c.IP(), c.Get("User-Agent"))
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
@@ -373,6 +395,9 @@ func (api *fiberAPI) variableSOWs(c *fiber.Ctx) error {
 }
 
 func (api *fiberAPI) saveVariableSOW(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "master_data", "write"); err != nil {
+		return err
+	}
 	var body app.VariableSOW
 	if err := c.BodyParser(&body); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid JSON body")
@@ -386,10 +411,15 @@ func (api *fiberAPI) saveVariableSOW(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "variable_sow", "save", "VariableSOW", strconv.FormatInt(res.ID, 10), nil, res, c.IP(), c.Get("User-Agent"))
 	return c.JSON(res)
 }
 
 func (api *fiberAPI) deleteVariableSOW(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "master_data", "delete"); err != nil {
+		return err
+	}
 	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid ID")
@@ -397,6 +427,8 @@ func (api *fiberAPI) deleteVariableSOW(c *fiber.Ctx) error {
 	if err := api.service.DeleteVariableSOW(c.Context(), id); err != nil {
 		return err
 	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "variable_sow", "delete", "VariableSOW", strconv.FormatInt(id, 10), nil, nil, c.IP(), c.Get("User-Agent"))
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
@@ -411,6 +443,9 @@ func (api *fiberAPI) raiseFallMasters(c *fiber.Ctx) error {
 }
 
 func (api *fiberAPI) saveRaiseFallMaster(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "master_data", "write"); err != nil {
+		return err
+	}
 	var body app.RaiseFallMaster
 	if err := c.BodyParser(&body); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid JSON body")
@@ -424,10 +459,15 @@ func (api *fiberAPI) saveRaiseFallMaster(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "raise_fall", "save", "RaiseFallMaster", strconv.FormatInt(res.ID, 10), nil, res, c.IP(), c.Get("User-Agent"))
 	return c.JSON(res)
 }
 
 func (api *fiberAPI) deleteRaiseFallMaster(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "master_data", "delete"); err != nil {
+		return err
+	}
 	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid ID")
@@ -435,6 +475,8 @@ func (api *fiberAPI) deleteRaiseFallMaster(c *fiber.Ctx) error {
 	if err := api.service.DeleteRaiseFallMaster(c.Context(), id); err != nil {
 		return err
 	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "raise_fall", "delete", "RaiseFallMaster", strconv.FormatInt(id, 10), nil, nil, c.IP(), c.Get("User-Agent"))
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
@@ -449,6 +491,9 @@ func (api *fiberAPI) dailyExchangeRates(c *fiber.Ctx) error {
 }
 
 func (api *fiberAPI) saveDailyExchangeRate(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "master_data", "write"); err != nil {
+		return err
+	}
 	var body app.DailyExchangeRate
 	if err := c.BodyParser(&body); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid JSON body")
@@ -462,10 +507,15 @@ func (api *fiberAPI) saveDailyExchangeRate(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "exchange_rate", "save", "DailyExchangeRate", strconv.FormatInt(res.ID, 10), nil, res, c.IP(), c.Get("User-Agent"))
 	return c.JSON(res)
 }
 
 func (api *fiberAPI) importBIExchangeRates(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "master_data", "write"); err != nil {
+		return err
+	}
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "No file uploaded")
@@ -491,6 +541,9 @@ func (api *fiberAPI) importBIExchangeRates(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
 
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "exchange_rate", "import", "BIExchangeRate", period, nil, map[string]any{"count": count, "avgMRate": avgMRate, "rfIndex": rfIndex}, c.IP(), c.Get("User-Agent"))
+
 	return c.JSON(fiber.Map{
 		"message":       fmt.Sprintf("Berhasil mengimpor %d data kurs dari file Excel BI! Rata-rata M-Rate (Xn): Rp %.2f, RF Index: %.3f", count, avgMRate, rfIndex),
 		"count":         count,
@@ -510,6 +563,9 @@ func (api *fiberAPI) bankAccounts(c *fiber.Ctx) error {
 }
 
 func (api *fiberAPI) saveBankAccount(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "master_data", "write"); err != nil {
+		return err
+	}
 	var body app.BankAccountMaster
 	if err := c.BodyParser(&body); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid JSON body")
@@ -523,10 +579,15 @@ func (api *fiberAPI) saveBankAccount(c *fiber.Ctx) error {
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, err.Error())
 	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "bank_account", "save", "BankAccountMaster", strconv.FormatInt(res.ID, 10), nil, res, c.IP(), c.Get("User-Agent"))
 	return c.JSON(res)
 }
 
 func (api *fiberAPI) deleteBankAccount(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "master_data", "delete"); err != nil {
+		return err
+	}
 	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
 	if err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "Invalid ID")
@@ -534,6 +595,8 @@ func (api *fiberAPI) deleteBankAccount(c *fiber.Ctx) error {
 	if err := api.service.DeleteBankAccount(c.Context(), id); err != nil {
 		return err
 	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "bank_account", "delete", "BankAccountMaster", strconv.FormatInt(id, 10), nil, nil, c.IP(), c.Get("User-Agent"))
 	return c.SendStatus(fiber.StatusNoContent)
 }
 

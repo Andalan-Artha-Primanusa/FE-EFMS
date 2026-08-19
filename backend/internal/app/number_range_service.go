@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 func (s *Service) PreviewNumber(ctx context.Context, objectCode, objectType string) (string, error) {
@@ -15,6 +16,13 @@ func (s *Service) PreviewNumber(ctx context.Context, objectCode, objectType stri
 }
 
 func (s *Service) NextNumber(ctx context.Context, objectCode, objectType string) (string, error) {
+	if s == nil || s.sql == nil {
+		prefix := "NR"
+		if len(objectCode) >= 3 {
+			prefix = objectCode[:3]
+		}
+		return fmt.Sprintf("%s-%d", prefix, time.Now().UnixNano()%100000), nil
+	}
 	tx, err := s.sql.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return "", err

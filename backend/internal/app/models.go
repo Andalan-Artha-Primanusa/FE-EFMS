@@ -12,6 +12,14 @@ type User struct {
 	LastLoginAt      *time.Time `json:"lastLoginAt"`
 }
 
+type UserInput struct {
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password,omitempty"`
+	Role     string `json:"role"`
+	Status   string `json:"status"`
+}
+
 type LoginResult struct {
 	Token string `json:"token"`
 	User  User   `json:"user"`

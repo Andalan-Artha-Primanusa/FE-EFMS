@@ -4,7 +4,8 @@ export type User = {
   email: string;
   role: string;
   status: string;
-  twoFactorEnabled: boolean;
+  twoFactorEnabled?: boolean;
+  lastLoginAt?: string | null;
 };
 
 export type Transaction = {
@@ -186,6 +187,22 @@ export function approveInvoiceTier1(id: number, action: "approve" | "reject", no
 
 export function approveInvoiceTier2(id: number, action: "approve" | "reject", note: string) {
   return api(`/api/finance/invoices/${id}/approve-tier2`, { method: "POST", body: JSON.stringify({ action, note }) });
+}
+
+export function getUsers() {
+  return api<User[]>("/api/users");
+}
+
+export function createUser(input: { name: string; email: string; password?: string; role: string; status: string }) {
+  return api<User>("/api/users", { method: "POST", body: JSON.stringify(input) });
+}
+
+export function updateUser(id: number, input: { name: string; email: string; password?: string; role: string; status: string }) {
+  return api<User>(`/api/users/${id}`, { method: "PUT", body: JSON.stringify(input) });
+}
+
+export function deleteUser(id: number) {
+  return api<{ status: string }>(`/api/users/${id}`, { method: "DELETE" });
 }
 
 export const money = (value: number) =>

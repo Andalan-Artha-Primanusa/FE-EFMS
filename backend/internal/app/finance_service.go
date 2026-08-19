@@ -787,6 +787,23 @@ func (s *Service) DeleteBATracker(ctx context.Context, id int64) error {
 	st := getStore()
 	st.mu.Lock()
 	defer st.mu.Unlock()
+
+	var target *BATracker
+	for i := range st.baList {
+		if st.baList[i].ID == id {
+			target = &st.baList[i]
+			break
+		}
+	}
+	if target == nil {
+		return errors.New("Berita Acara tidak ditemukan")
+	}
+	for _, inv := range st.invoices {
+		if (inv.BANoReference != "" && inv.BANoReference == target.BANumber) || (target.DraftBARefNo != "" && inv.BANoReference == target.DraftBARefNo) {
+			return fmt.Errorf("Berita Acara '%s' tidak dapat dihapus karena sudah memiliki invoice terhubung (%s)", target.BANumber, inv.InvoiceNo)
+		}
+	}
+
 	newList := []BATracker{}
 	for _, ba := range st.baList {
 		if ba.ID != id {
@@ -851,6 +868,26 @@ func (s *Service) DeleteInvoice(ctx context.Context, id int64) error {
 	st := getStore()
 	st.mu.Lock()
 	defer st.mu.Unlock()
+
+	var target *InvoiceMaster
+	for i := range st.invoices {
+		if st.invoices[i].ID == id {
+			target = &st.invoices[i]
+			break
+		}
+	}
+	if target == nil {
+		return errors.New("Invoice tidak ditemukan")
+	}
+	if target.TotalPaid > 0 {
+		return errors.New("Invoice tidak dapat dihapus karena sudah memiliki riwayat pembayaran (Total Paid > 0)")
+	}
+	for _, p := range st.payments {
+		if p.InvoiceNo == target.InvoiceNo {
+			return errors.New("Invoice tidak dapat dihapus karena terdapat log pembayaran terhubung")
+		}
+	}
+
 	newList := []InvoiceMaster{}
 	for _, inv := range st.invoices {
 		if inv.ID != id {

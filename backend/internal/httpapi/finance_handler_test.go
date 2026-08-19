@@ -167,3 +167,211 @@ func TestVerifyPayment_SuperAdmin(t *testing.T) {
 		t.Fatalf("Expected status 200 for payment verify, got %d", resp.StatusCode)
 	}
 }
+
+func TestSaveBATracker_RBAC(t *testing.T) {
+	cfg := config.Config{AppSecret: "secret123", CORSOrigin: "http://127.0.0.1:5175"}
+	svc := app.New(nil, cfg)
+	fiberApp := NewFiberApp(svc, cfg)
+
+	// 1. Department User should be forbidden (403)
+	depToken := createTestToken("Department User", cfg)
+	baBody, _ := json.Marshal(map[string]any{
+		"customerCode": "POS",
+		"workPeriod":   "Juni 2026",
+		"workAmount":   500000000,
+	})
+	req1 := httptest.NewRequest("POST", "/api/finance/ba-trackers", bytes.NewReader(baBody))
+	req1.Header.Set("Content-Type", "application/json")
+	req1.Header.Set("Authorization", "Bearer "+depToken)
+	resp1, _ := fiberApp.Test(req1, -1)
+	if resp1.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("Expected 403 Forbidden for Department User creating BA, got %d", resp1.StatusCode)
+	}
+
+	// 2. Admin Finance Site should be allowed (200)
+	siteToken := createTestToken("Admin Finance Site", cfg)
+	req2 := httptest.NewRequest("POST", "/api/finance/ba-trackers", bytes.NewReader(baBody))
+	req2.Header.Set("Content-Type", "application/json")
+	req2.Header.Set("Authorization", "Bearer "+siteToken)
+	resp2, _ := fiberApp.Test(req2, -1)
+	if resp2.StatusCode != fiber.StatusOK {
+		t.Fatalf("Expected 200 OK for Admin Finance Site creating BA, got %d", resp2.StatusCode)
+	}
+}
+
+func TestSaveInvoice_RBAC(t *testing.T) {
+	cfg := config.Config{AppSecret: "secret123", CORSOrigin: "http://127.0.0.1:5175"}
+	svc := app.New(nil, cfg)
+	fiberApp := NewFiberApp(svc, cfg)
+
+	invBody, _ := json.Marshal(map[string]any{
+		"invoiceNo":    "099/POS-AAP/RF/VI/2026",
+		"customerCode": "POS",
+		"totalInvoice": 1000000000,
+		"subTotalDPP":  1000000000,
+	})
+
+	// 1. Department User should be forbidden (403)
+	depToken := createTestToken("Department User", cfg)
+	req1 := httptest.NewRequest("POST", "/api/finance/invoices", bytes.NewReader(invBody))
+	req1.Header.Set("Content-Type", "application/json")
+	req1.Header.Set("Authorization", "Bearer "+depToken)
+	resp1, _ := fiberApp.Test(req1, -1)
+	if resp1.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("Expected 403 Forbidden for Department User creating invoice, got %d", resp1.StatusCode)
+	}
+
+	// 2. Admin Finance HO should be allowed (200)
+	hoToken := createTestToken("Admin Finance HO", cfg)
+	req2 := httptest.NewRequest("POST", "/api/finance/invoices", bytes.NewReader(invBody))
+	req2.Header.Set("Content-Type", "application/json")
+	req2.Header.Set("Authorization", "Bearer "+hoToken)
+	resp2, _ := fiberApp.Test(req2, -1)
+	if resp2.StatusCode != fiber.StatusOK {
+		t.Fatalf("Expected 200 OK for Admin Finance HO creating invoice, got %d", resp2.StatusCode)
+	}
+}
+
+func TestSavePayment_And_Reconciliation(t *testing.T) {
+	cfg := config.Config{AppSecret: "secret123", CORSOrigin: "http://127.0.0.1:5175"}
+	svc := app.New(nil, cfg)
+	fiberApp := NewFiberApp(svc, cfg)
+
+	treasuryToken := createTestToken("Treasury", cfg)
+
+	// Create payment
+	payBody, _ := json.Marshal(map[string]any{
+		"invoiceNo":          "019/SBS-AAP/RF/VI/2026",
+		"customerCode":       "SBS",
+		"amountPaid":         250000000,
+		"receivingBank":      "Bank Mandiri Escrow",
+		"refNo":              "TRF-SBS-TEST-001",
+		"verificationStatus": "Verified",
+	})
+	req := httptest.NewRequest("POST", "/api/finance/payments", bytes.NewReader(payBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+treasuryToken)
+	resp, err := fiberApp.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("Expected 200 OK for Treasury saving payment, got %d", resp.StatusCode)
+	}
+}
+
+func TestDeleteInvoice_WithPayment_Blocked(t *testing.T) {
+	cfg := config.Config{AppSecret: "secret123", CORSOrigin: "http://127.0.0.1:5175"}
+	svc := app.New(nil, cfg)
+	fiberApp := NewFiberApp(svc, cfg)
+
+	mgrToken := createTestToken("Finance Manager", cfg)
+
+	// Invoice ID 8 has payments recorded in global store ("012/SBS-AAP/XI/2025")
+	req := httptest.NewRequest("DELETE", "/api/finance/invoices/8", nil)
+	req.Header.Set("Authorization", "Bearer "+mgrToken)
+	resp, err := fiberApp.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("Expected 400 Bad Request when deleting invoice with payments, got %d", resp.StatusCode)
+	}
+}
+
+func TestMasterData_RBAC(t *testing.T) {
+	cfg := config.Config{AppSecret: "secret123", CORSOrigin: "http://127.0.0.1:5175"}
+	svc := app.New(nil, cfg)
+	fiberApp := NewFiberApp(svc, cfg)
+
+	// 1. Department User should be forbidden (403) from saving customer
+	depToken := createTestToken("Department User", cfg)
+	custBody, _ := json.Marshal(map[string]any{
+		"code":     "NEWCUS",
+		"fullName": "PT New Customer Mining",
+	})
+	req1 := httptest.NewRequest("POST", "/api/finance/customers", bytes.NewReader(custBody))
+	req1.Header.Set("Content-Type", "application/json")
+	req1.Header.Set("Authorization", "Bearer "+depToken)
+	resp1, _ := fiberApp.Test(req1, -1)
+	if resp1.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("Expected 403 Forbidden for Department User saving customer, got %d", resp1.StatusCode)
+	}
+
+	// 2. Finance Manager should be allowed (200)
+	mgrToken := createTestToken("Finance Manager", cfg)
+	req2 := httptest.NewRequest("POST", "/api/finance/customers", bytes.NewReader(custBody))
+	req2.Header.Set("Content-Type", "application/json")
+	req2.Header.Set("Authorization", "Bearer "+mgrToken)
+	resp2, _ := fiberApp.Test(req2, -1)
+	if resp2.StatusCode != fiber.StatusOK {
+		t.Fatalf("Expected 200 OK for Finance Manager saving customer, got %d", resp2.StatusCode)
+	}
+}
+
+func TestUserManagement_RBAC_CRUD(t *testing.T) {
+	cfg := config.Config{AppSecret: "secret123", CORSOrigin: "http://127.0.0.1:5175"}
+	svc := app.New(nil, cfg)
+	fiberApp := NewFiberApp(svc, cfg)
+
+	// 1. Department User should be forbidden (403)
+	depToken := createTestToken("Department User", cfg)
+	userBody, _ := json.Marshal(map[string]any{
+		"name":     "Budi Santoso",
+		"email":    "budi.santoso@financeerp.local",
+		"password": "Password@123",
+		"role":     "SPV Verificator",
+		"status":   "active",
+	})
+	req1 := httptest.NewRequest("POST", "/api/users", bytes.NewReader(userBody))
+	req1.Header.Set("Content-Type", "application/json")
+	req1.Header.Set("Authorization", "Bearer "+depToken)
+	resp1, _ := fiberApp.Test(req1, -1)
+	if resp1.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("Expected 403 Forbidden for Department User creating user, got %d", resp1.StatusCode)
+	}
+
+	// 2. Super Admin should be allowed to Create User (201)
+	adminToken := createTestToken("Super Admin", cfg)
+	req2 := httptest.NewRequest("POST", "/api/users", bytes.NewReader(userBody))
+	req2.Header.Set("Content-Type", "application/json")
+	req2.Header.Set("Authorization", "Bearer "+adminToken)
+	resp2, err := fiberApp.Test(req2, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+	if resp2.StatusCode != fiber.StatusCreated {
+		t.Fatalf("Expected 201 Created for Super Admin creating user, got %d", resp2.StatusCode)
+	}
+
+	// 3. Super Admin should be able to List Users (200)
+	req3 := httptest.NewRequest("GET", "/api/users", nil)
+	req3.Header.Set("Authorization", "Bearer "+adminToken)
+	resp3, _ := fiberApp.Test(req3, -1)
+	if resp3.StatusCode != fiber.StatusOK {
+		t.Fatalf("Expected 200 OK for Super Admin listing users, got %d", resp3.StatusCode)
+	}
+
+	// 4. Super Admin should be able to Update User Role (200)
+	updateBody, _ := json.Marshal(map[string]any{
+		"name":   "Budi Santoso Updated",
+		"email":  "budi.santoso@financeerp.local",
+		"role":   "Finance Manager",
+		"status": "active",
+	})
+	req4 := httptest.NewRequest("PUT", "/api/users/2", bytes.NewReader(updateBody))
+	req4.Header.Set("Content-Type", "application/json")
+	req4.Header.Set("Authorization", "Bearer "+adminToken)
+	resp4, _ := fiberApp.Test(req4, -1)
+	if resp4.StatusCode != fiber.StatusOK {
+		t.Fatalf("Expected 200 OK for Super Admin updating user, got %d", resp4.StatusCode)
+	}
+
+	// 5. Super Admin cannot delete root user ID 1 (400)
+	req5 := httptest.NewRequest("DELETE", "/api/users/1", nil)
+	req5.Header.Set("Authorization", "Bearer "+adminToken)
+	resp5, _ := fiberApp.Test(req5, -1)
+	if resp5.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("Expected 400 Bad Request when attempting to delete root user ID 1, got %d", resp5.StatusCode)
+	}
+}
