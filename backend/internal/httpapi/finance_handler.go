@@ -85,6 +85,20 @@ func (api *fiberAPI) deleteBATracker(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+func (api *fiberAPI) generateInvoiceFromBA(c *fiber.Ctx) error {
+	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid ID")
+	}
+	res, err := api.service.GenerateInvoiceFromBA(c.Context(), id)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "ba_tracker", "generate_invoice", "InvoiceMaster", strconv.FormatInt(res.ID, 10), nil, res, c.IP(), c.Get("User-Agent"))
+	return c.JSON(res)
+}
+
 // ================= INVOICE HANDLERS =================
 
 func (api *fiberAPI) financeInvoices(c *fiber.Ctx) error {
@@ -599,4 +613,74 @@ func (api *fiberAPI) deleteBankAccount(c *fiber.Ctx) error {
 	api.service.Audit(c.Context(), user.ID, "bank_account", "delete", "BankAccountMaster", strconv.FormatInt(id, 10), nil, nil, c.IP(), c.Get("User-Agent"))
 	return c.SendStatus(fiber.StatusNoContent)
 }
+
+// ================= COAL INDEX (ICI) HANDLERS =================
+
+func (api *fiberAPI) coalIndices(c *fiber.Ctx) error {
+	data, err := api.service.GetCoalIndices(c.Context())
+	if err != nil {
+		return err
+	}
+	return c.JSON(data)
+}
+
+func (api *fiberAPI) saveCoalIndex(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "master_data", "write"); err != nil {
+		return err
+	}
+	var body app.CoalIndexMonthly
+	if err := parseCleanJSONBody(c, &body); err != nil {
+		return err
+	}
+	idParam := c.Params("id")
+	if idParam != "" {
+		id, _ := strconv.ParseInt(idParam, 10, 64)
+		body.ID = id
+	}
+	res, err := api.service.SaveCoalIndex(c.Context(), body)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "coal_index", "save", "CoalIndexMonthly", strconv.FormatInt(res.ID, 10), nil, res, c.IP(), c.Get("User-Agent"))
+	return c.JSON(res)
+}
+
+func (api *fiberAPI) lockCoalIndex(c *fiber.Ctx) error {
+	if err := checkRolePermission(c, api.service, "master_data", "write"); err != nil {
+		return err
+	}
+	var body struct {
+		Period string `json:"period"`
+		Status string `json:"status"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid JSON body")
+	}
+	if body.Status == "" {
+		body.Status = "Locked"
+	}
+	res, err := api.service.LockCoalIndex(c.Context(), body.Period, body.Status)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	user := currentFiberUser(c)
+	api.service.Audit(c.Context(), user.ID, "coal_index", "lock", "CoalIndexMonthly", body.Period, nil, res, c.IP(), c.Get("User-Agent"))
+	return c.JSON(res)
+}
+
+// ================= MINING INVOICE CALCULATION HANDLER =================
+
+func (api *fiberAPI) calculateMiningInvoice(c *fiber.Ctx) error {
+	var body app.MiningInvoiceCalcInput
+	if err := c.BodyParser(&body); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "Invalid JSON body")
+	}
+	res, err := api.service.CalculateMiningInvoice(c.Context(), body)
+	if err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, err.Error())
+	}
+	return c.JSON(res)
+}
+
 

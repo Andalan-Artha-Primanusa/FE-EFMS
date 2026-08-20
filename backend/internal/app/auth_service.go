@@ -151,6 +151,11 @@ func (s *Service) CreateUser(ctx context.Context, actor User, input UserInput, i
 	}
 
 	if s.db == nil {
+		for _, u := range fallbackUsers {
+			if u.Email == input.Email {
+				return User{}, errors.New("email sudah terdaftar dalam sistem")
+			}
+		}
 		newID := int64(len(fallbackUsers) + 1)
 		newUser := User{
 			ID:     newID,
@@ -164,11 +169,20 @@ func (s *Service) CreateUser(ctx context.Context, actor User, input UserInput, i
 		return newUser, nil
 	}
 
+	var existingCount int64
+	_ = s.db.WithContext(ctx).Table("users").Where("email = ?", input.Email).Count(&existingCount).Error
+	if existingCount > 0 {
+		return User{}, errors.New("email sudah terdaftar dalam sistem")
+	}
+
 	var roleID int64
 	err = s.db.WithContext(ctx).Table("roles").Select("id").Where("name = ?", input.Role).Take(&roleID).Error
 	if err != nil {
-		// Fallback to role 1 if role not found
-		roleID = 1
+		_ = s.db.WithContext(ctx).Exec(`INSERT INTO roles (name, description) VALUES (?, ?)`, input.Role, input.Role+" access profile").Error
+		err = s.db.WithContext(ctx).Table("roles").Select("id").Where("name = ?", input.Role).Take(&roleID).Error
+		if err != nil {
+			roleID = 1
+		}
 	}
 
 	res := s.db.WithContext(ctx).Exec(`INSERT INTO users (role_id, name, email, password_hash, status) VALUES (?, ?, ?, ?, ?)`,

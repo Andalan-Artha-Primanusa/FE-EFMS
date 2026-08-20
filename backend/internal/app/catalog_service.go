@@ -51,27 +51,43 @@ func (s *Service) Roles(ctx context.Context) ([]RoleAccess, error) {
 	return access, rows.Err()
 }
 
-func (s *Service) PermissionsForRole(ctx context.Context, role string) ([]Permission, error) {
-	if s.sql == nil {
-		var items []Permission
-		grants, ok := rolePermissionMap[role]
-		if !ok && IsSuperAdminRole(role) {
-			grants = []string{"*:*"}
-		}
-		for _, grant := range grants {
-			if grant == "*:*" {
-				return permissions, nil
+func (s *Service) permissionsFromCatalog(role string) []Permission {
+	var items []Permission
+	grants, ok := rolePermissionMap[role]
+	if !ok && IsSuperAdminRole(role) {
+		grants = []string{"*:*"}
+	}
+	if !ok {
+		for k, g := range rolePermissionMap {
+			if strings.EqualFold(k, role) {
+				grants = g
+				ok = true
+				break
 			}
-			parts := strings.Split(grant, ":")
-			if len(parts) == 2 {
-				for _, p := range permissions {
-					if p.Module == parts[0] && (parts[1] == "*" || p.Action == parts[1]) {
-						items = append(items, p)
-					}
+		}
+	}
+	if !ok {
+		grants = rolePermissionMap["Department User"]
+	}
+	for _, grant := range grants {
+		if grant == "*:*" {
+			return permissions
+		}
+		parts := strings.Split(grant, ":")
+		if len(parts) == 2 {
+			for _, p := range permissions {
+				if (parts[0] == "*" || p.Module == parts[0]) && (parts[1] == "*" || p.Action == parts[1]) {
+					items = append(items, p)
 				}
 			}
 		}
-		return items, nil
+	}
+	return items
+}
+
+func (s *Service) PermissionsForRole(ctx context.Context, role string) ([]Permission, error) {
+	if s.sql == nil {
+		return s.permissionsFromCatalog(role), nil
 	}
 	rows, err := s.sql.QueryContext(ctx, `SELECT p.module, p.action, p.description
 		FROM permissions p
@@ -80,7 +96,7 @@ func (s *Service) PermissionsForRole(ctx context.Context, role string) ([]Permis
 		WHERE r.name=?
 		ORDER BY p.module, p.action`, role)
 	if err != nil {
-		return nil, err
+		return s.permissionsFromCatalog(role), nil
 	}
 	defer rows.Close()
 	var items []Permission
@@ -90,6 +106,9 @@ func (s *Service) PermissionsForRole(ctx context.Context, role string) ([]Permis
 			return nil, err
 		}
 		items = append(items, item)
+	}
+	if len(items) == 0 {
+		return s.permissionsFromCatalog(role), nil
 	}
 	return items, rows.Err()
 }

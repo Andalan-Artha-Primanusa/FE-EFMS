@@ -13,7 +13,7 @@ import {
 
 export const menu = [
   { group: "Dashboard", icon: LayoutDashboard, items: ["Executive Dashboard", "Finance Dashboard"] },
-  { group: "Master Data", icon: Building2, items: ["Chart of Accounts", "Company", "Site", "Department", "Cost Center", "Project", "Vendor", "Customer Master & Credit Terms", "Employee", "Bank", "Tax", "Currency", "Variable SOW", "RAISE & FALL"] },
+  { group: "Master Data", icon: Building2, items: ["Chart of Accounts", "Company", "Site", "Department", "Cost Center", "Project", "Vendor", "Customer Master & Credit Terms", "Employee", "Bank", "Tax", "Currency", "Coal Index", "Variable SOW", "RAISE & FALL"] },
   { group: "Budget Management", icon: WalletCards, items: ["Annual Budget", "Monthly Budget", "Budget Submission", "Budget Approval", "Budget Revision", "Budget Transfer", "Budget versus Actual"] },
   { group: "Transaction Request", icon: ClipboardCheck, items: ["Purchase Request", "Expense Request", "Cash Advance", "Reimbursement", "Payment Request"] },
   { group: "Finance", icon: Landmark, items: ["Finance & AR Dashboard", "Berita Acara (BA) Tracker", "Invoice Management", "Payment & Receipt Log"] },
@@ -46,6 +46,7 @@ export const viewMap: Record<string, ViewConfig> = {
   "Bank": { title: "Bank", endpoint: "/api/master-data/bank-accounts", importType: "master_records", masterType: "bank_account" },
   "Tax": { title: "Tax", endpoint: "/api/master-data?type=tax_term_payment", importType: "master_records", masterType: "tax_term_payment" },
   "Currency": { title: "Currency", endpoint: "/api/master-data/daily-exchange-rates", importType: "master_records", masterType: "other_master_data" },
+  "Coal Index": { title: "Coal Index", endpoint: "/api/master-data/coal-index", importType: "master_records", masterType: "coal_index" },
   "Variable SOW": { title: "Variable SOW", endpoint: "/api/master-data/variable-sow", importType: "master_records", masterType: "variable_sow" },
   "RAISE & FALL": { title: "RAISE & FALL", endpoint: "/api/master-data/raise-fall", importType: "master_records", masterType: "raise_fall" },
   "Annual Budget": { title: "Annual Budget", endpoint: "/api/reports/catalog", importType: "budgets" },

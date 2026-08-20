@@ -72,6 +72,7 @@ func (api *fiberAPI) registerRoutes(f *fiber.App) {
 	secured.Put("/finance/ba-trackers/:id", api.saveBATracker)
 	secured.Post("/finance/ba-trackers/:id/verify", api.verifyBATracker)
 	secured.Post("/finance/ba-trackers/:id/approve", api.approveBATracker)
+	secured.Post("/finance/ba-trackers/:id/generate-invoice", api.generateInvoiceFromBA)
 	secured.Delete("/finance/ba-trackers/:id", api.deleteBATracker)
 
 	secured.Get("/finance/invoices", api.financeInvoices)
@@ -112,6 +113,12 @@ func (api *fiberAPI) registerRoutes(f *fiber.App) {
 	secured.Post("/master-data/daily-exchange-rates", api.saveDailyExchangeRate)
 	secured.Put("/master-data/daily-exchange-rates/:id", api.saveDailyExchangeRate)
 	secured.Post("/master-data/import-bi-exchange-rates", api.importBIExchangeRates)
+
+	secured.Get("/master-data/coal-index", api.coalIndices)
+	secured.Post("/master-data/coal-index", api.saveCoalIndex)
+	secured.Put("/master-data/coal-index/:id", api.saveCoalIndex)
+	secured.Post("/master-data/coal-index/lock", api.lockCoalIndex)
+	secured.Post("/finance/invoices/calculate-mining", api.calculateMiningInvoice)
 
 	secured.Get("/accounting/runs", api.accountingRuns)
 	secured.Post("/accounting/generate-journal", api.generateJournal)

@@ -7,6 +7,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -49,6 +50,7 @@ type financeStore struct {
 	variableSOWs  []VariableSOW
 	raiseFallList []RaiseFallMaster
 	exchangeRates []DailyExchangeRate
+	coalIndexList []CoalIndexMonthly
 	nextID        int64
 }
 
@@ -82,42 +84,76 @@ func getStore() *financeStore {
 				{ID: 4, Code: "POS", FullName: "PT Position", GroupParent: "Arkara Prathama Energi", TerminDays: 30, ContactAR: "Finance AR POS", EmailAR: "ar@position.co.id", Phone: "+62 21 789 2210", ContractNo: "002/POS-AAP/2025", ContractValue: 12000000000, AvgPaymentDays: -3.5, Notes: "Site Position - kontrak via ABC sebelum merger", CreatedAt: now},
 				{ID: 5, Code: "ABN", FullName: "PT Andalan Bhumi Nusantara", GroupParent: "Related Party (Afiliasi)", TerminDays: 30, ContactAR: "Internal AAP", EmailAR: "internal@andalan-nusantara.com", Phone: "+62 21 800 1122", ContractNo: "001/AAP-ABN/IV/25", ContractValue: 5000000000, AvgPaymentDays: 0.0, Notes: "Sewa alat berat (D8R, D85ESS, Motor Grader 160K, dll)", CreatedAt: now},
 			},
+			coalIndexList: []CoalIndexMonthly{
+				{
+					ID:         1,
+					Period:     "Juni 2026",
+					AvgICI3:    92.15,
+					AvgICI4:    60.7125,
+					AvgR3:      76.43125,
+					ActiveTier: "Tier 3",
+					Status:     "Verified",
+					Notes:      "Publikasi Mingguan Indonesian Coal Index Periode Juni 2026 (Avg R3 > $75)",
+					UpdatedAt:  now,
+					Weeks: []CoalIndexWeekly{
+						{ID: 1, MonthlyID: 1, WeekNumber: 1, ReleaseDate: "2026-06-05", ICI3Price: 92.50, ICI4Price: 61.20, R3Price: 76.850},
+						{ID: 2, MonthlyID: 1, WeekNumber: 2, ReleaseDate: "2026-06-12", ICI3Price: 91.80, ICI4Price: 60.50, R3Price: 76.150},
+						{ID: 3, MonthlyID: 1, WeekNumber: 3, ReleaseDate: "2026-06-19", ICI3Price: 93.00, ICI4Price: 61.00, R3Price: 77.000},
+						{ID: 4, MonthlyID: 1, WeekNumber: 4, ReleaseDate: "2026-06-26", ICI3Price: 91.30, ICI4Price: 60.15, R3Price: 75.725},
+					},
+				},
+				{
+					ID:         2,
+					Period:     "Februari 2026",
+					AvgICI3:    82.40,
+					AvgICI4:    54.60,
+					AvgR3:      68.50,
+					ActiveTier: "Tier 2",
+					Status:     "Locked",
+					Notes:      "Publikasi Mingguan Indonesian Coal Index Periode Februari 2026 ($50 <= Avg R3 <= $75)",
+					UpdatedAt:  now,
+					Weeks: []CoalIndexWeekly{
+						{ID: 5, MonthlyID: 2, WeekNumber: 1, ReleaseDate: "2026-02-06", ICI3Price: 83.00, ICI4Price: 55.00, R3Price: 69.00},
+						{ID: 6, MonthlyID: 2, WeekNumber: 2, ReleaseDate: "2026-02-13", ICI3Price: 82.20, ICI4Price: 54.40, R3Price: 68.30},
+						{ID: 7, MonthlyID: 2, WeekNumber: 3, ReleaseDate: "2026-02-20", ICI3Price: 82.00, ICI4Price: 54.60, R3Price: 68.30},
+						{ID: 8, MonthlyID: 2, WeekNumber: 4, ReleaseDate: "2026-02-27", ICI3Price: 82.40, ICI4Price: 54.40, R3Price: 68.40},
+					},
+				},
+			},
 			variableSOWs: []VariableSOW{
-				{ID: 1, Category: "Operation & Mining", ItemName: "Clear & Grub", RateUSD: 0.381, Unit: "USD/m2", Customer: "POS", Description: "Pembersihan lahan awal", Status: "Active", CreatedAt: now},
-				{ID: 2, Category: "Operation & Mining", ItemName: "Topsoil Removal - Base Rate (1000m)", RateUSD: 3.380, Unit: "USD/BCM", Customer: "POS", Description: "Pengupasan tanah pucuk", Status: "Active", CreatedAt: now},
-				{ID: 3, Category: "Operation & Mining", ItemName: "Topsoil Removal - over/underhaul", RateUSD: 0.538, Unit: "USD/1KM", Customer: "POS", Description: "Jarak angkut tambahan topsoil", Status: "Active", CreatedAt: now},
-				{ID: 4, Category: "Operation & Mining", ItemName: "Overburden/Waste - Base Rate (1000m)", RateUSD: 3.327, Unit: "USD/BCM", Customer: "POS", Description: "Pengupasan OB tambang nikel", Status: "Active", CreatedAt: now},
-				{ID: 5, Category: "Operation & Mining", ItemName: "OB/Waste - over/underhaul", RateUSD: 0.538, Unit: "USD/1KM", Customer: "POS", Description: "Jarak angkut tambahan OB", Status: "Active", CreatedAt: now},
-				{ID: 6, Category: "Operation & Mining", ItemName: "Limonite - Base Rate (1000m)", RateUSD: 3.363, Unit: "USD/BCM", Customer: "POS", Description: "Penggalian bijih nikel limonite", Status: "Active", CreatedAt: now},
-				{ID: 7, Category: "Operation & Mining", ItemName: "Limonite - over/underhaul", RateUSD: 0.526, Unit: "USD/1KM", Customer: "POS", Description: "Jarak angkut tambahan limonite", Status: "Active", CreatedAt: now},
-				{ID: 8, Category: "Operation & Mining", ItemName: "Saprolite - Base Rate (1000m)", RateUSD: 3.472, Unit: "USD/BCM", Customer: "POS", Description: "Penggalian bijih nikel saprolite High-Grade", Status: "Active", CreatedAt: now},
-				{ID: 9, Category: "Operation & Mining", ItemName: "Saprolite - over/underhaul", RateUSD: 0.526, Unit: "USD/1KM", Customer: "POS", Description: "Jarak angkut tambahan saprolite", Status: "Active", CreatedAt: now},
-				{ID: 10, Category: "Rehabilitation", ItemName: "Topsoil Reclaim/Haul/Spread - Base Rate (1000m)", RateUSD: 3.258, Unit: "USD/BCM", Customer: "POS", Description: "Reklamasi & perataan tanah pucuk", Status: "Active", CreatedAt: now},
-				{ID: 11, Category: "Rehabilitation", ItemName: "Topsoil Reclaim/Haul/Spread - overhaul", RateUSD: 0.538, Unit: "USD/1KM", Customer: "POS", Description: "Jarak angkut tambahan reklamasi", Status: "Active", CreatedAt: now},
-				{ID: 12, Category: "Mine Development (MDO)", ItemName: "Cut - Base Rate (1000m)", RateUSD: 2.129, Unit: "USD/BCM", Customer: "POS", Description: "Pemotongan jalan tambang", Status: "Active", CreatedAt: now},
-				{ID: 15, Category: "Mine Development (MDO)", ItemName: "Cut or Fill under/overhaul", RateUSD: 0.521, Unit: "USD/1KM", Customer: "POS", Description: "Jarak angkut tambahan MDO", Status: "Active", CreatedAt: now},
-				{ID: 16, Category: "Mine Development (MDO)", ItemName: "Uncrushed rocks for construction - Base Rate (1000m)", RateUSD: 7.938, Unit: "USD/BCM", Customer: "POS", Description: "Batu konstruksi tanpa penghancuran", Status: "Active", CreatedAt: now},
-				{ID: 17, Category: "Mine Development (MDO)", ItemName: "Crusher rocks - Base Rate (1000m)", RateUSD: 13.050, Unit: "USD/BCM", Customer: "POS", Description: "Batu konstruksi dengan crusher", Status: "Active", CreatedAt: now},
-				{ID: 18, Category: "Mine Development (MDO)", ItemName: "Rocks for construction - under/overhaul", RateUSD: 0.526, Unit: "USD/1KM", Customer: "POS", Description: "Jarak angkut batu konstruksi", Status: "Active", CreatedAt: now},
-				{ID: 19, Category: "Mine Development (MDO)", ItemName: "Geotextile", RateUSD: 2.003, Unit: "USD/m2", Customer: "POS", Description: "Pemasangan geotextile jalan", Status: "Active", CreatedAt: now},
+				{ID: 1, Category: "Operation & Mining", ItemName: "Clear & Grub", RateUSD: 0.381, Unit: "USD/m2", Customer: "POS", CustomerCode: "POS", Description: "Pembersihan lahan awal", Status: "Active", CreatedAt: now},
+				{ID: 2, Category: "Operation & Mining", ItemName: "Topsoil Removal - Base Rate (1000m)", RateUSD: 3.380, Unit: "USD/BCM", Customer: "POS", CustomerCode: "POS", Description: "Pengupasan tanah pucuk", Status: "Active", CreatedAt: now},
+				{ID: 3, Category: "Operation & Mining", ItemName: "Topsoil Removal - over/underhaul", RateUSD: 0.538, Unit: "USD/1KM", Customer: "POS", CustomerCode: "POS", Description: "Jarak angkut tambahan topsoil", Status: "Active", CreatedAt: now},
+				{ID: 4, Category: "Operation & Mining", ItemName: "Overburden/Waste - Base Rate (1000m)", RateUSD: 3.327, Unit: "USD/BCM", Customer: "POS", CustomerCode: "POS", Description: "Pengupasan OB tambang nikel", Status: "Active", CreatedAt: now},
+				{ID: 5, Category: "Operation & Mining", ItemName: "OB/Waste - over/underhaul", RateUSD: 0.538, Unit: "USD/1KM", Customer: "POS", CustomerCode: "POS", Description: "Jarak angkut tambahan OB", Status: "Active", CreatedAt: now},
+				{ID: 6, Category: "Operation & Mining", ItemName: "Limonite - Base Rate (1000m)", RateUSD: 3.363, Unit: "USD/BCM", Customer: "POS", CustomerCode: "POS", Description: "Penggalian bijih nikel limonite", Status: "Active", CreatedAt: now},
+				{ID: 7, Category: "Operation & Mining", ItemName: "Limonite - over/underhaul", RateUSD: 0.526, Unit: "USD/1KM", Customer: "POS", CustomerCode: "POS", Description: "Jarak angkut tambahan limonite", Status: "Active", CreatedAt: now},
+				{ID: 8, Category: "Operation & Mining", ItemName: "Saprolite - Base Rate (1000m)", RateUSD: 3.472, Unit: "USD/BCM", Customer: "POS", CustomerCode: "POS", Description: "Penggalian bijih nikel saprolite High-Grade", Status: "Active", CreatedAt: now},
+				{ID: 9, Category: "Operation & Mining", ItemName: "Saprolite - over/underhaul", RateUSD: 0.526, Unit: "USD/1KM", Customer: "POS", CustomerCode: "POS", Description: "Jarak angkut tambahan saprolite", Status: "Active", CreatedAt: now},
+				{ID: 10, Category: "Rehabilitation", ItemName: "Topsoil Reclaim/Haul/Spread - Base Rate (1000m)", RateUSD: 3.258, Unit: "USD/BCM", Customer: "POS", CustomerCode: "POS", Description: "Reklamasi & perataan tanah pucuk", Status: "Active", CreatedAt: now},
+				{ID: 11, Category: "Rehabilitation", ItemName: "Topsoil Reclaim/Haul/Spread - overhaul", RateUSD: 0.538, Unit: "USD/1KM", Customer: "POS", CustomerCode: "POS", Description: "Jarak angkut tambahan reklamasi", Status: "Active", CreatedAt: now},
+				{ID: 12, Category: "Mine Development (MDO)", ItemName: "Cut - Base Rate (1000m)", RateUSD: 2.129, Unit: "USD/BCM", Customer: "POS", CustomerCode: "POS", Description: "Pemotongan jalan tambang", Status: "Active", CreatedAt: now},
+				{ID: 15, Category: "Mine Development (MDO)", ItemName: "Cut or Fill under/overhaul", RateUSD: 0.521, Unit: "USD/1KM", Customer: "POS", CustomerCode: "POS", Description: "Jarak angkut tambahan MDO", Status: "Active", CreatedAt: now},
+				{ID: 16, Category: "Mine Development (MDO)", ItemName: "Uncrushed rocks for construction - Base Rate (1000m)", RateUSD: 7.938, Unit: "USD/BCM", Customer: "POS", CustomerCode: "POS", Description: "Batu konstruksi tanpa penghancuran", Status: "Active", CreatedAt: now},
+				{ID: 17, Category: "Mine Development (MDO)", ItemName: "Crusher rocks - Base Rate (1000m)", RateUSD: 13.050, Unit: "USD/BCM", Customer: "POS", CustomerCode: "POS", Description: "Batu konstruksi dengan crusher", Status: "Active", CreatedAt: now},
+				{ID: 18, Category: "Mine Development (MDO)", ItemName: "Rocks for construction - under/overhaul", RateUSD: 0.526, Unit: "USD/1KM", Customer: "POS", CustomerCode: "POS", Description: "Jarak angkut batu konstruksi", Status: "Active", CreatedAt: now},
+				{ID: 19, Category: "Mine Development (MDO)", ItemName: "Geotextile", RateUSD: 2.003, Unit: "USD/m2", Customer: "POS", CustomerCode: "POS", Description: "Pemasangan geotextile jalan", Status: "Active", CreatedAt: now},
 
-				// BGG SOW Master (Gambar 2)
-				{ID: 20, Category: "OB Removal", ItemName: "OVER BURDEN REMOVAL 1 (75%) (Feb-26)", RateIDR: 27250, Unit: "Bcm", Customer: "BGG", CustomerCode: "BGG", Description: "OB Removal 75% Feb 2026", Status: "Active", CreatedAt: now},
-				{ID: 21, Category: "OB Removal", ItemName: "OVER BURDEN REMOVAL 1 (75%) (Jun-26)", RateIDR: 29500, Unit: "Bcm", Customer: "BGG", CustomerCode: "BGG", Description: "OB Removal 75% Jun 2026", Status: "Active", CreatedAt: now},
-				{ID: 22, Category: "OB Removal", ItemName: "OVER BURDEN REMOVAL 2 (25%) (Feb-26)", RateIDR: 26500, Unit: "Bcm", Customer: "BGG", CustomerCode: "BGG", Description: "OB Removal 25% Feb 2026", Status: "Active", CreatedAt: now},
-				{ID: 23, Category: "OB Removal", ItemName: "OVER BURDEN REMOVAL 2 (25%) (Jun-26)", RateIDR: 28750, Unit: "Bcm", Customer: "BGG", CustomerCode: "BGG", Description: "OB Removal 25% Jun 2026", Status: "Active", CreatedAt: now},
-				{ID: 24, Category: "Coal Winning", ItemName: "Coal Winning Pit Kungkilan", RateIDR: 17500, Unit: "Ton", Customer: "BGG", CustomerCode: "BGG", Description: "Coal Winning Pit Kungkilan", Status: "Active", CreatedAt: now},
-				{ID: 25, Category: "Over Distance", ItemName: "Over Distance For OB Removal (Feb-26)", RateIDR: 1393, Unit: "Bcm", Customer: "BGG", CustomerCode: "BGG", Description: "Over Distance OB Feb 2026", Status: "Active", CreatedAt: now},
-				{ID: 26, Category: "Over Distance", ItemName: "Over Distance For OB Removal (Jun-26)", RateIDR: 1550, Unit: "Bcm", Customer: "BGG", CustomerCode: "BGG", Description: "Over Distance OB Jun 2026", Status: "Active", CreatedAt: now},
-				{ID: 27, Category: "Over Distance", ItemName: "Over Distance For Coal Winning (Jun-26)", RateIDR: 19700, Unit: "Ton", Customer: "BGG", CustomerCode: "BGG", Description: "Over Distance Coal Jun 2026", Status: "Active", CreatedAt: now},
+				// BGG SOW Master with Multi-Tiering Rate Matrix
+				{ID: 20, Category: "OB Removal", ItemName: "OVER BURDEN REMOVAL 1 (75%)", RateIDR: 29500, Tier1Rate: 27000, Tier2Rate: 27250, Tier3Rate: 29500, SplitPercentage: 75, BaseDistanceMeters: 1000, Unit: "Bcm", Customer: "BGG", CustomerCode: "BGG", Description: "OB Removal 75% Pit Kungkilan", Status: "Active", CreatedAt: now},
+				{ID: 21, Category: "OB Removal", ItemName: "OVER BURDEN REMOVAL 2 (25%)", RateIDR: 28750, Tier1Rate: 26250, Tier2Rate: 26500, Tier3Rate: 28750, SplitPercentage: 25, BaseDistanceMeters: 1000, Unit: "Bcm", Customer: "BGG", CustomerCode: "BGG", Description: "OB Removal 25% Pit Kungkilan", Status: "Active", CreatedAt: now},
+				{ID: 22, Category: "Coal Winning", ItemName: "Coal Winning Pit Kungkilan", RateIDR: 17500, Tier1Rate: 17500, Tier2Rate: 17500, Tier3Rate: 17500, SplitPercentage: 100, BaseDistanceMeters: 0, Unit: "Ton", Customer: "BGG", CustomerCode: "BGG", Description: "Coal Winning Pit Kungkilan", Status: "Active", CreatedAt: now},
+				{ID: 23, Category: "Over Distance", ItemName: "Over Distance For OB Removal", RateIDR: 155.00, Tier1Rate: 139.30, Tier2Rate: 139.30, Tier3Rate: 155.00, SplitPercentage: 100, BaseDistanceMeters: 1000, Unit: "Bcm/Hm", Customer: "BGG", CustomerCode: "BGG", Description: "Over Distance OB per 100m over 1000m", Status: "Active", CreatedAt: now},
+				{ID: 24, Category: "Over Distance", ItemName: "Over Distance For Coal Winning", RateIDR: 19700, Tier1Rate: 19700, Tier2Rate: 19700, Tier3Rate: 19700, SplitPercentage: 100, BaseDistanceMeters: 4000, Unit: "Ton", Customer: "BGG", CustomerCode: "BGG", Description: "Over Distance Coal Hauling to Stockpile", Status: "Active", CreatedAt: now},
+				{ID: 25, Category: "Rehandling", ItemName: "Rehandling Batubara", RateIDR: 12000, Tier1Rate: 12000, Tier2Rate: 12000, Tier3Rate: 12000, SplitPercentage: 100, BaseDistanceMeters: 0, Unit: "Ton", Customer: "BGG", CustomerCode: "BGG", Description: "Rehandling Batubara Stockpile", Status: "Active", CreatedAt: now},
 
-				// DBK SOW Master (Gambar 3)
+				// DBK SOW Master
 				{ID: 28, Category: "OB Removal", ItemName: "PIT SAPAN OB Removal", RateUSD: 1.831, Unit: "Bcm", Customer: "DBK", CustomerCode: "DBK", Description: "OB Removal Pit Sapan Rate USD", Status: "Active", CreatedAt: now},
 				{ID: 29, Category: "Coal Winning", ItemName: "PIT SAPAN Coal Winning", RateUSD: 0.887, Unit: "Ton", Customer: "DBK", CustomerCode: "DBK", Description: "Coal Winning Pit Sapan Rate USD", Status: "Active", CreatedAt: now},
 				{ID: 30, Category: "Over Distance", ItemName: "PIT SAPAN Overhaul OB (per 100m)", RateIDR: 296.86, Unit: "Bcm", Customer: "DBK", CustomerCode: "DBK", Description: "Over Distance OB Rate IDR", Status: "Active", CreatedAt: now},
 				{ID: 31, Category: "Over Distance", ItemName: "PIT SAPAN Overhaul Coal (per 100m)", RateIDR: 1042.84, Unit: "Ton", Customer: "DBK", CustomerCode: "DBK", Description: "Over Distance Coal Rate IDR", Status: "Active", CreatedAt: now},
 
-				// SBS SOW Master (Gambar 4)
+				// SBS SOW Master
 				{ID: 32, Category: "OB Removal", ItemName: "PIT E - DISPOSAL SEKATAN", RateIDR: 22654, Unit: "BCM", Customer: "SBS", CustomerCode: "SBS", Description: "OB Removal Disposal Sekatan", Status: "Active", CreatedAt: now},
 				{ID: 33, Category: "OB Removal", ItemName: "PIT E - RENCANA JALAN", RateIDR: 12638, Unit: "BCM", Customer: "SBS", CustomerCode: "SBS", Description: "OB Removal Rencana Jalan", Status: "Active", CreatedAt: now},
 				{ID: 34, Category: "OB Removal", ItemName: "PIT E - RENCANA CSA", RateIDR: 8346, Unit: "BCM", Customer: "SBS", CustomerCode: "SBS", Description: "OB Removal Rencana CSA", Status: "Active", CreatedAt: now},
@@ -259,6 +295,98 @@ func getStore() *financeStore {
 				{ID: 9, BANumber: "051/BA-POS-NIKEL/VI/2026", CustomerCode: "POS", WorkPeriod: "Jun-26", WorkAmount: 42150000000, WorkEndDate: pdate("2026-06-30"), BASubmittedDate: pdate("2026-06-30"), BASignedDate: pdate("2026-07-02"), LeadTimeDays: 2, StatusBA: "Ready to Invoice", PICAAP: "Site Manager", InvoiceNoLinked: "003/POS-AAP/RF/VI/2026", InvoiceIssuedDate: pdate("2026-07-05"), LagBAToInvoiceDays: 3, NotesBottleneck: "OK", Notes: "Mining OB Removal & Nikel Ore Jun-26", DraftBAPath: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", FinalBAPath: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", CreatedAt: now},
 				{ID: 10, BANumber: "052/BA-POS-NIKEL/VII/2026", CustomerCode: "POS", WorkPeriod: "Jul-26", WorkAmount: 44448368475, WorkEndDate: pdate("2026-07-31"), BASubmittedDate: pdate("2026-07-31"), BASignedDate: pdate("2026-08-03"), LeadTimeDays: 3, StatusBA: "Ready to Invoice", PICAAP: "Operations", InvoiceNoLinked: "", InvoiceIssuedDate: nil, LagBAToInvoiceDays: 0, NotesBottleneck: "OK: Dalam Proses Penagihan", Notes: "Klaim Utama Tambang Nikel POS Juli 2026", DraftBAPath: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", FinalBAPath: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", CreatedAt: now},
 				{ID: 11, BANumber: "053/BA-POS-PENDING-VOL/VII/2026", CustomerCode: "POS", WorkPeriod: "Jul-26", WorkAmount: 1873994494, WorkEndDate: pdate("2026-07-31"), BASubmittedDate: nil, BASignedDate: nil, LeadTimeDays: 0, StatusBA: "Submit", PICAAP: "Surveyor", InvoiceNoLinked: "", InvoiceIssuedDate: nil, LagBAToInvoiceDays: 0, NotesBottleneck: "⚠️ Pending: Joint Survey Tambahan", Notes: "Pending Volume Hasil Joint Survey Juli 2026", DraftBAPath: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", FinalBAPath: "", CreatedAt: now},
+				{
+					ID:                  12,
+					BANumber:            "SRV-OB/BGG/06/06/26",
+					DraftBARefNo:        "25/BAP-AAP-KKL/VI/26",
+					SignedBANumber:      "SRV-OB/BGG/06/06/26",
+					CustomerCode:        "BGG",
+					WorkPeriod:          "Juni 2026",
+					WorkAmount:          11145610815.70,
+					InitialWorkAmount:   11145610815.70,
+					AdjustedWorkAmount:  11145610815.70,
+					WorkEndDate:         pdate("2026-06-30"),
+					BASubmittedDate:     pdate("2026-07-01"),
+					BASignedDate:        pdate("2026-07-01"),
+					LeadTimeDays:        1,
+					StatusBA:            "Ready to Invoice",
+					PICAAP:              "Dhini Andini (Finance Site)",
+					InvoiceNoLinked:     "091/BGG-AAP/VI/2026",
+					NotesBottleneck:     "OK: Siap Diterbitkan Invoice",
+					Notes:               "BA Joint Survey Penambangan Batubara Periode 1 - 30 Juni 2026 Pit Kungkilan",
+					DraftBAPath:         "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+					FinalBAPath:         "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+					CreatedAt:           now,
+					BGGData: &BGGJointSurveyData{
+						LocationPit:        "Pit Kungkilan",
+						OriginalTopoDate:   "Oktober 2025",
+						SurveyTopoDate:     "30 Juni 2026",
+						VolumeBGG:          247340.154,
+						VolumeAAP:          247775.712,
+						VolumeDifference:   435.558,
+						DiffPercentage:     0.18,
+						TolerancePass:      true,
+						AgreedSurveyVolume: 247557.933,
+						CoalVolumeBCM:      37346.784,
+						CoalVolumeTon:      46683.480,
+						NettOBVolume:       210211.149,
+						StrippingRatio:     4.50,
+						OBActualAvgDist:    1165.805,
+						OBInvoiceAvgDist:   1238.526,
+						OBOverDistanceHm:   2.38526,
+						CoalAvgDist:        4581.770,
+						CoalOverDistanceM:  581.770,
+						InventoryCoalAwal:  16560.00,
+						InventorySeam:      "Seam 8 Barat",
+						OBRoutes: []BGGRouteRow{
+							{RouteNo: 1, DistanceMeters: 100, InvoiceDistance: 1000, Volume: 3568.240, VolXDistance: 3568240, LoadingPoint: "KKL", DumpingPoint: "Embankment"},
+							{RouteNo: 2, DistanceMeters: 200, InvoiceDistance: 1000, Volume: 6967.280, VolXDistance: 6967280, LoadingPoint: "KKL", DumpingPoint: "Embankment"},
+							{RouteNo: 3, DistanceMeters: 400, InvoiceDistance: 1000, Volume: 3231.720, VolXDistance: 3231720, LoadingPoint: "KKL", DumpingPoint: "Embankment"},
+							{RouteNo: 4, DistanceMeters: 900, InvoiceDistance: 1000, Volume: 892.000, VolXDistance: 892000, LoadingPoint: "KKL", DumpingPoint: "Seam 8"},
+							{RouteNo: 5, DistanceMeters: 900, InvoiceDistance: 1000, Volume: 9664.000, VolXDistance: 9664000, LoadingPoint: "KKL", DumpingPoint: "Disposal Section 2"},
+							{RouteNo: 6, DistanceMeters: 1000, InvoiceDistance: 1000, Volume: 6033.000, VolXDistance: 6033000, LoadingPoint: "KKL", DumpingPoint: "Embankment"},
+							{RouteNo: 7, DistanceMeters: 1000, InvoiceDistance: 1000, Volume: 9932.000, VolXDistance: 9932000, LoadingPoint: "KKL", DumpingPoint: "Disposal Section 2"},
+							{RouteNo: 8, DistanceMeters: 1100, InvoiceDistance: 1100, Volume: 22.000, VolXDistance: 24200, LoadingPoint: "KKL", DumpingPoint: "Seam 8"},
+							{RouteNo: 9, DistanceMeters: 1100, InvoiceDistance: 1100, Volume: 18637.000, VolXDistance: 20500700, LoadingPoint: "KKL", DumpingPoint: "Embankment"},
+							{RouteNo: 10, DistanceMeters: 1200, InvoiceDistance: 1200, Volume: 51.000, VolXDistance: 61200, LoadingPoint: "KKL", DumpingPoint: "Seam 8"},
+							{RouteNo: 11, DistanceMeters: 1200, InvoiceDistance: 1200, Volume: 5024.051, VolXDistance: 6028861.20, LoadingPoint: "KKL", DumpingPoint: "Disposal Section 2"},
+							{RouteNo: 12, DistanceMeters: 1200, InvoiceDistance: 1200, Volume: 24717.669, VolXDistance: 29661202.80, LoadingPoint: "KKL", DumpingPoint: "Embankment"},
+							{RouteNo: 13, DistanceMeters: 1300, InvoiceDistance: 1300, Volume: 1030.000, VolXDistance: 1339000, LoadingPoint: "KKL", DumpingPoint: "Seam 8"},
+							{RouteNo: 14, DistanceMeters: 1300, InvoiceDistance: 1300, Volume: 1040.000, VolXDistance: 1352000, LoadingPoint: "KKL", DumpingPoint: "Disposal Section 2"},
+							{RouteNo: 15, DistanceMeters: 1300, InvoiceDistance: 1300, Volume: 1650.000, VolXDistance: 2145000, LoadingPoint: "KKL", DumpingPoint: "Embankment"},
+							{RouteNo: 16, DistanceMeters: 1400, InvoiceDistance: 1400, Volume: 4226.000, VolXDistance: 5916400, LoadingPoint: "KKL", DumpingPoint: "Disposal Section 2"},
+							{RouteNo: 17, DistanceMeters: 1400, InvoiceDistance: 1400, Volume: 52408.000, VolXDistance: 73371200, LoadingPoint: "KKL", DumpingPoint: "Embankment"},
+							{RouteNo: 18, DistanceMeters: 1500, InvoiceDistance: 1500, Volume: 7527.960, VolXDistance: 11291940, LoadingPoint: "KKL", DumpingPoint: "Disposal Section 2"},
+							{RouteNo: 19, DistanceMeters: 1600, InvoiceDistance: 1600, Volume: 5330.740, VolXDistance: 8529184, LoadingPoint: "KKL", DumpingPoint: "Disposal Section 2"},
+							{RouteNo: 20, DistanceMeters: 3400, InvoiceDistance: 3400, Volume: 34.000, VolXDistance: 115600, LoadingPoint: "KKL", DumpingPoint: "Temporary"},
+						},
+						CoalRoutes: []BGGRouteRow{
+							{RouteNo: 1, DistanceMeters: 4000, Volume: 5772.770, VolXDistance: 23091080, LoadingPoint: "KKL", DumpingPoint: "Hopper"},
+							{RouteNo: 2, DistanceMeters: 4200, Volume: 2755.880, VolXDistance: 11574696, LoadingPoint: "KKL", DumpingPoint: "ROM A"},
+							{RouteNo: 3, DistanceMeters: 4600, Volume: 1005.170, VolXDistance: 4623782, LoadingPoint: "KKL", DumpingPoint: "ROM A"},
+							{RouteNo: 4, DistanceMeters: 4700, Volume: 37149.660, VolXDistance: 174603402, LoadingPoint: "KKL", DumpingPoint: "ROM A"},
+						},
+						PendingOBData: []BGGPendingOBEntry{
+							{Period: "Nov-25", InvoiceVolumeCG: 58061.07, PendingOBVolume: 413200.03, CummPendingOB: 413200.03, Status: "Recorded"},
+							{Period: "Dec-25", InvoiceVolumeCG: 22668.15, PendingOBVolume: 281389.25, CummPendingOB: 694589.29, Status: "Recorded"},
+							{Period: "Jan-26", InvoiceVolumeCG: 16858.73, PendingOBVolume: 64511.84, CummPendingOB: 759101.13, Status: "Recorded"},
+							{Period: "Feb-26", InvoiceVolumeCG: 1353.51, PendingOBVolume: 220868.01, CummPendingOB: 979969.13, Status: "Peak Carry-Over"},
+							{Period: "Mar-26", InvoiceVolumeCG: 39734.33, PendingOBVolume: -560194.54, CummPendingOB: 419774.60, Status: "Settled Part"},
+							{Period: "Apr-26", InvoiceVolumeCG: 33089.86, PendingOBVolume: -104205.64, CummPendingOB: 315568.96, Status: "Settled Part"},
+							{Period: "May-26", InvoiceVolumeCG: 52036.82, PendingOBVolume: -267344.48, CummPendingOB: 48224.49, Status: "Settled Part"},
+							{Period: "Jun-26", InvoiceVolumeCG: 46683.48, PendingOBVolume: -48224.49, CummPendingOB: 0.00, Status: "Closed (0.00)"},
+						},
+						SignOff: BGGSignOff{
+							SurveyorBGG:  "DN. Wilopo",
+							SurveyorAAP:  "Agus Prasetyo",
+							KabagEngBGG:  "Sony Darmawan",
+							KabagProdBGG: "Mahbub Junaedi",
+							KabagAAP:     "Alexander Galingging",
+							KTTBGG:       "M. Idris E.K. Ode",
+							PJOAAP:       "Eko Guswandono",
+						},
+					},
+				},
 			},
 			payments: []PaymentLog{
 				{ID: 1, InvoiceNo: "012/SBS-AAP/XI/2025", CustomerCode: "SBS", AmountPaid: 1568339432, PaymentDate: date("2026-03-11"), ReceivingBank: "BRI Escrow", RefNo: "TRF-BRI-00129", PaymentPeriod: "Mar-26", Notes: "Lunas (Telat 11 Hari)", DaysLateOrEarly: 11, CreatedBy: "Treasury Admin", VerificationStatus: "Verified", VerifiedBy: "Hendra Wijaya (Finance Specialist)", CreatedAt: now},
@@ -387,6 +515,67 @@ func recalculateBA(ba *BATracker) {
 		ba.LagBAToInvoiceDays = int(ba.InvoiceIssuedDate.Sub(*ba.BASignedDate).Hours() / 24)
 		if ba.LagBAToInvoiceDays < 0 {
 			ba.LagBAToInvoiceDays = 0
+		}
+	}
+
+	// BGG specific Joint Survey calculations
+	if (ba.CustomerCode == "BGG" || ba.CustomerCode == "PT BGG") && ba.BGGData != nil {
+		b := ba.BGGData
+		if b.VolumeBGG > 0 && b.VolumeAAP > 0 {
+			b.VolumeDifference = math.Abs(b.VolumeAAP - b.VolumeBGG)
+			avg := (b.VolumeBGG + b.VolumeAAP) / 2
+			b.AgreedSurveyVolume = avg
+			if avg > 0 {
+				b.DiffPercentage = (b.VolumeDifference / avg) * 100
+				b.TolerancePass = b.DiffPercentage <= 2.0
+			}
+		}
+		if b.AgreedSurveyVolume > 0 {
+			b.NettOBVolume = b.AgreedSurveyVolume - b.CoalVolumeBCM
+		}
+		if b.CoalVolumeTon > 0 && b.NettOBVolume > 0 {
+			b.StrippingRatio = b.NettOBVolume / b.CoalVolumeTon
+		}
+
+		// Calculate OB Routes Sumproduct
+		var sumActVolDist, sumInvVolDist, sumActVol float64
+		for i := range b.OBRoutes {
+			r := &b.OBRoutes[i]
+			if r.InvoiceDistance == 0 {
+				if r.DistanceMeters < 1000 {
+					r.InvoiceDistance = 1000
+				} else {
+					r.InvoiceDistance = r.DistanceMeters
+				}
+			}
+			r.VolXDistance = r.Volume * r.DistanceMeters
+			sumActVolDist += r.Volume * r.DistanceMeters
+			sumInvVolDist += r.Volume * r.InvoiceDistance
+			sumActVol += r.Volume
+		}
+		if sumActVol > 0 {
+			b.OBActualAvgDist = sumActVolDist / sumActVol
+			b.OBInvoiceAvgDist = sumInvVolDist / sumActVol
+			b.OBOverDistanceHm = (b.OBInvoiceAvgDist - 1000) / 100
+			if b.OBOverDistanceHm < 0 {
+				b.OBOverDistanceHm = 0
+			}
+		}
+
+		// Calculate Coal Routes Sumproduct
+		var sumCoalVolDist, sumCoalVol float64
+		for i := range b.CoalRoutes {
+			r := &b.CoalRoutes[i]
+			r.VolXDistance = r.Volume * r.DistanceMeters
+			sumCoalVolDist += r.VolXDistance
+			sumCoalVol += r.Volume
+		}
+		if sumCoalVol > 0 {
+			b.CoalAvgDist = sumCoalVolDist / sumCoalVol
+			b.CoalOverDistanceM = b.CoalAvgDist - 4000
+			if b.CoalOverDistanceM < 0 {
+				b.CoalOverDistanceM = 0
+			}
 		}
 	}
 
@@ -1120,8 +1309,13 @@ func (s *Service) GetVariableSOWs(ctx context.Context) ([]VariableSOW, error) {
 	st := getStore()
 	st.mu.RLock()
 	defer st.mu.RUnlock()
-	res := make([]VariableSOW, len(st.variableSOWs))
-	copy(res, st.variableSOWs)
+	res := make([]VariableSOW, 0, len(st.variableSOWs))
+	for _, item := range st.variableSOWs {
+		if strings.Contains(item.ItemName, "(Feb-") || strings.Contains(item.ItemName, "(Jun-") || strings.Contains(item.ItemName, "(Jan-") {
+			continue
+		}
+		res = append(res, item)
+	}
 	return res, nil
 }
 
@@ -1428,6 +1622,209 @@ func (s *Service) ImportBIExchangeRatesFromBytes(ctx context.Context, fileBytes 
 	return avgMRate, rfResult, len(imported), nil
 }
 
+// ================= COAL INDEX (INDONESIAN COAL INDEX) SERVICE =================
+
+func (s *Service) GetCoalIndices(ctx context.Context) ([]CoalIndexMonthly, error) {
+	st := getStore()
+	st.mu.RLock()
+	defer st.mu.RUnlock()
+	res := make([]CoalIndexMonthly, len(st.coalIndexList))
+	copy(res, st.coalIndexList)
+	return res, nil
+}
+
+func (s *Service) SaveCoalIndex(ctx context.Context, item CoalIndexMonthly) (CoalIndexMonthly, error) {
+	st := getStore()
+	st.mu.Lock()
+	defer st.mu.Unlock()
+
+	now := time.Now()
+	// Recalculate weeks R3 and monthly averages
+	var sumICI3, sumICI4, sumR3 float64
+	validCount := 0
+	for i, w := range item.Weeks {
+		w.R3Price = (w.ICI3Price + w.ICI4Price) / 2.0
+		item.Weeks[i] = w
+		if w.ICI3Price > 0 || w.ICI4Price > 0 {
+			sumICI3 += w.ICI3Price
+			sumICI4 += w.ICI4Price
+			sumR3 += w.R3Price
+			validCount++
+		}
+	}
+
+	if validCount > 0 {
+		item.AvgICI3 = sumICI3 / float64(validCount)
+		item.AvgICI4 = sumICI4 / float64(validCount)
+		item.AvgR3 = sumR3 / float64(validCount)
+	}
+
+	// Determine Active Tier:
+	// Tier 1: Avg R3 < 50
+	// Tier 2: 50 <= Avg R3 <= 75
+	// Tier 3: Avg R3 > 75
+	if item.AvgR3 > 75 {
+		item.ActiveTier = "Tier 3"
+	} else if item.AvgR3 >= 50 {
+		item.ActiveTier = "Tier 2"
+	} else {
+		item.ActiveTier = "Tier 1"
+	}
+
+	if item.Status == "" {
+		item.Status = "Draft"
+	}
+	item.UpdatedAt = now
+
+	if item.ID == 0 {
+		st.nextID++
+		item.ID = st.nextID
+		st.coalIndexList = append([]CoalIndexMonthly{item}, st.coalIndexList...)
+	} else {
+		found := false
+		for i, existing := range st.coalIndexList {
+			if existing.ID == item.ID {
+				st.coalIndexList[i] = item
+				found = true
+				break
+			}
+		}
+		if !found {
+			st.coalIndexList = append([]CoalIndexMonthly{item}, st.coalIndexList...)
+		}
+	}
+	return item, nil
+}
+
+func (s *Service) LockCoalIndex(ctx context.Context, period string, status string) (CoalIndexMonthly, error) {
+	st := getStore()
+	st.mu.Lock()
+	defer st.mu.Unlock()
+
+	for i, existing := range st.coalIndexList {
+		if existing.Period == period {
+			st.coalIndexList[i].Status = status
+			st.coalIndexList[i].UpdatedAt = time.Now()
+			return st.coalIndexList[i], nil
+		}
+	}
+	return CoalIndexMonthly{}, errors.New("Coal Index period not found")
+}
+
+// CalculateMiningInvoice dynamically computes full mining invoice breakdown based on active Tier rates & formulas
+func (s *Service) CalculateMiningInvoice(ctx context.Context, in MiningInvoiceCalcInput) (MiningInvoiceCalcResult, error) {
+	st := getStore()
+	st.mu.RLock()
+	defer st.mu.RUnlock()
+
+	res := MiningInvoiceCalcResult{
+		ActiveTier: "Tier 3", // default
+		AvgR3:      76.43,
+	}
+
+	// 1. Resolve Coal Index for period
+	for _, ci := range st.coalIndexList {
+		if strings.EqualFold(ci.Period, in.WorkPeriod) {
+			res.ActiveTier = ci.ActiveTier
+			res.AvgR3 = ci.AvgR3
+			break
+		}
+	}
+
+	// 2. Resolve SOW Rates based on Active Tier
+	res.OB1RateTier = 29500
+	res.OB2RateTier = 28750
+	res.CoalRate = 17500
+	res.OverDistanceOBRate = 155.00
+
+	if res.ActiveTier == "Tier 1" {
+		res.OB1RateTier = 27000
+		res.OB2RateTier = 26250
+		res.OverDistanceOBRate = 139.30
+	} else if res.ActiveTier == "Tier 2" {
+		res.OB1RateTier = 27250
+		res.OB2RateTier = 26500
+		res.OverDistanceOBRate = 139.30
+	}
+
+	// Check SOW overrides if available
+	for _, sow := range st.variableSOWs {
+		if sow.CustomerCode == in.CustomerCode || sow.Customer == in.CustomerCode {
+			if strings.Contains(sow.ItemName, "REMOVAL 1") || strings.Contains(sow.ItemName, "OB 1") {
+				if res.ActiveTier == "Tier 1" && sow.Tier1Rate > 0 {
+					res.OB1RateTier = sow.Tier1Rate
+				} else if res.ActiveTier == "Tier 2" && sow.Tier2Rate > 0 {
+					res.OB1RateTier = sow.Tier2Rate
+				} else if res.ActiveTier == "Tier 3" && sow.Tier3Rate > 0 {
+					res.OB1RateTier = sow.Tier3Rate
+				}
+			}
+			if strings.Contains(sow.ItemName, "REMOVAL 2") || strings.Contains(sow.ItemName, "OB 2") {
+				if res.ActiveTier == "Tier 1" && sow.Tier1Rate > 0 {
+					res.OB2RateTier = sow.Tier1Rate
+				} else if res.ActiveTier == "Tier 2" && sow.Tier2Rate > 0 {
+					res.OB2RateTier = sow.Tier2Rate
+				} else if res.ActiveTier == "Tier 3" && sow.Tier3Rate > 0 {
+					res.OB2RateTier = sow.Tier3Rate
+				}
+			}
+			if strings.Contains(sow.ItemName, "Coal Winning") && sow.RateIDR > 0 {
+				res.CoalRate = sow.RateIDR
+			}
+		}
+	}
+
+	// 3. Compute OB Amounts (75% / 25% split)
+	ob1Vol := in.ClaimedOBVolume * 0.75
+	ob2Vol := in.ClaimedOBVolume * 0.25
+	res.OB1Amount = ob1Vol * res.OB1RateTier
+	res.OB2Amount = ob2Vol * res.OB2RateTier
+
+	// Pending OB Volume uses Tier 2 (Feb-26) or resolved rate
+	if in.PendingOBVolume > 0 {
+		pendingOB1 := in.PendingOBVolume * 0.75
+		pendingOB2 := in.PendingOBVolume * 0.25
+		res.OBPendingAmount = (pendingOB1 * 27250) + (pendingOB2 * 26500)
+	}
+	res.TotalOBAmount = res.OB1Amount + res.OB2Amount + res.OBPendingAmount
+
+	// 4. Compute Coal Winning Amount
+	res.CoalAmount = in.CoalVolume * res.CoalRate
+
+	// 5. Compute Over Distance OB (Sumproduct - 1000m / 100m)
+	if in.SumproductDistance > 1000 {
+		diffHm := (in.SumproductDistance - 1000) / 100.0
+		totalBcm := in.ClaimedOBVolume
+		res.OverDistanceOBAmount = totalBcm * diffHm * res.OverDistanceOBRate
+	}
+
+	// Over distance coal winning estimate (or matrix)
+	if in.CoalVolume > 0 {
+		res.OverDistanceCWAmount = in.CoalVolume * (res.CoalRate * 0.25)
+	}
+	res.TotalODAmount = res.OverDistanceOBAmount + res.OverDistanceCWAmount
+
+	// 6. Raise & Fall Index: Index = 0.60 + (0.40 * Fn / 9000)
+	baseFo := 9000.0
+	actualFn := in.ActualFuelFn
+	if actualFn <= 0 {
+		actualFn = 21601.53
+	}
+	res.RaiseFallFactor = 0.60 + (0.40 * (actualFn / baseFo))
+	baseTotal := res.TotalOBAmount + res.CoalAmount
+	res.RaiseFallAmount = baseTotal * (res.RaiseFallFactor - 1.0)
+
+	// 7. Gross, Deductions, DPP, Taxes
+	res.GrossAmount = res.TotalOBAmount + res.CoalAmount + res.TotalODAmount + res.RaiseFallAmount
+	res.TotalDeduction = in.DPSolarDeduction + in.DPTransportDeduct
+	res.SubtotalDPP = res.GrossAmount - res.TotalDeduction
+	res.PPN12 = res.SubtotalDPP * 0.12
+	res.PPh23 = res.SubtotalDPP * 0.02
+	res.TotalInvoice = res.SubtotalDPP + res.PPN12
+
+	return res, nil
+}
+
 func (s *Service) VerifyBATracker(ctx context.Context, id int64, action string, note string, actor string) (BATracker, error) {
 	st := getStore()
 	st.mu.Lock()
@@ -1646,4 +2043,182 @@ func (s *Service) ApproveInvoiceTier2(ctx context.Context, id int64, action stri
 	}
 	st.invoices = append([]InvoiceMaster{newItem}, st.invoices...)
 	return newItem, nil
+}
+
+func (s *Service) GenerateInvoiceFromBA(ctx context.Context, baID int64) (InvoiceMaster, error) {
+	st := getStore()
+	st.mu.Lock()
+	defer st.mu.Unlock()
+
+	var targetBA *BATracker
+	for i := range st.baList {
+		if st.baList[i].ID == baID {
+			targetBA = &st.baList[i]
+			break
+		}
+	}
+	if targetBA == nil {
+		return InvoiceMaster{}, fmt.Errorf("berita acara not found")
+	}
+
+	now := time.Now()
+	st.nextID++
+	invID := st.nextID
+
+	// Check if BGG
+	if (targetBA.CustomerCode == "BGG" || targetBA.CustomerCode == "PT BGG") && targetBA.BGGData != nil {
+		bgg := targetBA.BGGData
+		calcInput := MiningInvoiceCalcInput{
+			CustomerCode:       "BGG",
+			WorkPeriod:         targetBA.WorkPeriod,
+			ClaimedOBVolume:    bgg.NettOBVolume,
+			CoalVolume:         bgg.CoalVolumeTon,
+			SumproductDistance: bgg.OBInvoiceAvgDist,
+		}
+
+		res := MiningInvoiceCalcResult{
+			ActiveTier: "Tier 3",
+			AvgR3:      76.43,
+		}
+		for _, ci := range st.coalIndexList {
+			if strings.EqualFold(ci.Period, calcInput.WorkPeriod) {
+				res.ActiveTier = ci.ActiveTier
+				res.AvgR3 = ci.AvgR3
+				break
+			}
+		}
+		res.OB1RateTier = 29500
+		res.OB2RateTier = 28750
+		res.CoalRate = 17500
+		res.OverDistanceOBRate = 155.00
+		if res.ActiveTier == "Tier 1" {
+			res.OB1RateTier = 27000
+			res.OB2RateTier = 26250
+			res.OverDistanceOBRate = 139.30
+		} else if res.ActiveTier == "Tier 2" {
+			res.OB1RateTier = 27250
+			res.OB2RateTier = 26500
+			res.OverDistanceOBRate = 139.30
+		}
+
+		ob1Vol := calcInput.ClaimedOBVolume * 0.75
+		ob2Vol := calcInput.ClaimedOBVolume * 0.25
+		res.OB1Amount = ob1Vol * res.OB1RateTier
+		res.OB2Amount = ob2Vol * res.OB2RateTier
+		res.TotalOBAmount = res.OB1Amount + res.OB2Amount
+		res.CoalAmount = calcInput.CoalVolume * res.CoalRate
+		if calcInput.SumproductDistance > 1000 {
+			diffHm := (calcInput.SumproductDistance - 1000) / 100.0
+			res.OverDistanceOBAmount = calcInput.ClaimedOBVolume * diffHm * res.OverDistanceOBRate
+		}
+		if calcInput.CoalVolume > 0 && bgg.CoalOverDistanceM > 0 {
+			res.OverDistanceCWAmount = calcInput.CoalVolume * 19700.0 // Rate OD Batubara
+		}
+		res.TotalODAmount = res.OverDistanceOBAmount + res.OverDistanceCWAmount
+		res.GrossAmount = res.TotalOBAmount + res.CoalAmount + res.TotalODAmount
+		res.SubtotalDPP = res.GrossAmount
+		res.PPN12 = res.SubtotalDPP * 0.11 // PPN 11%
+		res.PPh23 = res.SubtotalDPP * 0.02
+		res.TotalInvoice = res.SubtotalDPP + res.PPN12
+
+		invNo := fmt.Sprintf("091/BGG-AAP/VI/2026")
+		if targetBA.InvoiceNoLinked != "" {
+			invNo = targetBA.InvoiceNoLinked
+		}
+
+		newInv := InvoiceMaster{
+			ID:              invID,
+			InvoiceNo:       invNo,
+			InvoiceCategory: "Operation & Mining",
+			CustomerCode:    "BGG",
+			CustomerID:      1,
+			ProjectSite:     "PIT KUNGKILAN",
+			ContractNo:      "09/BGG-AAP/VIII/2018",
+			Contractor:      "PT. Andalan Artha Primanusa",
+			ActivityGroup:   "Operation & Mining",
+			BANoReference:   targetBA.BANumber,
+			BAID:            targetBA.ID,
+			BADate:          targetBA.BASignedDate,
+			WorkPeriod:      targetBA.WorkPeriod,
+			JobType:         "Overburden Removal & Coal Hauling",
+			VolumeUnit:      "BCM",
+			Volume:          bgg.NettOBVolume,
+			Rate:            res.OB1RateTier,
+			RevenueGross:    res.SubtotalDPP,
+			SolarDeduction:  0,
+			SubTotalDPP:     res.SubtotalDPP,
+			PPNRate:         0.11,
+			PPN11:           res.PPN12,
+			PPhRate:         0.02,
+			PPh23:           res.PPh23,
+			TotalInvoice:    res.TotalInvoice,
+			OtherDeduction:  0,
+			TotalReceipt:    res.TotalInvoice,
+			InvoiceDate:     now,
+			TerminDays:      30,
+			DueDate:         now.AddDate(0, 0, 30),
+			TotalPaid:       0,
+			Outstanding:     res.TotalInvoice,
+			Status:          "Draft",
+			AgingDays:       0,
+			AgingBucket:     "Current",
+			Notes:           fmt.Sprintf("Generated dari Berita Acara %s (Coal Index: %s, Nett OB: %.3f Bcm)", targetBA.BANumber, res.ActiveTier, bgg.NettOBVolume),
+			CreatedAt:       now,
+		}
+
+		targetBA.InvoiceNoLinked = invNo
+		targetBA.InvoiceID = invID
+		targetBA.InvoiceIssuedDate = &now
+		targetBA.StatusBA = "Ready to Invoice"
+		recalculateBA(targetBA)
+
+		st.invoices = append([]InvoiceMaster{newInv}, st.invoices...)
+		return newInv, nil
+	}
+
+	// Fallback for generic BA
+	invNo := fmt.Sprintf("INV-%d/%s/%s", invID, targetBA.CustomerCode, targetBA.WorkPeriod)
+	amt := targetBA.WorkAmount
+	if amt == 0 {
+		amt = targetBA.AdjustedWorkAmount
+	}
+	dpp := amt / 1.11
+	ppn := dpp * 0.11
+	pph := dpp * 0.02
+	newInv := InvoiceMaster{
+		ID:              invID,
+		InvoiceNo:       invNo,
+		InvoiceCategory: "Operation & Mining",
+		CustomerCode:    targetBA.CustomerCode,
+		CustomerID:      targetBA.CustomerID,
+		BANoReference:   targetBA.BANumber,
+		BAID:            targetBA.ID,
+		BADate:          targetBA.BASignedDate,
+		WorkPeriod:      targetBA.WorkPeriod,
+		JobType:         "Penambangan",
+		RevenueGross:    dpp,
+		SubTotalDPP:     dpp,
+		PPNRate:         0.11,
+		PPN11:           ppn,
+		PPhRate:         0.02,
+		PPh23:           pph,
+		TotalInvoice:    amt,
+		TotalReceipt:    amt,
+		InvoiceDate:     now,
+		TerminDays:      30,
+		DueDate:         now.AddDate(0, 0, 30),
+		TotalPaid:       0,
+		Outstanding:     amt,
+		Status:          "Draft",
+		Notes:           fmt.Sprintf("Generated dari Berita Acara %s", targetBA.BANumber),
+		CreatedAt:       now,
+	}
+	targetBA.InvoiceNoLinked = invNo
+	targetBA.InvoiceID = invID
+	targetBA.InvoiceIssuedDate = &now
+	targetBA.StatusBA = "Ready to Invoice"
+	recalculateBA(targetBA)
+
+	st.invoices = append([]InvoiceMaster{newInv}, st.invoices...)
+	return newInv, nil
 }

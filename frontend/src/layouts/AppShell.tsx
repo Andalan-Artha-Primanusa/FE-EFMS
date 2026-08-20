@@ -12,6 +12,7 @@ import { RBACPage } from "../pages/RBACPage";
 
 import { VariableSOWPage } from "../pages/VariableSOWPage";
 import { MasterRaiseFallPage } from "../pages/MasterRaiseFallPage";
+import { CoalIndexPage } from "../pages/CoalIndexPage";
 
 export function AppShell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
@@ -122,7 +123,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
         <nav>
           {visibleMenu.map((group) => {
             const Icon = group.icon;
-            return <details key={group.group} open={["Dashboard", "Finance", "Transaction Request", "Accounting"].includes(group.group)}>
+            return <details key={group.group} open={["Dashboard", "Finance", "Transaction Request", "Accounting", "Master Data"].includes(group.group)}>
               <summary title={group.group}><Icon size={18} /> <span>{group.group}</span> <ChevronDown size={15} /></summary>
               {group.items.map((item) => <button className={activeView === item ? "active" : ""} key={item} title={item} onClick={() => openView(item)}>{item}</button>)}
             </details>;
@@ -157,6 +158,8 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
           ? <DashboardPage dashboard={dashboard} transactions={transactions} query={query} onRefresh={refresh} onCreate={() => setModalOpen(true)} onNotice={setNotice} />
           : ["Finance & AR Dashboard", "Berita Acara (BA) Tracker", "Invoice Management", "Payment & Receipt Log", "Customer & Credit Terms", "Customer Master & Credit Terms"].includes(activeView)
           ? <FinancePage viewTitle={activeView} query={query} onNotice={setNotice} user={user} />
+          : activeView === "Coal Index"
+          ? <CoalIndexPage viewTitle={activeView} query={query} onNotice={setNotice} />
           : activeView === "Variable SOW"
           ? <VariableSOWPage viewTitle={activeView} query={query} onNotice={setNotice} />
           : (activeView === "RAISE & FALL" || activeView === "Currency")

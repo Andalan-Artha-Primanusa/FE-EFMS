@@ -22,7 +22,7 @@ func main() {
 		log.Printf("database warning: %v, using in-memory store", err)
 	} else if sqlDB != nil {
 		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			defer cancel()
 			if err := database.Migrate(ctx, sqlDB); err != nil {
 				log.Printf("migrate warning: %v", err)

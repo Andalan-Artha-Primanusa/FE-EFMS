@@ -264,40 +264,108 @@ type BAItem struct {
 	SubtotalAdjusted  float64 `json:"subtotalAdjusted"`
 }
 
+type BGGRouteRow struct {
+	RouteNo         int     `json:"routeNo"`
+	DistanceMeters  float64 `json:"distanceMeters"`
+	InvoiceDistance float64 `json:"invoiceDistance"`
+	Volume          float64 `json:"volume"`
+	VolXDistance    float64 `json:"volXDistance"`
+	LoadingPoint    string  `json:"loadingPoint"`
+	DumpingPoint    string  `json:"dumpingPoint"`
+}
+
+type BGGDailySeamEntry struct {
+	Date      string  `json:"date"`
+	Ritation  int     `json:"ritation"`
+	Seam7Ton  float64 `json:"seam7Ton"`
+	Seam8Ton  float64 `json:"seam8Ton"`
+	Seam9Ton  float64 `json:"seam9Ton"`
+	Seam10Ton float64 `json:"seam10Ton"`
+	TotalTon  float64 `json:"totalTon"`
+	Notes     string  `json:"notes"`
+}
+
+type BGGPendingOBEntry struct {
+	Period          string  `json:"period"`
+	InvoiceVolumeCG float64 `json:"invoiceVolumeCG"`
+	PendingOBVolume float64 `json:"pendingOBVolume"`
+	CummPendingOB   float64 `json:"cummPendingOB"`
+	Status          string  `json:"status"`
+}
+
+type BGGSignOff struct {
+	SurveyorBGG  string `json:"surveyorBGG"`
+	SurveyorAAP  string `json:"surveyorAAP"`
+	KabagEngBGG  string `json:"kabagEngBGG"`
+	KabagProdBGG string `json:"kabagProdBGG"`
+	KabagAAP     string `json:"kabagAAP"`
+	KTTBGG       string `json:"kttBGG"`
+	PJOAAP       string `json:"pjoAAP"`
+}
+
+type BGGJointSurveyData struct {
+	LocationPit        string              `json:"locationPit"`
+	OriginalTopoDate   string              `json:"originalTopoDate"`
+	SurveyTopoDate     string              `json:"surveyTopoDate"`
+	VolumeBGG          float64             `json:"volumeBGG"`
+	VolumeAAP          float64             `json:"volumeAAP"`
+	VolumeDifference   float64             `json:"volumeDifference"`
+	DiffPercentage     float64             `json:"diffPercentage"`
+	TolerancePass      bool                `json:"tolerancePass"`
+	AgreedSurveyVolume float64             `json:"agreedSurveyVolume"`
+	CoalVolumeBCM      float64             `json:"coalVolumeBCM"`
+	CoalVolumeTon      float64             `json:"coalVolumeTon"`
+	NettOBVolume       float64             `json:"nettOBVolume"`
+	StrippingRatio     float64             `json:"strippingRatio"`
+	OBRoutes           []BGGRouteRow       `json:"obRoutes"`
+	OBActualAvgDist    float64             `json:"obActualAvgDist"`
+	OBInvoiceAvgDist   float64             `json:"obInvoiceAvgDist"`
+	OBOverDistanceHm   float64             `json:"obOverDistanceHm"`
+	CoalRoutes         []BGGRouteRow       `json:"coalRoutes"`
+	CoalAvgDist        float64             `json:"coalAvgDist"`
+	CoalOverDistanceM  float64             `json:"coalOverDistanceM"`
+	DailySeamData      []BGGDailySeamEntry `json:"dailySeamData"`
+	PendingOBData      []BGGPendingOBEntry `json:"pendingOBData"`
+	InventoryCoalAwal  float64             `json:"inventoryCoalAwal"`
+	InventorySeam      string              `json:"inventorySeam"`
+	SignOff            BGGSignOff          `json:"signOff"`
+}
+
 type BATracker struct {
-	ID                  int64      `json:"id"`
-	BANumber            string     `json:"baNumber"`
-	DraftBARefNo        string     `json:"draftBARefNo,omitempty"`
-	SignedBANumber      string     `json:"signedBANumber,omitempty"`
-	CustomerCode        string     `json:"customerCode"`
-	CustomerID          int64      `json:"customerId,omitempty"`
-	WorkPeriod          string     `json:"workPeriod"`
-	WorkAmount          float64    `json:"workAmount"`
-	InitialWorkAmount   float64    `json:"initialWorkAmount"`
-	AdjustedWorkAmount  float64    `json:"adjustedWorkAmount"`
-	Step1Locked         bool       `json:"step1Locked"`
-	Items               []BAItem   `json:"items,omitempty"`
-	WorkEndDate         *time.Time `json:"workEndDate"`
-	BASubmittedDate     *time.Time `json:"baSubmittedDate"`
-	BASentDate          *time.Time `json:"baSentDate"`
-	InternalRoutingDate *time.Time `json:"internalRoutingDate"`
-	BASignedDate        *time.Time `json:"baSignedDate"`
-	LeadTimeDays        int        `json:"leadTimeDays"`
-	StatusBA            string     `json:"statusBA"`
-	PICAAP              string     `json:"picAAP"`
-	InvoiceNoLinked     string     `json:"invoiceNoLinked"`
-	InvoiceID           int64      `json:"invoiceId,omitempty"`
-	InvoiceIssuedDate   *time.Time `json:"invoiceIssuedDate"`
-	LagBAToInvoiceDays  int        `json:"lagBAToInvoiceDays"`
-	NotesBottleneck     string     `json:"notesBottleneck"`
-	Notes               string     `json:"notes"`
-	DraftBAPath         string     `json:"draftBAPath"`
-	FinalBAPath         string     `json:"finalBAPath"`
-	VerifiedBy          string     `json:"verifiedBy,omitempty"`
-	VerifiedAt          *time.Time `json:"verifiedAt,omitempty"`
-	ApprovedBy          string     `json:"approvedBy,omitempty"`
-	ApprovedAt          *time.Time `json:"approvedAt,omitempty"`
-	CreatedAt           time.Time  `json:"createdAt"`
+	ID                  int64               `json:"id"`
+	BANumber            string              `json:"baNumber"`
+	DraftBARefNo        string              `json:"draftBARefNo,omitempty"`
+	SignedBANumber      string              `json:"signedBANumber,omitempty"`
+	CustomerCode        string              `json:"customerCode"`
+	CustomerID          int64               `json:"customerId,omitempty"`
+	WorkPeriod          string              `json:"workPeriod"`
+	WorkAmount          float64             `json:"workAmount"`
+	InitialWorkAmount   float64             `json:"initialWorkAmount"`
+	AdjustedWorkAmount  float64             `json:"adjustedWorkAmount"`
+	Step1Locked         bool                `json:"step1Locked"`
+	Items               []BAItem            `json:"items,omitempty"`
+	BGGData             *BGGJointSurveyData `json:"bggData,omitempty"`
+	WorkEndDate         *time.Time          `json:"workEndDate"`
+	BASubmittedDate     *time.Time          `json:"baSubmittedDate"`
+	BASentDate          *time.Time          `json:"baSentDate"`
+	InternalRoutingDate *time.Time          `json:"internalRoutingDate"`
+	BASignedDate        *time.Time          `json:"baSignedDate"`
+	LeadTimeDays        int                 `json:"leadTimeDays"`
+	StatusBA            string              `json:"statusBA"`
+	PICAAP              string              `json:"picAAP"`
+	InvoiceNoLinked     string              `json:"invoiceNoLinked"`
+	InvoiceID           int64               `json:"invoiceId,omitempty"`
+	InvoiceIssuedDate   *time.Time          `json:"invoiceIssuedDate"`
+	LagBAToInvoiceDays  int                 `json:"lagBAToInvoiceDays"`
+	NotesBottleneck     string              `json:"notesBottleneck"`
+	Notes               string              `json:"notes"`
+	DraftBAPath         string              `json:"draftBAPath"`
+	FinalBAPath         string              `json:"finalBAPath"`
+	VerifiedBy          string              `json:"verifiedBy,omitempty"`
+	VerifiedAt          *time.Time          `json:"verifiedAt,omitempty"`
+	ApprovedBy          string              `json:"approvedBy,omitempty"`
+	ApprovedAt          *time.Time          `json:"approvedAt,omitempty"`
+	CreatedAt           time.Time           `json:"createdAt"`
 }
 
 type InvoiceMaster struct {
@@ -379,18 +447,23 @@ type PaymentLog struct {
 }
 
 type VariableSOW struct {
-	ID           int64     `json:"id"`
-	Category     string    `json:"category"`
-	ItemName     string    `json:"itemName"`
-	RateUSD      float64   `json:"rateUSD"`
-	RateIDR      float64   `json:"rateIDR"`
-	Unit         string    `json:"unit"`
-	Customer     string    `json:"customer"`
-	CustomerCode string    `json:"customerCode"`
-	ContractNo   string    `json:"contractNo"`
-	Description  string    `json:"description"`
-	Status       string    `json:"status"`
-	CreatedAt    time.Time `json:"createdAt"`
+	ID                 int64     `json:"id"`
+	Category           string    `json:"category"`
+	ItemName           string    `json:"itemName"`
+	RateUSD            float64   `json:"rateUSD"`
+	RateIDR            float64   `json:"rateIDR"`
+	Tier1Rate          float64   `json:"tier1Rate,omitempty"`
+	Tier2Rate          float64   `json:"tier2Rate,omitempty"`
+	Tier3Rate          float64   `json:"tier3Rate,omitempty"`
+	SplitPercentage    float64   `json:"splitPercentage,omitempty"`
+	BaseDistanceMeters float64   `json:"baseDistanceMeters,omitempty"`
+	Unit               string    `json:"unit"`
+	Customer           string    `json:"customer"`
+	CustomerCode       string    `json:"customerCode"`
+	ContractNo         string    `json:"contractNo"`
+	Description        string    `json:"description"`
+	Status             string    `json:"status"`
+	CreatedAt          time.Time `json:"createdAt"`
 }
 
 type RaiseFallMaster struct {
@@ -421,5 +494,65 @@ type DailyExchangeRate struct {
 	KursJual   float64 `json:"kursJual"`
 	KursBeli   float64 `json:"kursBeli"`
 	KursTengah float64 `json:"kursTengah"`
+}
+
+type CoalIndexWeekly struct {
+	ID          int64   `json:"id"`
+	MonthlyID   int64   `json:"monthlyId"`
+	WeekNumber  int     `json:"weekNumber"`
+	ReleaseDate string  `json:"releaseDate"`
+	ICI3Price   float64 `json:"ici3Price"`
+	ICI4Price   float64 `json:"ici4Price"`
+	R3Price     float64 `json:"r3Price"`
+}
+
+type CoalIndexMonthly struct {
+	ID         int64             `json:"id"`
+	Period     string            `json:"period"`
+	AvgICI3    float64           `json:"avgIci3"`
+	AvgICI4    float64           `json:"avgIci4"`
+	AvgR3      float64           `json:"avgR3"`
+	ActiveTier string            `json:"activeTier"` // "Tier 1", "Tier 2", "Tier 3"
+	Status     string            `json:"status"`     // "Draft", "Verified", "Locked"
+	Notes      string            `json:"notes"`
+	Weeks      []CoalIndexWeekly `json:"weeks"`
+	UpdatedAt  time.Time         `json:"updatedAt"`
+}
+
+type MiningInvoiceCalcInput struct {
+	CustomerCode       string  `json:"customerCode"`
+	WorkPeriod         string  `json:"workPeriod"`
+	ClaimedOBVolume    float64 `json:"claimedOBVolume"`
+	PendingOBVolume    float64 `json:"pendingOBVolume"`
+	CoalVolume         float64 `json:"coalVolume"`
+	SumproductDistance float64 `json:"sumproductDistance"`
+	ActualFuelFn       float64 `json:"actualFuelFn"`
+	DPSolarDeduction   float64 `json:"dpSolarDeduction"`
+	DPTransportDeduct  float64 `json:"dpTransportDeduct"`
+}
+
+type MiningInvoiceCalcResult struct {
+	ActiveTier           string  `json:"activeTier"`
+	AvgR3                float64 `json:"avgR3"`
+	OB1RateTier          float64 `json:"ob1RateTier"`
+	OB2RateTier          float64 `json:"ob2RateTier"`
+	CoalRate             float64 `json:"coalRate"`
+	OverDistanceOBRate   float64 `json:"overDistanceOBRate"`
+	RaiseFallFactor      float64 `json:"raiseFallFactor"`
+	OB1Amount            float64 `json:"ob1Amount"`
+	OB2Amount            float64 `json:"ob2Amount"`
+	OBPendingAmount      float64 `json:"obPendingAmount"`
+	TotalOBAmount        float64 `json:"totalOBAmount"`
+	CoalAmount           float64 `json:"coalAmount"`
+	OverDistanceOBAmount float64 `json:"overDistanceOBAmount"`
+	OverDistanceCWAmount float64 `json:"overDistanceCWAmount"`
+	TotalODAmount        float64 `json:"totalODAmount"`
+	RaiseFallAmount      float64 `json:"raiseFallAmount"`
+	GrossAmount          float64 `json:"grossAmount"`
+	TotalDeduction       float64 `json:"totalDeduction"`
+	SubtotalDPP          float64 `json:"subtotalDPP"`
+	PPN12                float64 `json:"ppn12"`
+	PPh23                float64 `json:"pph23"`
+	TotalInvoice         float64 `json:"totalInvoice"`
 }
 

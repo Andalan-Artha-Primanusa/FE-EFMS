@@ -16,9 +16,9 @@ import (
 func Open(dsn string) (*sql.DB, error) {
 	if !strings.Contains(dsn, "timeout=") {
 		if strings.Contains(dsn, "?") {
-			dsn += "&timeout=2s&readTimeout=2s&writeTimeout=2s"
+			dsn += "&timeout=5s&readTimeout=30s&writeTimeout=30s"
 		} else {
-			dsn += "?timeout=2s&readTimeout=2s&writeTimeout=2s"
+			dsn += "?timeout=5s&readTimeout=30s&writeTimeout=30s"
 		}
 	}
 	db, err := sql.Open("mysql", dsn)

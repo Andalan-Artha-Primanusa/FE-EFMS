@@ -177,6 +177,10 @@ export function approveBATracker(id: number, action: "approve" | "reject", note:
   return api(`/api/finance/ba-trackers/${id}/approve`, { method: "POST", body: JSON.stringify({ action, note }) });
 }
 
+export function generateInvoiceFromBA(id: number) {
+  return api(`/api/finance/ba-trackers/${id}/generate-invoice`, { method: "POST" });
+}
+
 export function verifyInvoice(id: number, action: "verify" | "reject", note: string) {
   return api(`/api/finance/invoices/${id}/verify`, { method: "POST", body: JSON.stringify({ action, note }) });
 }

@@ -375,3 +375,120 @@ func TestUserManagement_RBAC_CRUD(t *testing.T) {
 		t.Fatalf("Expected 400 Bad Request when attempting to delete root user ID 1, got %d", resp5.StatusCode)
 	}
 }
+
+func TestCoalIndex_GetAndSave(t *testing.T) {
+	cfg := config.Config{AppSecret: "secret123", CORSOrigin: "http://127.0.0.1:5175"}
+	svc := app.New(nil, cfg)
+	fiberApp := NewFiberApp(svc, cfg)
+	token := createTestToken("Super Admin", cfg)
+
+	// 1. GET /api/master-data/coal-index
+	req := httptest.NewRequest("GET", "/api/master-data/coal-index", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := fiberApp.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("Expected 200 OK for GET coal-index, got %d", resp.StatusCode)
+	}
+
+	// 2. POST /api/master-data/coal-index (Save with weekly data)
+	newIndex := app.CoalIndexMonthly{
+		Period: "Agustus 2026",
+		Weeks: []app.CoalIndexWeekly{
+			{WeekNumber: 1, ReleaseDate: "2026-08-07", ICI3Price: 94.0, ICI4Price: 62.0},
+			{WeekNumber: 2, ReleaseDate: "2026-08-14", ICI3Price: 95.0, ICI4Price: 63.0},
+		},
+	}
+	body, _ := json.Marshal(newIndex)
+	req2 := httptest.NewRequest("POST", "/api/master-data/coal-index", bytes.NewReader(body))
+	req2.Header.Set("Content-Type", "application/json")
+	req2.Header.Set("Authorization", "Bearer "+token)
+	resp2, err := fiberApp.Test(req2, -1)
+	if err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+	if resp2.StatusCode != fiber.StatusOK {
+		t.Fatalf("Expected 200 OK for POST coal-index, got %d", resp2.StatusCode)
+	}
+
+	var saved app.CoalIndexMonthly
+	_ = json.NewDecoder(resp2.Body).Decode(&saved)
+	if saved.ActiveTier != "Tier 3" {
+		t.Fatalf("Expected ActiveTier to be Tier 3 (Avg R3 = 78.5 > 75), got %s", saved.ActiveTier)
+	}
+}
+
+func TestCalculateMiningInvoice(t *testing.T) {
+	cfg := config.Config{AppSecret: "secret123", CORSOrigin: "http://127.0.0.1:5175"}
+	svc := app.New(nil, cfg)
+	fiberApp := NewFiberApp(svc, cfg)
+	token := createTestToken("Super Admin", cfg)
+
+	calcInput := app.MiningInvoiceCalcInput{
+		CustomerCode:       "BGG",
+		WorkPeriod:         "Juni 2026",
+		ClaimedOBVolume:    161986.67,
+		PendingOBVolume:    48224.49,
+		CoalVolume:         46683.48,
+		SumproductDistance: 1239.00,
+		ActualFuelFn:       21601.53,
+		DPSolarDeduction:   3749363200.0,
+	}
+
+	body, _ := json.Marshal(calcInput)
+	req := httptest.NewRequest("POST", "/api/finance/invoices/calculate-mining", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := fiberApp.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Calc request failed: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("Expected 200 OK for calculate-mining, got %d", resp.StatusCode)
+	}
+
+	var res app.MiningInvoiceCalcResult
+	_ = json.NewDecoder(resp.Body).Decode(&res)
+	if res.ActiveTier != "Tier 3" {
+		t.Fatalf("Expected ActiveTier Tier 3 for Juni 2026, got %s", res.ActiveTier)
+	}
+	if res.OB1RateTier != 29500 {
+		t.Fatalf("Expected OB1RateTier 29500 for Tier 3, got %f", res.OB1RateTier)
+	}
+	if res.OB2RateTier != 28750 {
+		t.Fatalf("Expected OB2RateTier 28750 for Tier 3, got %f", res.OB2RateTier)
+	}
+	if res.SubtotalDPP <= 0 {
+		t.Fatalf("Expected SubtotalDPP > 0, got %f", res.SubtotalDPP)
+	}
+}
+
+func TestGenerateInvoiceFromBA_BGG(t *testing.T) {
+	cfg := config.Config{AppSecret: "secret123", CORSOrigin: "http://127.0.0.1:5175"}
+	svc := app.New(nil, cfg)
+	fiberApp := NewFiberApp(svc, cfg)
+	token := createTestToken("Super Admin", cfg)
+
+	req := httptest.NewRequest("POST", "/api/finance/ba-trackers/12/generate-invoice", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := fiberApp.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Generate invoice request failed: %v", err)
+	}
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("Expected 200 OK for generate-invoice, got %d", resp.StatusCode)
+	}
+
+	var inv app.InvoiceMaster
+	_ = json.NewDecoder(resp.Body).Decode(&inv)
+	if inv.CustomerCode != "BGG" {
+		t.Fatalf("Expected CustomerCode BGG, got %s", inv.CustomerCode)
+	}
+	if inv.TotalInvoice <= 0 {
+		t.Fatalf("Expected TotalInvoice > 0, got %f", inv.TotalInvoice)
+	}
+}
+
+
