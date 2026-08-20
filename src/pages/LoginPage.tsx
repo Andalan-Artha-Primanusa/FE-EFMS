@@ -98,7 +98,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
       <section className="hidden lg:block lg:w-7/12 xl:w-1/2 bg-gray-900 relative overflow-hidden">
         {/* Gambar placeholder, user bisa ganti URL-nya */}
         <img 
-          src="https://images.unsplash.com/photo-1573164713988-8665fc963095?q=80&w=2000&auto=format&fit=crop" 
+          src="http://content.didimax.co.id/Upload/2023/01/16/zcvERBwM/20230116090648517.jpg" 
           alt="Professional working in office" 
           className="absolute inset-0 w-full h-full object-cover" 
         />
