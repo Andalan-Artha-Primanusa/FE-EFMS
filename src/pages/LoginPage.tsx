@@ -25,8 +25,8 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
   }
 
   return (
-    <main className="login-page antialiased text-finance-ink">
-      <section className="login-panel bg-white">
+    <main className="antialiased login-page text-finance-ink">
+      <section className="bg-white login-panel">
         <div className="login-logo"><img src="/feast-logo.webp" alt="FEAST - Financial Enterprise Andalan System" /></div>
         <p className="eyebrow">Financial Enterprise Andalan System</p>
         <h1>Masuk ke pusat kendali finance end-to-end.</h1>
@@ -49,7 +49,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
       <section className="login-visual">
         <div className="visual-copy">
           <span>Finance Operations</span>
-          <strong>Real-time financial governance for multi-level approval and closing.</strong>
+          <strong>Real-time financial governance for multi-level approval and closing.testing perubahaan</strong>
         </div>
         <div className="visual-grid">
           {["Budget Lock", "Multi Approval", "Auto Journal", "Bank Reconcile", "AP Aging", "AR Collection"].map((item) => <span key={item}>{item}</span>)}
