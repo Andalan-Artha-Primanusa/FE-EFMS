@@ -24,63 +24,63 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
   }
 
   return (
-    <main className="min-h-screen w-full flex bg-white text-gray-800 font-sans">
+    <main className="min-h-screen w-full flex bg-white text-gray-900 font-sans">
       {/* Kiri: Form Login */}
-      <section className="w-full lg:w-1/2 flex flex-col justify-between p-8 md:p-16 lg:px-24 py-12">
-        <div className="flex flex-col w-full max-w-md mx-auto mt-8 lg:mt-12">
-          {/* Logo FEAST */}
-          <div className="mb-16">
-            <img src="/feast-logo.png" alt="FEAST Logo" className="h-10 object-contain" />
-          </div>
+      <section className="w-full lg:w-5/12 xl:w-1/2 flex flex-col justify-between px-6 py-10 sm:px-12 sm:py-16 lg:px-20 xl:px-32 relative z-10">
+        
+        {/* Header Logo */}
+        <div className="flex-none">
+          <img src="/feast-logo.png" alt="FEAST Logo" className="h-16 sm:h-20 object-contain" />
+        </div>
+
+        {/* Center Form */}
+        <div className="flex-1 flex flex-col justify-center w-full max-w-lg mx-auto py-12 lg:py-0">
+          <h1 className="text-4xl sm:text-5xl font-bold text-[#1e40af] mb-3 tracking-tight">Selamat Datang</h1>
+          <p className="text-gray-500 mb-10 text-base sm:text-lg">Silakan masuk untuk melanjutkan ke pusat kendali finance.</p>
           
-          {/* Teks Sambutan */}
-          <h1 className="text-4xl font-semibold text-[#1e40af] mb-2 tracking-tight">Selamat Datang</h1>
-          <p className="text-gray-500 mb-10 text-sm">Silakan masuk untuk melanjutkan ke pusat kendali finance.</p>
-          
-          {/* Form */}
-          <form onSubmit={submit} className="flex flex-col gap-5">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-[#1e40af]">Email</label>
+          <form onSubmit={submit} className="flex flex-col gap-6">
+            <div className="flex flex-col gap-2.5">
+              <label className="text-sm sm:text-base font-semibold text-gray-700">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1e40af] focus:border-transparent transition-all text-base sm:text-lg"
                 placeholder="name@company.com"
                 required
               />
             </div>
             
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-[#1e40af]">Kata Sandi</label>
+            <div className="flex flex-col gap-2.5">
+              <label className="text-sm sm:text-base font-semibold text-gray-700">Kata Sandi</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
-                className="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1e40af] focus:border-transparent transition-all text-base sm:text-lg"
                 placeholder="••••••••"
                 required
               />
             </div>
 
-            <div className="flex items-center justify-between mt-1">
-              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+            <div className="flex items-center justify-between mt-2">
+              <label className="flex items-center gap-3 text-sm sm:text-base text-gray-600 cursor-pointer">
+                <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-[#1e40af] focus:ring-[#1e40af]" />
                 Ingat Saya
               </label>
-              <a href="#" className="text-sm text-blue-600 hover:text-blue-800 transition-colors">
+              <a href="#" className="text-sm sm:text-base text-[#1e40af] hover:text-blue-800 font-medium transition-colors">
                 Lupa Kata Sandi?
               </a>
             </div>
 
-            {error && <div className="text-red-500 text-sm p-3 bg-red-50 rounded-md mt-2 border border-red-100">{error}</div>}
+            {error && <div className="text-red-600 text-sm sm:text-base p-4 bg-red-50 rounded-xl border border-red-100">{error}</div>}
             
             <button
               type="submit"
               disabled={loading}
-              className="mt-4 w-full bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-medium py-3 rounded-md transition-colors disabled:opacity-70 disabled:cursor-wait"
+              className="mt-6 w-full bg-[#1e40af] hover:bg-[#1e3a8a] text-white font-semibold py-4 rounded-xl transition-all shadow-lg hover:shadow-[#1e40af]/30 disabled:opacity-70 disabled:cursor-wait text-lg"
             >
               {loading ? "Memeriksa..." : "Masuk"}
             </button>
@@ -88,19 +88,22 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
         </div>
 
         {/* Footer Powered By */}
-        <div className="flex items-center justify-center lg:justify-start gap-2 mt-20 text-sm text-gray-500">
+        <div className="flex-none flex items-center gap-3 text-sm sm:text-base text-gray-500 pt-8 border-t border-gray-100">
           <span>Powered by</span>
-          <img src="/andalan-logo.png" alt="Andalan Logo" className="h-6 object-contain" />
+          <img src="/andalan-logo.png" alt="Andalan Logo" className="h-8 sm:h-10 object-contain" />
         </div>
       </section>
 
       {/* Kanan: Visual/Foto */}
-      <section className="hidden lg:block lg:w-1/2 bg-gray-100 relative">
+      <section className="hidden lg:block lg:w-7/12 xl:w-1/2 bg-gray-900 relative overflow-hidden">
+        {/* Gambar placeholder, user bisa ganti URL-nya */}
         <img 
           src="https://images.unsplash.com/photo-1573164713988-8665fc963095?q=80&w=2000&auto=format&fit=crop" 
           alt="Professional working in office" 
           className="absolute inset-0 w-full h-full object-cover" 
         />
+        {/* Overlay agar gambar tidak terlalu gelap tapi tetap bertekstur enterprise */}
+        <div className="absolute inset-0 bg-[#0f172a]/10"></div>
       </section>
     </main>
   );
