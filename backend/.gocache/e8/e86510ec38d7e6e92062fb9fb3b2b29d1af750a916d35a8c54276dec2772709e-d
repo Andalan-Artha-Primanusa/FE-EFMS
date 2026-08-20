@@ -1,6 +1,0 @@
-./auth_service.go
-./catalog.go
-./dashboard_service.go
-./json.go
-./models.go
-./service.go
