@@ -1,21 +1,11 @@
 services:
-  financeerp-api:
+  efms-frontend:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
-    container_name: financeerp-api
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    environment:
-      APP_ENV: production
-      APP_ADDR: :8080
-      APP_SECRET: change-me-in-production
-      MYSQL_DSN: admin:HkQV5KXNt45JO7Iz@tcp(160.19.165.216:3306)/finacneerp?parseTime=true&multiStatements=true
-      UPLOAD_DIR: /app/uploads
-      CORS_ORIGIN: http://localhost:5173
-    volumes:
-      - financeerp_uploads:/app/uploads
 
-volumes:
-  financeerp_uploads:
+    container_name: efms-frontend
+    restart: unless-stopped
+
+    ports:
+      - "2021:80"
