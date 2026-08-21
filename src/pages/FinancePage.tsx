@@ -3393,11 +3393,11 @@ export function FinancePage({
       if (modalType === "ba") {
         endpoint = "/api/finance/ba-trackers";
         if (formData.customerCode === "BGG" || formData.customerCode === "PT BGG") {
-          const totTerbongkar = Number(formData.bggTotalTerbongkar ?? 247557.933);
-          const coalBCM = Number(formData.bggCoalVolumeBCM ?? 37346.784);
+          const totTerbongkar = Number(formData.bggTotalTerbongkar || 247557.933);
+          const coalBCM = Number(formData.bggCoalVolumeBCM || 37346.784);
           const nettOB = Math.max(0, totTerbongkar - coalBCM);
-          const coalTon = Number(formData.bggCoalVolumeTon ?? 46683.48);
-          const odHm = Number(formData.bggOBDistanceHm ?? 2.38526);
+          const coalTon = Number(formData.bggCoalVolumeTon || 46683.48);
+          const odHm = Number(formData.bggOBDistanceHm || 2.38526);
           const ob1 = nettOB * 0.75;
           const ob2 = nettOB * 0.25;
           const subOB1 = Math.round(ob1 * 29500);
