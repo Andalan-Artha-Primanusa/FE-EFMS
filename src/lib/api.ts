@@ -177,6 +177,10 @@ export function approveBATracker(id: number, action: "approve" | "reject", note:
   return api(`/api/finance/ba-trackers/${id}/approve`, { method: "POST", body: JSON.stringify({ action, note }) });
 }
 
+export function generateInvoiceFromBA(id: number) {
+  return api(`/api/finance/ba-trackers/${id}/generate-invoice`, { method: "POST" });
+}
+
 export function verifyInvoice(id: number, action: "verify" | "reject", note: string) {
   return api(`/api/finance/invoices/${id}/verify`, { method: "POST", body: JSON.stringify({ action, note }) });
 }
@@ -205,8 +209,62 @@ export function deleteUser(id: number) {
   return api<{ status: string }>(`/api/users/${id}`, { method: "DELETE" });
 }
 
+// Accounting Endpoints
+export function getJournals() {
+  return api<any[]>("/api/accounting/journals");
+}
+
+export function saveJournal(entry: any) {
+  return api<any>("/api/accounting/journals", { method: "POST", body: JSON.stringify(entry) });
+}
+
+export function verifyJournal(id: number) {
+  return api<any>(`/api/accounting/journals/${id}/verify`, { method: "POST" });
+}
+
+export function approveJournal(id: number) {
+  return api<any>(`/api/accounting/journals/${id}/approve`, { method: "POST" });
+}
+
+export function postJournalsBatch(ids: number[]) {
+  return api<any[]>("/api/accounting/journals/post-batch", { method: "POST", body: JSON.stringify({ ids }) });
+}
+
+export function getCOAAccounts() {
+  return api<any[]>("/api/accounting/coa");
+}
+
+export function saveCOAAccount(account: any) {
+  return api<any>("/api/accounting/coa", { method: "POST", body: JSON.stringify(account) });
+}
+
+export function getSubLedgers() {
+  return api<any[]>("/api/accounting/sub-ledgers");
+}
+
+export function saveSubLedger(sub: any) {
+  return api<any>("/api/accounting/sub-ledgers", { method: "POST", body: JSON.stringify(sub) });
+}
+
+export function getGeneralLedger(accountCode = "1101.001", period = "Juni 2026") {
+  return api<any>(`/api/accounting/general-ledger?account=${encodeURIComponent(accountCode)}&period=${encodeURIComponent(period)}`);
+}
+
+export function getTrialBalance(period = "Juni 2026") {
+  return api<any[]>(`/api/accounting/trial-balance?period=${encodeURIComponent(period)}`);
+}
+
+export function getProfitLoss(site = "CoY", period = "Juni 2026") {
+  return api<any>(`/api/accounting/profit-loss?site=${encodeURIComponent(site)}&period=${encodeURIComponent(period)}`);
+}
+
+export function getBalanceSheet(site = "CoY", period = "Juni 2026") {
+  return api<any>(`/api/accounting/balance-sheet?site=${encodeURIComponent(site)}&period=${encodeURIComponent(period)}`);
+}
+
 export const money = (value: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
 
 export const compactMoney = (value: number) =>
   new Intl.NumberFormat("id-ID", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+
