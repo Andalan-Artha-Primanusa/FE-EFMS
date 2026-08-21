@@ -18,6 +18,17 @@ html, body, #root, button, input, select, textarea {
 body { margin: 0; min-width: 320px; }
 button { cursor: pointer; }
 
+/* Hide spin buttons (up/down arrows) from all number inputs */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+input[type="number"] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+
 .login-page {
   min-height: 100vh;
   min-height: 100dvh;

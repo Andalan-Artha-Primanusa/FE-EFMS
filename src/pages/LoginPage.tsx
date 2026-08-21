@@ -27,16 +27,17 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
   return (
     <main className="login-page antialiased text-finance-ink">
       <section className="login-panel bg-white">
-        <div className="login-logo mx-auto"><img src="/feast-logo.png" alt="FEAST - Financial Enterprise Andalan System" /></div>
+        <div className="login-logo mx-auto flex items-center justify-center mb-6">
+          <img src="/feast-logo.webp" alt="FEAST - Financial Enterprise Andalan System" className="h-16 w-auto object-contain" />
+        </div>
         <form onSubmit={submit} className="login-form">
           <label>Email<input value={email} onChange={(e) => setEmail(e.target.value)} type="email" /></label>
           <label>Password<input value={password} onChange={(e) => setPassword(e.target.value)} type="password" /></label>
           {error && <div className="error">{error}</div>}
           <button className="transition disabled:cursor-wait disabled:opacity-70 !bg-[#20a6b8] !text-white hover:!bg-[#1c92a2] !shadow-[0_16px_30px_rgba(32,166,184,.25)]" disabled={loading}>{loading ? "Memeriksa..." : "Login"}</button>
         </form>
-        <div className="powered-by justify-center !border-t-0">
-          <span>Powered by</span>
-          <img src="/andalan-logo.png" alt="Andalan" className="!h-12 !w-auto !object-center" />
+        <div className="powered-by justify-center !border-t-0 pt-4 text-xs font-medium text-slate-400">
+          <span>PT. Andalan Artha Primanusa &copy; {new Date().getFullYear()}</span>
         </div>
       </section>
       <section className="relative overflow-hidden bg-slate-900">

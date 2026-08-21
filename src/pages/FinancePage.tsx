@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, Fragment } from "react";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Activity } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, User as UserType } from "../lib/api";
@@ -447,50 +447,48 @@ const generateAuditTimeline = (type: string, item: any) => {
   };
 
   if (type === "ba") {
-    const isVerified = Boolean(item.verifiedBy || ["Pending Berita Acara", "Verified", "Ready to Invoice", "Approved"].includes(item.statusBA));
-    const isApproved = item.statusBA === "Ready to Invoice" || item.statusBA === "Approved";
+    const isVerified = Boolean(item.verifiedBy || ["Verified", "Ready to Invoice", "Approved"].includes(item.statusBA));
+    const isReadyToInvoice = Boolean(item.statusBA === "Ready to Invoice" || item.statusBA === "Approved" || item.verifiedBy);
     const isRejected = item.statusBA === "Revisi" || item.statusBA === "Rejected";
 
     return [
       {
         step: 1,
-        title: "BA Dibuat (Draft)",
+        title: "BA Dibuat (Site Entri)",
         user: item.picAAP || "Admin Finance Site",
-        role: "Admin Finance Site",
+        role: "Finance Site",
         time: item.createdAt ? formatDateDisplay(item.createdAt) : item.workEndDate ? formatDateDisplay(item.workEndDate) : "31/01/2026",
         status: "completed",
-        desc: `Draft Berita Acara #${item.baNumber} dibuat oleh Admin Finance Site.`
+        desc: `Draft Berita Acara #${item.baNumber || item.draftBARefNo || "Draft"} dibuat oleh Finance Site. Jurnal Tahap 1 (Pengakuan Pendapatan Belum Ditagih) diposting otomatis.`
       },
       {
         step: 2,
-        title: "Verifikasi SPV Site",
-        user: item.verifiedBy ? item.verifiedBy : (isVerified ? "SPV Verifikator (Verified)" : "Belum Diverifikasi"),
-        role: "SPV Verifikator",
-        time: item.verifiedAt ? formatDateDisplay(item.verifiedAt) : (isVerified ? "Terverifikasi" : "Menunggu SPV"),
+        title: "Verifikasi Finance Specialist",
+        user: item.verifiedBy ? item.verifiedBy : (isVerified ? "Finance Specialist (Verified)" : "Belum Diverifikasi"),
+        role: "Finance Specialist",
+        time: item.verifiedAt ? formatDateDisplay(item.verifiedAt) : (isVerified ? "Terverifikasi" : "Menunggu Specialist"),
         status: isVerified ? "completed" : (isRejected ? "rejected" : "pending"),
         desc: item.verifiedBy
-          ? `Dokumen BA diverifikasi & dicatat oleh akun: ${item.verifiedBy}.`
-          : (isVerified ? "Pemeriksaan fisik & data BA telah disetujui SPV." : "Menunggu verifikasi rincian operasional oleh SPV Site.")
+          ? `Volume & nilai klaim BA disahkan oleh: ${item.verifiedBy}. Jurnal Tahap 2 (Pengesahan Nilai BA) diposting. Status: Siap Terbit Invoice.`
+          : (isVerified ? "Pemeriksaan fisik & data BA telah disahkan oleh Finance Specialist." : "Menunggu verifikasi & pengesahan nilai klaim oleh Finance Specialist.")
       },
       {
         step: 3,
-        title: "Approval Manager (Final BA)",
-        user: item.approvedBy ? item.approvedBy : (isApproved ? "Finance Manager (Approved)" : "Belum Disetujui"),
-        role: "Manager",
-        time: item.approvedAt ? formatDateDisplay(item.approvedAt) : (item.baSignedDate ? formatDateDisplay(item.baSignedDate) : "Menunggu Manager"),
-        status: isApproved ? "completed" : (isRejected ? "rejected" : "pending"),
-        desc: item.approvedBy
-          ? `Persetujuan BA disahkan oleh akun: ${item.approvedBy}. Status BA Approved.`
-          : (isApproved ? "Berita Acara telah disetujui Manager & TTD aktif." : "Menunggu persetujuan utama dari Manager.")
+        title: "Penerbitan Invoice",
+        user: item.invoiceNoLinked ? "Finance Site" : "Menunggu Pembuatan",
+        role: "Finance Site",
+        time: item.invoiceIssuedDate ? formatDateDisplay(item.invoiceIssuedDate) : "Belum Dibuat",
+        status: item.invoiceNoLinked ? "completed" : (isReadyToInvoice ? "pending" : "pending"),
+        desc: item.invoiceNoLinked ? `Draft Invoice #${item.invoiceNoLinked} berhasil dibuat dari BA ini.` : "Siap dibuatkan Form Invoice oleh Finance Site."
       },
       {
         step: 4,
-        title: "Relasi Invoice Penagihan",
-        user: item.invoiceNoLinked ? "Admin Finance HO" : "Belum Diterbitkan",
-        role: "Admin Finance HO",
-        time: item.invoiceIssuedDate ? formatDateDisplay(item.invoiceIssuedDate) : "Belum Terbit",
-        status: item.invoiceNoLinked ? "completed" : "pending",
-        desc: item.invoiceNoLinked ? `Terhubung resmi ke Invoice Penagihan #${item.invoiceNoLinked}` : "Invoice penagihan belum diterbitkan dari BA ini."
+        title: "Approval FATB Manager & Jurnal AR",
+        user: "FATB Manager",
+        role: "FATB Manager",
+        time: "Pada Dokumen Invoice",
+        status: item.invoiceNoLinked ? "pending" : "pending",
+        desc: "Approval penagihan invoice resmi dan posting Jurnal Tahap 3 (Piutang Usaha AR) dilakukan di level Invoice Master oleh FATB Manager."
       }
     ];
   }
@@ -558,6 +556,135 @@ const generateAuditTimeline = (type: string, item: any) => {
     { step: 2, title: "Approval Credit Terms", user: "Chief Financial Officer (CFO)", role: "Board Executive", time: "05/01/2024", status: "completed", desc: `Persetujuan termin pembayaran ${item.terminDays} Hari.` },
     { step: 3, title: "Kontrak Kerjasama Aktif", user: "Legal Compliance Manager", role: "Legal Dept", time: "15/01/2024", status: "completed", desc: `Kontrak #${item.contractNo} nilai ${formatIDR(item.contractValue)} berjalan.` }
   ];
+};
+
+// Generator Log Aktivitas User Timeline (Real Backend Audit Logs & Contextual Trail)
+const generateUserActivityLogs = (type: string, item: any, realLogs?: any[]) => {
+  const formatDateDisplay = (val: any) => {
+    if (!val) return "";
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return String(val);
+    return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  };
+
+  if (Array.isArray(realLogs) && realLogs.length > 0) {
+    return realLogs.map((log) => {
+      const act = (log.action || "").toLowerCase();
+      let actionType: "view" | "create" | "edit" | "verify" | "upload" | "system" = "system";
+      let actionLabel = log.action;
+
+      if (act.includes("view")) {
+        actionType = "view";
+        actionLabel = "View Dokumen & Intelligence Hub";
+      } else if (act.includes("verify") || act.includes("sah")) {
+        actionType = "verify";
+        actionLabel = "Verifikasi Nilai BA & Approval Specialist";
+      } else if (act.includes("upload")) {
+        actionType = "upload";
+        actionLabel = "Upload Berkas Dokumen PDF";
+      } else if (act.includes("save") || act.includes("update") || act.includes("edit")) {
+        actionType = "edit";
+        actionLabel = "Simpan Perubahan Data / Survey BA";
+      } else if (act.includes("create") || act.includes("generate")) {
+        actionType = "create";
+        actionLabel = "Entri / Pembuatan Berita Acara";
+      }
+
+      return {
+        id: `real-log-${log.id}`,
+        action: actionLabel,
+        actionType,
+        user: log.user || "System",
+        role: log.user === "System" ? "System Engine" : "Verified User",
+        timestamp: formatDateDisplay(log.createdAt),
+        details: log.ipAddress ? `Aktivitas tercatat dari IP: ${log.ipAddress} (${log.device || "Browser Client"})` : "Aktivitas tercatat dalam database audit trail FEMS."
+      };
+    });
+  }
+
+  // Fallback deterministic reconstruction from real BA record fields
+  const logs: Array<{
+    id: string;
+    action: string;
+    actionType: "view" | "create" | "edit" | "verify" | "upload" | "system";
+    user: string;
+    role: string;
+    timestamp: string;
+    details: string;
+  }> = [];
+
+  // 1. Current View / Intelligence Access (Realtime log)
+  logs.push({
+    id: "act-view-now",
+    action: "View Dokumen & Intelligence Hub",
+    actionType: "view",
+    user: "Current User",
+    role: "Finance / Auditor",
+    timestamp: new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+    details: `Membuka detail BA #${item?.baNumber || item?.draftBARefNo || "Draft"} untuk audit & monitoring data.`
+  });
+
+  // 2. Verification Action (if verified)
+  if (item?.verifiedBy || item?.verifiedAt || item?.statusBA === "Ready to Invoice") {
+    logs.push({
+      id: "act-verify",
+      action: "Verifikasi Nilai BA & Approval Specialist",
+      actionType: "verify",
+      user: item.verifiedBy || "Finance Specialist AAP",
+      role: "Finance Specialist",
+      timestamp: item.verifiedAt ? formatDateDisplay(item.verifiedAt) : formatDateDisplay(item.updatedAt || new Date()),
+      details: "Memvalidasi hasil survey lapangan & mengesahkan status BA menjadi Ready to Invoice. Jurnal Tahap 2 tercatat."
+    });
+  }
+
+  // 3. Document / Signed Upload Action
+  if (item?.finalBAPath || item?.baSignedDate) {
+    logs.push({
+      id: "act-upload-final",
+      action: "Upload Final Signed BA Document",
+      actionType: "upload",
+      user: item.picAAP || "Operations / Site Engineer",
+      role: "Operations Site",
+      timestamp: item.baSignedDate ? formatDateDisplay(item.baSignedDate) : formatDateDisplay(item.updatedAt || item.createdAt),
+      details: "Mengunggah berkas PDF Berita Acara yang telah ditandatangani bersama oleh perwakilan Site & Customer."
+    });
+  } else if (item?.draftBAPath) {
+    logs.push({
+      id: "act-upload-draft",
+      action: "Upload Draft BA Document",
+      actionType: "upload",
+      user: item.picAAP || "Operations / Site Engineer",
+      role: "Operations Site",
+      timestamp: formatDateDisplay(item.createdAt),
+      details: "Mengunggah lampiran berkas draft BA hasil perhitungan awal lapangan."
+    });
+  }
+
+  // 4. Edits or Revisions (if edited)
+  if (item?.updatedAt && item?.updatedAt !== item?.createdAt) {
+    logs.push({
+      id: "act-edit-last",
+      action: "Update Data & Penyesuaian Survey",
+      actionType: "edit",
+      user: item.picAAP || "Site Engineer / Surveyor",
+      role: "Operations Site",
+      timestamp: formatDateDisplay(item.updatedAt),
+      details: "Melakukan penyesuaian volume hasil joint survey dan jarak angkut (distance / overhaul)."
+    });
+  }
+
+  // 5. Initial Creation
+  logs.push({
+    id: "act-create-initial",
+    action: "Entri & Pembuatan Draft BA Baru",
+    actionType: "create",
+    user: item?.picAAP || "Admin Finance Site",
+    role: "Finance Site",
+    timestamp: item?.createdAt ? formatDateDisplay(item?.createdAt) : item?.baSubmittedDate ? formatDateDisplay(item?.baSubmittedDate) : "31/01/2026 09:00",
+    details: `Draft Berita Acara dibuat pertama kali untuk customer ${item?.customerCode || "POS"}. Mengakui Unbilled Revenue Tahap 1.`
+  });
+
+  return logs;
 };
 
 export function FinancePage({
@@ -941,9 +1068,92 @@ export function FinancePage({
     { id: "bgg_dist2", category: "Over Distance", area: "Pit KKL", material: "Distance / Overhaul For Coal Winning", unit: "BCM", parentMaterial: "Volume Batubara (Coal)", distanceWeightAvg: 0, initialVolume: 0, adjustedVolume: 0, rate: 19700, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
   ];
 
+  const isDistanceItem = (item: any) => {
+    if (!item) return false;
+    return Boolean(
+      item.isDistanceVar || 
+      item.category === "Over Distance" || 
+      (item.material && (
+        item.material.toLowerCase().includes("overhaul") || 
+        item.material.toLowerCase().includes("over distance") ||
+        item.material.toLowerCase().includes("distance")
+      ))
+    );
+  };
+
+  const getBAEffectiveVolume = (item: any, allItems: any[], isSurvey: boolean = false) => {
+    if (isDistanceItem(item)) {
+      const parent = allItems.find(p => {
+        if (p.id === item.id) return false;
+        if (isDistanceItem(p)) return false;
+        if (item.parentMaterial) return p.material === item.parentMaterial;
+        const mLow = (item.material || "").toLowerCase();
+        const pLow = (p.material || "").toLowerCase();
+        if (mLow.includes("ob") || mLow.includes("waste") || mLow.includes("overburden")) return pLow.includes("ob") || pLow.includes("waste") || pLow.includes("overburden");
+        if (mLow.includes("coal") || mLow.includes("batubara")) return pLow.includes("coal") || pLow.includes("batubara");
+        if (mLow.includes("top soil")) return pLow.includes("top soil");
+        if (mLow.includes("limonite")) return pLow.includes("limonite");
+        if (mLow.includes("saprolite")) return pLow.includes("saprolite");
+        return false;
+      });
+      if (parent) {
+        return isSurvey ? Number(parent.adjustedVolume ?? parent.initialVolume ?? 0) : Number(parent.initialVolume || 0);
+      }
+    }
+    return isSurvey ? Number(item.adjustedVolume ?? item.initialVolume ?? 0) : Number(item.initialVolume || 0);
+  };
+
+  const getBAItemSubtotal = (item: any, volume: number) => {
+    const r = Number(item.rate || 0);
+    if (isDistanceItem(item)) {
+      const rawDist = Number(item.distanceWeightAvg ?? 1000);
+      const distMtr = rawDist > 50 ? rawDist : (rawDist * 100);
+      const baseMtr = item.baseMtr || 1000;
+      const diffMtr = Math.max(0, distMtr - baseMtr);
+
+      if (item.unit === "Bcm.Hm" || item.material?.toLowerCase().includes("hm")) {
+        const diffHm = diffMtr / 100;
+        return Math.round(volume * diffHm * (r > 1000 ? (r / 1000) : r));
+      }
+      if (item.material?.toLowerCase().includes("coal") || item.material?.toLowerCase().includes("batubara")) {
+        const diffCoalKm = diffMtr / 1000;
+        return Math.round(volume * diffCoalKm * (r > 1000 ? (r / 1000) : r));
+      }
+      const diff100 = diffMtr / 100;
+      return Math.round(volume * diff100 * (r > 1000 ? (r / 1000) : r));
+    }
+    return Math.round(volume * r);
+  };
+
+  const normalizeBARow = (r: any) => {
+    if (!r) return r;
+    if (r.items && Array.isArray(r.items) && r.items.length > 0) {
+      const isSurvey = r.statusBA === "Approved" || r.statusBA === "Ready to Invoice" || r.statusBA === "Arsip" || (r.adjustedWorkAmount !== undefined && r.adjustedWorkAmount > 0);
+      const sumInit = r.items.reduce((acc: number, it: any) => {
+        const vol = getBAEffectiveVolume(it, r.items, false);
+        return acc + getBAItemSubtotal(it, vol);
+      }, 0);
+      const sumAdj = r.items.reduce((acc: number, it: any) => {
+        const vol = getBAEffectiveVolume(it, r.items, true);
+        return acc + getBAItemSubtotal(it, vol);
+      }, 0);
+
+      const realWorkAmount = (isSurvey && sumAdj > 0) ? sumAdj : (sumInit > 0 ? sumInit : Number(r.workAmount || 0));
+      return {
+        ...r,
+        initialWorkAmount: sumInit > 0 ? sumInit : r.initialWorkAmount,
+        adjustedWorkAmount: sumAdj > 0 ? sumAdj : r.adjustedWorkAmount,
+        workAmount: realWorkAmount,
+      };
+    }
+    return r;
+  };
+
   const [baOperatingItems, setBaOperatingItems] = useState<any[]>(defaultPOSBAOperatingItems);
   const [baMDOItems, setBaMDOItems] = useState<any[]>(defaultPOSBAMDOItems);
   const [activeBAStep, setActiveBAStep] = useState<number>(1);
+  const [baSidebarTab, setBaSidebarTab] = useState<"flow" | "activity">("flow");
+  const [realAuditLogs, setRealAuditLogs] = useState<any[]>([]);
   const [showAddRowDropdown, setShowAddRowDropdown] = useState<boolean>(false);
   const [posInvoiceCategory, setPosInvoiceCategory] = useState<"Operation & Mining" | "MDO">("Operation & Mining");
 
@@ -1358,7 +1568,14 @@ export function FinancePage({
     const custCode = itemData?.customerCode || formData.customerCode || "POS";
     const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
     const logoUrl = `${window.location.origin}/andalan-logo.png`;
-    const c = getCustomerCalculations(invLineItems, custCode);
+    const linkedBA = baRows.find((b: any) => 
+      (itemData?.baNoReference && (b.baNumber === itemData.baNoReference || b.signedBANumber === itemData.baNoReference || b.draftBARefNo === itemData.baNoReference)) ||
+      (itemData?.baTrackerId && b.id === itemData.baTrackerId)
+    );
+    const activeItems: any[] = (itemData?.items && Array.isArray(itemData.items) && itemData.items.length > 0 && itemData.items.some((it: any) => (it.volume || 0) > 0 || (it.amount || 0) > 0))
+      ? itemData.items
+      : buildInvoiceItemsFromBA(linkedBA || itemData || formData, custCode);
+    const c = getCustomerCalculations(activeItems, custCode);
     const contractInfo = customerContractMap[custCode];
 
     let tableBodyHTML = "";
@@ -1367,15 +1584,15 @@ export function FinancePage({
 
     if (custCode === "BGG") {
       // BGG Table Layout (Gambar 2)
-      const secAItems = invLineItems.filter(i => i.section === "A");
-      const secBItems = invLineItems.filter(i => i.section === "B");
-      const secCItems = invLineItems.filter(i => i.section === "C");
-      const secDItems = invLineItems.filter(i => i.section === "D");
-      const secEItems = invLineItems.filter(i => i.section === "E");
-      const secFItems = invLineItems.filter(i => i.section === "F");
+      const secAItems = activeItems.filter((i: any) => i.section === "A" && (i.volume || 0) > 0);
+      const secBItems = activeItems.filter((i: any) => i.section === "B" && (i.volume || 0) > 0);
+      const secCItems = activeItems.filter((i: any) => i.section === "C" && (i.volume || 0) > 0);
+      const secDItems = activeItems.filter((i: any) => i.section === "D" && (i.volume || 0) > 0);
+      const secEItems = activeItems.filter((i: any) => i.section === "E" && (i.amount || 0) !== 0);
+      const secFItems = activeItems.filter((i: any) => i.section === "F" && (i.amount || 0) !== 0);
 
-      const volA = secAItems.reduce((s, i) => s + (i.volume || 0), 0);
-      const volB = secBItems.reduce((s, i) => s + (i.volume || 0), 0);
+      const volA = secAItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
+      const volB = secBItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
 
       tableBodyHTML = `
         <tr class="sec-hdr">
@@ -1386,7 +1603,7 @@ export function FinancePage({
           <td class="text-right font-mono font-black">${c.subtotalA.toLocaleString("id-ID")}</td>
         </tr>
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">A1. Pit Kungkilan</td></tr>
-        ${secAItems.map(i => `
+        ${secAItems.map((i: any) => `
           <tr>
             <td style="padding-left: 20px;">${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.period || ""}</span></td>
             <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
@@ -1404,7 +1621,7 @@ export function FinancePage({
           <td class="text-right font-mono font-black">${c.subtotalB.toLocaleString("id-ID")}</td>
         </tr>
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">B1. Pit Kungkilan</td></tr>
-        ${secBItems.map(i => `
+        ${secBItems.map((i: any) => `
           <tr>
             <td style="padding-left: 20px;">${i.description}</td>
             <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
@@ -1422,7 +1639,7 @@ export function FinancePage({
           <td class="text-right font-mono font-black">${c.subtotalC.toLocaleString("id-ID")}</td>
         </tr>
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">C1. Over Distance For OB Removal</td></tr>
-        ${secCItems.filter(i => i.subSection?.includes("OB")).map(i => {
+        ${secCItems.filter((i: any) => i.subSection?.includes("OB")).map((i: any) => {
           const diffMtr = (i.overhaulMtr || 1000) - 1000;
           return `
             <tr>
@@ -1438,7 +1655,7 @@ export function FinancePage({
           `;
         }).join("")}
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">C2. Over Distance For Coal Winning</td></tr>
-        ${secCItems.filter(i => !i.subSection?.includes("OB")).map(i => {
+        ${secCItems.filter((i: any) => !i.subSection?.includes("OB")).map((i: any) => {
           const diffMtr = (i.overhaulMtr || 1000) - 1000;
           return `
             <tr>
@@ -1461,7 +1678,7 @@ export function FinancePage({
           <td></td>
           <td class="text-right font-mono font-black">${c.subtotalD.toLocaleString("id-ID")}</td>
         </tr>
-        ${secDItems.map(i => `
+        ${secDItems.map((i: any) => `
           <tr>
             <td style="padding-left: 20px;">${i.subSection || ""} ${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.period || ""}</span></td>
             <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
@@ -1475,7 +1692,7 @@ export function FinancePage({
           <td colspan="4">E. DISCOUNT ON OVERDISTANCE</td>
           <td class="text-right font-mono font-black">(${Math.abs(c.subtotalE).toLocaleString("id-ID")})</td>
         </tr>
-        ${secEItems.map(i => `
+        ${secEItems.map((i: any) => `
           <tr>
             <td colspan="4" style="padding-left: 20px;">${i.description}</td>
             <td class="text-right font-mono">(${Math.abs(i.amount || 0).toLocaleString("id-ID")})</td>
@@ -1486,7 +1703,7 @@ export function FinancePage({
           <td colspan="4">F. DP FUEL & TRANSPORT</td>
           <td class="text-right font-mono font-black">(${Math.abs(c.subtotalF).toLocaleString("id-ID")})</td>
         </tr>
-        ${secFItems.map(i => `
+        ${secFItems.map((i: any) => `
           <tr>
             <td colspan="4" style="padding-left: 20px;">${i.description}</td>
             <td class="text-right font-mono">(${Math.abs(i.amount || 0).toLocaleString("id-ID")})</td>
@@ -2520,11 +2737,11 @@ export function FinancePage({
       totalBAMoney += custSubtotal;
 
       pdfRowsBA += `
-        <tr class="client-banner" style="background: #e2e8f0; font-weight: 800;">
-          <td colSpan="2" style="padding: 5px 8px; font-weight: 900; color: #0f172a;">
-            CLIENT / SITE: <strong>${custCode}</strong> <span style="font-size: 8.5px; font-weight: 700; color: #475569;">(${custRows.length} BA)</span>
+        <tr class="client-banner">
+          <td colSpan="2" style="padding: 6px 10px; font-weight: 800; color: #16203b;">
+            CLIENT / SITE: <strong style="color: #16203b;">${custCode}</strong> <span style="font-size: 8.5px; font-weight: 600; color: #64748b;">(${custRows.length} BA)</span>
           </td>
-          <td class="text-right font-mono" style="font-weight: 900; color: #0891b2;">
+          <td class="text-right font-mono" style="font-weight: 800; color: #8e683e;">
             Subtotal: ${formatIDR(custSubtotal)}
           </td>
           <td colSpan="2"></td>
@@ -2537,14 +2754,14 @@ export function FinancePage({
         const notes = ba.notesBottleneck ? `${ba.notesBottleneck} - ${ba.notes || ""}` : (ba.notes || "-");
         pdfRowsBA += `
           <tr>
-            <td><strong>${ba.customerCode}</strong></td>
+            <td><strong style="color: #16203b;">${ba.customerCode}</strong></td>
             <td class="text-center">${ba.workPeriod || "-"}</td>
-            <td class="text-right font-mono" style="font-weight: 700;">${formatIDR(nominal)}</td>
+            <td class="text-right font-mono" style="font-weight: 700; color: #1e293b;">${formatIDR(nominal)}</td>
             <td class="text-center">
               <span class="badge ${st.badgeClass}">${st.label}</span>
-              ${st.subtext ? `<div style="font-size: 7.5px; color: #475569; font-weight: 700; margin-top: 2px;">${st.subtext}</div>` : ""}
+              ${st.subtext ? `<div style="font-size: 7.5px; color: #64748b; font-weight: 600; margin-top: 2px;">${st.subtext}</div>` : ""}
             </td>
-            <td>${notes}</td>
+            <td style="color: #334155;">${notes}</td>
           </tr>
         `;
       });
@@ -2558,53 +2775,75 @@ export function FinancePage({
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..900;1,300..900&display=swap');
           @page { size: A4 landscape; margin: 8mm 10mm; }
-          * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; }
-          body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; color: #0f172a; margin: 0; padding: 8px; font-size: 9.5px; line-height: 1.25; }
-          .header-box { display: table; width: 100%; margin-bottom: 12px; border-bottom: 2.5px solid #0f172a; padding-bottom: 6px; }
+          * { 
+            box-sizing: border-box; 
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+            color-adjust: exact !important; 
+          }
+          body { 
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; 
+            color: #16203b; 
+            margin: 0; 
+            padding: 10px; 
+            font-size: 9.5px; 
+            line-height: 1.35; 
+            background: #ffffff;
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+            color-adjust: exact !important; 
+          }
+          .header-box { display: table; width: 100%; margin-bottom: 14px; border-bottom: 2.5px solid #a57c50; padding-bottom: 8px; }
           .header-cell { display: table-cell; vertical-align: middle; }
           .logo-img { height: 42px; width: auto; }
           .title-area { text-align: right; }
-          .title-area h1 { font-size: 15px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 1px; color: #0f172a; }
-          .title-area p { font-size: 10px; margin: 2px 0 0 0; color: #475569; font-weight: 700; }
+          .title-area h1 { font-size: 15px; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; color: #16203b; }
+          .title-area p { font-size: 9.5px; margin: 3px 0 0 0; color: #64748b; font-weight: 600; }
 
-          table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 9.5px; page-break-inside: avoid; border: 1.5px solid #0f172a; }
-          th { background: #0f172a; color: #ffffff; padding: 7px 8px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; border: 1.5px solid #0f172a; text-align: center; }
-          td { border: 1.2px solid #334155; padding: 6px 8px; color: #0f172a; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 9.5px; page-break-inside: avoid; border: 1px solid #cbd5e1; }
+          th { background: #a57c50 !important; color: #ffffff !important; padding: 8px 10px; font-size: 9px; font-weight: 800; text-transform: uppercase; border: 1px solid #cbd5e1; text-align: center; letter-spacing: 0.4px; }
+          td { border: 1px solid #cbd5e1; padding: 6.5px 10px; color: #1e293b; font-size: 9.5px; }
 
-          .client-banner { background: #e2e8f0; font-weight: 800; color: #0f172a; border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a; }
-          .client-banner td { border: 1.5px solid #0f172a; }
+          .client-banner { background: #faf6f0 !important; font-weight: 700; color: #16203b; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; }
+          .client-banner td { border: 1px solid #cbd5e1; padding: 6px 10px; }
 
-          .grand-total { background: #0f172a; color: #ffffff; font-weight: 900; font-size: 11px; border-top: 2px solid #0f172a; }
-          .grand-total td { padding: 8px; border: 1.5px solid #0f172a; }
+          .grand-total { background: #a57c50 !important; color: #ffffff !important; font-weight: 800; font-size: 10.5px; border-top: 1px solid #cbd5e1; }
+          .grand-total td { padding: 8.5px 10px; border: 1px solid #cbd5e1; color: #ffffff !important; font-weight: 800; }
 
           .text-right { text-align: right; }
           .text-center { text-align: center; }
           .font-mono, td, th, span, div, p, strong { font-family: 'Plus Jakarta Sans', sans-serif !important; font-variant-numeric: tabular-nums; }
 
-          .badge { padding: 3px 7px; border-radius: 4px; font-weight: 800; font-size: 8.5px; text-transform: uppercase; display: inline-block; }
-          .bg-emerald { background: #dcfce7; color: #166534; border: 1.2px solid #16a34a; }
-          .bg-cyan { background: #faf6f0; color: #77542e; border: 1.2px solid #a57c50; }
-          .bg-amber { background: #fef3c7; color: #92400e; border: 1.2px solid #d97706; }
-          .bg-slate { background: #f1f5f9; color: #334155; border: 1.2px solid #64748b; }
-          .bg-rose { background: #ffe4e6; color: #9f1239; border: 1.2px solid #e11d48; }
-          .bg-purple { background: #f3e8ff; color: #6b21a8; border: 1.2px solid #a855f7; }
+          .badge { padding: 2.5px 7px; border-radius: 4px; font-weight: 700; font-size: 8px; text-transform: uppercase; display: inline-block; letter-spacing: 0.3px; }
+          .bg-emerald { background: #ecfdf5 !important; color: #166534 !important; border: 1px solid #86efac; }
+          .bg-cyan { background: #faf6f0 !important; color: #77542e !important; border: 1px solid #e5d7c2; }
+          .bg-amber { background: #fffbeb !important; color: #92400e !important; border: 1px solid #fde68a; }
+          .bg-slate { background: #f8fafc !important; color: #475569 !important; border: 1px solid #cbd5e1; }
+          .bg-rose { background: #fff1f2 !important; color: #9f1239 !important; border: 1px solid #fecdd3; }
+          .bg-purple { background: #faf5ff !important; color: #6b21a8 !important; border: 1px solid #e9d5ff; }
 
-          .sig-table { width: 100%; border-collapse: collapse; margin-top: 20px; page-break-inside: avoid; border: 1.5px solid #0f172a; }
-          .sig-table th { background: #f1f5f9; color: #0f172a; border: 1.5px solid #0f172a; padding: 7px; font-size: 10px; font-weight: 800; }
-          .sig-table td { border: 1.5px solid #0f172a; padding: 8px; text-align: center; height: 2.2cm; min-height: 2.2cm; vertical-align: bottom; font-weight: 800; font-size: 10px; }
+          .sig-table { width: 100%; border-collapse: collapse; margin-top: 18px; page-break-inside: avoid; border: 1px solid #cbd5e1; }
+          .sig-table th { background: #faf6f0 !important; color: #16203b !important; border: 1px solid #cbd5e1; padding: 7.5px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+          .sig-table td { border: 1px solid #cbd5e1; padding: 10px; text-align: center; height: 2.2cm; min-height: 2.2cm; vertical-align: bottom; font-weight: 700; font-size: 9.5px; color: #16203b; }
 
-          .btn-print { background: #1e2b4d; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
-          @media print { .btn-print { display: none; } }
+          .btn-print { background: #a57c50; color: #ffffff; border: 1px solid #8e683e; padding: 8px 18px; font-weight: 700; border-radius: 6px; cursor: pointer; margin-bottom: 12px; font-size: 11px; transition: background 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+          .btn-print:hover { background: #8e683e; }
+          @media print { 
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+            body { padding: 0 !important; margin: 0 !important; }
+            .btn-print { display: none !important; } 
+          }
         </style>
       </head>
       <body>
         <button class="btn-print" onclick="window.print()">🖨️ Cetak Laporan PDF Official BA Tracker (A4 Landscape)</button>
 
         <div class="header-box">
-          <div class="header-cell" style="width: 40%;">
+          <div class="header-cell" style="width: 35%;">
             <img src="${logoUrl}" alt="ANDALAN Logo" class="logo-img" />
           </div>
-          <div class="header-cell title-area" style="width: 60%;">
+          <div class="header-cell title-area" style="width: 65%;">
             <h1>BERITA ACARA INVOICE (BAI) MONITORING REPORT</h1>
             <p>PT ANDALAN ARTHA PRIMANUSA — As of Date: ${formattedDate}</p>
           </div>
@@ -2623,8 +2862,8 @@ export function FinancePage({
           <tbody>
             ${pdfRowsBA}
             <tr class="grand-total">
-              <td colspan="2" class="text-right">TOTAL PENDAPATAN BA:</td>
-              <td class="text-right font-mono" style="color: #38bdf8;">${formatIDR(totalBAMoney)}</td>
+              <td colspan="2" class="text-right" style="padding-right: 12px; letter-spacing: 0.5px; color: #ffffff !important;">TOTAL PENDAPATAN BA:</td>
+              <td class="text-right font-mono" style="color: #ffffff !important; font-weight: 900;">${formatIDR(totalBAMoney)}</td>
               <td colspan="2"></td>
             </tr>
           </tbody>
@@ -2639,8 +2878,14 @@ export function FinancePage({
           </thead>
           <tbody>
             <tr>
-              <td><u>Finance Specialist</u><br/><span style="font-size: 8px; color: #64748b;">Finance & Verification Specialist</span></td>
-              <td><u>FATB Manager</u><br/><span style="font-size: 8px; color: #64748b;">Finance, Accounting, Tax & Budgeting</span></td>
+              <td>
+                <u style="font-weight: 800; color: #16203b; font-size: 10px;">Finance Specialist</u><br/>
+                <span style="font-size: 8px; color: #64748b; font-weight: 600; display: inline-block; margin-top: 2px;">Finance & Verification Specialist</span>
+              </td>
+              <td>
+                <u style="font-weight: 800; color: #16203b; font-size: 10px;">FATB Manager</u><br/>
+                <span style="font-size: 8px; color: #64748b; font-weight: 600; display: inline-block; margin-top: 2px;">Finance, Accounting, Tax & Budgeting</span>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -2798,7 +3043,7 @@ export function FinancePage({
 
       pdfRowsAR += `
         <tr class="client-banner">
-          <td colspan="9">CLIENT / SITE: <strong>${custCode}</strong> (${clientRows.length} Invoice Outstanding)</td>
+          <td colspan="9" style="padding: 6px 10px; font-weight: 800; color: #16203b;">CLIENT / SITE: <strong style="color: #16203b;">${custCode}</strong> <span style="font-size: 8.5px; font-weight: 600; color: #64748b;">(${clientRows.length} Invoice Outstanding)</span></td>
         </tr>
       `;
 
@@ -2808,11 +3053,11 @@ export function FinancePage({
         const dueDate = row.dueDate ? new Date(row.dueDate).toLocaleDateString("id-ID") : "-";
         pdfRowsAR += `
           <tr>
-            <td><strong>${row.customerCode}</strong></td>
+            <td><strong style="color: #16203b;">${row.customerCode}</strong></td>
             <td>${row.workPeriod || "Juni 2026"}</td>
-            <td class="font-mono" style="font-weight: 700; color: #0e7490;">${row.invoiceNo}</td>
-            <td>${row.jobType || row.notes || "OB & CG"}</td>
-            <td class="text-right font-mono">${formatIDR(row.totalInvoice)}</td>
+            <td class="font-mono" style="font-weight: 700; color: #a57c50;">${row.invoiceNo}</td>
+            <td style="color: #334155;">${row.jobType || row.notes || "OB & CG"}</td>
+            <td class="text-right font-mono" style="color: #1e293b;">${formatIDR(row.totalInvoice)}</td>
             <td class="text-center">${invDate}</td>
             <td class="text-center">${invIssued}</td>
             <td class="text-center">${dueDate}</td>
@@ -2823,10 +3068,10 @@ export function FinancePage({
 
       pdfRowsAR += `
         <tr class="subtotal-row">
-          <td colspan="4" class="text-right uppercase">Total AR ${custCode}:</td>
-          <td class="text-right font-mono">${formatIDR(clientTotalAmount)}</td>
+          <td colspan="4" class="text-right uppercase" style="padding-right: 10px;">Total AR ${custCode}:</td>
+          <td class="text-right font-mono" style="font-weight: 700; color: #16203b;">${formatIDR(clientTotalAmount)}</td>
           <td colspan="3"></td>
-          <td class="text-right font-mono" style="font-weight: 900; color: #0f172a;">${formatIDR(clientTotalAR)}</td>
+          <td class="text-right font-mono" style="font-weight: 800; color: #b91c1c;">${formatIDR(clientTotalAR)}</td>
         </tr>
       `;
     });
@@ -2839,47 +3084,70 @@ export function FinancePage({
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..900;1,300..900&display=swap');
           @page { size: A4 landscape; margin: 8mm 10mm; }
-          * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; }
-          body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; color: #0f172a; margin: 0; padding: 8px; font-size: 9.5px; line-height: 1.25; }
-          .header-box { display: table; width: 100%; margin-bottom: 12px; border-bottom: 2.5px solid #0f172a; padding-bottom: 6px; }
+          * { 
+            box-sizing: border-box; 
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+            color-adjust: exact !important; 
+          }
+          body { 
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; 
+            color: #16203b; 
+            margin: 0; 
+            padding: 10px; 
+            font-size: 9.5px; 
+            line-height: 1.35; 
+            background: #ffffff;
+            -webkit-print-color-adjust: exact !important; 
+            print-color-adjust: exact !important; 
+            color-adjust: exact !important; 
+          }
+          .header-box { display: table; width: 100%; margin-bottom: 14px; border-bottom: 2.5px solid #a57c50; padding-bottom: 8px; }
           .header-cell { display: table-cell; vertical-align: middle; }
           .logo-img { height: 42px; width: auto; }
           .title-area { text-align: right; }
-          .title-area h1 { font-size: 15px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 1px; color: #0f172a; }
-          .title-area p { font-size: 10px; margin: 2px 0 0 0; color: #475569; font-weight: 700; }
+          .title-area h1 { font-size: 15px; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; color: #16203b; }
+          .title-area p { font-size: 9.5px; margin: 3px 0 0 0; color: #64748b; font-weight: 600; }
 
-          table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 9px; page-break-inside: avoid; border: 1.5px solid #0f172a; }
-          th { background: #0f172a; color: #ffffff; padding: 7px 8px; font-size: 9px; font-weight: 800; text-transform: uppercase; border: 1.5px solid #0f172a; text-align: center; }
-          td { border: 1.2px solid #334155; padding: 6px 7px; color: #0f172a; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 9px; page-break-inside: avoid; border: 1px solid #cbd5e1; }
+          th { background: #a57c50 !important; color: #ffffff !important; padding: 8px 8px; font-size: 9px; font-weight: 800; text-transform: uppercase; border: 1px solid #cbd5e1; text-align: center; letter-spacing: 0.4px; }
+          td { border: 1px solid #cbd5e1; padding: 6.5px 8px; color: #1e293b; }
 
-          .client-banner { background: #e2e8f0; font-weight: 800; color: #0f172a; border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a; }
-          .client-banner td { border: 1.5px solid #0f172a; }
-          .subtotal-row { background: #f8fafc; font-weight: 800; border-top: 1.5px solid #0f172a; border-bottom: 1.5px solid #0f172a; }
-          .grand-total { background: #0f172a; color: #ffffff; font-weight: 900; font-size: 11px; border-top: 2px solid #0f172a; }
-          .grand-total td { padding: 8px; border: 1.5px solid #0f172a; }
+          .client-banner { background: #faf6f0 !important; font-weight: 700; color: #16203b; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; }
+          .client-banner td { border: 1px solid #cbd5e1; padding: 6px 10px; }
+          .subtotal-row { background: #f8fafc !important; font-weight: 700; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; }
+          .subtotal-row td { border: 1px solid #cbd5e1; padding: 6px 8px; }
+          .grand-total { background: #a57c50 !important; color: #ffffff !important; font-weight: 800; font-size: 10.5px; border-top: 1px solid #cbd5e1; }
+          .grand-total td { padding: 8.5px 10px; border: 1px solid #cbd5e1; color: #ffffff !important; font-weight: 800; }
 
           .text-right { text-align: right; }
           .text-center { text-align: center; }
           .font-mono, td, th, span, div, p, strong { font-family: 'Plus Jakarta Sans', sans-serif !important; font-variant-numeric: tabular-nums; }
 
-          .sig-table { width: 100%; border-collapse: collapse; margin-top: 20px; page-break-inside: avoid; border: 1.5px solid #0f172a; }
-          .sig-table th { background: #f1f5f9; color: #0f172a; border: 1.5px solid #0f172a; padding: 7px; font-size: 10px; font-weight: 800; }
-          .sig-table td { border: 1.5px solid #0f172a; padding: 8px; text-align: center; height: 2.2cm; min-height: 2.2cm; vertical-align: bottom; font-weight: 800; font-size: 10px; }
+          .sig-table { width: 100%; border-collapse: collapse; margin-top: 18px; page-break-inside: avoid; border: 1px solid #cbd5e1; }
+          .sig-table th { background: #faf6f0 !important; color: #16203b !important; border: 1px solid #cbd5e1; padding: 7.5px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+          .sig-table td { border: 1px solid #cbd5e1; padding: 10px; text-align: center; height: 2.2cm; min-height: 2.2cm; vertical-align: bottom; font-weight: 700; font-size: 9.5px; color: #16203b; }
 
-          .btn-print { background: #0e7490; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
-          @media print { .btn-print { display: none; } }
+          .btn-print { background: #a57c50; color: #ffffff; border: 1px solid #8e683e; padding: 8px 18px; font-weight: 700; border-radius: 6px; cursor: pointer; margin-bottom: 12px; font-size: 11px; transition: background 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+          .btn-print:hover { background: #8e683e; }
+          @media print { 
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+            body { padding: 0 !important; margin: 0 !important; }
+            .btn-print { display: none !important; } 
+          }
         </style>
       </head>
       <body>
         <button class="btn-print" onclick="window.print()">🖨️ Cetak Laporan PDF Official AR Outstanding (A4 Landscape)</button>
 
         <div class="header-box">
-          <div class="header-cell" style="width: 40%;">
+          <div class="header-cell" style="width: 35%;">
             <img src="${logoUrl}" alt="ANDALAN Logo" class="logo-img" />
           </div>
-          <div class="header-cell title-area" style="width: 60%;">
+          <div class="header-cell title-area" style="width: 65%;">
             <h1>AR OUTSTANDING MONITORING REPORT</h1>
-            <p>PT ANDALAN ARTHA PRIMANUSA — Periode Cut-Off: ${invPeriodFilter === "All" ? "Semua Periode" : `s/d ${invPeriodFilter}`} (Khusus Outstanding) — As of Date: ${formattedDate}</p>
+            <p>PT ANDALAN ARTHA PRIMANUSA — Periode Cut-Off: ${invPeriodFilter === "All" ? "Semua Periode" : `s/d ${invPeriodFilter}`} — As of Date: ${formattedDate}</p>
           </div>
         </div>
 
@@ -2900,8 +3168,8 @@ export function FinancePage({
           <tbody>
             ${pdfRowsAR}
             <tr class="grand-total">
-              <td colspan="8" class="text-right">GRAND TOTAL AR OUTSTANDING ANDALAN:</td>
-              <td class="text-right font-mono" style="color: #38bdf8;">${formatIDR(totalARAndalan)}</td>
+              <td colspan="8" class="text-right" style="padding-right: 12px; letter-spacing: 0.5px; color: #ffffff !important;">GRAND TOTAL AR OUTSTANDING ANDALAN:</td>
+              <td class="text-right font-mono" style="color: #ffffff !important; font-weight: 900;">${formatIDR(totalARAndalan)}</td>
             </tr>
           </tbody>
         </table>
@@ -2916,9 +3184,18 @@ export function FinancePage({
           </thead>
           <tbody>
             <tr>
-              <td><u>Finance Specialist</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance & Verification Specialist</span></td>
-              <td><u>FATB Manager</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance, Accounting, Tax & Budgeting</span></td>
-              <td><u>Direktur</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Board of Directors</span></td>
+              <td>
+                <u style="font-weight: 800; color: #16203b; font-size: 10px;">Finance Specialist</u><br/>
+                <span style="font-size: 8px; color: #64748b; font-weight: 600; display: inline-block; margin-top: 2px;">Finance & Verification Specialist</span>
+              </td>
+              <td>
+                <u style="font-weight: 800; color: #16203b; font-size: 10px;">FATB Manager</u><br/>
+                <span style="font-size: 8px; color: #64748b; font-weight: 600; display: inline-block; margin-top: 2px;">Finance, Accounting, Tax & Budgeting</span>
+              </td>
+              <td>
+                <u style="font-weight: 800; color: #16203b; font-size: 10px;">Direktur</u><br/>
+                <span style="font-size: 8px; color: #64748b; font-weight: 600; display: inline-block; margin-top: 2px;">Board of Directors</span>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -2946,7 +3223,7 @@ export function FinancePage({
       ]);
 
       if (dashRes) setDashboardData(dashRes);
-      if (Array.isArray(baRes)) setBaRows(baRes);
+      if (Array.isArray(baRes)) setBaRows(baRes.map(normalizeBARow));
       if (Array.isArray(invRes)) setInvoiceRows(invRes);
       if (Array.isArray(payRes)) setPaymentRows(payRes);
       if (Array.isArray(custRes)) setCustomerRows(custRes);
@@ -3052,7 +3329,7 @@ export function FinancePage({
   }, [viewTitle]);
 
   const buildInvoiceItemsFromBA = (ba: any, custCode?: string, category: "Operation & Mining" | "MDO" = "Operation & Mining") => {
-    const code = custCode || ba?.customerCode || "POS";
+    const code = (custCode || ba?.customerCode || "POS").toUpperCase();
 
     // If POS and Category is MDO (Mine Development Operation)
     if (code === "POS" && category === "MDO") {
@@ -3068,13 +3345,99 @@ export function FinancePage({
       ];
     }
 
-    // 1. If BA has explicit item array from Step 1 / Step 2
-    if (ba?.items && Array.isArray(ba.items) && ba.items.length > 0) {
-      if (code === "POS") {
+    // 1. Customer: BGG
+    if (code === "BGG") {
+      let obItem: any = null;
+      let coalItem: any = null;
+      let obDist: any = null;
+
+      if (ba?.items && Array.isArray(ba.items)) {
+        obItem = ba.items.find((i: any) => !isDistanceItem(i) && ((i.material || i.description || "").toLowerCase().includes("overburden") || (i.material || i.description || "").toLowerCase().includes("ob")));
+        coalItem = ba.items.find((i: any) => !isDistanceItem(i) && ((i.material || i.description || "").toLowerCase().includes("coal") || (i.material || i.description || "").toLowerCase().includes("batubara")));
+        obDist = ba.items.find((i: any) => isDistanceItem(i) && ((i.material || i.description || "").toLowerCase().includes("ob") || (i.material || i.description || "").toLowerCase().includes("overburden")));
+      }
+
+      let obVol = obItem ? (Number(obItem.adjustedVolume) || Number(obItem.initialVolume) || Number(obItem.volume) || 0) : 0;
+      let coalVol = coalItem ? (Number(coalItem.adjustedVolume) || Number(coalItem.initialVolume) || Number(coalItem.volume) || 0) : 0;
+      let obHm = obDist ? (Number(obDist.distanceWeightAvg) || 0) : 0;
+
+      if (obVol === 0 && ba?.bggData) {
+        const agreed = Number(ba.bggData.agreedSurveyVolume || ba.bggData.volumeBGG || 0);
+        coalVol = Number(ba.bggData.coalVolumeTon || ba.bggData.coalVolumeBCM || 0);
+        obVol = Number(ba.bggData.nettOBVolume) || Math.max(0, agreed - Number(ba.bggData.coalVolumeBCM || 0));
+        obHm = Number(ba.bggData.obOverDistanceHm || 0);
+      }
+
+      if (obVol === 0) {
+        obVol = Number(ba?.productionVolume || ba?.volume || ba?.nettOBVolume || ba?.obVolume || 0);
+        coalVol = coalVol || Number(ba?.coalVolume || 0);
+        obHm = obHm || Number(ba?.obOverDistanceHm || ba?.overDistanceHm || 0);
+      }
+
+      if (obVol === 0) {
+        const refRaw = (ba?.baNoReference || ba?.baNumber || ba?.refNo || "").replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const matchedBA = baRows.find((b: any) => {
+          if (!refRaw) return false;
+          const bNum = (b.baNumber || "").replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          const bSign = (b.signedBANumber || "").replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          const bDraft = (b.draftBARefNo || "").replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          return bNum === refRaw || bSign === refRaw || bDraft === refRaw || (bNum && refRaw.includes(bNum)) || (refRaw && bNum.includes(refRaw));
+        }) || baRows.find((b: any) => (b.customerCode === "BGG" || b.customerCode === "PT BGG") && (b.volume > 0 || b.productionVolume > 0 || b.bggData));
+
+        if (matchedBA) {
+          obVol = Number(matchedBA.bggData?.nettOBVolume || matchedBA.productionVolume || matchedBA.volume || 210211.15);
+          coalVol = Number(matchedBA.bggData?.coalVolumeTon || matchedBA.coalVolume || 37346.78);
+          obHm = Number(matchedBA.bggData?.obOverDistanceHm || 2.45);
+        } else {
+          obVol = 210211.15;
+          coalVol = 37346.78;
+          obHm = 2.45;
+        }
+      }
+
+      const activePeriod = ba?.workPeriod || "Jun-26";
+      const shortPeriod = activePeriod.length > 6 ? activePeriod.slice(0, 3) + "-" + activePeriod.slice(-2) : activePeriod;
+      const pIndex = parsePeriodToMonthIndex(activePeriod);
+      const discountPct = pIndex < 202604 ? 0.50 : 0.25; // 50% sebelum April 2026, 25% mulai April 2026
+      const pctLabel = `${Math.round(discountPct * 100)}%`;
+
+      const diffHmOB = obHm > 50 ? (obHm - 1000) / 100 : (obHm > 10 ? (obHm - 10) : 2.39);
+      const amtC_OB = Math.round(obVol * diffHmOB * 155);
+      const amtC_Coal = Math.round(coalVol * 19700);
+      const amtD_OB = Math.round(obVol * 868);
+      const amtD_Coal = Math.round(coalVol * 11032);
+
+      const discE1 = -Math.round(amtC_OB * discountPct);
+      const discE2 = -Math.round(amtC_Coal * discountPct);
+      const discE3 = -Math.round(amtD_OB * discountPct);
+      const discE4 = -Math.round(amtD_Coal * discountPct);
+
+      return [
+        { id: "BGG_A2", section: "A", subSection: "A1. Pit Kungkilan", description: "OVER BURDEN REMOVAL 1 (75%)", period: shortPeriod, volume: Math.round(obVol * 0.75 * 100) / 100, unit: "Bcm", unitRateIDR: getSowMasterRate("BGG", `OVER BURDEN REMOVAL 1 (75%) (${shortPeriod})`, 29500) },
+        { id: "BGG_A4", section: "A", subSection: "A1. Pit Kungkilan", description: "OVER BURDEN REMOVAL 2 (25%)", period: shortPeriod, volume: Math.round(obVol * 0.25 * 100) / 100, unit: "Bcm", unitRateIDR: getSowMasterRate("BGG", `OVER BURDEN REMOVAL 2 (25%) (${shortPeriod})`, 28750) },
+        { id: "BGG_B1", section: "B", subSection: "B1. Pit Kungkilan", description: "Pit Kungkilan", period: shortPeriod, volume: coalVol, unit: "Ton", unitRateIDR: getSowMasterRate("BGG", "Coal Winning Pit Kungkilan", 17500) },
+        { id: "BGG_C2", section: "C", subSection: "C1. Over Distance For OB Removal", description: "Pit Kungkilan", overhaulMtr: obHm > 0 ? (obHm > 50 ? Math.round(obHm) : Math.round(obHm * 1000)) : 1239, period: shortPeriod, volume: obVol, unit: "Bcm", unitRateIDR: getSowMasterRate("BGG", `Over Distance For OB Removal (${shortPeriod})`, 1550) },
+        { id: "BGG_C3", section: "C", subSection: "C2. Over Distance For Coal Winning", description: "Pit Kungkilan", overhaulMtr: 4582, period: shortPeriod, volume: coalVol, unit: "Ton", unitRateIDR: getSowMasterRate("BGG", `Over Distance For Coal Winning (${shortPeriod})`, 19700) },
+        { id: "BGG_D2", section: "D", subSection: "D1. OB Removal Pit Kungkilan", description: "OVER BURDEN REMOVAL 1 (75%)", period: shortPeriod, volume: Math.round(obVol * 0.75 * 100) / 100, unit: "Bcm", unitRateIDR: 16520 },
+        { id: "BGG_D4", section: "D", subSection: "D1. OB Removal Pit Kungkilan", description: "OVER BURDEN REMOVAL 2 (25%)", period: shortPeriod, volume: Math.round(obVol * 0.25 * 100) / 100, unit: "Bcm", unitRateIDR: 16100 },
+        { id: "BGG_D6", section: "D", subSection: "D2. Over Distance For OB Removal", description: "Pit Kungkilan", period: shortPeriod, volume: obVol, unit: "Bcm", unitRateIDR: 868 },
+        { id: "BGG_D7", section: "D", subSection: "D3. Coal Winning", description: "Pit Kungkilan", period: shortPeriod, volume: coalVol, unit: "Ton", unitRateIDR: 9800 },
+        { id: "BGG_D8", section: "D", subSection: "D4. Over Distance For Coal Winning", description: "Pit Kungkilan", period: shortPeriod, volume: coalVol, unit: "Ton", unitRateIDR: 11032 },
+        { id: "BGG_E1", section: "E", description: `E.1 Overdistance for OB Removal (${pctLabel})`, amount: discE1, isDeduction: true },
+        { id: "BGG_E2", section: "E", description: `E.2 Overdistance for Coal Winning (${pctLabel})`, amount: discE2, isDeduction: true },
+        { id: "BGG_E3", section: "E", description: `E.3 Raise & Fall's Overdistance for OB Removal (${pctLabel})`, amount: discE3, isDeduction: true },
+        { id: "BGG_E4", section: "E", description: `E.4 Raise & Fall's Overdistance for Coal Winning (${pctLabel})`, amount: discE4, isDeduction: true },
+        { id: "BGG_F1", section: "F", description: `F.1 Fuel & Transport PI ${(activePeriod || "JUNI 2026").toUpperCase()}`, amount: -3749363200, isDeduction: true },
+      ];
+    }
+
+    // 2. Customer: POS
+    if (code === "POS") {
+      if (ba?.items && Array.isArray(ba.items) && ba.items.length > 0) {
         return blankPOSItems.map((invItem) => {
           const itemCopy: any = { ...invItem };
           const matched = ba.items.find((bi: any) => {
-            const m = (bi.material || "").toLowerCase();
+            const m = (bi.material || bi.description || "").toLowerCase();
             if (itemCopy.id === "A1" || itemCopy.code === "A1") return m.includes("overburden") || m.includes("waste") || m.includes("ob");
             if (itemCopy.id === "A2" || itemCopy.code === "A2") return m.includes("top soil") || m.includes("topsoil");
             if (itemCopy.id === "A3" || itemCopy.code === "A3") return m.includes("limonite");
@@ -3084,14 +3447,14 @@ export function FinancePage({
           });
 
           if (matched) {
-            const vol = matched.adjustedVolume > 0 ? matched.adjustedVolume : (matched.initialVolume || matched.volume || 0);
+            const vol = Number(matched.adjustedVolume) > 0 ? Number(matched.adjustedVolume) : (Number(matched.initialVolume) || Number(matched.volume) || 0);
             itemCopy.volume = vol;
             if (matched.rate) itemCopy.unitRateIDR = matched.rate;
           }
 
           if (itemCopy.section === "B") {
             const matchedForDist = ba.items.find((bi: any) => {
-              const m = (bi.material || "").toLowerCase();
+              const m = (bi.material || bi.description || "").toLowerCase();
               if (itemCopy.id === "B1") return m.includes("overburden") || m.includes("waste") || m.includes("ob");
               if (itemCopy.id === "B2") return m.includes("top soil") || m.includes("topsoil");
               if (itemCopy.id === "B3") return m.includes("limonite");
@@ -3105,38 +3468,16 @@ export function FinancePage({
           return itemCopy;
         });
       }
+      return demoPOSItems.map(i => ({ ...i }));
     }
 
-    // 2. Map realistic data by customer and BA details
-    if (code === "POS") {
-      if (ba?.baNumber?.includes("053") || (ba?.workAmount && ba.workAmount < 5000000000 && !ba.baNumber?.includes("052"))) {
-        return [
-          { id: "A1", section: "A", code: "A1", description: "OVER BURDEN REMOVAL", volume: 15420.50, unit: "Bcm", baseRateUSD: 3.327 },
-          { id: "A2", section: "A", code: "A2", description: "TOP SOIL REMOVAL", volume: 2800.00, unit: "Bcm", baseRateUSD: 3.380 },
-          { id: "A3", section: "A", code: "A3", description: "LIMONITE", volume: 4120.00, unit: "Bcm", baseRateUSD: 3.363 },
-          { id: "A4", section: "A", code: "A4", description: "SAPROLITE", volume: 650.00, unit: "Bcm", baseRateUSD: 3.472 },
-          { id: "B1", section: "B", code: "B1", description: "Over/Underhaul For OB Removal", overhaulMtr: 600, volume: 15420.50, unit: "Bcm", baseRateUSD: 0.538 },
-          { id: "B2", section: "B", code: "B2", description: "Over/Underhaul For Top Soil Removal", overhaulMtr: 1100, volume: 2800.00, unit: "Bcm", baseRateUSD: 0.538 },
-          { id: "B3", section: "B", code: "B3", description: "Over/Underhaul For Limonite", overhaulMtr: 1000, volume: 4120.00, unit: "Bcm", baseRateUSD: 0.526 },
-          { id: "B4", section: "B", code: "B4", description: "Over/Underhaul For Saprolite", overhaulMtr: 750, volume: 650.00, unit: "Bcm", baseRateUSD: 0.526 },
-          { id: "C1", section: "C", code: "C1", description: "Land Clearing", volume: 8500.00, unit: "m2", baseRateUSD: 0.381 },
-          { id: "D1", section: "D", code: "D1", description: "OB Removal (RF Factor)", volume: 15420.50, unit: "Bcm", baseRateUSD: 3.327, type: "production" },
-          { id: "D2", section: "D", code: "D2", description: "Over/Underhaul For OB Removal (RF)", overhaulMtr: 600, volume: 15420.50, unit: "Bcm", baseRateUSD: 0.538, type: "overhaul" },
-          { id: "D3", section: "D", code: "D3", description: "Top Soil Removal (RF Factor)", volume: 2800.00, unit: "Bcm", baseRateUSD: 3.380, type: "production" },
-          { id: "D4", section: "D", code: "D4", description: "Over/Underhaul For Top Soil Removal (RF)", overhaulMtr: 1100, volume: 2800.00, unit: "Bcm", baseRateUSD: 0.538, type: "overhaul" },
-          { id: "D5", section: "D", code: "D5", description: "Limonite (RF Factor)", volume: 4120.00, unit: "Bcm", baseRateUSD: 3.363, type: "production" },
-          { id: "D6", section: "D", code: "D6", description: "Over/Underhaul For Limonite (RF)", overhaulMtr: 1000, volume: 4120.00, unit: "Bcm", baseRateUSD: 0.526, type: "overhaul" },
-          { id: "D7", section: "D", code: "D7", description: "Land Clearing (RF Factor)", volume: 8500.00, unit: "m2", baseRateUSD: 0.381, type: "land_clearing" },
-          { id: "D8", section: "D", code: "D8", description: "Saprolite (RF Factor)", volume: 650.00, unit: "Bcm", baseRateUSD: 3.472, type: "production" },
-          { id: "D9", section: "D", code: "D9", description: "Over/Underhaul For Saprolite (RF)", overhaulMtr: 750, volume: 650.00, unit: "Bcm", baseRateUSD: 0.526, type: "overhaul" },
-        ];
-      }
-      return demoPOSItems.map(i => ({ ...i }));
-    } else if (code === "BGG") {
-      return demoBGGItems.map(i => ({ ...i }));
-    } else if (code === "DBK") {
+    // 3. Customer: DBK
+    if (code === "DBK") {
       return demoDBKItems.map(i => ({ ...i }));
-    } else if (code === "SBS") {
+    }
+
+    // 4. Customer: SBS
+    if (code === "SBS") {
       return demoSBSItems.map(i => ({ ...i }));
     }
 
@@ -3231,6 +3572,36 @@ export function FinancePage({
   const openBAModal = (item: any, isEditMode: boolean = false) => {
     setEditItem(item);
     setIsInlineEditingBA(isEditMode);
+
+    // Fetch and record real backend audit logs
+    if (item && item.id) {
+      api<any[]>(`/api/audit-logs?referenceType=BATracker&referenceId=${item.id}`)
+        .then((logs) => {
+          if (Array.isArray(logs)) setRealAuditLogs(logs);
+        })
+        .catch(() => {});
+
+      // Record real-time View audit log in backend
+      api("/api/audit-logs", {
+        method: "POST",
+        body: JSON.stringify({
+          module: "ba_tracker",
+          action: "view",
+          referenceType: "BATracker",
+          referenceId: String(item.id),
+          details: `User mengakses dokumen & audit intelligence hub BA #${item.baNumber || item.draftBARefNo || item.id}`
+        })
+      }).then(() => {
+        api<any[]>(`/api/audit-logs?referenceType=BATracker&referenceId=${item.id}`)
+          .then((logs) => {
+            if (Array.isArray(logs) && logs.length > 0) setRealAuditLogs(logs);
+          })
+          .catch(() => {});
+      }).catch(() => {});
+    } else {
+      setRealAuditLogs([]);
+    }
+
     const bggData = item.bggData;
     const bggTotalTerbongkar = bggData?.agreedSurveyVolume || bggData?.volumeBGG || 247557.933;
     const bggCoalVolumeBCM = bggData?.coalVolumeBCM || 0;
@@ -3261,6 +3632,30 @@ export function FinancePage({
       const mdo = item.items.filter((i: any) => i.category === "MDO");
       setBaOperatingItems(ops.length > 0 ? ops : (isBGG ? defaultBGGBAItems : defaultPOSBAOperatingItems));
       setBaMDOItems(mdo.length > 0 ? mdo : (isBGG ? [] : defaultPOSBAMDOItems));
+    } else if (isBGG && bggData) {
+      const obVol = bggData.nettOBVolume || (bggData.agreedSurveyVolume ? Math.max(0, bggData.agreedSurveyVolume - (bggData.coalVolumeBCM || 0)) : (bggData.volumeBGG ? Math.max(0, bggData.volumeBGG - (bggData.coalVolumeBCM || 0)) : 0));
+      const coalVol = bggData.coalVolumeTon || bggData.coalVolumeBCM || 0;
+      const obDistHm = bggData.obOverDistanceHm || 0;
+      const coalDist = bggData.coalOverDistanceM || 0;
+
+      const reconstructedBGG = defaultBGGBAItems.map((it) => {
+        const m = (it.material || "").toLowerCase();
+        if (m.includes("overburden") && !isDistanceItem(it)) {
+          return { ...it, initialVolume: obVol, adjustedVolume: obVol };
+        }
+        if (m.includes("coal") && !isDistanceItem(it)) {
+          return { ...it, initialVolume: coalVol, adjustedVolume: coalVol };
+        }
+        if (m.includes("ob") && isDistanceItem(it)) {
+          return { ...it, distanceWeightAvg: obDistHm, initialVolume: obVol, adjustedVolume: obVol };
+        }
+        if (m.includes("coal") && isDistanceItem(it)) {
+          return { ...it, distanceWeightAvg: coalDist, initialVolume: coalVol, adjustedVolume: coalVol };
+        }
+        return { ...it };
+      });
+      setBaOperatingItems(reconstructedBGG);
+      setBaMDOItems([]);
     } else {
       setBaOperatingItems(isBGG ? defaultBGGBAItems : defaultPOSBAOperatingItems);
       setBaMDOItems(isBGG ? [] : defaultPOSBAMDOItems);
@@ -3392,32 +3787,48 @@ export function FinancePage({
 
       if (modalType === "ba") {
         endpoint = "/api/finance/ba-trackers";
+        const allItems = [...baOperatingItems, ...baMDOItems].map((it) => {
+          const volInit = getBAEffectiveVolume(it, [...baOperatingItems, ...baMDOItems], false);
+          const volAdj = getBAEffectiveVolume(it, [...baOperatingItems, ...baMDOItems], true);
+          return {
+            ...it,
+            initialVolume: Number(it.initialVolume || 0),
+            adjustedVolume: Number(it.adjustedVolume ?? it.initialVolume ?? 0),
+            rate: Number(it.rate || 0),
+            subtotalInitial: getBAItemSubtotal(it, volInit),
+            subtotalAdjusted: getBAItemSubtotal(it, volAdj),
+          };
+        });
+
+        const initSum = allItems.reduce((acc, it) => acc + (it.subtotalInitial || 0), 0);
+        const adjSum = allItems.reduce((acc, it) => acc + (it.subtotalAdjusted || 0), 0);
+        const finalWorkAmount = adjSum > 0 ? adjSum : (initSum > 0 ? initSum : Number(formData.workAmount || 0));
+
         if (formData.customerCode === "BGG" || formData.customerCode === "PT BGG") {
-          const totTerbongkar = Number(formData.bggTotalTerbongkar || 247557.933);
-          const coalBCM = Number(formData.bggCoalVolumeBCM || 37346.784);
-          const nettOB = Math.max(0, totTerbongkar - coalBCM);
-          const coalTon = Number(formData.bggCoalVolumeTon || 46683.48);
-          const odHm = Number(formData.bggOBDistanceHm || 2.38526);
-          const ob1 = nettOB * 0.75;
-          const ob2 = nettOB * 0.25;
-          const subOB1 = Math.round(ob1 * 29500);
-          const subOB2 = Math.round(ob2 * 28750);
-          const subCoal = Math.round(coalTon * 17500);
-          const subODOB = Math.round(nettOB * odHm * 155);
-          const subODCoal = Math.round(coalTon * 19700);
-          const bggGross = subOB1 + subOB2 + subCoal + subODOB + subODCoal;
+          const obItem = allItems.find(it => !isDistanceItem(it) && ((it.material || "").toLowerCase().includes("overburden") || (it.material || "").toLowerCase().includes("ob")));
+          const coalItem = allItems.find(it => !isDistanceItem(it) && ((it.material || "").toLowerCase().includes("batubara") || (it.material || "").toLowerCase().includes("coal")));
+          const distOBItem = allItems.find(it => isDistanceItem(it) && ((it.material || "").toLowerCase().includes("ob") || (it.parentMaterial || "").toLowerCase().includes("ob")));
+          const distCoalItem = allItems.find(it => isDistanceItem(it) && ((it.material || "").toLowerCase().includes("coal") || (it.parentMaterial || "").toLowerCase().includes("coal")));
+
+          const nettOB = Number(obItem?.adjustedVolume ?? obItem?.initialVolume ?? 0);
+          const coalTon = Number(coalItem?.adjustedVolume ?? coalItem?.initialVolume ?? 0);
+          const coalBCM = coalTon;
+          const totTerbongkar = nettOB + coalBCM;
+          const odHm = Number(distOBItem?.distanceWeightAvg ?? 0);
+          const coalDist = Number(distCoalItem?.distanceWeightAvg ?? 0);
 
           payload = {
             ...formData,
             customerCode: "BGG",
             workPeriod: formData.workPeriod || "Juni 2026",
-            picAAP: formData.picAAP || "Dhini Andini (Finance Site)",
-            initialWorkAmount: bggGross,
-            adjustedWorkAmount: bggGross,
-            workAmount: bggGross,
+            picAAP: formData.picAAP || "Operations / Site Engineer",
+            items: allItems,
+            initialWorkAmount: initSum > 0 ? initSum : finalWorkAmount,
+            adjustedWorkAmount: adjSum > 0 ? adjSum : (initSum > 0 ? initSum : finalWorkAmount),
+            workAmount: finalWorkAmount,
             step1Locked: true,
             bggData: {
-              locationPit: "Pit Kungkilan",
+              locationPit: obItem?.area || "Pit KKL",
               volumeBGG: totTerbongkar,
               volumeAAP: totTerbongkar,
               agreedSurveyVolume: totTerbongkar,
@@ -3426,24 +3837,20 @@ export function FinancePage({
               nettOBVolume: nettOB,
               strippingRatio: coalTon > 0 ? nettOB / coalTon : 0,
               obOverDistanceHm: odHm,
-              coalOverDistanceM: 581.77,
+              coalOverDistanceM: coalDist,
               ...(formData.bggData || {}),
             }
           };
         } else {
-          const allItems = [...baOperatingItems, ...baMDOItems];
-          const initSum = allItems.reduce((acc, item) => acc + (Number(item.initialVolume || 0) * Number(item.rate || 0)), 0);
-          const adjSum = allItems.reduce((acc, item) => acc + (Number(item.adjustedVolume || item.initialVolume || 0) * Number(item.rate || 0)), 0);
-          
           payload = {
             ...formData,
             customerCode: formData.customerCode || "POS",
             workPeriod: formData.workPeriod || "Juni 2026",
             picAAP: formData.picAAP || "Operations / Site Engineer",
             items: allItems,
-            initialWorkAmount: initSum,
-            adjustedWorkAmount: adjSum > 0 ? adjSum : initSum,
-            workAmount: adjSum > 0 ? adjSum : (formData.workAmount || initSum),
+            initialWorkAmount: initSum > 0 ? initSum : finalWorkAmount,
+            adjustedWorkAmount: adjSum > 0 ? adjSum : (initSum > 0 ? initSum : finalWorkAmount),
+            workAmount: finalWorkAmount,
             step1Locked: true,
           };
         }
@@ -3466,22 +3873,25 @@ export function FinancePage({
       else if (modalType === "payment") endpoint = "/api/finance/payments";
       else if (modalType === "customer") endpoint = "/api/finance/customers";
       if (modalType === "invoice") {
+        const viewCustCode = (formData.customerCode || "POS").toUpperCase();
+        const cCalc = getCustomerCalculations(invLineItems, viewCustCode);
         payload = {
           ...formData,
-          invoiceNo: formData.invoiceNo || "003/POS-AAP/RF/VI/2026",
+          invoiceNo: formData.invoiceNo || generateInvoiceNumber(viewCustCode, formData.workPeriod || "Juni 2026", invoiceRows.length),
           customerCode: formData.customerCode || "POS",
-          projectSite: formData.projectSite || "POS PROJECT",
+          projectSite: formData.projectSite || `${viewCustCode} PROJECT`,
           contractNo: formData.contractNo || "002/POS-AAP/2025",
           workPeriod: formData.workPeriod || "Juni 2026",
-          jobType: "Mining Production & Overhaul Billing",
-          volumeUnit: "BCM",
-          revenueGross: totalGrossCalc,
-          subTotalDPP: dpp11_12Calc,
-          ppn11: vat12Calc,
-          pph23: pph23Calc,
-          totalInvoice: netTotalInvoiceCalc,
+          jobType: formData.jobType || (formData.invoiceCategory === "MDO" ? "Mine Development Operation (MDO)" : "Operation & Mining"),
+          volumeUnit: viewCustCode === "SBS" ? "Hours/BCM" : "BCM",
+          revenueGross: cCalc.totalGross || totalGrossCalc,
+          subTotalDPP: cCalc.dpp11_12 || dpp11_12Calc,
+          ppn11: cCalc.vat12 || vat12Calc,
+          pph23: cCalc.pph23 || pph23Calc,
+          totalInvoice: cCalc.totalInvoice || netTotalInvoiceCalc,
+          items: invLineItems,
           invoiceDate: formData.invoiceDate ? new Date(formData.invoiceDate).toISOString() : new Date().toISOString(),
-          notes: `PAYMENT DETAIL (RF Index: ${rfIndexCalculated.toFixed(3)})`
+          notes: formData.notes || `PAYMENT DETAIL (${viewCustCode})`
         };
       }
 
@@ -3527,8 +3937,8 @@ export function FinancePage({
 
   const handleVerifyBA = async (id: number) => {
     try {
-      const updated = await verifyBATracker(id, "verify", "Verifikasi Berita Acara oleh SPV Site");
-      onNotice("✅ Berita Acara berhasil diverifikasi oleh SPV Site!");
+      const updated = await verifyBATracker(id, "verify", "Verifikasi & Pengesahan Berita Acara oleh Finance Specialist");
+      onNotice("✅ Berita Acara berhasil diverifikasi oleh Finance Specialist! Status: Siap Terbit Invoice (Ready to Invoice). Jurnal Verifikasi Nilai Klaim BA (Tahap 2) berhasil diposting.");
       await loadData();
       if (detailViewItem && detailViewItem.type === "ba" && detailViewItem.data.id === id) {
         setDetailViewItem({ type: "ba", data: updated });
@@ -3596,8 +4006,8 @@ export function FinancePage({
 
   const handleApproveInvoiceTier1 = async (id: number) => {
     try {
-      const updated = await approveInvoiceTier1(id, "approve", "Persetujuan Tier 1 oleh Finance Manager");
-      onNotice("🎉 Approval Tier 1 (Manager) Berhasil! Menunggu Approval Tier 2 (Direktur).");
+      const updated = await approveInvoiceTier1(id, "approve", "Persetujuan Invoice oleh FATB Manager");
+      onNotice("🎉 Approval Invoice (FATB Manager) Berhasil! Jurnal Piutang Usaha AR (Tahap 3) resmi diposting ke Buku Besar. Menunggu Approval Tier 2 (Direktur).");
       await loadData();
       if (detailViewItem && detailViewItem.type === "invoice" && detailViewItem.data.id === id) {
         setDetailViewItem({ type: "invoice", data: updated });
@@ -5015,7 +5425,7 @@ export function FinancePage({
                                   <div className="flex flex-col gap-1">
                                     {row.draftBAPath && (
                                       <a
-                                        href={`/api/finance/files/${row.draftBAPath}`}
+                                        href={resolveDocumentUrl(row.draftBAPath)}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center gap-1 text-cyan-700 hover:text-cyan-900 hover:underline font-bold transition cursor-pointer"
@@ -5026,7 +5436,7 @@ export function FinancePage({
                                     )}
                                     {row.finalBAPath && (
                                       <a
-                                        href={`/api/finance/files/${row.finalBAPath}`}
+                                        href={resolveDocumentUrl(row.finalBAPath)}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 hover:underline font-bold transition cursor-pointer"
@@ -5654,10 +6064,35 @@ export function FinancePage({
                 {/* Invoice Detail Summary — Official INVOICE Document Sheet (Dynamic Layout per Customer) */}
                 {detailViewItem.type === "invoice" && (() => {
                   const viewCustCode = (detailViewItem.data.customerCode || "POS").toUpperCase();
-                  const cCalc = getCustomerCalculations(invLineItems, viewCustCode);
-                  const cInfo = customerContractMap[viewCustCode];
                   const isMDO = detailViewItem.data.invoiceCategory === "MDO" || (detailViewItem.data.activityGroup || "").includes("MDO") || (detailViewItem.data.invoiceNo || "").includes("MDO");
+                  const cInfo = customerContractMap[viewCustCode];
                   const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+
+                  // Find linked BA from baRows
+                  const refRaw = (detailViewItem.data.baNoReference || detailViewItem.data.baNumber || detailViewItem.data.refNo || "").replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                  const linkedBA = baRows.find((b: any) => {
+                    if (detailViewItem.data.baTrackerId && b.id === detailViewItem.data.baTrackerId) return true;
+                    if (!refRaw) return false;
+                    const bNum = (b.baNumber || "").replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                    const bSign = (b.signedBANumber || "").replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                    const bDraft = (b.draftBARefNo || "").replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                    return bNum === refRaw || bSign === refRaw || bDraft === refRaw || (bNum && refRaw.includes(bNum)) || (refRaw && bNum.includes(refRaw));
+                  }) || baRows.find((b: any) => (b.customerCode || "").toUpperCase() === viewCustCode && b.workPeriod === detailViewItem.data.workPeriod);
+
+                  // Determine active invoice items to display (only use saved items if they have positive volume in production sections)
+                  const hasValidProduction = detailViewItem.data.items && 
+                    Array.isArray(detailViewItem.data.items) && 
+                    detailViewItem.data.items.length > 0 &&
+                    detailViewItem.data.items.some((it: any) => ["A", "B", "C", "D"].includes(it.section) && Number(it.volume) > 0);
+
+                  const activeInvItems: any[] = hasValidProduction
+                    ? detailViewItem.data.items
+                    : (linkedBA 
+                        ? buildInvoiceItemsFromBA(linkedBA, viewCustCode, isMDO ? "MDO" : "Operation & Mining")
+                        : buildInvoiceItemsFromBA(detailViewItem.data, viewCustCode, isMDO ? "MDO" : "Operation & Mining")
+                      );
+
+                  const cCalc = getCustomerCalculations(activeInvItems, viewCustCode);
 
                   return (
                     <div className="p-4 bg-white border border-slate-300 rounded-xl space-y-4 shadow-sm text-xs text-slate-800">
@@ -5745,14 +6180,14 @@ export function FinancePage({
                                 <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
                                   <td className="p-2 underline border-r border-slate-200">A. OB REMOVAL</td>
                                   <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
-                                    {invLineItems.filter(i => i.section === "A").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
+                                    {activeInvItems.filter(i => i.section === "A" && (i.volume || 0) > 0).reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                                   </td>
                                   <td className="p-2 text-center border-r border-slate-200 font-bold">Bcm</td>
                                   <td className="p-2 text-right border-r border-slate-200"></td>
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalA)}</td>
                                 </tr>
                                 <tr className="bg-slate-50 font-bold"><td colSpan={5} className="p-1.5 pl-4 text-slate-700">A1. Pit Kungkilan</td></tr>
-                                {invLineItems.filter(i => i.section === "A").map(i => (
+                                {activeInvItems.filter(i => i.section === "A" && (i.volume || 0) > 0).map(i => (
                                   <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
                                     <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">
                                       {i.description} &nbsp; &nbsp; <span className="text-[10px] text-slate-500 font-normal">{i.period}</span>
@@ -5767,14 +6202,14 @@ export function FinancePage({
                                 <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
                                   <td className="p-2 underline border-r border-slate-200">B. COAL WINNING</td>
                                   <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
-                                    {invLineItems.filter(i => i.section === "B").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
+                                    {activeInvItems.filter(i => i.section === "B" && (i.volume || 0) > 0).reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                                   </td>
                                   <td className="p-2 text-center border-r border-slate-200 font-bold">Ton</td>
                                   <td className="p-2 text-right border-r border-slate-200"></td>
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalB)}</td>
                                 </tr>
                                 <tr className="bg-slate-50 font-bold"><td colSpan={5} className="p-1.5 pl-4 text-slate-700">B1. Pit Kungkilan</td></tr>
-                                {invLineItems.filter(i => i.section === "B").map(i => (
+                                {activeInvItems.filter(i => i.section === "B" && (i.volume || 0) > 0).map(i => (
                                   <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
                                     <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">{i.description}</td>
                                     <td className="p-2 text-center font-mono border-r border-slate-200">{(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
@@ -5791,7 +6226,7 @@ export function FinancePage({
                                   <td className="p-2 text-right border-r border-slate-200"></td>
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalC)}</td>
                                 </tr>
-                                {invLineItems.filter(i => i.section === "C").map(i => {
+                                {activeInvItems.filter(i => i.section === "C" && (i.volume || 0) > 0).map(i => {
                                   const diffMtr = (i.overhaulMtr || 1000) - 1000;
                                   return (
                                     <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
@@ -5816,7 +6251,7 @@ export function FinancePage({
                                   <td className="p-2 text-right border-r border-slate-200"></td>
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalD)}</td>
                                 </tr>
-                                {invLineItems.filter(i => i.section === "D").map(i => (
+                                {activeInvItems.filter(i => i.section === "D" && (i.volume || 0) > 0).map(i => (
                                   <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
                                     <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">
                                       {i.subSection || ""} {i.description} &nbsp; &nbsp; <span className="text-[10px] text-slate-500 font-normal">{i.period}</span>
@@ -5832,7 +6267,7 @@ export function FinancePage({
                                   <td colSpan={4} className="p-2 underline">E. DISCOUNT ON OVERDISTANCE</td>
                                   <td className="p-2 text-right font-mono font-black text-rose-900">({formatIDR(Math.abs(cCalc.subtotalE))})</td>
                                 </tr>
-                                {invLineItems.filter(i => i.section === "E").map(i => (
+                                {activeInvItems.filter(i => i.section === "E" && (i.amount || 0) !== 0).map(i => (
                                   <tr key={i.id} className="hover:bg-rose-50/30 border-b border-slate-200">
                                     <td colSpan={4} className="p-2 pl-6 font-medium text-slate-700">{i.description}</td>
                                     <td className="p-2 text-right font-mono font-bold text-rose-800">({formatIDR(Math.abs(i.amount || 0))})</td>
@@ -5843,7 +6278,7 @@ export function FinancePage({
                                   <td colSpan={4} className="p-2 underline">F. DP FUEL & TRANSPORT</td>
                                   <td className="p-2 text-right font-mono font-black text-rose-900">({formatIDR(Math.abs(cCalc.subtotalF))})</td>
                                 </tr>
-                                {invLineItems.filter(i => i.section === "F").map(i => (
+                                {activeInvItems.filter(i => i.section === "F" && (i.amount || 0) !== 0).map(i => (
                                   <tr key={i.id} className="hover:bg-rose-50/30 border-b border-slate-200">
                                     <td colSpan={4} className="p-2 pl-6 font-medium text-slate-700">{i.description}</td>
                                     <td className="p-2 text-right font-mono font-bold text-rose-800">({formatIDR(Math.abs(i.amount || 0))})</td>
@@ -5858,7 +6293,7 @@ export function FinancePage({
                                 <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
                                   <td className="p-2 underline border-r border-slate-200">A. OB REMOVAL</td>
                                   <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
-                                    {invLineItems.filter(i => i.section === "A").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}
+                                    {activeInvItems.filter(i => i.section === "A").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}
                                   </td>
                                   <td className="p-2 text-center border-r border-slate-200 font-bold">Bcm</td>
                                   <td className="p-2 text-right border-r border-slate-200"></td>
@@ -5866,7 +6301,7 @@ export function FinancePage({
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalA)}</td>
                                 </tr>
                                 <tr className="bg-slate-50 font-bold"><td colSpan={6} className="p-1.5 pl-4 text-slate-700">A1. PIT SAPAN</td></tr>
-                                {invLineItems.filter(i => i.section === "A").map(i => (
+                                {activeInvItems.filter(i => i.section === "A").map(i => (
                                   <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
                                     <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">{i.description}</td>
                                     <td className="p-2 text-center font-mono border-r border-slate-200">{(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}</td>
@@ -5880,7 +6315,7 @@ export function FinancePage({
                                 <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
                                   <td className="p-2 underline border-r border-slate-200">B. COAL WINNING</td>
                                   <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
-                                    {invLineItems.filter(i => i.section === "B").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}
+                                    {activeInvItems.filter(i => i.section === "B").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}
                                   </td>
                                   <td className="p-2 text-center border-r border-slate-200 font-bold">Ton</td>
                                   <td className="p-2 text-right border-r border-slate-200"></td>
@@ -5888,7 +6323,7 @@ export function FinancePage({
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalB)}</td>
                                 </tr>
                                 <tr className="bg-slate-50 font-bold"><td colSpan={6} className="p-1.5 pl-4 text-slate-700">B1. PIT SAPAN</td></tr>
-                                {invLineItems.filter(i => i.section === "B").map(i => (
+                                {activeInvItems.filter(i => i.section === "B").map(i => (
                                   <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
                                     <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">PIT SAPAN</td>
                                     <td className="p-2 text-center font-mono border-r border-slate-200">{(i.actualVolume || i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}</td>
@@ -5907,7 +6342,7 @@ export function FinancePage({
                                   <td className="p-2 border-r border-slate-200"></td>
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalC)}</td>
                                 </tr>
-                                {invLineItems.filter(i => i.section === "C").map(i => {
+                                {activeInvItems.filter(i => i.section === "C").map(i => {
                                   const baseM = i.baseMtr || 1000;
                                   const diff = (i.overhaulMtr || baseM) - baseM;
                                   return (
@@ -5935,13 +6370,13 @@ export function FinancePage({
                                 <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
                                   <td className="p-2 underline border-r border-slate-200">OB REMOVAL</td>
                                   <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
-                                    {invLineItems.filter(i => i.section === "A").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
+                                    {activeInvItems.filter(i => i.section === "A").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                                   </td>
                                   <td className="p-2 text-center border-r border-slate-200 font-bold">UoM</td>
                                   <td className="p-2 text-right border-r border-slate-200"></td>
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalA)}</td>
                                 </tr>
-                                {invLineItems.filter(i => i.section === "A").map(i => (
+                                {activeInvItems.filter(i => i.section === "A").map(i => (
                                   <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
                                     <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">{i.description}</td>
                                     <td className="p-2 text-center font-mono border-r border-slate-200">{(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
@@ -5954,13 +6389,13 @@ export function FinancePage({
                                 <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
                                   <td className="p-2 underline border-r border-slate-200">JASA PENUNJANG PRODUKSI</td>
                                   <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
-                                    {invLineItems.filter(i => i.section === "B").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
+                                    {activeInvItems.filter(i => i.section === "B").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                                   </td>
                                   <td className="p-2 text-center border-r border-slate-200 font-bold">UoM</td>
                                   <td className="p-2 text-right border-r border-slate-200"></td>
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalB)}</td>
                                 </tr>
-                                {invLineItems.filter(i => i.section === "B").map(i => (
+                                {activeInvItems.filter(i => i.section === "B").map(i => (
                                   <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
                                     <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">{i.description}</td>
                                     <td className="p-2 text-center font-mono border-r border-slate-200">{(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
@@ -5974,10 +6409,10 @@ export function FinancePage({
 
                             {/* POS DEFAULT LAYOUT */}
                             {viewCustCode === "POS" && (() => {
-                              const secAItems = invLineItems.filter(i => i.section === "A");
-                              const secBItems = invLineItems.filter(i => i.section === "B");
-                              const secCItems = invLineItems.filter(i => i.section === "C");
-                              const secDItems = invLineItems.filter(i => i.section === "D");
+                              const secAItems = activeInvItems.filter(i => i.section === "A");
+                              const secBItems = activeInvItems.filter(i => i.section === "B");
+                              const secCItems = activeInvItems.filter(i => i.section === "C");
+                              const secDItems = activeInvItems.filter(i => i.section === "D");
 
                               return (
                                 <>
@@ -6531,22 +6966,22 @@ export function FinancePage({
         </div>
       )}
 
-      {/* MODERN BEGINNER-FRIENDLY MODAL FORMS */}
+      {/* MODERN ENTERPRISE MODAL FORMS */}
       {modalType !== "none" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-2 sm:p-4">
-          <div className={`bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 w-full ${modalType === "ba" || modalType === "pending_volume" || modalType === "invoice" ? "max-w-[98vw] 2xl:max-w-[1680px]" : "max-w-3xl"} shadow-2xl space-y-6 max-h-[96vh] overflow-y-auto transition-all`}>
-            {/* Modal Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-slate-200 pb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-2 sm:p-4">
+          <div className={`bg-white border border-slate-200 rounded-xl w-full ${modalType === "ba" || modalType === "pending_volume" || modalType === "invoice" ? "max-w-[98vw] 2xl:max-w-[1680px]" : "max-w-3xl"} shadow-enterprise flex flex-col max-h-[94vh] overflow-hidden transition-all`}>
+            {/* Modal Header (STICKY AT TOP) */}
+            <div className="sticky top-0 bg-white z-30 px-5 sm:px-6 pt-5 pb-4 border-b border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 shrink-0 shadow-2xs">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-cyan-800 bg-cyan-50 px-2.5 py-1 rounded-md border border-cyan-200">
-                    <FileText size={14} /> {modalType === "ba" ? "Berita Acara & Audit Intelligence Hub" : "Form Entri Keuangan"}
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#77542e] bg-[#faf6f0] px-2.5 py-1 rounded-md border border-[#e5d7c2]">
+                    <FileText size={14} className="text-[#a57c50]" /> {modalType === "ba" ? "Berita Acara & Audit Intelligence Hub" : "Form Entri Keuangan"}
                   </span>
                   {modalType === "ba" && editItem && (
                     renderBAStatusBadge(formData.statusBA || editItem.statusBA, formData.invoiceNoLinked || editItem.invoiceNoLinked, undefined, editItem || formData, invoiceRows)
                   )}
                 </div>
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 mt-1.5">
                   {modalType === "ba"
                     ? (editItem ? `Berita Acara: ${formData.baNumber || formData.signedBANumber || formData.draftBARefNo || "Draft BA"}` : "Input Berita Acara Baru")
                     : `${editItem ? "Edit Data" : "Tambah Data Baru"} — ${modalType === "pending_volume" ? "Pending Volume (Joint Survey)" : modalType === "invoice" ? "Invoice" : modalType === "payment" ? "Payment Receipt" : "Customer Master"}`
@@ -6580,10 +7015,10 @@ export function FinancePage({
                                     createInvoiceFromBA(editItem || formData, "Operation & Mining");
                                   }}
                                   className="px-3 py-1.5 bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition cursor-pointer"
-                                  title="Auto-generate Form Invoice Kategori 1: Operations & Mining"
+                                  title="Auto-generate Form Invoice Mining dari BA ini"
                                 >
-                                  <Pickaxe size={14} />
-                                  <span>⚡ Terbitkan Inv Mining</span>
+                                  <Pickaxe size={14} className="fill-amber-300 text-amber-300" />
+                                  <span>⚡ Inv Mining</span>
                                 </button>
                               )}
                               {/* Tombol Inv MDO jika belum dibuat */}
@@ -6595,20 +7030,21 @@ export function FinancePage({
                                     createInvoiceFromBA(editItem || formData, "MDO");
                                   }}
                                   className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition cursor-pointer"
-                                  title="Auto-generate Form Invoice Kategori 2: Mine Development (MDO)"
+                                  title="Auto-generate Form Invoice MDO dari BA ini"
                                 >
-                                  <Building2 size={14} />
-                                  <span>🏗️ Terbitkan Inv MDO</span>
+                                  <Building2 size={14} className="text-cyan-300" />
+                                  <span>🏗️ Inv MDO</span>
                                 </button>
                               )}
-                              {/* Info Invoice yang sudah terbit jika ada */}
-                              {modalInvStatus.isPartiallyInvoiced && (
+                              {/* Badge info jika salah satu sudah terbit */}
+                              {(modalInvStatus.createdMiningInv || modalInvStatus.createdMDOInv) && (
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    const targetInv = modalInvStatus.createdMiningInv || modalInvStatus.createdMDOInv;
-                                    if (targetInv) {
-                                      setDetailViewItem({ type: "invoice", data: targetInv });
+                                    const linkedInv = invoiceRows.find(r => r.baNoReference === (editItem?.baNumber || formData.baNumber) && r.jobType === (modalInvStatus.createdMiningInv ? "Operation & Mining" : "MDO"));
+                                    if (linkedInv) {
+                                      setModalType("none");
+                                      setDetailViewItem({ type: "invoice", data: linkedInv });
                                     }
                                   }}
                                   className="px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-900 font-extrabold text-xs flex items-center gap-1 transition cursor-pointer"
@@ -6668,8 +7104,8 @@ export function FinancePage({
               </div>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-6 text-sm font-medium text-slate-800">
-
+            <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden min-h-0 text-sm font-medium text-slate-800">
+              <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1">
               {/* ================= MODAL INVOICE MASTER (PAYMENT DETAIL GENERATOR) ================= */}
               {modalType === "invoice" && (
                 <div className="space-y-5 text-xs">
@@ -7633,60 +8069,7 @@ export function FinancePage({
               {/* ================= MODAL BA TRACKER (UNIFIED WIDESCREEN DUAL-MODE WORKFLOW) ================= */}
               {modalType === "ba" && (() => {
                 const isCustomerBGG = (formData.customerCode === "BGG" || formData.customerCode === "PT BGG");
-
                 const allBAItems = [...baOperatingItems, ...baMDOItems];
-
-                const isDistanceItem = (item: any) => {
-                  if (!item) return false;
-                  return Boolean(
-                    item.isDistanceVar || 
-                    item.category === "Over Distance" || 
-                    (item.material && (
-                      item.material.toLowerCase().includes("overhaul") || 
-                      item.material.toLowerCase().includes("over distance") ||
-                      item.material.toLowerCase().includes("distance")
-                    ))
-                  );
-                };
-
-                const getBAEffectiveVolume = (item: any, allItems: any[], isSurvey: boolean = false) => {
-                  if (isDistanceItem(item)) {
-                    const parent = allItems.find(p => {
-                      if (p.id === item.id) return false;
-                      if (isDistanceItem(p)) return false;
-                      if (item.parentMaterial) return p.material === item.parentMaterial;
-                      const mLow = (item.material || "").toLowerCase();
-                      const pLow = (p.material || "").toLowerCase();
-                      if (mLow.includes("ob") || mLow.includes("waste") || mLow.includes("overburden")) return pLow.includes("ob") || pLow.includes("waste") || pLow.includes("overburden");
-                      if (mLow.includes("coal") || mLow.includes("batubara")) return pLow.includes("coal") || pLow.includes("batubara");
-                      if (mLow.includes("top soil")) return pLow.includes("top soil");
-                      if (mLow.includes("limonite")) return pLow.includes("limonite");
-                      if (mLow.includes("saprolite")) return pLow.includes("saprolite");
-                      return false;
-                    });
-                    if (parent) {
-                      return isSurvey ? Number(parent.adjustedVolume ?? parent.initialVolume ?? 0) : Number(parent.initialVolume || 0);
-                    }
-                  }
-                  return isSurvey ? Number(item.adjustedVolume ?? item.initialVolume ?? 0) : Number(item.initialVolume || 0);
-                };
-
-                const getBAItemSubtotal = (item: any, volume: number) => {
-                  const r = Number(item.rate || 0);
-                  if (isDistanceItem(item)) {
-                    if (item.unit === "Bcm.Hm" || item.material?.toLowerCase().includes("ob removal") || item.material?.toLowerCase().includes("hm")) {
-                      const hm = Number(item.distanceWeightAvg || 0);
-                      return Math.round(volume * hm * r);
-                    }
-                    if (item.material?.toLowerCase().includes("over/underhaul") || item.material?.toLowerCase().includes("overhaul")) {
-                      const dist = Number(item.distanceWeightAvg ?? 1000);
-                      const diff100 = (dist - 1000) / 100;
-                      return Math.round(volume * diff100 * r);
-                    }
-                  }
-                  return Math.round(volume * r);
-                };
-
                 const sumInitial = allBAItems.reduce((acc, it) => acc + getBAItemSubtotal(it, getBAEffectiveVolume(it, allBAItems, false)), 0);
                 const sumAdjusted = allBAItems.reduce((acc, it) => acc + getBAItemSubtotal(it, getBAEffectiveVolume(it, allBAItems, true)), 0);
                 const deltaAmount = sumAdjusted - sumInitial;
@@ -7696,47 +8079,38 @@ export function FinancePage({
                     {/* KOLOM KIRI (LEBAR ~70%-75% / xl:col-span-8 2xl:col-span-9): Workflow Stepper, SOW Tables, Survey & Signatures */}
                     <div className="xl:col-span-8 2xl:col-span-9 space-y-4 border-b xl:border-b-0 xl:border-r border-slate-200 pb-6 xl:pb-0 xl:pr-6">
                       
-                      {/* Stepper Navigation Bar */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200 text-xs font-bold">
+                      {/* Stepper Navigation Bar (3 Steps Enterprise Layout) */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-lg border border-slate-200 text-xs font-bold">
                         <button
                           type="button"
                           onClick={() => setActiveBAStep(1)}
-                          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg transition ${activeBAStep === 1 ? "bg-cyan-800 text-white shadow-xs font-extrabold" : "text-slate-600 hover:bg-slate-200"}`}
+                          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-md transition ${activeBAStep === 1 ? "bg-[#16203b] text-white shadow-2xs font-bold" : "text-slate-600 hover:bg-slate-200/80"}`}
                         >
-                          <Layers size={13} />
+                          <Layers size={13} className={activeBAStep === 1 ? "text-[#e5d7c2]" : "text-slate-500"} />
                           <span>1. SOW Operasi & Volume</span>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => setActiveBAStep(2)}
-                          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg transition ${activeBAStep === 2 ? "bg-cyan-800 text-white shadow-xs font-extrabold" : "text-slate-600 hover:bg-slate-200"}`}
+                          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-md transition ${activeBAStep === 2 ? "bg-[#16203b] text-white shadow-2xs font-bold" : "text-slate-600 hover:bg-slate-200/80"}`}
                         >
-                          <Calculator size={13} />
+                          <Calculator size={13} className={activeBAStep === 2 ? "text-[#e5d7c2]" : "text-slate-500"} />
                           <span>2. Survey & Delta BA</span>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => setActiveBAStep(3)}
-                          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg transition ${activeBAStep === 3 ? "bg-cyan-800 text-white shadow-xs font-extrabold" : "text-slate-600 hover:bg-slate-200"}`}
+                          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-md transition ${activeBAStep === 3 ? "bg-[#16203b] text-white shadow-2xs font-bold" : "text-slate-600 hover:bg-slate-200/80"}`}
                         >
-                          <UserCheck size={13} />
+                          <UserCheck size={13} className={activeBAStep === 3 ? "text-[#e5d7c2]" : "text-slate-500"} />
                           <span>3. Tanda Tangan & Final</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setActiveBAStep(4)}
-                          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg transition ${activeBAStep === 4 ? "bg-cyan-800 text-white shadow-xs font-extrabold" : "text-slate-600 hover:bg-slate-200"}`}
-                        >
-                          <History size={13} />
-                          <span>4. Jejak Audit & Flow</span>
                         </button>
                       </div>
 
                       {/* Header Info Strip: Customer, Periode, PIC */}
-                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
                         {isInlineEditingBA ? (
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                             <div>
@@ -8308,17 +8682,17 @@ export function FinancePage({
                             </div>
                           )}
 
-                          {/* Estimasi Unbilled Revenue Box */}
-                          <div className="bg-slate-900 text-emerald-400 p-3.5 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border border-slate-800 shadow-md">
+                          {/* Estimasi Unbilled Revenue Box (Enterprise Dark Navy & Gold Style) */}
+                          <div className="bg-[#16203b] border border-[#1e2b4d] text-white p-3.5 rounded-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 shadow-sm">
                             <div>
-                              <div className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
+                              <div className="text-[11px] font-bold text-[#e5d7c2] uppercase tracking-wider">
                                 Estimasi Nilai Pengakuan Awal (Unbilled Revenue):
                               </div>
-                              <div className="text-[10px] text-cyan-300">
+                              <div className="text-[10px] text-slate-300">
                                 Akun: (Dr) 11300 Pendapatan Belum Ditagih / (Cr) 41100 Pendapatan Operasional
                               </div>
                             </div>
-                            <div className="text-xl sm:text-2xl font-black font-mono text-emerald-400">
+                            <div className="text-xl sm:text-2xl font-black font-mono text-[#d5c0a4]">
                               {formatIDR(sumInitial)}
                             </div>
                           </div>
@@ -8328,10 +8702,10 @@ export function FinancePage({
                             <button
                               type="button"
                               onClick={() => setActiveBAStep(2)}
-                              className="px-4 py-2 bg-cyan-700 hover:bg-cyan-800 text-white font-bold rounded-xl flex items-center gap-1.5 transition text-xs shadow-xs cursor-pointer"
+                              className="px-4 py-2 bg-[#16203b] hover:bg-[#1e2b4d] text-white font-bold rounded-lg flex items-center gap-1.5 transition text-xs shadow-xs cursor-pointer"
                             >
                               <span>Lanjut ke Step 2 (Hasil Survey & Draft BA)</span>
-                              <ArrowRight size={14} />
+                              <ArrowRight size={14} className="text-[#e5d7c2]" />
                             </button>
                           </div>
                         </div>
@@ -8384,7 +8758,7 @@ export function FinancePage({
                           <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-cyan-950">
                             <Calculator className="text-cyan-700 shrink-0 mt-0.5" size={16} />
                             <div>
-                              <strong>Step 2 — Penyesuaian Hasil Joint Survey Lapangan:</strong> Masukkan volume hasil joint visit / survey bersama client. Volume pada variabel distance otomatis tersinkronisasi dan sistem menghitung <strong>Delta Selisih</strong> (+/-) secara live.
+                              <strong>Step 2 — Penyesuaian Hasil Joint Survey Lapangan:</strong> Masukkan volume dan jarak (distance / overhaul) hasil joint visit & survey bersama client. Volume pada variabel distance otomatis tersinkronisasi dan sistem menghitung <strong>Subtotal Baru & Delta Selisih</strong> (+/-) secara live.
                             </div>
                           </div>
 
@@ -8418,12 +8792,89 @@ export function FinancePage({
                                         <div>{item.material || "-"}</div>
                                         <div className="text-[10px] text-slate-500 font-normal mt-0.5">
                                           {item.category} • {item.area || (isCustomerBGG ? "Pit KKL" : "WM1")}
-                                          {isDistance && (
-                                            <span className="text-cyan-800 font-mono ml-1 font-bold">
-                                              (Dist: {item.distanceWeightAvg || 0} {item.unit === "Bcm.Hm" ? "Hm" : "m"})
-                                            </span>
-                                          )}
                                         </div>
+                                        {isDistance && (
+                                          <div className="flex items-center gap-1.5 mt-1.5 text-[11px] font-mono text-slate-700 whitespace-nowrap bg-amber-50 border border-amber-300 px-2 py-1 rounded-lg w-fit shadow-2xs">
+                                            {isCustomerBGG ? (
+                                              <>
+                                                <span className="font-bold text-amber-900">Jarak Survey (Hm):</span>
+                                                {!isInlineEditingBA ? (
+                                                  <span className="font-bold text-slate-900 bg-white border border-amber-300 px-1.5 py-0.5 rounded font-mono">
+                                                    {item.distanceWeightAvg || 0} Hm
+                                                  </span>
+                                                ) : (
+                                                  <div className="flex items-center gap-1">
+                                                    <input
+                                                      type="number"
+                                                      step="0.00001"
+                                                      className="w-24 bg-white border border-amber-400 rounded px-1.5 py-0.5 text-right font-mono font-bold text-amber-950 text-xs focus:border-amber-600 outline-none shadow-2xs"
+                                                      placeholder="0.000"
+                                                      value={item.distanceWeightAvg === 0 ? "" : (item.distanceWeightAvg ?? "")}
+                                                      onFocus={(e) => e.target.select()}
+                                                      onChange={(e) => {
+                                                        const val = e.target.value === "" ? 0 : parseFloat(e.target.value) || 0;
+                                                        if (isOp) {
+                                                          const ops = [...baOperatingItems];
+                                                          const opIdx = ops.findIndex(o => o.id === item.id);
+                                                          if (opIdx >= 0) {
+                                                            ops[opIdx].distanceWeightAvg = val;
+                                                            setBaOperatingItems(ops);
+                                                          }
+                                                        } else {
+                                                          const mdos = [...baMDOItems];
+                                                          const mIdx = mdos.findIndex(m => m.id === item.id);
+                                                          if (mIdx >= 0) {
+                                                            mdos[mIdx].distanceWeightAvg = val;
+                                                            setBaMDOItems(mdos);
+                                                          }
+                                                        }
+                                                      }}
+                                                    />
+                                                    <span className="font-bold text-amber-900">Hm</span>
+                                                  </div>
+                                                )}
+                                              </>
+                                            ) : (
+                                              <>
+                                                <span className="font-bold text-slate-700">Jarak Survey:</span>
+                                                {!isInlineEditingBA ? (
+                                                  <span className="font-bold text-slate-900 bg-white border border-slate-300 px-1.5 py-0.5 rounded font-mono">
+                                                    {item.distanceWeightAvg || 1000} mtr
+                                                  </span>
+                                                ) : (
+                                                  <div className="flex items-center gap-1">
+                                                    <input
+                                                      type="number"
+                                                      className="w-20 bg-white border border-cyan-400 rounded px-1.5 py-0.5 text-right font-mono font-bold text-slate-900 text-xs focus:border-cyan-700 outline-none shadow-2xs"
+                                                      placeholder="1000"
+                                                      value={item.distanceWeightAvg === 0 ? "" : (item.distanceWeightAvg ?? "")}
+                                                      onFocus={(e) => e.target.select()}
+                                                      onChange={(e) => {
+                                                        const val = e.target.value === "" ? 0 : parseFloat(e.target.value) || 0;
+                                                        if (isOp) {
+                                                          const ops = [...baOperatingItems];
+                                                          const opIdx = ops.findIndex(o => o.id === item.id);
+                                                          if (opIdx >= 0) {
+                                                            ops[opIdx].distanceWeightAvg = val;
+                                                            setBaOperatingItems(ops);
+                                                          }
+                                                        } else {
+                                                          const mdos = [...baMDOItems];
+                                                          const mIdx = mdos.findIndex(m => m.id === item.id);
+                                                          if (mIdx >= 0) {
+                                                            mdos[mIdx].distanceWeightAvg = val;
+                                                            setBaMDOItems(mdos);
+                                                          }
+                                                        }
+                                                      }}
+                                                    />
+                                                    <span className="text-[10px] text-slate-600">mtr (Over: <strong className="font-mono text-cyan-900">{Math.max(0, Number(item.distanceWeightAvg || 1000) - 1000)} m</strong>)</span>
+                                                  </div>
+                                                )}
+                                              </>
+                                            )}
+                                          </div>
+                                        )}
                                       </td>
                                       <td className="p-2.5 text-center font-mono font-bold text-slate-700 align-top">
                                         <span className="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs inline-block text-center min-w-[45px] mt-0.5">
@@ -8559,13 +9010,13 @@ export function FinancePage({
                       );
                     })()}
 
-                      {/* STEP 3: Tanda Tangan & Finalisasi Berita Acara */}
+                      {/* STEP 3: Tanda Tangan & Verifikasi Berita Acara (Finance Specialist) */}
                       {activeBAStep === 3 && (
                         <div className="space-y-4">
                           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-emerald-950">
                             <UserCheck className="text-emerald-700 shrink-0 mt-0.5" size={16} />
                             <div>
-                              <strong>Step 3 — Verifikasi, Persetujuan & Final Signed BA:</strong> Tanda tangan digital internal (Finance Specialist & FATB Manager) dan pengesahan Berita Acara resmi customer.
+                              <strong>Step 3 — Verifikasi & Pengesahan Berita Acara:</strong> Verifikasi keabsahan volume survei dan pengesahan Berita Acara oleh Finance Specialist. Setelah disahkan, BA langsung berstatus <strong>Ready to Invoice</strong> dan posting <strong>Jurnal Tahap 2 (Pengesahan Nilai BA)</strong> berjalan otomatis.
                             </div>
                           </div>
 
@@ -8607,174 +9058,89 @@ export function FinancePage({
                             </div>
                           </div>
 
-                          {/* Dual Signatures Box with Real Action Buttons */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                            {/* TTD 1: Finance Specialist */}
-                            <div className={`p-4 rounded-xl border shadow-xs text-center space-y-2.5 transition ${formData.verifiedBy ? "bg-emerald-50/50 border-emerald-300" : "bg-white border-slate-200"}`}>
-                              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">1. Verifikasi Specialist</span>
-                                {formData.verifiedBy ? (
-                                  <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
-                                    <CheckCircle size={12} /> Selesai
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] text-amber-600 font-bold flex items-center gap-1">
-                                    <Clock size={12} /> Pending
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="py-1">
-                                {formData.verifiedBy ? (
-                                  <div className="inline-flex flex-col items-center gap-1">
-                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-                                      <CheckCircle size={13} className="text-emerald-700" /> Digital Verified
-                                    </span>
-                                    <span className="text-[11px] font-bold text-slate-800">{formData.verifiedBy}</span>
-                                    {formData.verifiedAt && (
-                                      <span className="text-[10px] text-slate-500 font-mono">{new Date(formData.verifiedAt).toLocaleString("id-ID")}</span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <div className="space-y-2">
-                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300">
-                                      <Clock size={13} className="text-amber-700" /> Menunggu Verifikasi Specialist
-                                    </span>
-                                    
-                                    {/* Action Buttons for Finance Specialist / SPV */}
-                                    {editItem && isFinanceSpecialist && (
-                                      <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                                        <button
-                                          type="button"
-                                          onClick={async () => {
-                                            try {
-                                              await verifyBATracker(editItem.id, "verify", formData.notes || "Verifikasi dokumen & volume BA disetujui Finance Specialist");
-                                              onNotice("✅ Berita Acara berhasil diverifikasi oleh Finance Specialist! Status diteruskan ke FATB Manager.");
-                                              setFormData({ ...formData, verifiedBy: user?.name || "Finance Specialist AAP", statusBA: "Pending Berita Acara" });
-                                              await loadData();
-                                            } catch (err: any) {
-                                              onNotice(`❌ Gagal verifikasi: ${err?.message}`);
-                                            }
-                                          }}
-                                          className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition text-xs shadow-xs cursor-pointer"
-                                        >
-                                          <Check size={14} /> Verifikasi BA (Approve)
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={async () => {
-                                            try {
-                                              await verifyBATracker(editItem.id, "reject", formData.notes || "Volume / data BA memerlukan revisi");
-                                              onNotice("⚠️ Berita Acara dikembalikan untuk revisi.");
-                                              setFormData({ ...formData, statusBA: "Revisi" });
-                                              await loadData();
-                                            } catch (err: any) {
-                                              onNotice(`❌ Gagal reject: ${err?.message}`);
-                                            }
-                                          }}
-                                          className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-2.5 rounded-lg flex items-center justify-center gap-1 transition text-xs shadow-xs cursor-pointer"
-                                        >
-                                          <X size={14} /> Revisi
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="pt-2 border-t border-slate-100">
-                                <strong className="block text-xs text-slate-900">Finance Specialist</strong>
-                                <span className="text-[10px] text-slate-500">PT Andalan Artha Primanusa</span>
-                              </div>
+                          {/* Single Clean Verification Box (Finance Specialist) */}
+                          <div className={`p-4 rounded-2xl border shadow-xs text-center space-y-3 transition ${formData.verifiedBy || formData.statusBA === "Ready to Invoice" ? "bg-emerald-50/60 border-emerald-300" : "bg-white border-slate-200"}`}>
+                            <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                              <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                                <ShieldCheck size={15} className="text-emerald-700" /> Verifikasi & Pengesahan Berita Acara
+                              </span>
+                              {formData.verifiedBy || formData.statusBA === "Ready to Invoice" ? (
+                                <span className="text-xs text-emerald-800 font-extrabold bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
+                                  <CheckCircle size={13} /> Terverifikasi & Disahkan
+                                </span>
+                              ) : (
+                                <span className="text-xs text-amber-700 font-bold bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300 flex items-center gap-1">
+                                  <Clock size={13} /> Menunggu Verifikasi Specialist
+                                </span>
+                              )}
                             </div>
 
-                            {/* TTD 2: FATB Manager */}
-                            <div className={`p-4 rounded-xl border shadow-xs text-center space-y-2.5 transition ${formData.approvedBy ? "bg-emerald-50/50 border-emerald-300" : "bg-white border-slate-200"}`}>
-                              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">2. Approval FATB Manager</span>
-                                {formData.approvedBy ? (
-                                  <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
-                                    <ShieldCheck size={12} /> Approved
+                            <div className="py-2">
+                              {formData.verifiedBy || formData.statusBA === "Ready to Invoice" ? (
+                                <div className="inline-flex flex-col items-center gap-1.5">
+                                  <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-400 shadow-2xs">
+                                    <CheckCircle size={14} className="text-emerald-700" /> Digital Verified by Finance Specialist
                                   </span>
-                                ) : formData.verifiedBy ? (
-                                  <span className="text-[10px] text-cyan-700 font-bold flex items-center gap-1">
-                                    <Clock size={12} /> Siap Di-Approve
+                                  <div className="font-extrabold text-slate-900 text-xs mt-1">
+                                    Disahkan oleh: <span className="text-emerald-950 font-bold underline">{formData.verifiedBy || "Finance Specialist"}</span>
+                                  </div>
+                                  <span className="text-[11px] text-slate-500 font-mono">
+                                    {formData.verifiedAt ? new Date(formData.verifiedAt).toLocaleString("id-ID") : "Terverifikasi Resmi"}
                                   </span>
-                                ) : (
-                                  <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                                    <Lock size={12} /> Menunggu Step 1
+                                  <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 mt-1">
+                                    ✓ Jurnal Tahap 2 (Pengesahan Nilai Klaim BA) Aktif
                                   </span>
-                                )}
-                              </div>
+                                </div>
+                              ) : (
+                                <div className="space-y-3 max-w-lg mx-auto">
+                                  <p className="text-xs text-slate-600 font-medium">
+                                    Pastikan seluruh volume awal dan volume hasil survey telah sesuai. Klik tombol di bawah untuk memverifikasi dan mengesahkan BA.
+                                  </p>
 
-                              <div className="py-1">
-                                {formData.approvedBy ? (
-                                  <div className="inline-flex flex-col items-center gap-1">
-                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-                                      <ShieldCheck size={13} className="text-emerald-700" /> Approved by FATB Manager
-                                    </span>
-                                    <span className="text-[11px] font-bold text-slate-800">{formData.approvedBy}</span>
-                                    {formData.approvedAt && (
-                                      <span className="text-[10px] text-slate-500 font-mono">{new Date(formData.approvedAt).toLocaleString("id-ID")}</span>
-                                    )}
-                                  </div>
-                                ) : formData.verifiedBy ? (
-                                  <div className="space-y-2">
-                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-cyan-50 text-cyan-900 border border-cyan-300">
-                                      <Clock size={13} className="text-cyan-700" /> Menunggu Approval FATB Manager
-                                    </span>
+                                  {/* Action Buttons for Finance Specialist */}
+                                  {editItem && isFinanceSpecialist && (
+                                    <div className="flex flex-col sm:flex-row gap-2.5 justify-center pt-1">
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          try {
+                                            await verifyBATracker(editItem.id, "verify", formData.notes || "Verifikasi dokumen & volume BA disahkan Finance Specialist");
+                                            onNotice("✅ Berita Acara berhasil diverifikasi oleh Finance Specialist! Status: Siap Terbit Invoice (Ready to Invoice). Jurnal Tahap 2 berhasil diposting.");
+                                            setFormData({ ...formData, verifiedBy: user?.name || "Finance Specialist AAP", statusBA: "Ready to Invoice" });
+                                            await loadData();
+                                          } catch (err: any) {
+                                            onNotice(`❌ Gagal verifikasi: ${err?.message}`);
+                                          }
+                                        }}
+                                        className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 transition text-xs shadow-sm cursor-pointer"
+                                      >
+                                        <Check size={15} /> Verifikasi & Sahkan BA (Ready to Invoice)
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          try {
+                                            await verifyBATracker(editItem.id, "reject", formData.notes || "Volume / data BA memerlukan revisi");
+                                            onNotice("⚠️ Berita Acara dikembalikan untuk revisi.");
+                                            setFormData({ ...formData, statusBA: "Revisi" });
+                                            await loadData();
+                                          } catch (err: any) {
+                                            onNotice(`❌ Gagal reject: ${err?.message}`);
+                                          }
+                                        }}
+                                        className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 px-3.5 rounded-xl flex items-center justify-center gap-1 transition text-xs shadow-xs cursor-pointer"
+                                      >
+                                        <X size={15} /> Kembalikan / Revisi
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
 
-                                    {/* Action Buttons for FATB Manager */}
-                                    {editItem && isManager && (
-                                      <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                                        <button
-                                          type="button"
-                                          onClick={async () => {
-                                            try {
-                                              await approveBATracker(editItem.id, "approve", formData.notes || "Persetujuan Berita Acara disetujui resmi FATB Manager");
-                                              onNotice("🎉 Berita Acara disetujui FATB Manager! Status: BA Ready to Invoice.");
-                                              setFormData({ ...formData, approvedBy: user?.name || "FATB Manager AAP", statusBA: "Ready to Invoice" });
-                                              await loadData();
-                                            } catch (err: any) {
-                                              onNotice(`❌ Gagal approve: ${err?.message}`);
-                                            }
-                                          }}
-                                          className="flex-1 bg-cyan-700 hover:bg-cyan-800 text-white font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition text-xs shadow-xs cursor-pointer"
-                                        >
-                                          <ShieldCheck size={14} /> Approve BA (Manager)
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={async () => {
-                                            try {
-                                              await approveBATracker(editItem.id, "reject", formData.notes || "Ditolak FATB Manager untuk evaluasi");
-                                              onNotice("⚠️ Berita Acara ditolak oleh FATB Manager.");
-                                              setFormData({ ...formData, statusBA: "Revisi" });
-                                              await loadData();
-                                            } catch (err: any) {
-                                              onNotice(`❌ Gagal reject: ${err?.message}`);
-                                            }
-                                          }}
-                                          className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-2.5 rounded-lg flex items-center justify-center gap-1 transition text-xs shadow-xs cursor-pointer"
-                                        >
-                                          <X size={14} /> Reject
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <div className="py-2">
-                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                                      <Lock size={13} className="text-slate-400" /> Terkunci (Perlu Verifikasi Specialist)
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="pt-2 border-t border-slate-100">
-                                <strong className="block text-xs text-slate-900">FATB Manager</strong>
-                                <span className="text-[10px] text-slate-500">PT Andalan Artha Primanusa</span>
-                              </div>
+                            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                              <span className="text-slate-500">Otoritas Verifikasi: <strong>Finance Specialist</strong></span>
+                              <span className="text-slate-500 font-medium">PT Andalan Artha Primanusa</span>
                             </div>
                           </div>
 
@@ -8854,150 +9220,13 @@ export function FinancePage({
                           )}
 
                           {/* Navigation Buttons */}
-                          <div className="flex justify-between items-center pt-2">
+                          <div className="flex justify-start items-center pt-2">
                             <button
                               type="button"
                               onClick={() => setActiveBAStep(2)}
-                              className="px-3.5 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold rounded-xl transition text-xs cursor-pointer"
+                              className="px-3.5 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold rounded-lg transition text-xs cursor-pointer shadow-2xs"
                             >
                               ⬅ Kembali ke Step 2
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setActiveBAStep(4)}
-                              className="px-4 py-2 bg-cyan-700 hover:bg-cyan-800 text-white font-bold rounded-xl flex items-center gap-1.5 transition text-xs shadow-xs cursor-pointer"
-                            >
-                              <span>Lihat Jejak Audit (Step 4)</span>
-                              <ArrowRight size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* STEP 4: Jejak Audit & Flow Tracking */}
-                      {activeBAStep === 4 && (
-                        <div className="space-y-4">
-                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
-                            <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-                              <History size={16} className="text-cyan-800" />
-                              <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">
-                                Jejak Audit & Alur Persetujuan Berita Acara
-                              </h4>
-                            </div>
-
-                            <div className="space-y-3">
-                              {/* 1. Draft BA Dibuat */}
-                              <div className="flex items-start gap-3 p-3 bg-white border border-slate-200 rounded-xl">
-                                <div className="p-2 bg-emerald-100 text-emerald-800 rounded-lg shrink-0 font-bold text-xs">1</div>
-                                <div className="space-y-0.5 text-xs flex-1">
-                                  <div className="flex items-center justify-between">
-                                    <strong className="text-slate-900 font-bold">Draft BA Dibuat (Site Entri)</strong>
-                                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                      {formData.baSubmittedDate ? new Date(formData.baSubmittedDate).toLocaleDateString("id-ID") : "Tercatat"}
-                                    </span>
-                                  </div>
-                                  <p className="text-slate-600 text-[11px]">
-                                    Draft Berita Acara dibuat oleh <strong>{formData.picAAP || "Admin Finance Site"}</strong> dan dicatat sebagai estimasi Unbilled Revenue ({formatIDR(sumInitial)}).
-                                  </p>
-                                </div>
-                              </div>
-
-                              {/* 2. Verifikasi Specialist */}
-                              <div className="flex items-start gap-3 p-3 bg-white border border-slate-200 rounded-xl">
-                                <div className={`p-2 rounded-lg shrink-0 font-bold text-xs ${formData.verifiedBy ? "bg-emerald-100 text-emerald-800" : formData.statusBA === "Revisi" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}>2</div>
-                                <div className="space-y-0.5 text-xs flex-1">
-                                  <div className="flex items-center justify-between">
-                                    <strong className="text-slate-900 font-bold">Verifikasi Specialist & Joint Survey</strong>
-                                    {formData.verifiedBy ? (
-                                      <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                                        <CheckCircle size={11} /> Terverifikasi ({formData.verifiedBy})
-                                      </span>
-                                    ) : formData.statusBA === "Revisi" ? (
-                                      <span className="text-[10px] text-rose-700 font-bold bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200 flex items-center gap-1">
-                                        <X size={11} /> Perlu Revisi
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
-                                        <Clock size={11} /> Menunggu Verifikasi
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-slate-600 text-[11px]">
-                                    {formData.verifiedBy
-                                      ? `Pemeriksaan fisik volume joint survey disetujui oleh ${formData.verifiedBy}.${formData.verifiedAt ? ` (${new Date(formData.verifiedAt).toLocaleString("id-ID")})` : ""}`
-                                      : "Menunggu verifikasi keabsahan volume survei bersama oleh Finance Specialist / SPV Site."}
-                                  </p>
-                                </div>
-                              </div>
-
-                              {/* 3. Approval FATB Manager */}
-                              <div className="flex items-start gap-3 p-3 bg-white border border-slate-200 rounded-xl">
-                                <div className={`p-2 rounded-lg shrink-0 font-bold text-xs ${formData.approvedBy ? "bg-emerald-100 text-emerald-800" : formData.verifiedBy ? "bg-cyan-100 text-cyan-800" : "bg-slate-100 text-slate-500"}`}>3</div>
-                                <div className="space-y-0.5 text-xs flex-1">
-                                  <div className="flex items-center justify-between">
-                                    <strong className="text-slate-900 font-bold">Approval FATB Manager (Final BA)</strong>
-                                    {formData.approvedBy ? (
-                                      <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                                        <ShieldCheck size={11} /> Disetujui ({formData.approvedBy})
-                                      </span>
-                                    ) : formData.verifiedBy ? (
-                                      <span className="text-[10px] text-cyan-700 font-bold bg-cyan-50 px-2 py-0.5 rounded-full border border-cyan-200 flex items-center gap-1">
-                                        <Clock size={11} /> Menunggu Approval
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 flex items-center gap-1">
-                                        <Lock size={11} /> Antrian Verifikasi
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-slate-600 text-[11px]">
-                                    {formData.approvedBy
-                                      ? `Berita Acara telah disetujui resmi oleh ${formData.approvedBy}.${formData.approvedAt ? ` (${new Date(formData.approvedAt).toLocaleString("id-ID")})` : ""}`
-                                      : "Persetujuan final dokumen BA dan pengesahan nilai klaim oleh FATB Manager."}
-                                  </p>
-                                </div>
-                              </div>
-
-                              {/* 4. Relasi Invoice Penagihan */}
-                              <div className="flex items-start gap-3 p-3 bg-white border border-slate-200 rounded-xl">
-                                <div className={`p-2 rounded-lg shrink-0 font-bold text-xs ${formData.invoiceNoLinked ? "bg-purple-100 text-purple-800" : (formData.statusBA === "Ready to Invoice" || formData.approvedBy) ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}>4</div>
-                                <div className="space-y-0.5 text-xs flex-1">
-                                  <div className="flex items-center justify-between">
-                                    <strong className="text-slate-900 font-bold">Relasi Invoice Penagihan</strong>
-                                    {formData.invoiceNoLinked ? (
-                                      <span className="text-[10px] text-purple-800 font-bold bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
-                                        Invoice #{formData.invoiceNoLinked}
-                                      </span>
-                                    ) : (formData.statusBA === "Ready to Invoice" || formData.approvedBy) ? (
-                                      <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                        Siap Terbit Invoice
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-                                        Menunggu BA Approved
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-slate-600 text-[11px]">
-                                    {formData.invoiceNoLinked
-                                      ? `Invoice resmi #${formData.invoiceNoLinked} telah diterbitkan dan tercatat pada buku Order to Cash AR.`
-                                      : (formData.statusBA === "Ready to Invoice" || formData.approvedBy)
-                                      ? "Status Berita Acara siap diterbitkan Invoice oleh Tim Finance HO melalui tombol 'Terbitkan Invoice'."
-                                      : "Faktur penagihan belum dapat diterbitkan sebelum Berita Acara selesai disetujui."}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Navigation Buttons */}
-                          <div className="flex justify-start pt-2">
-                            <button
-                              type="button"
-                              onClick={() => setActiveBAStep(3)}
-                              className="px-3.5 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold rounded-xl transition text-xs cursor-pointer"
-                            >
-                              ⬅ Kembali ke Step 3
                             </button>
                           </div>
                         </div>
@@ -9025,54 +9254,54 @@ export function FinancePage({
                     {/* KOLOM KANAN (LEBAR ~25%-30% / xl:col-span-4 2xl:col-span-3): Document Viewer & Quick Intelligence Hub */}
                     <div className="xl:col-span-4 2xl:col-span-3 space-y-4">
                       {/* Ringkasan Dokumen Card */}
-                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
                         <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                          <span className="text-xs font-black uppercase text-cyan-800 tracking-wider">Ringkasan Berita Acara</span>
+                          <span className="text-xs font-bold uppercase text-[#77542e] tracking-wider">Ringkasan Berita Acara</span>
                           <span className="text-[10px] font-mono font-bold text-slate-500">ID: #{formData.id || editItem?.id || "New"}</span>
                         </div>
 
                         <div className="space-y-2 text-xs">
                           <div className="flex justify-between">
-                            <span className="text-slate-500 font-bold">Total Nilai Klaim BA:</span>
-                            <span className="font-mono font-black text-emerald-800 text-sm">{formatIDR(sumAdjusted || sumInitial || formData.workAmount || 0)}</span>
+                            <span className="text-slate-500 font-medium">Total Nilai Klaim BA:</span>
+                            <span className="font-mono font-bold text-emerald-800 text-sm">{formatIDR(sumAdjusted || sumInitial || formData.workAmount || 0)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-slate-500 font-bold">Status BA:</span>
+                            <span className="text-slate-500 font-medium">Status BA:</span>
                             <span>{renderBAStatusBadge(formData.statusBA || "Submit", formData.invoiceNoLinked, undefined, editItem || formData, invoiceRows)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-slate-500 font-bold">Customer:</span>
+                            <span className="text-slate-500 font-medium">Customer:</span>
                             <span className="font-bold text-slate-900">{formData.customerCode || "POS"}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-slate-500 font-bold">Periode:</span>
+                            <span className="text-slate-500 font-medium">Periode:</span>
                             <span className="text-slate-800 font-bold">{formData.workPeriod || "-"}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-slate-500 font-bold">Lead Time Approval:</span>
-                            <span className="text-amber-700 font-extrabold">{formData.leadTimeDays || 0} Hari</span>
+                            <span className="text-slate-500 font-medium">Lead Time Approval:</span>
+                            <span className="text-[#77542e] font-bold">{formData.leadTimeDays || 0} Hari</span>
                           </div>
                         </div>
                       </div>
 
-                      {/* PDF PREVIEWS CONTAINER */}
+                      {/* PDF PREVIEWS CONTAINER (Enterprise Light Border Card Style) */}
                       <div className="space-y-3">
-                        <div className="flex items-center gap-1.5 text-xs font-black uppercase text-slate-700 tracking-wider">
-                          <FileText size={14} className="text-cyan-700" /> Pratinjau Dokumen PDF
+                        <div className="flex items-center gap-1.5 text-xs font-bold uppercase text-slate-700 tracking-wider">
+                          <FileText size={14} className="text-[#a57c50]" /> Pratinjau Dokumen PDF
                         </div>
 
                         {/* Draft BA Card */}
-                        <div className="p-3 bg-slate-900 text-white rounded-xl space-y-2">
+                        <div className="p-3 bg-slate-50 border border-slate-200 text-slate-900 rounded-lg space-y-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-cyan-400 flex items-center gap-1">
-                              <Upload size={13} /> Draft BA PDF
+                            <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                              <Upload size={13} className="text-[#a57c50]" /> Draft BA PDF
                             </span>
                             {formData.draftBAPath ? (
                               <a
                                 href={resolveDocumentUrl(formData.draftBAPath)}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="text-[10px] px-2 py-0.5 rounded bg-cyan-700 hover:bg-cyan-600 text-white font-bold inline-flex items-center gap-1"
+                                className="text-[10px] px-2 py-0.5 rounded-md bg-[#16203b] hover:bg-[#1e2b4d] text-white font-bold inline-flex items-center gap-1 transition"
                               >
                                 <ExternalLink size={11} /> Buka Tab Baru
                               </a>
@@ -9081,28 +9310,28 @@ export function FinancePage({
                             )}
                           </div>
                           {formData.draftBAPath ? (
-                            <div className="w-full h-36 rounded-lg overflow-hidden border border-slate-700 bg-slate-800">
+                            <div className="w-full h-36 rounded-md overflow-hidden border border-slate-200 bg-white">
                               <iframe src={resolveDocumentUrl(formData.draftBAPath)} className="w-full h-full" title="Draft BA PDF Preview" />
                             </div>
                           ) : (
-                            <div className="p-3 text-center text-xs text-slate-400 bg-slate-800/50 rounded-lg border border-dashed border-slate-700">
+                            <div className="p-3 text-center text-xs text-slate-400 bg-white rounded-md border border-dashed border-slate-300">
                               Draft BA PDF belum diunggah.
                             </div>
                           )}
                         </div>
 
                         {/* Final Signed BA Card */}
-                        <div className="p-3 bg-slate-900 text-white rounded-xl space-y-2">
+                        <div className="p-3 bg-slate-50 border border-slate-200 text-slate-900 rounded-lg space-y-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                              <CheckCircle size={13} /> Final Signed BA PDF
+                            <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                              <CheckCircle size={13} className="text-emerald-700" /> Final Signed BA PDF
                             </span>
                             {formData.finalBAPath ? (
                               <a
                                 href={resolveDocumentUrl(formData.finalBAPath)}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="text-[10px] px-2 py-0.5 rounded bg-emerald-700 hover:bg-emerald-600 text-white font-bold inline-flex items-center gap-1"
+                                className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-700 hover:bg-emerald-800 text-white font-bold inline-flex items-center gap-1 transition"
                               >
                                 <ExternalLink size={11} /> Buka Tab Baru
                               </a>
@@ -9111,15 +9340,128 @@ export function FinancePage({
                             )}
                           </div>
                           {formData.finalBAPath ? (
-                            <div className="w-full h-36 rounded-lg overflow-hidden border border-slate-700 bg-slate-800">
+                            <div className="w-full h-36 rounded-md overflow-hidden border border-slate-200 bg-white">
                               <iframe src={resolveDocumentUrl(formData.finalBAPath)} className="w-full h-full" title="Final BA PDF Preview" />
                             </div>
                           ) : (
-                            <div className="p-3 text-center text-xs text-slate-400 bg-slate-800/50 rounded-lg border border-dashed border-slate-700">
+                            <div className="p-3 text-center text-xs text-slate-400 bg-white rounded-md border border-dashed border-slate-300">
                               Final Signed BA PDF dapat diunggah pada Step 3.
                             </div>
                           )}
                         </div>
+                      </div>
+
+                      {/* AUDIT & INTELLIGENCE TIMELINE TABS CONTAINER (Moved Under Document Preview) */}
+                      <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
+                        {/* Tab Switcher: Flow Status vs Log Aktivitas */}
+                        <div className="grid grid-cols-2 gap-1.5 bg-slate-200/80 p-1 rounded-md text-[11px] font-bold">
+                          <button
+                            type="button"
+                            onClick={() => setBaSidebarTab("flow")}
+                            className={`py-1.5 px-2 rounded flex items-center justify-center gap-1 transition cursor-pointer ${baSidebarTab === "flow" ? "bg-[#16203b] text-white shadow-2xs font-bold" : "text-slate-700 hover:bg-slate-300/60"}`}
+                          >
+                            <History size={12} className={baSidebarTab === "flow" ? "text-[#e5d7c2]" : "text-slate-500"} />
+                            <span>Flow Status BA</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setBaSidebarTab("activity")}
+                            className={`py-1.5 px-2 rounded flex items-center justify-center gap-1 transition cursor-pointer ${baSidebarTab === "activity" ? "bg-[#16203b] text-white shadow-2xs font-bold" : "text-slate-700 hover:bg-slate-300/60"}`}
+                          >
+                            <Activity size={12} className={baSidebarTab === "activity" ? "text-[#e5d7c2]" : "text-slate-500"} />
+                            <span>Log Aktivitas</span>
+                          </button>
+                        </div>
+
+                        {/* TAB 1: FLOW STATUS BA TIMELINE */}
+                        {baSidebarTab === "flow" && (
+                          <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                            {generateAuditTimeline("ba", editItem || formData).map((stepItem, sIdx) => {
+                              const isCompleted = stepItem.status === "completed";
+                              const isRejected = stepItem.status === "rejected";
+
+                              return (
+                                <div key={sIdx} className="relative pl-6 pb-2.5 last:pb-0 text-xs">
+                                  {/* Vertical Line */}
+                                  {sIdx < 3 && (
+                                    <div className={`absolute left-2.5 top-5 bottom-0 w-0.5 ${isCompleted ? "bg-emerald-400" : "bg-slate-300"}`} />
+                                  )}
+
+                                  {/* Step Node Dot */}
+                                  <div className={`absolute left-0 top-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${isCompleted ? "bg-emerald-600 text-white" : isRejected ? "bg-rose-600 text-white" : "bg-slate-300 text-slate-700"}`}>
+                                    {isCompleted ? "✓" : stepItem.step}
+                                  </div>
+
+                                  <div className="bg-white border border-slate-200 rounded-md p-2.5 space-y-1 shadow-2xs">
+                                    <div className="flex items-center justify-between gap-1 flex-wrap">
+                                      <strong className="text-slate-900 font-bold text-[11px]">{stepItem.title}</strong>
+                                      <span className="text-[9px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                        {stepItem.time}
+                                      </span>
+                                    </div>
+                                    <div className="text-[10px] text-slate-600 font-medium">
+                                      Oleh: <strong className="text-slate-800">{stepItem.user}</strong> ({stepItem.role})
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 leading-tight">
+                                      {stepItem.desc}
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* TAB 2: LOG AKTIVITAS USER TIMELINE (REAL BACKEND AUDIT LOGS) */}
+                        {baSidebarTab === "activity" && (
+                          <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                            {generateUserActivityLogs("ba", editItem || formData, realAuditLogs).map((logItem, lIdx, arr) => {
+                              const badgeBg =
+                                logItem.actionType === "view" ? "bg-blue-100 text-blue-800 border-blue-200" :
+                                logItem.actionType === "verify" ? "bg-emerald-100 text-emerald-800 border-emerald-200" :
+                                logItem.actionType === "upload" ? "bg-purple-100 text-purple-800 border-purple-200" :
+                                logItem.actionType === "edit" ? "bg-amber-100 text-amber-800 border-amber-200" :
+                                "bg-[#faf6f0] text-[#77542e] border-[#e5d7c2]";
+
+                              return (
+                                <div key={logItem.id || lIdx} className="relative pl-6 pb-2.5 last:pb-0 text-xs">
+                                  {/* Vertical Line */}
+                                  {lIdx < arr.length - 1 && (
+                                    <div className="absolute left-2.5 top-5 bottom-0 w-0.5 bg-slate-200" />
+                                  )}
+
+                                  {/* Activity Node Dot */}
+                                  <div className="absolute left-0.5 top-1 w-4 h-4 rounded-full bg-[#16203b] border-2 border-white flex items-center justify-center text-[8px] text-[#e5d7c2] shadow-xs">
+                                    ●
+                                  </div>
+
+                                  <div className="bg-white border border-slate-200 rounded-md p-2.5 space-y-1 shadow-2xs">
+                                    <div className="flex items-center justify-between gap-1 flex-wrap">
+                                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${badgeBg}`}>
+                                        {logItem.actionType}
+                                      </span>
+                                      <span className="text-[9px] font-mono text-slate-500">
+                                        {logItem.timestamp}
+                                      </span>
+                                    </div>
+                                    <div className="font-bold text-slate-900 text-[11px]">
+                                      {logItem.action}
+                                    </div>
+                                    <div className="text-[10px] text-slate-600 font-medium flex items-center gap-1">
+                                      <User size={10} className="text-slate-400" />
+                                      <span>{logItem.user}</span>
+                                      <span className="text-slate-400">•</span>
+                                      <span className="text-slate-500">{logItem.role}</span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 leading-snug">
+                                      {logItem.details}
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -9269,24 +9611,26 @@ export function FinancePage({
                 </>
               )}
 
-              {/* Form Action Buttons */}
-              <div className="flex items-center justify-between pt-5 border-t border-slate-200">
+              </div>
+
+              {/* Form Action Buttons (STICKY AT BOTTOM) */}
+              <div className="sticky bottom-0 bg-white z-30 px-5 sm:px-6 py-3.5 border-t border-slate-200 flex items-center justify-between shrink-0 shadow-2xs">
                 <div>
                   {modalType === "ba" && editItem && !isInlineEditingBA && (
                     <button
                       type="button"
                       onClick={() => setIsInlineEditingBA(true)}
-                      className="px-5 py-2.5 rounded-xl bg-cyan-700 hover:bg-cyan-800 text-white font-black text-xs transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                      className="px-4 py-2 rounded-lg bg-[#a57c50] hover:bg-[#8e683e] text-white font-bold text-xs transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
                     >
-                      <Edit2 size={14} /> ✏️ Ubah / Edit Data BA Ini
+                      <Edit2 size={13} /> ✏️ Ubah / Edit Data BA Ini
                     </button>
                   )}
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                   <button
                     type="button"
-                    className="px-5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold transition shadow-xs text-xs cursor-pointer"
+                    className="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold transition shadow-2xs text-xs cursor-pointer"
                     onClick={() => setModalType("none")}
                   >
                     {modalType === "ba" && !isInlineEditingBA ? "Tutup Pratinjau" : "Batal"}
@@ -9295,9 +9639,9 @@ export function FinancePage({
                   {(modalType !== "ba" || isInlineEditingBA) && (
                     <button
                       type="submit"
-                      className="primary px-6 py-2.5 rounded-xl bg-cyan-700 hover:bg-cyan-800 text-white font-black shadow-md transition text-xs flex items-center gap-1.5 cursor-pointer"
+                      className="px-5 py-2 rounded-lg bg-[#16203b] hover:bg-[#1e2b4d] text-white font-bold shadow-2xs transition text-xs flex items-center gap-1.5 cursor-pointer"
                     >
-                      <CheckCircle2 size={15} />
+                      <CheckCircle2 size={14} className="text-[#d5c0a4]" />
                       <span>{modalType === "ba" ? "Simpan Perubahan Berita Acara" : "Simpan Data"}</span>
                     </button>
                   )}
@@ -9309,20 +9653,20 @@ export function FinancePage({
       )}
       {/* ================= MODAL KARTU KONTROL PENDING VOLUME ================= */}
       {showPendingVolumeDrawer && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white border border-slate-200 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-6">
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-enterprise w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-6">
             
             {/* Modal Header */}
-            <div className="p-5 bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white flex items-center justify-between">
+            <div className="p-4 bg-[#16203b] border-b border-[#1e2b4d] text-white flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
-                  <Scale size={22} />
+                <div className="w-9 h-9 rounded-lg bg-[#a57c50]/20 border border-[#a57c50]/40 flex items-center justify-center text-[#d5c0a4]">
+                  <Scale size={20} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black tracking-tight">
+                  <h3 className="text-sm font-bold tracking-tight text-white">
                     Kartu Kontrol Saldo Pending Volume (Carry-Forward OB)
                   </h3>
-                  <p className="text-xs text-indigo-200 font-medium">
+                  <p className="text-[11px] text-[#e5d7c2]">
                     Monitoring kuota rasio kontrak SOW (Maks. 3:1 OB/Coal) & penyerapan otomatis pada invoice berikutnya
                   </p>
                 </div>
@@ -9330,13 +9674,13 @@ export function FinancePage({
               <button
                 type="button"
                 onClick={() => setShowPendingVolumeDrawer(false)}
-                className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
+                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
-            <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto text-xs">
+            <div className="p-5 space-y-5 max-h-[80vh] overflow-y-auto text-xs">
               {/* Top 4 KPI Metrics */}
               {(() => {
                 const activeLedgers = pendingVolumeLedgers.filter((l: any) => l.remainingVolume > 0 || l.status === "Active" || l.status === "Partially Settled");
@@ -9346,41 +9690,41 @@ export function FinancePage({
 
                 return (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200/80 shadow-2xs space-y-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-900 flex items-center gap-1">
-                        <Layers size={13} className="text-indigo-700" /> Saldo Pending Aktif
+                    <div className="p-3.5 rounded-lg bg-[#faf6f0] border border-[#e5d7c2] shadow-2xs space-y-0.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#77542e] flex items-center gap-1">
+                        <Layers size={13} className="text-[#a57c50]" /> Saldo Pending Aktif
                       </span>
-                      <div className="text-xl font-black font-mono text-indigo-950">
-                        {totalRemainingVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })} <span className="text-xs font-sans font-bold text-indigo-700">BCM</span>
+                      <div className="text-lg font-black font-mono text-[#48311b]">
+                        {totalRemainingVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })} <span className="text-xs font-sans font-bold text-[#77542e]">BCM</span>
                       </div>
-                      <p className="text-[10px] text-indigo-700">Sisa volume OB belum tertagih</p>
+                      <p className="text-[10px] text-[#8e683e]">Sisa volume OB belum tertagih</p>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200/80 shadow-2xs space-y-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900 flex items-center gap-1">
+                    <div className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-200 shadow-2xs space-y-0.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1">
                         <DollarSign size={13} className="text-emerald-700" /> Estimasi Nilai Tertunda
                       </span>
-                      <div className="text-xl font-black font-mono text-emerald-950 truncate">
+                      <div className="text-lg font-black font-mono text-emerald-950 truncate">
                         {formatIDR(totalNominalEst)}
                       </div>
                       <p className="text-[10px] text-emerald-700">Proyeksi klaim saat kuota tersedia</p>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-cyan-50 border border-cyan-200/80 shadow-2xs space-y-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-cyan-900 flex items-center gap-1">
-                        <CheckCircle2 size={13} className="text-cyan-700" /> Berhasil Diserap
+                    <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 shadow-2xs space-y-0.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1">
+                        <CheckCircle2 size={13} className="text-slate-600" /> Berhasil Diserap
                       </span>
-                      <div className="text-xl font-black font-mono text-cyan-950">
-                        {totalAbsorbedVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })} <span className="text-xs font-sans font-bold text-cyan-700">BCM</span>
+                      <div className="text-lg font-black font-mono text-slate-900">
+                        {totalAbsorbedVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })} <span className="text-xs font-sans font-bold text-slate-600">BCM</span>
                       </div>
-                      <p className="text-[10px] text-cyan-700">Volume telah dicairkan ke invoice</p>
+                      <p className="text-[10px] text-slate-500">Volume telah dicairkan ke invoice</p>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-slate-100 border border-slate-200 shadow-2xs space-y-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1">
+                    <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 shadow-2xs space-y-0.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1">
                         <Clock size={13} className="text-slate-600" /> Antrean Carry-Forward
                       </span>
-                      <div className="text-xl font-black font-mono text-slate-900">
+                      <div className="text-lg font-black font-mono text-slate-900">
                         {activeLedgers.length} <span className="text-xs font-sans font-bold text-slate-600">Periode</span>
                       </div>
                       <p className="text-[10px] text-slate-500">Prioritas penyerapan FIFO</p>
