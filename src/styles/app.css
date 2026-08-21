@@ -22,15 +22,8 @@ button { cursor: pointer; }
   min-height: 100vh;
   min-height: 100dvh;
   display: grid;
-<<<<<<< HEAD
-  grid-template-columns: minmax(420px, 560px) 1fr;
-  background:
-    linear-gradient(120deg, rgba(242,247,251,.96), rgba(255,255,255,1) 42%, rgba(229,241,248,.86)),
-    #f4f7fa;
-=======
   grid-template-columns: minmax(390px, 520px) 1fr;
   background: #f8fafc;
->>>>>>> mockup-fe
 }
 
 .login-panel {
@@ -38,13 +31,8 @@ button { cursor: pointer; }
   display: flex;
   flex-direction: column;
   justify-content: center;
-<<<<<<< HEAD
-  background: rgba(255,255,255,.96);
-  border-right: 1px solid #d9e7f0;
-=======
   background: #ffffff;
   border-right: 1px solid #e2e8f0;
->>>>>>> mockup-fe
   min-width: 0;
   box-shadow: 18px 0 70px rgba(6,43,79,.08);
   position: relative;
@@ -76,11 +64,7 @@ button { cursor: pointer; }
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
-<<<<<<< HEAD
-  color: #13859a;
-=======
   color: #64748b;
->>>>>>> mockup-fe
 }
 
 h1, h2, h3 { margin: 0; letter-spacing: 0; }
@@ -97,11 +81,7 @@ h3 { font-size: 16px; }
 .login-copy {
   margin: 18px 0 0;
   max-width: 440px;
-<<<<<<< HEAD
-  color: #61758a;
-=======
   color: #64748b;
->>>>>>> mockup-fe
   font-size: 15px;
   line-height: 1.75;
 }
@@ -169,11 +149,7 @@ textarea { min-height: 94px; resize: vertical; }
   justify-content: center;
   gap: 8px;
   color: #ffffff;
-<<<<<<< HEAD
-  background: linear-gradient(135deg, #06345f, #0a4a82);
-=======
   background: #1e2b4d;
->>>>>>> mockup-fe
   font-weight: 800;
   box-shadow: 0 16px 30px rgba(6,52,95,.18);
 }
@@ -212,15 +188,9 @@ textarea { min-height: 94px; resize: vertical; }
 }
 
 .powered-by {
-<<<<<<< HEAD
-  margin-top: 34px;
-  padding-top: 18px;
-  border-top: 1px solid #e3edf4;
-=======
   margin-top: 28px;
   padding-top: 20px;
   border-top: 1px solid #e2e8f0;
->>>>>>> mockup-fe
   display: flex;
   align-items: center;
   gap: 10px;
@@ -252,14 +222,8 @@ textarea { min-height: 94px; resize: vertical; }
   justify-content: flex-end;
   gap: 22px;
   background:
-<<<<<<< HEAD
-    linear-gradient(135deg, rgba(5,28,55,.98), rgba(6,52,95,.94) 48%, rgba(13,102,132,.9)),
-    radial-gradient(circle at 78% 16%, rgba(123,217,232,.25), transparent 270px),
-    radial-gradient(circle at 24% 76%, rgba(255,255,255,.11), transparent 320px);
-=======
     linear-gradient(135deg, rgba(22,32,59,0.98), rgba(30,43,77,0.92) 46%, rgba(165,124,80,0.85)),
     radial-gradient(circle at 80% 18%, rgba(229,215,194,.38), transparent 260px);
->>>>>>> mockup-fe
   min-width: 0;
   position: relative;
   overflow: hidden;

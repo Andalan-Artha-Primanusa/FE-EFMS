@@ -8,19 +8,6 @@ export default {
       },
       colors: {
         finance: {
-<<<<<<< HEAD
-          ink: "#062b4f",
-          navy: "#06345f",
-          muted: "#5c7288",
-          line: "#d9e0e7",
-          canvas: "#f4f7fa",
-          teal: "#13859a",
-          cyan: "#20a6b8",
-          green: "#13859a",
-          blue: "#06345f",
-          amber: "#b45309",
-          red: "#b91c1c"
-=======
           ink: "#16203b",
           navy: "#1e2b4d",
           muted: "#64748b",
@@ -49,7 +36,6 @@ export default {
           800: "#5f4123",
           900: "#48311b",
           950: "#2d1e10"
->>>>>>> mockup-fe
         }
       },
       borderRadius: {
