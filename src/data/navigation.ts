@@ -117,7 +117,9 @@ export const menuPermissionMap: Record<string, string[]> = {
   "Bank": ["master_data:read"],
   "Tax": ["master_data:read"],
   "Currency": ["master_data:read"],
+  "Coal Index": ["master_data:read"],
   "Variable SOW": ["master_data:read"],
+  "RAISE & FALL": ["master_data:read"],
   "Annual Budget": ["budget:read"],
   "Monthly Budget": ["budget:read"],
   "Budget Submission": ["budget:submit"],
@@ -170,3 +172,25 @@ export const menuPermissionMap: Record<string, string[]> = {
   "Role and Permission": ["user_management:manage"],
   "System Settings": ["user_management:manage"]
 };
+
+export const ACCOUNT_SETTINGS_VIEW = "Account Settings";
+
+export function slugify(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+const slugToTitle = new Map<string, string>();
+for (const title of [...Object.keys(viewMap), ACCOUNT_SETTINGS_VIEW]) {
+  const slug = slugify(title);
+  if (!slugToTitle.has(slug)) slugToTitle.set(slug, title);
+}
+
+export function titleFromSlug(slug: string | undefined): string | undefined {
+  if (!slug) return undefined;
+  return slugToTitle.get(slug);
+}
+
+export function viewPath(title: string): string {
+  if (title === ACCOUNT_SETTINGS_VIEW) return "/account-settings";
+  return `/${slugify(title)}`;
+}

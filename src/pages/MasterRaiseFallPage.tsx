@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { api } from "../lib/api";
 
 const customerContractOptions = [
@@ -88,6 +89,7 @@ export function MasterRaiseFallPage({
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<"rf" | "mrate">("rf");
   const [editItem, setEditItem] = useState<any>(null);
+  const [deleteRfTarget, setDeleteRfTarget] = useState<{ id: number } | null>(null);
 
   // Form states
   const [rfForm, setRfForm] = useState<any>({
@@ -215,13 +217,14 @@ export function MasterRaiseFallPage({
   };
 
   const handleDeleteRf = async (id: number) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus data Raise & Fall ini?")) return;
     try {
       await api(`/api/master-data/raise-fall/${id}`, { method: "DELETE" });
       onNotice("Data Raise & Fall berhasil dihapus");
       loadData();
     } catch (err: any) {
       onNotice(err?.message || "Gagal menghapus data");
+    } finally {
+      setDeleteRfTarget(null);
     }
   };
 
@@ -545,7 +548,7 @@ export function MasterRaiseFallPage({
                             <Edit2 size={14} />
                           </button>
                           <button
-                            onClick={() => handleDeleteRf(r.id)}
+                            onClick={() => setDeleteRfTarget({ id: r.id })}
                             className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                             title="Hapus Record"
                           >
@@ -885,6 +888,16 @@ export function MasterRaiseFallPage({
             </div>
           </div>
         </div>
+      )}
+      {deleteRfTarget && (
+        <ConfirmDialog
+          title="Hapus Data Raise & Fall"
+          message="Data Raise & Fall ini akan dihapus permanen. Tindakan ini tidak dapat dibatalkan."
+          confirmLabel="Hapus"
+          danger
+          onCancel={() => setDeleteRfTarget(null)}
+          onConfirm={() => handleDeleteRf(deleteRfTarget.id)}
+        />
       )}
     </div>
   );

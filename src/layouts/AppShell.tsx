@@ -1,36 +1,61 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Outlet, useLocation, useNavigate, useParams, useOutlet } from "react-router-dom";
 import { Bell, ChevronDown, LogOut, Menu, Search, UserCog, X } from "lucide-react";
 import { NotificationPanel } from "../components/NotificationPanel";
-import { TransactionModal } from "../components/TransactionModal";
-import { menu, menuPermissionMap, viewMap } from "../data/navigation";
+import { ACCOUNT_SETTINGS_VIEW, menu, menuPermissionMap, titleFromSlug, viewMap, viewPath } from "../data/navigation";
 import { api, type AuditLog, type Dashboard, type Permission, type RoleAccess, type Transaction, type User } from "../lib/api";
 import { AccountSettingsPage } from "../pages/AccountSettingsPage";
 import { DashboardPage } from "../pages/DashboardPage";
-import { FinancePage } from "../pages/FinancePage";
+
 import { ModulePage } from "../pages/ModulePage";
 import { RBACPage } from "../pages/RBACPage";
+import { canAccessMenu, isSuperAdminRole } from "../lib/auth";
+import { routes } from "../router/routes";
 
 import { VariableSOWPage } from "../pages/VariableSOWPage";
+import { VariableSOWFormPage } from "../pages/VariableSOWFormPage";
 import { MasterRaiseFallPage } from "../pages/MasterRaiseFallPage";
 import { CoalIndexPage } from "../pages/CoalIndexPage";
 import { GeneralJournalPage } from "../pages/GeneralJournalPage";
 
 export function AppShell({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const params = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const outlet = useOutlet();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [activeView, setActiveView] = useState("Finance Dashboard");
+  const activeView = location.pathname.startsWith("/transaction/") 
+    ? "Transaction Form"
+    : location.pathname.startsWith("/variable-sow/new") || location.pathname.startsWith("/variable-sow/edit")
+    ? "Variable SOW Form"
+    : location.pathname === "/account-settings"
+    ? ACCOUNT_SETTINGS_VIEW
+    : titleFromSlug(params.slug || params["*"]?.split('/')[0]) ?? "Finance Dashboard";
   const [viewRows, setViewRows] = useState<any[]>([]);
   const [viewLoading, setViewLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [query, setQuery] = useState("");
   const [notifications, setNotifications] = useState<AuditLog[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [roles, setRoles] = useState<RoleAccess[]>([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
-  const [notice, setNotice] = useState("");
+  const [toasts, setToasts] = useState<Array<{ id: number; message: string; tone: "success" | "error" | "info" }>>([]);
+
+  const pushToast = useCallback((message: string, tone: "success" | "error" | "info") => {
+    const id = Date.now() + Math.random();
+    setToasts((prev) => [...prev.slice(-3), { id, message, tone }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4500);
+  }, []);
+
+  const setNotice = useCallback((msg: string) => {
+    if (!msg) return;
+    const tone = /gagal|error|tidak dapat|ditolak|invalid/i.test(msg) ? "error"
+      : /berhasil|sukses|tersimpan|saved|success/i.test(msg) ? "success"
+      : "info";
+    pushToast(msg, tone);
+  }, [pushToast]);
 
   async function refresh() {
     const [dash, trx] = await Promise.all([api<Dashboard>("/api/dashboard"), api<Transaction[]>("/api/transactions")]);
@@ -46,7 +71,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   async function refreshAccess() {
     const [myPermissions, roleAccess] = await Promise.all([
       api<Permission[]>("/api/permissions/my"),
-      user.role === "Super Admin" ? api<RoleAccess[]>("/api/roles") : Promise.resolve([])
+      isSuperAdminRole(user.role) ? api<RoleAccess[]>("/api/roles") : Promise.resolve([])
     ]);
     setPermissions(Array.isArray(myPermissions) ? myPermissions : []);
     setRoles(Array.isArray(roleAccess) ? roleAccess : []);
@@ -87,14 +112,8 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
     loadView(activeView).catch((err) => setNotice(err instanceof Error ? err.message : "Gagal memuat data"));
   }, [activeView]);
 
-  useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => setNotice(""), 4500);
-    return () => clearTimeout(timer);
-  }, [notice]);
-
   function openView(item: string) {
-    setActiveView(item);
+    navigate(viewPath(item));
     setSidebarOpen(false);
   }
 
@@ -107,7 +126,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
     await Promise.all([refresh(), loadView(activeView), refreshNotifications()]);
   }
 
-  const activeConfig = activeView === "Account Settings" || activeView === "RBAC Management" ? { title: activeView, endpoint: "" } : viewMap[activeView] ?? viewMap["Finance Dashboard"];
+  const activeConfig = activeView === "Account Settings" || activeView === "RBAC Management" || activeView === "Role and Permission" ? { title: activeView, endpoint: "" } : viewMap[activeView] ?? viewMap["Finance Dashboard"];
   const visibleMenu = menu.map((group) => ({
     ...group,
     items: group.items.filter((item) => canAccessMenu(item, user.role, permissions))
@@ -142,7 +161,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
           <div className="top-actions">
             <div className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari transaksi, vendor, akun..." /></div>
             <button className="icon-btn notification-button" onClick={async () => { setNotificationOpen(!notificationOpen); await refreshNotifications(); }}><Bell size={19} />{notifications.length > 0 && <b>{notifications.length}</b>}</button>
-            <button className="user-pill" onClick={async () => { setActiveView("Account Settings"); setNotificationOpen(false); await refreshNotifications(); }}>
+            <button className="user-pill" onClick={async () => { navigate("/account-settings"); setNotificationOpen(false); await refreshNotifications(); }}>
               <UserCog size={17} />
               <span>{user.name}</span>
               <small>{user.role}</small>
@@ -151,35 +170,27 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
           </div>
         </header>
 
-        {activeView === "Account Settings"
-          ? <AccountSettingsPage user={user} auditLogs={notifications} onBack={() => setActiveView("Finance Dashboard")} />
-          : activeView === "RBAC Management"
-          ? <RBACPage user={user} roles={roles} myPermissions={permissions} />
-          : activeView === "Finance Dashboard"
-          ? <DashboardPage dashboard={dashboard} transactions={transactions} query={query} onRefresh={refresh} onCreate={() => setModalOpen(true)} onNotice={setNotice} />
-          : ["Finance & AR Dashboard", "Berita Acara (BA) Tracker", "Invoice Management", "Payment & Receipt Log", "Customer & Credit Terms", "Customer Master & Credit Terms"].includes(activeView)
-          ? <FinancePage viewTitle={activeView} query={query} onNotice={setNotice} user={user} />
-          : ["Journal Entry", "Journal Approval", "Journal Posting", "General Ledger", "Trial Balance", "Closing Period"].includes(activeView)
-          ? <GeneralJournalPage viewTitle={activeView} query={query} onNotice={setNotice} user={user} />
-          : activeView === "Coal Index"
-          ? <CoalIndexPage viewTitle={activeView} query={query} onNotice={setNotice} />
+        <Outlet context={{ 
+          user, permissions, roles, notice, setNotice, 
+          dashboard, transactions, query, refresh 
+        }} />
+        {outlet ? null : activeView === "Variable SOW Form"
+          ? <VariableSOWFormPage />
           : activeView === "Variable SOW"
           ? <VariableSOWPage viewTitle={activeView} query={query} onNotice={setNotice} />
-          : (activeView === "RAISE & FALL" || activeView === "Currency")
-          ? <MasterRaiseFallPage viewTitle={activeView} query={query} onNotice={setNotice} initialTab={activeView === "Currency" ? "mrate" : "monthly"} />
           : <ModulePage
               config={activeConfig}
               rows={viewRows}
               loading={viewLoading}
               query={query}
-              onCreateTransaction={() => { setEditingTransaction(null); setModalOpen(true); }}
-              onEditTransaction={(transaction) => { setEditingTransaction(transaction); setModalOpen(true); }}
+              onCreateTransaction={() => navigate(routes.transaction.new)}
+              onEditTransaction={(transaction) => navigate(routes.transaction.edit(transaction.id), { state: { transaction } })}
               onNotice={setNotice}
               onRefresh={async () => { await refreshAll(); }}
-            />}
+            />
+        }
       </main>
       <NotificationPanel items={notifications} open={notificationOpen} onClose={() => setNotificationOpen(false)} />
-      {modalOpen && <TransactionModal transaction={editingTransaction} onClose={() => setModalOpen(false)} onSaved={async () => { setModalOpen(false); setEditingTransaction(null); setNotice("Pengajuan transaksi disimpan dan masuk approval workflow."); await refreshAll(); }} />}
       {notice && (
         <div
           className="fixed top-5 left-1/2 -translate-x-1/2 z-[99999] max-w-xl w-[92%] sm:w-auto flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-900 text-white shadow-2xl border border-slate-700/80 backdrop-blur-md transition-all duration-300 pointer-events-auto cursor-pointer"
@@ -202,14 +213,4 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
       )}
     </div>
   );
-}
-
-function canAccessMenu(item: string, role: string, permissions: Permission[]) {
-  if (role === "Super Admin") return true;
-  const required = menuPermissionMap[item] ?? [];
-  if (!required.length) return true;
-  return required.some((grant) => {
-    const [module, action] = grant.split(":");
-    return permissions.some((permission) => permission.module === module && (permission.action === action || permission.action === "*"));
-  });
 }

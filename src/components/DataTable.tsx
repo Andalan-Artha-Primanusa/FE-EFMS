@@ -1,21 +1,91 @@
-import type { Transaction } from "../lib/api";
-import { money } from "../lib/api";
+import type { ReactNode } from "react";
 
-export function DataTable({ rows, onApprove }: { rows: Transaction[]; onApprove: (id: number) => void }) {
-  return <div className="table-wrap"><table><thead><tr><th>No</th><th>Tipe</th><th>Requester</th><th>Nilai</th><th>Status</th><th>Budget</th><th></th></tr></thead><tbody>
-    {rows.slice(0, 8).map((row) => <tr key={row.id}>
-      <td>{row.number}</td><td>{row.type}</td><td>{row.requester}</td><td>{money(row.amount)}</td>
-      <td><span className={`badge ${statusClass(row.status)}`}>{row.status}</span></td>
-      <td><span className={`badge ${statusClass(row.budgetStatus)}`}>{row.budgetStatus}</span></td>
-      <td><button className="ghost" onClick={() => onApprove(row.id)}>Approve</button></td>
-    </tr>)}
-    {!rows.length && <tr><td colSpan={7} className="empty">Belum ada transaksi. Buat pengajuan pertama.</td></tr>}
-  </tbody></table></div>;
+export type ColumnDef<T> = {
+  header: string;
+  accessorKey?: keyof T | string;
+  cell?: (row: T) => ReactNode;
+  align?: "left" | "center" | "right";
+  className?: string;
+};
+
+interface DataTableProps<T> {
+  data: T[];
+  columns: ColumnDef<T>[];
+  keyExtractor: (row: T, index: number) => string | number;
+  emptyMessage?: string;
+  loading?: boolean;
+}
+
+export function DataTable<T>({ 
+  data, 
+  columns, 
+  keyExtractor,
+  emptyMessage = "No data available.",
+  loading = false
+}: DataTableProps<T>) {
+  if (loading) {
+    return (
+      <div className="table-wrap p-8 text-center text-slate-500">
+        <p className="animate-pulse">Loading data...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="table-wrap w-full overflow-x-auto border border-slate-200 rounded-lg bg-white">
+      <table className="w-full text-sm text-left">
+        <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+          <tr>
+            {columns.map((col, index) => (
+              <th 
+                key={index} 
+                className={`py-3 px-4 ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"} ${col.className ?? ""}`}
+              >
+                {col.header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {data.length > 0 ? (
+            data.map((row, rowIndex) => (
+              <tr key={keyExtractor(row, rowIndex)} className="hover:bg-slate-50/50 transition-colors">
+                {columns.map((col, colIndex) => {
+                  let content: ReactNode = null;
+                  if (col.cell) {
+                    content = col.cell(row);
+                  } else if (col.accessorKey) {
+                    content = String((row as any)[col.accessorKey] ?? "");
+                  }
+                  
+                  return (
+                    <td 
+                      key={colIndex} 
+                      className={`py-3 px-4 ${col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"} ${col.className ?? ""}`}
+                    >
+                      {content}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={columns.length} className="py-8 px-4 text-center text-slate-500 italic">
+                {emptyMessage}
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 export function statusClass(status: string) {
-  if (["Approved", "Available", "Paid", "Posted"].includes(status)) return "ok";
-  if (["Warning", "Waiting Approval", "Submitted"].includes(status)) return "wait";
-  if (["Rejected", "Blocked", "Overdue"].includes(status)) return "bad";
+  const norm = status?.toLowerCase() || "";
+  if (["approved", "available", "paid", "posted", "active"].includes(norm)) return "ok";
+  if (["warning", "waiting approval", "submitted", "draft"].includes(norm)) return "wait";
+  if (["rejected", "blocked", "overdue", "void"].includes(norm)) return "bad";
   return "neutral";
 }

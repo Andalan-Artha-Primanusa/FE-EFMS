@@ -209,6 +209,83 @@ export function deleteUser(id: number) {
   return api<{ status: string }>(`/api/users/${id}`, { method: "DELETE" });
 }
 
+export function resetUserPassword(id: number, password?: string) {
+  return api<{ status: string; temporaryPassword?: string }>(`/api/users/${id}/reset-password`, {
+    method: "POST",
+    body: JSON.stringify({ password: password ?? "" })
+  });
+}
+
+export function getRoles() {
+  return api<RoleAccess[]>("/api/roles");
+}
+
+export function createRole(input: { name: string; description?: string; permissions: string[] }) {
+  return api<RoleAccess>("/api/roles", { method: "POST", body: JSON.stringify(input) });
+}
+
+export function updateRolePermissions(role: string, permissions: string[]) {
+  return api<RoleAccess>(`/api/roles/${encodeURIComponent(role)}/permissions`, {
+    method: "PUT",
+    body: JSON.stringify({ permissions })
+  });
+}
+
+export function deleteRole(role: string) {
+  return api<{ status: string }>(`/api/roles/${encodeURIComponent(role)}`, { method: "DELETE" });
+}
+
+// Finance Templates (master data yang sebelumnya hardcoded di FinancePage)
+export type FinanceTemplate = {
+  id: number;
+  templateKey: string;
+  customerCode?: string;
+  section?: string;
+  label?: string;
+  sortOrder: number;
+  payload: any;
+};
+
+export function getFinanceTemplates() {
+  return api<Record<string, FinanceTemplate[]>>("/api/finance/templates");
+}
+
+export function getFinanceTemplatesByKey(key: string) {
+  return api<FinanceTemplate[]>(`/api/finance/templates/${encodeURIComponent(key)}`);
+}
+
+export function saveFinanceTemplate(input: { id?: number; templateKey: string; customerCode?: string; section?: string; label?: string; sortOrder?: number; payload: any }) {
+  return api<FinanceTemplate>("/api/finance/templates", {
+    method: input.id ? "PUT" : "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export function deleteFinanceTemplate(id: number) {
+  return api<{ status: string }>(`/api/finance/templates/${id}`, { method: "DELETE" });
+}
+
+export function changePassword(oldPassword: string, newPassword: string) {
+  return api<{ status: string }>("/api/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({ oldPassword, newPassword })
+  });
+}
+
+export function forgotPassword(email: string) {
+  return api<{ status: string; resetToken?: string; expires?: string }>("/api/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email })
+  });
+}
+
+export function resetPassword(token: string, newPassword: string) {
+  return api<{ status: string }>("/api/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, newPassword })
+  });
+}
+
 // Accounting Endpoints
 export function getJournals() {
   return api<any[]>("/api/accounting/journals");

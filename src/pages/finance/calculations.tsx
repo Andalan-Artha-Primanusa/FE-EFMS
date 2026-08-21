@@ -1,0 +1,209 @@
+﻿// =============================================================
+// CONTROL RUMUS FINANCE
+// Semua rumus bisnis modul Finance (RF index, volume efektif,
+// rate & amount item, rekap per customer) dikumpulkan di sini
+// agar terpisah dari UI dan state.
+// =============================================================
+
+/** Hitung Raise & Fall Index dari harga solar, upah, dan kurs. */
+export function calcRFIndex(fuelPriceUSD: number, laborPriceIDR: number, mRate: number): number {
+  const baseFuelPrice = 10699.97;
+  const baseLaborPrice = 3594536;
+  const baseForexRate = 15388.75;
+  const weightA = 0.34;
+  const weightB = 0.25;
+  const weightC = 0.41;
+  const obBaseRateUSD = 3.327;
+  const fuelTerm = (obBaseRateUSD * weightA * (fuelPriceUSD * mRate)) / baseFuelPrice;
+  const laborTerm = (obBaseRateUSD * weightB * (laborPriceIDR * mRate)) / (baseLaborPrice * baseForexRate);
+  const fixedTerm = obBaseRateUSD * weightC;
+  return (fuelTerm + laborTerm + fixedTerm) / obBaseRateUSD;
+}
+
+/** Pabrik rumus item invoice: dependensi state disuntikkan lewat parameter. */
+export function createFinanceCalculations(deps: {
+  formData: any;
+  invLineItems: any[];
+  rfIndexCalculated: number;
+  getSowMasterRate: (customer: string, itemName: string, fallbackRate: number, isUSD?: boolean) => number;
+  mRate: number;
+}) {
+  const { formData, invLineItems, rfIndexCalculated, getSowMasterRate, mRate } = deps;
+  const getItemEffectiveVolume = (item: any) => {
+    if (!item) return 0;
+    if (formData.customerCode === "POS") {
+      if (item.section === "B") {
+        if (item.code === "B1" || item.description.includes("OB Removal")) {
+          const itemA = invLineItems.find(i => i.section === "A" && (i.code === "A1" || i.description.includes("OVER BURDEN")));
+          if (itemA) return itemA.volume || 0;
+        }
+        if (item.code === "B2" || item.description.includes("Top Soil")) {
+          const itemA = invLineItems.find(i => i.section === "A" && (i.code === "A2" || i.description.includes("TOP SOIL")));
+          if (itemA) return itemA.volume || 0;
+        }
+        if (item.code === "B3" || item.description.includes("Limonite")) {
+          const itemA = invLineItems.find(i => i.section === "A" && (i.code === "A3" || i.description.includes("LIMONITE")));
+          if (itemA) return itemA.volume || 0;
+        }
+        if (item.code === "B4" || item.description.includes("Saprolite")) {
+          const itemA = invLineItems.find(i => i.section === "A" && (i.code === "A4" || i.description.includes("SAPROLITE")));
+          if (itemA) return itemA.volume || 0;
+        }
+      }
+      if (item.section === "D") {
+        if (item.code === "D1" || item.description.startsWith("D1.")) return (invLineItems.find(i => i.code === "A1")?.volume || 0);
+        if (item.code === "D2" || item.description.startsWith("D2.")) return (invLineItems.find(i => i.code === "A1")?.volume || 0);
+        if (item.code === "D3" || item.description.startsWith("D3.")) return (invLineItems.find(i => i.code === "A2")?.volume || 0);
+        if (item.code === "D4" || item.description.startsWith("D4.")) return (invLineItems.find(i => i.code === "A2")?.volume || 0);
+        if (item.code === "D5" || item.description.startsWith("D5.")) return (invLineItems.find(i => i.code === "A3")?.volume || 0);
+        if (item.code === "D6" || item.description.startsWith("D6.")) return (invLineItems.find(i => i.code === "A3")?.volume || 0);
+        if (item.code === "D7" || item.description.startsWith("D7.")) return (invLineItems.find(i => i.section === "C")?.volume || item.volume || 0);
+        if (item.code === "D8" || item.description.startsWith("D8.")) return (invLineItems.find(i => i.code === "A4")?.volume || 0);
+        if (item.code === "D9" || item.description.startsWith("D9.")) return (invLineItems.find(i => i.code === "A4")?.volume || 0);
+      }
+    }
+    return item.volume || 0;
+  };
+
+  const getItemEffectiveOverhaulMtr = (item: any) => {
+    if (!item) return 1000;
+    if (formData.customerCode === "POS") {
+      if (item.section === "D") {
+        if (item.code === "D2" || item.description.startsWith("D2.")) return (invLineItems.find(i => i.code === "B1")?.overhaulMtr ?? 1000);
+        if (item.code === "D4" || item.description.startsWith("D4.")) return (invLineItems.find(i => i.code === "B2")?.overhaulMtr ?? 1000);
+        if (item.code === "D6" || item.description.startsWith("D6.")) return (invLineItems.find(i => i.code === "B3")?.overhaulMtr ?? 1000);
+        if (item.code === "D9" || item.description.startsWith("D9.")) return (invLineItems.find(i => i.code === "B4")?.overhaulMtr ?? 1000);
+      }
+    }
+    return item.overhaulMtr ?? (item.baseMtr ?? 1000);
+  };
+
+  const calculateItemRateAndAmount = (item: any, currentCust?: string) => {
+    const cust = currentCust || formData.customerCode || "POS";
+    const rfFactor = rfIndexCalculated - 1;
+    const vol = getItemEffectiveVolume(item);
+    const mtr = getItemEffectiveOverhaulMtr(item);
+
+    let unitRate = 0;
+    let amount = 0;
+
+    // Explicit amount item (e.g. Discounts / Deductions)
+    if (item.amount !== undefined && item.amount !== null && item.amount !== 0) {
+      return { unitRate: 0, amount: item.amount };
+    }
+
+    // Customer: DBK (Dual Currency USD to IDR)
+    if (cust === "DBK") {
+      if (item.unitRateUSD && item.kursBI) {
+        unitRate = Math.round(item.unitRateUSD * item.kursBI);
+        amount = Math.round(vol * item.unitRateUSD * item.kursBI);
+      } else if (item.unitRateIDR) {
+        unitRate = item.unitRateIDR;
+        amount = Math.round(vol * unitRate);
+      }
+      return { unitRate, amount };
+    }
+
+    // Customer: BGG or SBS with explicit unitRateIDR
+    if (item.unitRateIDR !== undefined) {
+      unitRate = item.unitRateIDR;
+      amount = Math.round(vol * unitRate);
+      return { unitRate, amount };
+    }
+
+    // Customer: POS (Formula USD * mRate & RF Index)
+    if (item.section === "A") {
+      unitRate = Math.round((item.baseRateUSD || 0) * mRate);
+      amount = Math.round(vol * unitRate);
+    } else if (item.section === "B") {
+      const effMtr = (mtr - 1000) / 1000;
+      unitRate = Math.round(effMtr * (item.baseRateUSD || 0) * mRate);
+      amount = Math.round(vol * unitRate);
+    } else if (item.section === "C") {
+      unitRate = Math.round((item.baseRateUSD || 0) * mRate);
+      amount = Math.round(vol * unitRate);
+    } else if (item.section === "D") {
+      if (item.type === "overhaul" || item.description.toLowerCase().includes("overhaul")) {
+        const effMtr = (mtr - 1000) / 1000;
+        const baseRateIDR = Math.round(effMtr * (item.baseRateUSD || 0) * mRate);
+        unitRate = Math.round(baseRateIDR * rfFactor);
+        amount = Math.round(vol * unitRate);
+      } else {
+        const baseRateIDR = Math.round((item.baseRateUSD || 0) * mRate);
+        unitRate = Math.round(baseRateIDR * rfFactor);
+        amount = Math.round(vol * unitRate);
+      }
+    }
+
+    return { unitRate, amount };
+  };
+
+  const getCustomerCalculations = (itemsList: any[], custCode?: string) => {
+    const cust = custCode || formData.customerCode || "POS";
+    const subA = itemsList.filter(i => i.section === "A").reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust).amount, 0);
+    const subB = itemsList.filter(i => i.section === "B").reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust).amount, 0);
+    const subC = itemsList.filter(i => i.section === "C").reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust).amount, 0);
+    const subD = itemsList.filter(i => i.section === "D").reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust).amount, 0);
+    const subE = itemsList.filter(i => i.section === "E").reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust).amount, 0);
+    const subF = itemsList.filter(i => i.section === "F").reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust).amount, 0);
+    const subP = itemsList.filter(i => i.section === "P").reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust).amount, 0);
+
+    let totalGross = 0;
+    let dpp11_12 = 0;
+    let vat12 = 0;
+    let pph23 = 0;
+    let totalInvoice = 0;
+    let totalDibayar = 0;
+
+    if (cust === "BGG") {
+      // Total = A + B + C + D + E (deduction) + F (deduction)
+      totalGross = subA + subB + subC + subD + subE + subF;
+      dpp11_12 = Math.round(totalGross * 11 / 12);
+      vat12 = Math.round(dpp11_12 * 0.12);
+      pph23 = Math.round(totalGross * 0.02);
+      totalInvoice = dpp11_12 + vat12 - pph23;
+      totalDibayar = totalInvoice;
+    } else if (cust === "DBK") {
+      totalGross = subA + subB + subC;
+      dpp11_12 = Math.round(totalGross * 11 / 12);
+      vat12 = Math.round(dpp11_12 * 0.12);
+      pph23 = Math.round(totalGross * 0.02);
+      totalInvoice = totalGross + vat12 - pph23;
+      totalDibayar = totalInvoice;
+    } else if (cust === "SBS") {
+      // Total Operational = A (OB) + B (Jasa Penunjang)
+      totalGross = subA + subB;
+      dpp11_12 = Math.round(totalGross * 11 / 12);
+      vat12 = Math.round(dpp11_12 * 0.12);
+      pph23 = Math.round(totalGross * 0.02);
+      totalInvoice = totalGross + vat12 - pph23;
+      const totalPengurang = Math.abs(subP);
+      totalDibayar = totalInvoice - totalPengurang;
+    } else {
+      // POS
+      totalGross = subA + subB + subC + subD;
+      dpp11_12 = Math.round(totalGross * 11 / 12);
+      vat12 = Math.round(dpp11_12 * 0.12);
+      pph23 = Math.round(totalGross * 0.02);
+      totalInvoice = dpp11_12 + vat12 - pph23;
+      totalDibayar = totalInvoice;
+    }
+
+    return {
+      subtotalA: subA,
+      subtotalB: subB,
+      subtotalC: subC,
+      subtotalD: subD,
+      subtotalE: subE,
+      subtotalF: subF,
+      subtotalP: subP,
+      totalGross,
+      dpp11_12,
+      vat12,
+      pph23,
+      totalInvoice,
+      totalDibayar
+    };
+  };
+
+  return { getItemEffectiveVolume, getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations }; }

@@ -1,6 +1,6 @@
 import { BarChart3, RefreshCw, TrendingUp, WalletCards } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, LineChart, PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { DataTable } from "../components/DataTable";
+import { DataTable, statusClass } from "../components/DataTable";
 import { api, compactMoney, money, type Dashboard, type Transaction } from "../lib/api";
 import { useMemo, useState } from "react";
 
@@ -255,11 +255,25 @@ export function DashboardPage({
             </select></label>
             <button className="ghost" onClick={() => setStatusFilter("All")}>Reset</button>
           </div>
-          <DataTable rows={visibleTransactions.slice(0, 5)} onApprove={async (id) => {
-            await api(`/api/approvals/${id}/action`, { method: "POST", body: JSON.stringify({ action: "approve", note: "Approved from dashboard" }) });
-            onNotice("Transaksi berhasil di-approve.");
-            await onRefresh();
-          }} />
+          <DataTable<Transaction>
+            data={visibleTransactions.slice(0, 5)}
+            keyExtractor={(row) => row.id}
+            columns={[
+              { header: "No", accessorKey: "number" },
+              { header: "Tipe", accessorKey: "type" },
+              { header: "Requester", accessorKey: "requester" },
+              { header: "Nilai", accessorKey: "amount", align: "right", cell: (row) => money(row.amount) },
+              { header: "Status", accessorKey: "status", cell: (row) => <span className={`badge ${statusClass(row.status)}`}>{row.status}</span> },
+              { header: "Budget", accessorKey: "budgetStatus", cell: (row) => <span className={`badge ${statusClass(row.budgetStatus)}`}>{row.budgetStatus}</span> },
+              { header: "", align: "center", cell: (row) => (
+                <button className="ghost" onClick={async () => {
+                  await api(`/api/approvals/${row.id}/action`, { method: "POST", body: JSON.stringify({ action: "approve", note: "Approved from dashboard" }) });
+                  onNotice("Transaksi berhasil di-approve.");
+                  await onRefresh();
+                }}>Approve</button>
+              )}
+            ]}
+          />
         </article>
 
         <div className="daily-bottom-grid">

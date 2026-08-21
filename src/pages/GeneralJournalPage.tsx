@@ -34,8 +34,8 @@ import {
   getTrialBalance, 
   getGeneralLedger 
 } from "../lib/api";
-import { excelNeracaLajur, excelSheetTables, excelFlatJournalRows, excelJournalEntries } from "../lib/excelDataBundle";
 import { useCollaboration } from "../lib/useCollaboration";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 
 const formatIDR = (val: number) => {
   if (!val && val !== 0) return "Rp 0";
@@ -256,8 +256,9 @@ export function GeneralJournalPage({
   const [filterMonth, setFilterMonth] = useState<string>("ALL");
   const [selectedGLAccount, setSelectedGLAccount] = useState<string>("1103.101");
   const [glData, setGLData] = useState<any>(null);
-  const [tbData, setTbData] = useState<any[]>(excelNeracaLajur);
+  const [tbData, setTbData] = useState<any[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
+  const [confirmReset, setConfirmReset] = useState<boolean>(false);
 
   // 🚀 Interactive Row-level State for Live Editing & Adding (with localStorage persistence)
   const [journalRows, setJournalRows] = useState<FlatJournalRow[]>(() => {
@@ -270,8 +271,30 @@ export function GeneralJournalPage({
     } catch (e) {
       // fallback
     }
-    return (excelFlatJournalRows as FlatJournalRow[]) || [];
+    return [];
   });
+
+  // Lazy-load dataset Excel referensi (chunk terpisah, tidak masuk bundle utama)
+  const [excelBundle, setExcelBundle] = useState<{
+    flat: FlatJournalRow[];
+    entries: unknown[];
+    neraca: any[];
+    tables: Record<string, any[][]>;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    import("../lib/excelDataBundle").then((m) => {
+      if (cancelled) return;
+      const flat = m.excelFlatJournalRows as FlatJournalRow[];
+      setExcelBundle({ flat, entries: m.excelJournalEntries, neraca: m.excelNeracaLajur as any[], tables: m.excelSheetTables });
+      setTbData((prev) => (prev.length > 0 ? prev : (m.excelNeracaLajur as any[])));
+      setJournalRows((prev) => (prev.length > 0 ? prev : flat));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Track currently active edited row / cell
   const [activeEditingRowId, setActiveEditingRowId] = useState<number | null>(null);
@@ -303,7 +326,7 @@ export function GeneralJournalPage({
         getJournals().catch(() => []),
         getCOAAccounts().catch(() => masterCOA),
         getSubLedgers().catch(() => []),
-        getTrialBalance("Juni 2026").catch(() => excelNeracaLajur),
+        getTrialBalance("Juni 2026").catch(() => []),
         getGeneralLedger(selectedGLAccount, "Juni 2026").catch(() => null)
       ]);
 
@@ -567,16 +590,25 @@ export function GeneralJournalPage({
 
   // 🔄 Reset back to original Excel data
   const handleResetToExcel = () => {
-    if (window.confirm("Apakah Anda yakin ingin mereset seluruh data tabel kembali ke data awal file Excel?")) {
-      try {
-        localStorage.removeItem("feast_accounting_journal_rows");
-      } catch (e) {
-        // ignore
-      }
-      setJournalRows(excelFlatJournalRows as FlatJournalRow[]);
-      setHasUnsavedChanges(false);
-      if (onNotice) onNotice("Data jurnal telah direset sesuai file referensi Excel asli.");
+    setConfirmReset(true);
+  };
+
+  const runResetToExcel = async () => {
+    try {
+      localStorage.removeItem("feast_accounting_journal_rows");
+    } catch (e) {
+      // ignore
     }
+    let bundle = excelBundle;
+    if (!bundle) {
+      const m = await import("../lib/excelDataBundle");
+      bundle = { flat: m.excelFlatJournalRows as FlatJournalRow[], entries: m.excelJournalEntries as unknown[], neraca: m.excelNeracaLajur as any[], tables: m.excelSheetTables };
+      setExcelBundle(bundle);
+    }
+    setJournalRows(bundle.flat);
+    setHasUnsavedChanges(false);
+    setConfirmReset(false);
+    if (onNotice) onNotice("Data jurnal telah direset sesuai file referensi Excel asli.");
   };
 
   // 💾 Save / Persist Changes Toast
@@ -700,15 +732,16 @@ export function GeneralJournalPage({
     };
 
     const targetName = mapTabToSheet[activeTab] || activeTab;
-    if (excelSheetTables[targetName]) return excelSheetTables[targetName];
+    const sheetTables = excelBundle?.tables ?? {};
+    if (sheetTables[targetName]) return sheetTables[targetName];
 
     // Generic lookup in all 81 sheets
-    const matchedKey = Object.keys(excelSheetTables).find(k => 
+    const matchedKey = Object.keys(sheetTables).find(k => 
       k.toLowerCase().replace(/[^a-z0-9]/g, "") === activeTab.toLowerCase().replace(/[^a-z0-9]/g, "") ||
       k.toLowerCase() === activeTab.toLowerCase()
     );
-    return matchedKey ? excelSheetTables[matchedKey] : null;
-  }, [activeTab]);
+    return matchedKey ? sheetTables[matchedKey] : null;
+  }, [activeTab, excelBundle]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] bg-white text-slate-900 relative overflow-hidden font-sans border-t border-slate-200">
@@ -1445,6 +1478,16 @@ export function GeneralJournalPage({
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
+      {confirmReset && (
+        <ConfirmDialog
+          title="Reset Data Jurnal"
+          message="Seluruh data tabel akan dikembalikan ke data awal file Excel referensi. Perubahan yang belum disimpan akan hilang."
+          confirmLabel="Reset Data"
+          danger
+          onCancel={() => setConfirmReset(false)}
+          onConfirm={runResetToExcel}
+        />
+      )}
     </div>
   );
 }

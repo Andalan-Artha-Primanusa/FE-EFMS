@@ -1,0 +1,93 @@
+/* Enterprise UI Aesthetics & Micro-interactions */
+
+:root {
+  /* Enterprise Color Palette Override */
+  --corporate-navy: #0f172a;
+  --corporate-blue: #1e3a8a;
+  --corporate-accent: #2563eb;
+  --corporate-surface: #ffffff;
+  --corporate-background: #f8fafc;
+  --corporate-border: #e2e8f0;
+  
+  /* Modern Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-hover: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+/* Micro-interactions: Buttons */
+button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+/* Micro-interactions: Cards & Panels */
+.bg-white.border,
+.panel-container {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+/* Data Table Premium Styling */
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+th {
+  background-color: #f1f5f9;
+  color: #334155;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 2px solid var(--corporate-border);
+}
+
+td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--corporate-border);
+  color: #1e293b;
+  font-size: 0.875rem;
+  transition: background-color 0.15s ease;
+}
+
+tbody tr {
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+/* Remove default pop-up feeling from forms that are now full page */
+.bg-slate-50.relative.inset-auto {
+  box-shadow: none;
+  border: none;
+  border-radius: 0;
+  min-height: 100vh;
+}
+
+/* Clean up input fields to look premium */
+input[type="text"], input[type="number"], input[type="date"], select, textarea {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  border-color: #cbd5e1;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--corporate-accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Ensure enterprise forms don't look like modals */
+.bg-slate-50 .bg-white.border.border-slate-200.rounded-2xl {
+  border: 1px solid var(--corporate-border);
+  box-shadow: var(--shadow-sm);
+  border-radius: 12px;
+}

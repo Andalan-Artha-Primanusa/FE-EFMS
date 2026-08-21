@@ -1,5 +1,7 @@
-import { ArrowLeft, Camera, KeyRound, ShieldCheck, UserRound } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, Camera, KeyRound, ShieldCheck, UserRound, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
+import { changePassword } from "../lib/api";
 import type { AuditLog, User } from "../lib/api";
 
 export function AccountSettingsPage({
@@ -12,6 +14,35 @@ export function AccountSettingsPage({
   onBack: () => void;
 }) {
   const userLogs = auditLogs.filter((log) => !log.user || log.user === user.name).slice(0, 12);
+  const [pwdForm, setPwdForm] = useState({ oldPassword: "", newPassword: "", confirm: "" });
+  const [pwdSaving, setPwdSaving] = useState(false);
+  const [pwdFeedback, setPwdFeedback] = useState<{ ok: boolean; message: string } | null>(null);
+
+  async function submitPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!pwdForm.oldPassword || !pwdForm.newPassword) {
+      setPwdFeedback({ ok: false, message: "Password lama dan baru wajib diisi." });
+      return;
+    }
+    if (pwdForm.newPassword.length < 8) {
+      setPwdFeedback({ ok: false, message: "Password baru minimal 8 karakter." });
+      return;
+    }
+    if (pwdForm.newPassword !== pwdForm.confirm) {
+      setPwdFeedback({ ok: false, message: "Konfirmasi password tidak sama." });
+      return;
+    }
+    setPwdSaving(true);
+    try {
+      await changePassword(pwdForm.oldPassword, pwdForm.newPassword);
+      setPwdFeedback({ ok: true, message: "Password berhasil diubah." });
+      setPwdForm({ oldPassword: "", newPassword: "", confirm: "" });
+    } catch (err: any) {
+      setPwdFeedback({ ok: false, message: err?.message || "Gagal mengubah password." });
+    } finally {
+      setPwdSaving(false);
+    }
+  }
 
   return <section className="account-page">
     <PageHeader
@@ -65,6 +96,51 @@ export function AccountSettingsPage({
       <div className="permission-tags">
         {permissionHints(user.role).map((item) => <span key={item}>{item}</span>)}
       </div>
+    </section>
+
+    <section className="permission-section account-section-page">
+      <h4><KeyRound size={16} /> Ganti Password</h4>
+      <form onSubmit={submitPassword} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2 text-sm">
+        <input
+          type="password"
+          required
+          value={pwdForm.oldPassword}
+          onChange={(e) => setPwdForm({ ...pwdForm, oldPassword: e.target.value })}
+          placeholder="Password lama"
+          className="px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-blue-500 font-semibold text-xs"
+        />
+        <input
+          type="password"
+          required
+          value={pwdForm.newPassword}
+          onChange={(e) => setPwdForm({ ...pwdForm, newPassword: e.target.value })}
+          placeholder="Password baru (min. 8 karakter)"
+          className="px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-blue-500 font-semibold text-xs"
+        />
+        <input
+          type="password"
+          required
+          value={pwdForm.confirm}
+          onChange={(e) => setPwdForm({ ...pwdForm, confirm: e.target.value })}
+          placeholder="Konfirmasi password baru"
+          className="px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-blue-500 font-semibold text-xs"
+        />
+        <div className="sm:col-span-3 flex items-center justify-between gap-3 flex-wrap">
+          {pwdFeedback && (
+            <span className={`text-xs font-bold inline-flex items-center gap-1.5 ${pwdFeedback.ok ? "text-emerald-600" : "text-rose-600"}`}>
+              {pwdFeedback.ok ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />} {pwdFeedback.message}
+            </span>
+          )}
+          <button
+            type="submit"
+            disabled={pwdSaving}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold inline-flex items-center gap-2 shadow-sm transition disabled:opacity-50 sm:ml-auto"
+          >
+            {pwdSaving ? <RefreshCw size={13} className="animate-spin" /> : <KeyRound size={13} />}
+            Simpan Password Baru
+          </button>
+        </div>
+      </form>
     </section>
 
     <section className="permission-section account-section-page">
