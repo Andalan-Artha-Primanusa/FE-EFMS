@@ -27,33 +27,25 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
   return (
     <main className="login-page antialiased text-finance-ink">
       <section className="login-panel bg-white">
-        <div className="login-logo"><img src="/feast-logo.webp" alt="FEAST - Financial Enterprise Andalan System" /></div>
-        <p className="eyebrow">Financial Enterprise Andalan System</p>
-        <h1>Masuk ke pusat kendali finance end-to-end.</h1>
-        <p className="login-copy">Kelola budget, approval, AP/AR, cash bank, accounting engine, closing, dan management dashboard dalam satu workflow.</p>
+        <div className="login-logo mx-auto"><img src="/feast-logo.png" alt="FEAST - Financial Enterprise Andalan System" /></div>
         <form onSubmit={submit} className="login-form">
           <label>Email<input value={email} onChange={(e) => setEmail(e.target.value)} type="email" /></label>
           <label>Password<input value={password} onChange={(e) => setPassword(e.target.value)} type="password" /></label>
           {error && <div className="error">{error}</div>}
-          <button className="transition hover:brightness-95 disabled:cursor-wait disabled:opacity-70" disabled={loading}>{loading ? "Memeriksa..." : "Login"}</button>
+          <button className="transition disabled:cursor-wait disabled:opacity-70 !bg-[#20a6b8] !text-white hover:!bg-[#1c92a2] !shadow-[0_16px_30px_rgba(32,166,184,.25)]" disabled={loading}>{loading ? "Memeriksa..." : "Login"}</button>
         </form>
-        <div className="login-foot">
-          <span><LockKeyhole size={16} /> RBAC, 2FA-ready, audit trail</span>
-          <a>Lupa password</a>
-        </div>
-        <div className="powered-by">
+        <div className="powered-by justify-center !border-t-0">
           <span>Powered by</span>
-          <img src="/andalan-logo.png" alt="Andalan" />
+          <img src="/andalan-logo.png" alt="Andalan" className="!h-12 !w-auto !object-center" />
         </div>
       </section>
-      <section className="login-visual">
-        <div className="visual-copy">
-          <span>Finance Operations</span>
-          <strong>Real-time financial governance for multi-level approval and closing.</strong>
-        </div>
-        <div className="visual-grid">
-          {["Budget Lock", "Multi Approval", "Auto Journal", "Bank Reconcile", "AP Aging", "AR Collection"].map((item) => <span key={item}>{item}</span>)}
-        </div>
+      <section className="relative overflow-hidden bg-slate-900">
+        <img 
+          src="http://content.didimax.co.id/Upload/2023/01/16/zcvERBwM/20230116090648517.jpg" 
+          alt="Professional working in office" 
+          className="absolute inset-0 w-full h-full object-cover" 
+        />
+        <div className="absolute inset-0 bg-slate-900/20"></div>
       </section>
     </main>
   );
