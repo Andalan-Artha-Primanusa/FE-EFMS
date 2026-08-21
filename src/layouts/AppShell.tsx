@@ -13,6 +13,7 @@ import { RBACPage } from "../pages/RBACPage";
 import { VariableSOWPage } from "../pages/VariableSOWPage";
 import { MasterRaiseFallPage } from "../pages/MasterRaiseFallPage";
 import { CoalIndexPage } from "../pages/CoalIndexPage";
+import { GeneralJournalPage } from "../pages/GeneralJournalPage";
 
 export function AppShell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
@@ -158,6 +159,8 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
           ? <DashboardPage dashboard={dashboard} transactions={transactions} query={query} onRefresh={refresh} onCreate={() => setModalOpen(true)} onNotice={setNotice} />
           : ["Finance & AR Dashboard", "Berita Acara (BA) Tracker", "Invoice Management", "Payment & Receipt Log", "Customer & Credit Terms", "Customer Master & Credit Terms"].includes(activeView)
           ? <FinancePage viewTitle={activeView} query={query} onNotice={setNotice} user={user} />
+          : ["Journal Entry", "Journal Approval", "Journal Posting", "General Ledger", "Trial Balance", "Closing Period"].includes(activeView)
+          ? <GeneralJournalPage viewTitle={activeView} query={query} onNotice={setNotice} user={user} />
           : activeView === "Coal Index"
           ? <CoalIndexPage viewTitle={activeView} query={query} onNotice={setNotice} />
           : activeView === "Variable SOW"

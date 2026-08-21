@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, Fragment } from "react";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, User as UserType } from "../lib/api";
@@ -584,6 +584,8 @@ export function FinancePage({
   const [invoiceRows, setInvoiceRows] = useState<any[]>([]);
   const [paymentRows, setPaymentRows] = useState<any[]>([]);
   const [customerRows, setCustomerRows] = useState<any[]>([]);
+  const [pendingVolumeLedgers, setPendingVolumeLedgers] = useState<any[]>([]);
+  const [showPendingVolumeDrawer, setShowPendingVolumeDrawer] = useState<boolean>(false);
   const [baFilter, setBaFilter] = useState("All");
   const [periodFilter, setPeriodFilter] = useState("Jul-26");
   const [invStatusFilter, setInvStatusFilter] = useState("All");
@@ -2287,7 +2289,7 @@ export function FinancePage({
           .title-area h1 { font-size: 14px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 1px; color: #0f172a; }
           .title-area p { font-size: 10px; margin: 2px 0 0 0; color: #475569; font-weight: 700; }
 
-          .section-title { font-size: 11px; font-weight: 900; text-transform: uppercase; color: #0e7490; background: #ecfeff; padding: 4px 8px; border-left: 4px solid #0891b2; margin-top: 10px; margin-bottom: 6px; }
+          .section-title { font-size: 11px; font-weight: 900; text-transform: uppercase; color: #77542e; background: #faf6f0; padding: 4px 8px; border-left: 4px solid #a57c50; margin-top: 10px; margin-bottom: 6px; }
 
           table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 8.5px; page-break-inside: avoid; border: 1.5px solid #0f172a; }
           th { background: #0f172a; color: #ffffff; padding: 6px 7px; font-size: 8.5px; font-weight: 800; text-transform: uppercase; border: 1.5px solid #0f172a; text-align: center; }
@@ -2305,7 +2307,7 @@ export function FinancePage({
 
           .badge { padding: 2px 6px; border-radius: 4px; font-weight: 800; font-size: 8px; text-transform: uppercase; display: inline-block; }
           .bg-emerald { background: #dcfce7; color: #166534; border: 1.2px solid #16a34a; }
-          .bg-cyan { background: #cffafe; color: #155e75; border: 1.2px solid #0891b2; }
+          .bg-cyan { background: #faf6f0; color: #77542e; border: 1.2px solid #a57c50; }
           .bg-amber { background: #fef3c7; color: #92400e; border: 1.2px solid #d97706; }
           .bg-slate { background: #f1f5f9; color: #334155; border: 1.2px solid #64748b; }
           .bg-rose { background: #ffe4e6; color: #9f1239; border: 1.2px solid #e11d48; }
@@ -2315,7 +2317,7 @@ export function FinancePage({
           .sig-table th { background: #f1f5f9; color: #0f172a; border: 1.5px solid #0f172a; padding: 6px; font-size: 9px; font-weight: 800; }
           .sig-table td { border: 1.5px solid #0f172a; padding: 8px; text-align: center; height: 55px; vertical-align: bottom; font-weight: 800; font-size: 9px; }
 
-          .btn-print { background: #0e7490; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
+          .btn-print { background: #1e2b4d; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
           @media print { .btn-print { display: none; } }
         </style>
       </head>
@@ -2581,7 +2583,7 @@ export function FinancePage({
 
           .badge { padding: 3px 7px; border-radius: 4px; font-weight: 800; font-size: 8.5px; text-transform: uppercase; display: inline-block; }
           .bg-emerald { background: #dcfce7; color: #166534; border: 1.2px solid #16a34a; }
-          .bg-cyan { background: #cffafe; color: #155e75; border: 1.2px solid #0891b2; }
+          .bg-cyan { background: #faf6f0; color: #77542e; border: 1.2px solid #a57c50; }
           .bg-amber { background: #fef3c7; color: #92400e; border: 1.2px solid #d97706; }
           .bg-slate { background: #f1f5f9; color: #334155; border: 1.2px solid #64748b; }
           .bg-rose { background: #ffe4e6; color: #9f1239; border: 1.2px solid #e11d48; }
@@ -2591,7 +2593,7 @@ export function FinancePage({
           .sig-table th { background: #f1f5f9; color: #0f172a; border: 1.5px solid #0f172a; padding: 7px; font-size: 10px; font-weight: 800; }
           .sig-table td { border: 1.5px solid #0f172a; padding: 8px; text-align: center; height: 2.2cm; min-height: 2.2cm; vertical-align: bottom; font-weight: 800; font-size: 10px; }
 
-          .btn-print { background: #0e7490; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
+          .btn-print { background: #1e2b4d; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
           @media print { .btn-print { display: none; } }
         </style>
       </head>
@@ -2932,14 +2934,15 @@ export function FinancePage({
   async function loadData() {
     setLoading(true);
     try {
-      const [dashRes, baRes, invRes, payRes, custRes] = await Promise.all([
+      const [dashRes, baRes, invRes, payRes, custRes, pVolRes] = await Promise.all([
         (viewTitle === "Finance & AR Dashboard" || viewTitle === "Finance AR Dashboard" || viewTitle.includes("AR Dashboard"))
           ? api<any>("/api/finance/dashboard").catch(() => null)
           : Promise.resolve(null),
         api<any[]>("/api/finance/ba-trackers").catch(() => []),
         api<any[]>("/api/finance/invoices").catch(() => []),
         api<any[]>("/api/finance/payments").catch(() => []),
-        api<any[]>("/api/finance/customers").catch(() => [])
+        api<any[]>("/api/finance/customers").catch(() => []),
+        api<any[]>("/api/finance/pending-volumes").catch(() => [])
       ]);
 
       if (dashRes) setDashboardData(dashRes);
@@ -2947,6 +2950,7 @@ export function FinancePage({
       if (Array.isArray(invRes)) setInvoiceRows(invRes);
       if (Array.isArray(payRes)) setPaymentRows(payRes);
       if (Array.isArray(custRes)) setCustomerRows(custRes);
+      if (Array.isArray(pVolRes)) setPendingVolumeLedgers(pVolRes);
     } catch (err: any) {
       onNotice(err?.message || "Gagal memuat data finance");
     } finally {
@@ -4665,22 +4669,37 @@ export function FinancePage({
                 </div>
 
                 {/* Card 3: Pending Volume (Over Kontrak / Stripping Ratio) */}
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50 via-white to-indigo-50/50 border border-indigo-200/80 shadow-2xs space-y-1 relative overflow-hidden">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-indigo-900 flex items-center gap-1.5">
-                      <Scale size={16} className="text-indigo-700 shrink-0" /> Pending Volume
-                    </span>
-                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900 border border-indigo-200 shrink-0" title="Kelebihan kuota rasio kontrak Top Soil & OB di-carry over ke invoice berikutnya">
-                      {pendingVolumeRows.length > 0 ? `${pendingVolumeRows.length} Dokumen` : "Carry Over"}
-                    </span>
-                  </div>
-                  <div className="text-2xl font-black font-mono text-indigo-950 pt-1 truncate">
-                    {formatIDR(pendingVolumeNominal)}
-                  </div>
-                  <p className="text-[11px] text-indigo-700 font-medium truncate" title="Kelebihan pengerjaan Top Soil & OB di atas rasio kontrak (cth. SR 3:1 Coal) di-pending ke invoice selanjutnya">
-                    Selisih Top Soil & OB over-contract ratio
-                  </p>
-                </div>
+                {(() => {
+                  const activePendingLedgers = pendingVolumeLedgers.filter((l: any) => l.remainingVolume > 0 || l.status === "Active" || l.status === "Partially Settled");
+                  const ledgerPendingNominal = activePendingLedgers.reduce((sum: number, l: any) => sum + (l.remainingVolume * (l.ob1Rate * 0.75 + l.ob2Rate * 0.25 || 27000)), 0);
+                  const totalPendingDisplay = ledgerPendingNominal > 0 ? ledgerPendingNominal : pendingVolumeNominal;
+                  const totalPendingCount = activePendingLedgers.length > 0 ? activePendingLedgers.length : pendingVolumeRows.length;
+
+                  return (
+                    <div 
+                      onClick={() => setShowPendingVolumeDrawer(true)}
+                      className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50 via-white to-indigo-50/50 border border-indigo-200/80 hover:border-indigo-400 hover:shadow-md transition cursor-pointer space-y-1 relative overflow-hidden group"
+                      title="Klik untuk membuka Kartu Kontrol Saldo Pending Volume (Carry-Forward OB)"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-indigo-900 flex items-center gap-1.5 group-hover:text-indigo-950">
+                          <Scale size={16} className="text-indigo-700 shrink-0 group-hover:scale-110 transition" /> Pending Volume
+                        </span>
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900 border border-indigo-200 shrink-0 flex items-center gap-1">
+                          <span>{totalPendingCount > 0 ? `${totalPendingCount} Periode` : "Carry Over"}</span>
+                          <ChevronRight size={10} className="text-indigo-700" />
+                        </span>
+                      </div>
+                      <div className="text-2xl font-black font-mono text-indigo-950 pt-1 truncate">
+                        {formatIDR(totalPendingDisplay)}
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-indigo-700 font-medium">
+                        <span className="truncate">Saldo OB di atas rasio SOW (3:1)</span>
+                        <span className="text-[10px] font-bold underline shrink-0">Buka Kartu Kontrol ↗</span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Card 4: Estimasi Total Revenue */}
                 <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-50 via-white to-cyan-50/50 border border-cyan-200/80 shadow-2xs space-y-1 relative overflow-hidden">
@@ -7781,94 +7800,134 @@ export function FinancePage({
                       </div>
 
                       {/* STEP 1: SOW Operasional & MDO */}
-                      {activeBAStep === 1 && (
-                        <div className="space-y-4">
-                          {/* Tabel 1: Operating & Mining */}
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-black uppercase text-cyan-900 flex items-center gap-1.5">
-                                <Pickaxe size={14} className="text-cyan-700" /> {isCustomerBGG ? "Kategori: Penambangan Batubara & OB Removal (BGG)" : "Kategori 1: Operating & Mining"}
-                              </span>
-                              {isInlineEditingBA && (
-                                <div className="relative inline-block text-left">
-                                  <button
-                                    type="button"
-                                    onClick={() => setShowAddRowDropdown(!showAddRowDropdown)}
-                                    className="text-[11px] font-bold text-cyan-800 bg-cyan-100 hover:bg-cyan-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer border border-cyan-300 shadow-2xs"
-                                  >
-                                    <Plus size={13} />
-                                    <span>Tambah Baris</span>
-                                    <ChevronDown size={12} className={`transition-transform duration-200 ${showAddRowDropdown ? "rotate-180" : ""}`} />
-                                  </button>
+                      {activeBAStep === 1 && (() => {
+                        const coalItem1 = allBAItems.find(it => (it.material || "").toLowerCase().includes("coal") || (it.material || "").toLowerCase().includes("batubara"));
+                        const obItems1 = allBAItems.filter(it => !isDistanceItem(it) && ((it.material || "").toLowerCase().includes("ob") || (it.material || "").toLowerCase().includes("overburden") || (it.material || "").toLowerCase().includes("waste") || (it.material || "").toLowerCase().includes("top soil")));
+                        const coalVolStep1 = coalItem1 ? Number(coalItem1.initialVolume || 0) : 0;
+                        const obVolStep1 = obItems1.reduce((sum, it) => sum + Number(it.initialVolume || 0), 0);
+                        const srStep1 = coalVolStep1 > 0 ? (obVolStep1 / coalVolStep1) : 0;
+                        const maxQuotaOB1 = coalVolStep1 * 3.0;
+                        const excessOB1 = obVolStep1 > maxQuotaOB1 ? (obVolStep1 - maxQuotaOB1) : 0;
 
-                                  {showAddRowDropdown && (
-                                    <div 
-                                      className="absolute right-0 mt-1.5 w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1 animate-in fade-in zoom-in-95 duration-100 divide-y divide-slate-100"
-                                      onMouseLeave={() => setShowAddRowDropdown(false)}
-                                    >
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setBaOperatingItems([...baOperatingItems, {
-                                            id: `op_${Date.now()}`,
-                                            category: "Operating & Mining",
-                                            area: isCustomerBGG ? "Pit KKL" : "WM1",
-                                            material: "",
-                                            unit: "BCM",
-                                            initialVolume: 0,
-                                            adjustedVolume: 0,
-                                            rate: 0,
-                                            subtotalInitial: 0,
-                                            subtotalAdjusted: 0
-                                          }]);
-                                          setShowAddRowDropdown(false);
-                                        }}
-                                        className="w-full text-left px-3.5 py-2.5 text-xs text-slate-800 hover:bg-cyan-50 hover:text-cyan-950 font-bold flex items-center gap-2.5 transition cursor-pointer"
-                                      >
-                                        <div className="w-6 h-6 rounded-lg bg-cyan-100 flex items-center justify-center text-cyan-800 shrink-0">
-                                          <Pickaxe size={13} />
-                                        </div>
-                                        <div>
-                                          <div className="font-bold">Variabel Material</div>
-                                          <div className="text-[10px] text-slate-500 font-normal">Volume Produksi Batubara / OB / Tanah</div>
-                                        </div>
-                                      </button>
-
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setBaOperatingItems([...baOperatingItems, {
-                                            id: `dist_${Date.now()}`,
-                                            category: "Over Distance",
-                                            area: isCustomerBGG ? "Pit KKL" : "WM1",
-                                            material: "",
-                                            unit: isCustomerBGG ? "Bcm.Hm" : "BCM",
-                                            parentMaterial: "",
-                                            distanceWeightAvg: isCustomerBGG ? 0 : 1000,
-                                            initialVolume: 0,
-                                            adjustedVolume: 0,
-                                            rate: 0,
-                                            isDistanceVar: true,
-                                            subtotalInitial: 0,
-                                            subtotalAdjusted: 0
-                                          }]);
-                                          setShowAddRowDropdown(false);
-                                        }}
-                                        className="w-full text-left px-3.5 py-2.5 text-xs text-slate-800 hover:bg-amber-50 hover:text-amber-950 font-bold flex items-center gap-2.5 transition cursor-pointer"
-                                      >
-                                        <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center text-amber-800 shrink-0">
-                                          <Layers size={13} />
-                                        </div>
-                                        <div>
-                                          <div className="font-bold">Variabel Distance</div>
-                                          <div className="text-[10px] text-slate-500 font-normal">Jarak Hauling & Over/Underhaul</div>
-                                        </div>
-                                      </button>
+                        return (
+                          <div className="space-y-4">
+                            {/* Stripping Ratio 3:1 SOW Quota Live Indicator for BGG */}
+                            {isCustomerBGG && coalVolStep1 > 0 && (
+                              <div className={`p-3.5 rounded-xl border flex items-start gap-3 text-xs ${excessOB1 > 0 ? "bg-amber-50/90 border-amber-300 text-amber-950" : "bg-emerald-50/90 border-emerald-300 text-emerald-950"}`}>
+                                <Scale className={excessOB1 > 0 ? "text-amber-700 shrink-0 mt-0.5" : "text-emerald-700 shrink-0 mt-0.5"} size={18} />
+                                <div className="flex-1 space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <strong className="font-extrabold uppercase tracking-wide">
+                                      Validasi Kuota Stripping Ratio Kontrak SOW (Maks. 3.0 : 1)
+                                    </strong>
+                                    <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${excessOB1 > 0 ? "bg-amber-200 text-amber-900 border border-amber-400" : "bg-emerald-200 text-emerald-900 border border-emerald-400"}`}>
+                                      SR Aktual: {srStep1.toFixed(2)} : 1
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 font-mono text-[11px]">
+                                    <div>Coal: <strong>{coalVolStep1.toLocaleString('id-ID', {minimumFractionDigits: 2})} Ton</strong></div>
+                                    <div>Kapasitas Kuota OB (3x): <strong>{maxQuotaOB1.toLocaleString('id-ID', {minimumFractionDigits: 2})} BCM</strong></div>
+                                    <div>Volume OB Aktual: <strong>{obVolStep1.toLocaleString('id-ID', {minimumFractionDigits: 2})} BCM</strong></div>
+                                  </div>
+                                  {excessOB1 > 0 ? (
+                                    <div className="text-[11px] text-amber-900 font-bold bg-amber-100/90 p-2 rounded-lg mt-1 border border-amber-200">
+                                      ⚠️ Volume OB melebihi kuota kontrak sebesar <strong>{excessOB1.toLocaleString('id-ID', {minimumFractionDigits: 2})} BCM</strong>. Volume kelebihan ini otomatis dialokasikan ke <strong>Pending Volume (Carry-Forward)</strong> dan akan diserap saat ada sisa kuota di invoice berikutnya.
+                                    </div>
+                                  ) : (
+                                    <div className="text-[11px] text-emerald-900 font-semibold bg-emerald-100/80 p-1.5 rounded-lg mt-1 border border-emerald-200">
+                                      ✅ Volume OB berada di dalam kuota kontrak SOW ({srStep1.toFixed(2)} ≤ 3.0). Seluruh volume siap ditagihkan penuh.
                                     </div>
                                   )}
                                 </div>
-                              )}
-                            </div>
+                              </div>
+                            )}
+
+                            {/* Tabel 1: Operating & Mining */}
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-black uppercase text-cyan-900 flex items-center gap-1.5">
+                                  <Pickaxe size={14} className="text-cyan-700" /> {isCustomerBGG ? "Kategori: Penambangan Batubara & OB Removal (BGG)" : "Kategori 1: Operating & Mining"}
+                                </span>
+                                {isInlineEditingBA && (
+                                  <div className="relative inline-block text-left">
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowAddRowDropdown(!showAddRowDropdown)}
+                                      className="text-[11px] font-bold text-cyan-800 bg-cyan-100 hover:bg-cyan-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer border border-cyan-300 shadow-2xs"
+                                    >
+                                      <Plus size={13} />
+                                      <span>Tambah Baris</span>
+                                      <ChevronDown size={12} className={`transition-transform duration-200 ${showAddRowDropdown ? "rotate-180" : ""}`} />
+                                    </button>
+
+                                    {showAddRowDropdown && (
+                                      <div 
+                                        className="absolute right-0 mt-1.5 w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1 animate-in fade-in zoom-in-95 duration-100 divide-y divide-slate-100"
+                                        onMouseLeave={() => setShowAddRowDropdown(false)}
+                                      >
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setBaOperatingItems([...baOperatingItems, {
+                                              id: `op_${Date.now()}`,
+                                              category: "Operating & Mining",
+                                              area: isCustomerBGG ? "Pit KKL" : "WM1",
+                                              material: "",
+                                              unit: "BCM",
+                                              initialVolume: 0,
+                                              adjustedVolume: 0,
+                                              rate: 0,
+                                              subtotalInitial: 0,
+                                              subtotalAdjusted: 0
+                                            }]);
+                                            setShowAddRowDropdown(false);
+                                          }}
+                                          className="w-full text-left px-3.5 py-2.5 text-xs text-slate-800 hover:bg-cyan-50 hover:text-cyan-950 font-bold flex items-center gap-2.5 transition cursor-pointer"
+                                        >
+                                          <div className="w-6 h-6 rounded-lg bg-cyan-100 flex items-center justify-center text-cyan-800 shrink-0">
+                                            <Pickaxe size={13} />
+                                          </div>
+                                          <div>
+                                            <div className="font-bold">Variabel Material</div>
+                                            <div className="text-[10px] text-slate-500 font-normal">Volume Produksi Batubara / OB / Tanah</div>
+                                          </div>
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setBaOperatingItems([...baOperatingItems, {
+                                              id: `dist_${Date.now()}`,
+                                              category: "Over Distance",
+                                              area: isCustomerBGG ? "Pit KKL" : "WM1",
+                                              material: "",
+                                              unit: isCustomerBGG ? "Bcm.Hm" : "BCM",
+                                              parentMaterial: "",
+                                              distanceWeightAvg: isCustomerBGG ? 0 : 1000,
+                                              initialVolume: 0,
+                                              adjustedVolume: 0,
+                                              rate: 0,
+                                              isDistanceVar: true,
+                                              subtotalInitial: 0,
+                                              subtotalAdjusted: 0
+                                            }]);
+                                            setShowAddRowDropdown(false);
+                                          }}
+                                          className="w-full text-left px-3.5 py-2.5 text-xs text-slate-800 hover:bg-amber-50 hover:text-amber-950 font-bold flex items-center gap-2.5 transition cursor-pointer"
+                                        >
+                                          <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center text-amber-800 shrink-0">
+                                            <Layers size={13} />
+                                          </div>
+                                          <div>
+                                            <div className="font-bold">Variabel Distance</div>
+                                            <div className="text-[10px] text-slate-500 font-normal">Jarak Hauling & Over/Underhaul</div>
+                                          </div>
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
 
                             <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-xs">
                               <table className="w-full text-xs text-left">
@@ -8276,11 +8335,52 @@ export function FinancePage({
                             </button>
                           </div>
                         </div>
-                      )}
+                      );
+                    })()}
 
-                      {/* STEP 2: Survey Lapangan & Delta Selisih (UNIFIED FOR POS & BGG) */}
-                      {activeBAStep === 2 && (
+                    {/* STEP 2: Survey Lapangan & Delta Selisih (UNIFIED FOR POS & BGG) */}
+                    {activeBAStep === 2 && (() => {
+                      const coalItem2 = allBAItems.find(it => (it.material || "").toLowerCase().includes("coal") || (it.material || "").toLowerCase().includes("batubara"));
+                      const obItems2 = allBAItems.filter(it => !isDistanceItem(it) && ((it.material || "").toLowerCase().includes("ob") || (it.material || "").toLowerCase().includes("overburden") || (it.material || "").toLowerCase().includes("waste") || (it.material || "").toLowerCase().includes("top soil")));
+                      const coalVolStep2 = coalItem2 ? Number(coalItem2.adjustedVolume ?? coalItem2.initialVolume ?? 0) : 0;
+                      const obVolStep2 = obItems2.reduce((sum, it) => sum + Number(it.adjustedVolume ?? it.initialVolume ?? 0), 0);
+                      const srStep2 = coalVolStep2 > 0 ? (obVolStep2 / coalVolStep2) : 0;
+                      const maxQuotaOB2 = coalVolStep2 * 3.0;
+                      const excessOB2 = obVolStep2 > maxQuotaOB2 ? (obVolStep2 - maxQuotaOB2) : 0;
+
+                      return (
                         <div className="space-y-4">
+                          {/* Stripping Ratio 3:1 SOW Quota Live Indicator for BGG */}
+                          {isCustomerBGG && coalVolStep2 > 0 && (
+                            <div className={`p-3.5 rounded-xl border flex items-start gap-3 text-xs ${excessOB2 > 0 ? "bg-amber-50/90 border-amber-300 text-amber-950" : "bg-emerald-50/90 border-emerald-300 text-emerald-950"}`}>
+                              <Scale className={excessOB2 > 0 ? "text-amber-700 shrink-0 mt-0.5" : "text-emerald-700 shrink-0 mt-0.5"} size={18} />
+                              <div className="flex-1 space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <strong className="font-extrabold uppercase tracking-wide">
+                                    Hasil Survey: Kuota Stripping Ratio Kontrak SOW (Maks. 3.0 : 1)
+                                  </strong>
+                                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${excessOB2 > 0 ? "bg-amber-200 text-amber-900 border border-amber-400" : "bg-emerald-200 text-emerald-900 border border-emerald-400"}`}>
+                                    SR Survey: {srStep2.toFixed(2)} : 1
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 font-mono text-[11px]">
+                                  <div>Coal Survey: <strong>{coalVolStep2.toLocaleString('id-ID', {minimumFractionDigits: 2})} Ton</strong></div>
+                                  <div>Kapasitas Kuota OB (3x): <strong>{maxQuotaOB2.toLocaleString('id-ID', {minimumFractionDigits: 2})} BCM</strong></div>
+                                  <div>Volume OB Survey: <strong>{obVolStep2.toLocaleString('id-ID', {minimumFractionDigits: 2})} BCM</strong></div>
+                                </div>
+                                {excessOB2 > 0 ? (
+                                  <div className="text-[11px] text-amber-900 font-bold bg-amber-100/90 p-2 rounded-lg mt-1 border border-amber-200">
+                                    ⚠️ Hasil survey menunjukkan kelebihan OB sebesar <strong>{excessOB2.toLocaleString('id-ID', {minimumFractionDigits: 2})} BCM</strong>. Volume kelebihan ini otomatis dicatat ke <strong>Pending Volume</strong> dan tidak ditagihkan pada invoice periode ini.
+                                  </div>
+                                ) : (
+                                  <div className="text-[11px] text-emerald-900 font-semibold bg-emerald-100/80 p-1.5 rounded-lg mt-1 border border-emerald-200">
+                                    ✅ Hasil survey berada di dalam batas rasio kontrak ({srStep2.toFixed(2)} ≤ 3.0). Seluruh volume hasil survey lolos tagih.
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
                           <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-cyan-950">
                             <Calculator className="text-cyan-700 shrink-0 mt-0.5" size={16} />
                             <div>
@@ -8456,7 +8556,8 @@ export function FinancePage({
                             </button>
                           </div>
                         </div>
-                      )}
+                      );
+                    })()}
 
                       {/* STEP 3: Tanda Tangan & Finalisasi Berita Acara */}
                       {activeBAStep === 3 && (
@@ -9203,6 +9304,249 @@ export function FinancePage({
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* ================= MODAL KARTU KONTROL PENDING VOLUME ================= */}
+      {showPendingVolumeDrawer && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-6">
+            
+            {/* Modal Header */}
+            <div className="p-5 bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
+                  <Scale size={22} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black tracking-tight">
+                    Kartu Kontrol Saldo Pending Volume (Carry-Forward OB)
+                  </h3>
+                  <p className="text-xs text-indigo-200 font-medium">
+                    Monitoring kuota rasio kontrak SOW (Maks. 3:1 OB/Coal) & penyerapan otomatis pada invoice berikutnya
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPendingVolumeDrawer(false)}
+                className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto text-xs">
+              {/* Top 4 KPI Metrics */}
+              {(() => {
+                const activeLedgers = pendingVolumeLedgers.filter((l: any) => l.remainingVolume > 0 || l.status === "Active" || l.status === "Partially Settled");
+                const totalRemainingVol = activeLedgers.reduce((s: number, l: any) => s + (l.remainingVolume || 0), 0);
+                const totalAbsorbedVol = pendingVolumeLedgers.reduce((s: number, l: any) => s + (l.absorbedVolume || 0), 0);
+                const totalNominalEst = activeLedgers.reduce((sum: number, l: any) => sum + (l.remainingVolume * (l.ob1Rate * 0.75 + l.ob2Rate * 0.25 || 27000)), 0);
+
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200/80 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-900 flex items-center gap-1">
+                        <Layers size={13} className="text-indigo-700" /> Saldo Pending Aktif
+                      </span>
+                      <div className="text-xl font-black font-mono text-indigo-950">
+                        {totalRemainingVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })} <span className="text-xs font-sans font-bold text-indigo-700">BCM</span>
+                      </div>
+                      <p className="text-[10px] text-indigo-700">Sisa volume OB belum tertagih</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200/80 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900 flex items-center gap-1">
+                        <DollarSign size={13} className="text-emerald-700" /> Estimasi Nilai Tertunda
+                      </span>
+                      <div className="text-xl font-black font-mono text-emerald-950 truncate">
+                        {formatIDR(totalNominalEst)}
+                      </div>
+                      <p className="text-[10px] text-emerald-700">Proyeksi klaim saat kuota tersedia</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-cyan-50 border border-cyan-200/80 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-cyan-900 flex items-center gap-1">
+                        <CheckCircle2 size={13} className="text-cyan-700" /> Berhasil Diserap
+                      </span>
+                      <div className="text-xl font-black font-mono text-cyan-950">
+                        {totalAbsorbedVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })} <span className="text-xs font-sans font-bold text-cyan-700">BCM</span>
+                      </div>
+                      <p className="text-[10px] text-cyan-700">Volume telah dicairkan ke invoice</p>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-100 border border-slate-200 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1">
+                        <Clock size={13} className="text-slate-600" /> Antrean Carry-Forward
+                      </span>
+                      <div className="text-xl font-black font-mono text-slate-900">
+                        {activeLedgers.length} <span className="text-xs font-sans font-bold text-slate-600">Periode</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500">Prioritas penyerapan FIFO</p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* SOW Contract Rules Box */}
+              <div className="p-4 bg-gradient-to-r from-indigo-50/60 via-purple-50/40 to-slate-50 border border-indigo-200/70 rounded-2xl flex items-start gap-3">
+                <Info size={18} className="text-indigo-700 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <div className="font-extrabold text-indigo-950 uppercase tracking-wide text-[11px]">
+                    Aturan Rasio Kontrak SOW (Stripping Ratio Rule):
+                  </div>
+                  <p className="text-slate-700 leading-relaxed text-[11px]">
+                    Pada kontrak <strong>PT BGG</strong> & <strong>PT SBS</strong>, kapasitas tagih OB dibatasi maksimal <strong>3.0 BCM per 1 Ton Coal (3 : 1)</strong>. Apabila volume OB aktual melebihi kapasitas kuota, kelebihan volume otomatis dicatat ke buku besar pending ini dengan tetap mempertahankan tarif periode asalnya (OB1 75% & OB2 25%). Pada invoice berikutnya yang rasio OB-nya di bawah 3:1, sisa kuota kosong (*headroom*) akan otomatis menyerap antrean saldo pending tertua.
+                  </p>
+                </div>
+              </div>
+
+              {/* Ledger Table */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                    <FileText size={15} className="text-indigo-700" /> Rincian Buku Besar Pending Volume (Carry-Forward OB)
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPendingVolumeDrawer(false);
+                      openCreateModal("pending_volume");
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+                  >
+                    <Plus size={13} /> + Catat Pending Volume Baru
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-xs">
+                  <table className="w-full text-xs text-left min-w-[780px]">
+                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                      <tr>
+                        <th className="p-3">Customer / Project</th>
+                        <th className="p-3 text-center">Periode Asal</th>
+                        <th className="p-3">Ref. No BA</th>
+                        <th className="p-3 text-right">Volume Awal</th>
+                        <th className="p-3 text-right">Terserap</th>
+                        <th className="p-3 text-right">Sisa Saldo</th>
+                        <th className="p-3 text-right">Tarif Asal SOW</th>
+                        <th className="p-3 text-right">Estimasi Nominal (Rp)</th>
+                        <th className="p-3 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium">
+                      {pendingVolumeLedgers.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="p-6 text-center text-slate-400 italic">
+                            Belum ada entri pending volume yang tercatat.
+                          </td>
+                        </tr>
+                      ) : (
+                        pendingVolumeLedgers.map((item: any, idx: number) => {
+                          const estAmount = (item.remainingVolume || 0) * ((item.ob1Rate || 0) * 0.75 + (item.ob2Rate || 0) * 0.25 || 27000);
+                          const isSettled = item.remainingVolume <= 0 || item.status === "Settled";
+                          const isPartially = item.absorbedVolume > 0 && item.remainingVolume > 0;
+
+                          return (
+                            <tr key={item.id || idx} className={`hover:bg-indigo-50/30 transition ${isSettled ? "bg-slate-50/50 opacity-70" : ""}`}>
+                              <td className="p-3 font-bold text-slate-900">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-900 font-mono font-black text-[10px]">
+                                    {item.customerCode}
+                                  </span>
+                                  <span>{item.customerCode === "BGG" ? "PT Budi Gema Gempita" : item.customerCode === "SBS" ? "PT Sumber Bara Sejahtera" : "PT Position"}</span>
+                                </div>
+                              </td>
+                              <td className="p-3 text-center font-mono font-bold text-slate-800">
+                                <span className="px-2.5 py-1 bg-slate-100 rounded-lg border border-slate-200">
+                                  {item.sourcePeriod}
+                                </span>
+                              </td>
+                              <td className="p-3 font-mono text-slate-600 text-[11px]">
+                                {item.sourceBARef || "-"}
+                              </td>
+                              <td className="p-3 text-right font-mono text-slate-700">
+                                {(item.originalOBVolume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} BCM
+                              </td>
+                              <td className="p-3 text-right font-mono font-bold text-cyan-800">
+                                {(item.absorbedVolume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} BCM
+                              </td>
+                              <td className="p-3 text-right font-mono font-black text-indigo-950">
+                                <span className={item.remainingVolume > 0 ? "px-2 py-0.5 rounded bg-indigo-50 border border-indigo-200" : ""}>
+                                  {(item.remainingVolume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} BCM
+                                </span>
+                              </td>
+                              <td className="p-3 text-right font-mono text-[11px] text-slate-600">
+                                <div>75%: Rp {(item.ob1Rate || 7467).toLocaleString("id-ID")}</div>
+                                <div className="text-[10px] text-slate-400">25%: Rp {(item.ob2Rate || 7261).toLocaleString("id-ID")}</div>
+                              </td>
+                              <td className="p-3 text-right font-mono font-black text-emerald-800">
+                                {formatIDR(estAmount)}
+                              </td>
+                              <td className="p-3 text-center">
+                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                                  isSettled
+                                    ? "bg-slate-100 text-slate-700 border-slate-300"
+                                    : isPartially
+                                    ? "bg-amber-100 text-amber-900 border-amber-300"
+                                    : "bg-indigo-100 text-indigo-900 border-indigo-300"
+                                }`}>
+                                  {item.status || (isSettled ? "Settled" : "Active")}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Settlement History Invoices */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                <div className="font-extrabold uppercase tracking-wider text-slate-700 text-[10px] flex items-center gap-1.5">
+                  <CheckCircle size={13} className="text-emerald-700" /> Riwayat Penagihan & Pencairan Carry-Forward:
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 font-mono text-[11px]">
+                  <div className="p-2.5 bg-white rounded-xl border border-slate-200 flex justify-between items-center">
+                    <div>
+                      <span className="text-[10px] text-slate-500 font-bold block">Invoice #088/BGG-AAP/II/2026</span>
+                      <strong className="text-slate-800">Menyerap Pending Nov & Des 25</strong>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-full">Dicairkan</span>
+                  </div>
+                  <div className="p-2.5 bg-white rounded-xl border border-slate-200 flex justify-between items-center">
+                    <div>
+                      <span className="text-[10px] text-slate-500 font-bold block">Invoice #089/BGG-AAP/IV/2026</span>
+                      <strong className="text-slate-800">Menyerap Pending Des 25 & Jan 26</strong>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-full">Dicairkan</span>
+                  </div>
+                  <div className="p-2.5 bg-white rounded-xl border border-slate-200 flex justify-between items-center">
+                    <div>
+                      <span className="text-[10px] text-slate-500 font-bold block">Invoice #090/BGG-AAP/V/2026</span>
+                      <strong className="text-slate-800">Menyerap Pending Feb 26 (48.224 BCM)</strong>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-full">Dicairkan</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowPendingVolumeDrawer(false)}
+                className="px-6 py-2.5 bg-indigo-900 hover:bg-indigo-950 text-white font-bold rounded-xl transition text-xs shadow-xs cursor-pointer"
+              >
+                Tutup Kartu Kontrol
+              </button>
+            </div>
+
           </div>
         </div>
       )}
