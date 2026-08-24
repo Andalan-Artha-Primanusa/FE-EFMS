@@ -16,16 +16,18 @@ import {
 
 export function InvoiceView({ c }: { c: any }) {
   const {
-    baRows, isSPV, isManager, isDirector, invoiceRows,
+    baRows: rawBaRows, isSPV, isManager, isDirector, invoiceRows: rawInvoiceRows,
     invStatusFilter, setInvStatusFilter, invCardTab, setInvCardTab, invPeriodFilter,
     setInvPeriodFilter, showExportARDropdown, setShowExportARDropdown, showInputARDropdown, setShowInputARDropdown,
     setDetailViewItem, templateRows: rawTemplateRows, exportAROnlyExcel, exportAROnlyPDF, openCreateModal,
     openEditModal, handleVerifyInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, handleDelete,
-    query
-  } = c as Record<string, any>;
+    query = ""
+  } = (c || {}) as Record<string, any>;
   const templateRows = typeof rawTemplateRows === "function" ? rawTemplateRows : () => [];
-  const safeInvoiceRows: any[] = Array.isArray(invoiceRows) ? invoiceRows : [];
-  const safeBaRows: any[] = Array.isArray(baRows) ? baRows : [];
+  const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
+  const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
+  const safeInvoiceRows: any[] = invoiceRows;
+  const safeBaRows: any[] = baRows;
 
   return (
         <div className="space-y-6">

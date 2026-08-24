@@ -16,13 +16,16 @@ import {
 
 export function BATrackerView({ c }: { c: any }) {
   const {
-    baRows, invoiceRows, pendingVolumeLedgers, setShowPendingVolumeDrawer, baFilter,
+    baRows: rawBaRows, invoiceRows: rawInvoiceRows, pendingVolumeLedgers: rawPendingVolumeLedgers, setShowPendingVolumeDrawer, baFilter,
     setBaFilter, periodFilter, setPeriodFilter, showExportBADropdown, setShowExportBADropdown,
     showInputBADropdown, setShowInputBADropdown, baRowActionDropdownId, setBaRowActionDropdownId, setDetailViewItem,
     exportBAOnlyExcel, exportBAOnlyPDF, createInvoiceFromBA, openBAModal, openCreateModal,
-    handleGenerateInvoiceFromBA, handleDelete, query, onNotice
-  } = c as Record<string, any>;
-        const safeBaRows: any[] = Array.isArray(baRows) ? baRows : [];
+    handleGenerateInvoiceFromBA, handleDelete, query = "", onNotice
+  } = (c || {}) as Record<string, any>;
+  const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
+  const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
+  const pendingVolumeLedgers: any[] = Array.isArray(rawPendingVolumeLedgers) ? rawPendingVolumeLedgers : [];
+  const safeBaRows: any[] = baRows;
         const availablePeriods: any[] = Array.from(new Set(safeBaRows.map((r) => r?.workPeriod).filter(Boolean)));
         if (!availablePeriods.includes("Jul-26")) availablePeriods.unshift("Jul-26");
         if (!availablePeriods.includes("Jun-26")) availablePeriods.unshift("Jun-26");

@@ -16,14 +16,16 @@ import {
 
 export function DetailModal({ c }: { c: any }) {
   const {
-    isSPV, isManager, isDirector, invoiceRows, paymentRows,
+    isSPV, isManager, isDirector, invoiceRows: rawInvoiceRows, paymentRows: rawPaymentRows,
     detailViewItem, setDetailViewItem, showAddPartialPayment, setShowAddPartialPayment, partialPaymentForm,
     setPartialPaymentForm, rfIndexCalculated, invLineItems, customerContractMap, getItemEffectiveVolume,
     getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations, subtotalA, subtotalB,
     subtotalC, subtotalD, subtotalE, subtotalF, exportPaymentDetailPDF,
     handleSavePartialPayment, handleVerifyPartialPayment, createInvoiceFromBA, handleVerifyBA, handleApproveBA,
     handleVerifyInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, user
-  } = c as Record<string, any>;
+  } = (c || {}) as Record<string, any>;
+  const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
+  const paymentRows: any[] = Array.isArray(rawPaymentRows) ? rawPaymentRows : [];
 
   if (!detailViewItem || !detailViewItem.data) return null;
 

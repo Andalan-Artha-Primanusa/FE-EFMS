@@ -16,7 +16,7 @@ import {
 
 export function FormModals({ c }: { c: any }) {
   const {
-    baRows, isFinanceSpecialist, isManager, invoiceRows, customerRows,
+    baRows: rawBaRows, isFinanceSpecialist, isManager, invoiceRows: rawInvoiceRows, customerRows: rawCustomerRows,
     modalType, setModalType, editItem, formData, setFormData,
     setDetailViewItem, isInlineEditingBA, setIsInlineEditingBA, mRate, setMRate,
     fuelPriceUSD, setFuelPriceUSD, laborPriceIDR, setLaborPriceIDR, masterBankAccounts,
@@ -29,7 +29,10 @@ export function FormModals({ c }: { c: any }) {
     subtotalA, subtotalB, subtotalC, subtotalD, subtotalE,
     subtotalF, subtotalP, loadData, handleBASelect, createInvoiceFromBA,
     handleFileUpload, handleSave, onNotice, user
-  } = c as Record<string, any>;
+  } = (c || {}) as Record<string, any>;
+  const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
+  const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
+  const customerRows: any[] = Array.isArray(rawCustomerRows) ? rawCustomerRows : [];
 
   if (!modalType || modalType === "none") return null;
 
