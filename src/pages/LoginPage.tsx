@@ -105,7 +105,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
         <img
           src={mockupFeast}
           alt="FEAST - Financial Enterprise Andalan System"
-          className="absolute inset-0 w-full h-full object-cover object-center select-none pointer-events-none"
+          className="absolute inset-0 w-full h-full object-cover object-right select-none pointer-events-none"
         />
       </section>
 
