@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
+import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
@@ -19,6 +19,7 @@ export function CustomerView({ c }: { c: any }) {
     customerRows, setDetailViewItem, openCreateModal, openEditModal, handleDelete,
     query
   } = c as Record<string, any>;
+  const safeCustomerRows = Array.isArray(customerRows) ? customerRows : [];
   return (
         <>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -35,7 +36,7 @@ export function CustomerView({ c }: { c: any }) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {customerRows
+            {safeCustomerRows
               .filter((r) => JSON.stringify(r).toLowerCase().includes(query.toLowerCase()))
               .map((c: any) => (
                 <div key={c.id} className="p-5 rounded-xl border border-slate-200 bg-white shadow-sm space-y-3 relative hover:shadow-md transition">

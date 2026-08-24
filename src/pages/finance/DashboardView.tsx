@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
+import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
@@ -16,8 +16,9 @@ import {
 
 export function DashboardView({ c }: { c: any }) {
   const {
-    dashboardData, setDetailViewItem, totalAgingMatrix
+    dashboardData, setDetailViewItem, totalAgingMatrix: rawTotalAgingMatrix
   } = c as Record<string, any>;
+  const totalAgingMatrix = rawTotalAgingMatrix || { notDue: 0, bucket1_30: 0, bucket31_60: 0, bucket61_90: 0, bucketOver90: 0, total: 0, invCount: 0 };
   return (
         <>
           {/* Top KPI Cards - Neutral & Clean Corporate Style */}

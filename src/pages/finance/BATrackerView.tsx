@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
+import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
@@ -22,11 +22,12 @@ export function BATrackerView({ c }: { c: any }) {
     exportBAOnlyExcel, exportBAOnlyPDF, createInvoiceFromBA, openBAModal, openCreateModal,
     handleGenerateInvoiceFromBA, handleDelete, query, onNotice
   } = c as Record<string, any>;
-        const availablePeriods: any[] = Array.from(new Set(baRows.map((r) => r.workPeriod).filter(Boolean)));
+        const safeBaRows: any[] = Array.isArray(baRows) ? baRows : [];
+        const availablePeriods: any[] = Array.from(new Set(safeBaRows.map((r) => r?.workPeriod).filter(Boolean)));
         if (!availablePeriods.includes("Jul-26")) availablePeriods.unshift("Jul-26");
         if (!availablePeriods.includes("Jun-26")) availablePeriods.unshift("Jun-26");
 
-        const periodRows = periodFilter === "All" ? baRows : baRows.filter((r) => r.workPeriod === periodFilter);
+        const periodRows = periodFilter === "All" ? safeBaRows : safeBaRows.filter((r) => r?.workPeriod === periodFilter);
 
         // Helper: Check if BA already has all required invoices created
         const isBAInvoiced = (r: any) => {
