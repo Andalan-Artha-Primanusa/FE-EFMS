@@ -101,11 +101,11 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
           <img src={andalanLogo} alt="Andalan" className="!h-12 !w-auto !object-center" />
         </div>
       </section>
-      <section className="relative overflow-hidden bg-slate-950 min-h-full">
+      <section className="relative overflow-hidden bg-slate-950 min-h-full flex items-center justify-center p-3 sm:p-5 lg:p-6">
         <img
           src={mockupFeast}
           alt="FEAST - Financial Enterprise Andalan System"
-          className="absolute inset-0 w-full h-full object-cover object-right select-none pointer-events-none"
+          className="w-full h-auto max-h-[92vh] object-contain drop-shadow-2xl rounded-2xl select-none pointer-events-none transition duration-300 hover:scale-[1.01]"
         />
       </section>
 
