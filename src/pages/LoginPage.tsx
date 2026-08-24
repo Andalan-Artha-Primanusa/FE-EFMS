@@ -79,7 +79,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
   return (
     <main className="login-page antialiased text-finance-ink">
       <section className="login-panel bg-white">
-        <div className="login-logo mx-auto"><img src="/feast-logo.png" alt="FEAST - Financial Enterprise Andalan System" /></div>
+        <div className="login-logo mx-auto"><img src="/feast-logo.webp" alt="FEAST - Financial Enterprise Andalan System" /></div>
         <form onSubmit={submit} className="login-form">
           <label>Email<input value={email} onChange={(e) => setEmail(e.target.value)} type="email" /></label>
           <label>Password<input value={password} onChange={(e) => setPassword(e.target.value)} type="password" /></label>
@@ -94,13 +94,12 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
           <img src="/andalan-logo.png" alt="Andalan" className="!h-12 !w-auto !object-center" />
         </div>
       </section>
-      <section className="relative overflow-hidden bg-slate-900">
+      <section className="relative overflow-hidden bg-slate-950 flex items-center justify-center p-6 sm:p-10">
         <img
-          src="http://content.didimax.co.id/Upload/2023/01/16/zcvERBwM/20230116090648517.jpg"
-          alt="Professional working in office"
-          className="absolute inset-0 w-full h-full object-cover"
+          src="/Mockup feast.webp"
+          alt="FEAST - Financial Enterprise Andalan System"
+          className="w-full h-full max-h-[85vh] object-contain drop-shadow-2xl rounded-2xl transition duration-300 hover:scale-[1.01]"
         />
-        <div className="absolute inset-0 bg-slate-900/20"></div>
       </section>
 
       {forgotOpen && (
