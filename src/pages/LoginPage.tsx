@@ -96,9 +96,15 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
       </section>
       <section className="relative overflow-hidden bg-slate-950 flex items-center justify-center p-6 sm:p-10">
         <img
-          src="/Mockup feast.webp"
+          src="/mockup-feast.webp"
           alt="FEAST - Financial Enterprise Andalan System"
           className="w-full h-full max-h-[85vh] object-contain drop-shadow-2xl rounded-2xl transition duration-300 hover:scale-[1.01]"
+          onError={(e) => {
+            const target = e.currentTarget;
+            if (!target.src.endsWith(".png")) {
+              target.src = "/mockup-feast.png";
+            }
+          }}
         />
       </section>
 
