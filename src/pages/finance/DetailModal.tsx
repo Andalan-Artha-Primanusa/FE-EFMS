@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
+import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
@@ -16,14 +16,19 @@ import {
 
 export function DetailModal({ c }: { c: any }) {
   const {
-    isSPV, isManager, isDirector, invoiceRows, paymentRows,
+    isSPV, isManager, isDirector, invoiceRows: rawInvoiceRows, paymentRows: rawPaymentRows,
     detailViewItem, setDetailViewItem, showAddPartialPayment, setShowAddPartialPayment, partialPaymentForm,
     setPartialPaymentForm, rfIndexCalculated, invLineItems, customerContractMap, getItemEffectiveVolume,
     getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations, subtotalA, subtotalB,
     subtotalC, subtotalD, subtotalE, subtotalF, exportPaymentDetailPDF,
     handleSavePartialPayment, handleVerifyPartialPayment, createInvoiceFromBA, handleVerifyBA, handleApproveBA,
     handleVerifyInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, user
-  } = c as Record<string, any>;
+  } = (c || {}) as Record<string, any>;
+  const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
+  const paymentRows: any[] = Array.isArray(rawPaymentRows) ? rawPaymentRows : [];
+
+  if (!detailViewItem || !detailViewItem.data) return null;
+
   return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
           <div className={`bg-white border border-slate-200 rounded-2xl p-6 sm:p-7 w-full ${detailViewItem.type === "invoice" ? "max-w-[95vw]" : "max-w-5xl"} shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto transition-all`}>

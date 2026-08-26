@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { KeyRound, X } from "lucide-react";
 import { forgotPassword, login, resetPassword, type User } from "../lib/api";
+import feastLogo from "../assets/feast-logo.webp";
+import mockupFeast from "../assets/mockup-feast.webp";
+import andalanLogo from "../assets/andalan-logo.png";
 
 export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
   const [email, setEmail] = useState("admin@financeerp.local");
@@ -38,16 +41,17 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
     setForgotOpen(true);
     setForgotStage("request");
     setForgotEmail(email);
-    setForgotToken("");
-    setForgotNewPassword("");
     setForgotMessage("");
     setForgotError("");
+    setForgotToken("");
+    setForgotNewPassword("");
   }
 
   async function submitForgot(event: React.FormEvent) {
     event.preventDefault();
     setForgotLoading(true);
     setForgotError("");
+    setForgotMessage("");
     try {
       if (forgotStage === "request") {
         const res = await forgotPassword(forgotEmail);
@@ -65,6 +69,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
         }
         await resetPassword(forgotToken, forgotNewPassword);
         setForgotMessage("Password berhasil direset. Silakan login dengan password baru.");
+        setTimeout(() => setForgotOpen(false), 2000);
         setForgotStage("request");
         setForgotToken("");
         setForgotNewPassword("");
@@ -79,7 +84,9 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
   return (
     <main className="login-page antialiased text-finance-ink">
       <section className="login-panel bg-white">
-        <div className="login-logo mx-auto"><img src="/feast-logo.png" alt="FEAST - Financial Enterprise Andalan System" /></div>
+        <div className="login-logo mx-auto">
+          <img src={feastLogo} alt="FEAST - Financial Enterprise Andalan System" />
+        </div>
         <form onSubmit={submit} className="login-form">
           <label>Email<input value={email} onChange={(e) => setEmail(e.target.value)} type="email" /></label>
           <label>Password<input value={password} onChange={(e) => setPassword(e.target.value)} type="password" /></label>
@@ -91,16 +98,15 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
         </form>
         <div className="powered-by justify-center !border-t-0">
           <span>Powered by</span>
-          <img src="/andalan-logo.png" alt="Andalan" className="!h-12 !w-auto !object-center" />
+          <img src={andalanLogo} alt="Andalan" className="!h-12 !w-auto !object-center" />
         </div>
       </section>
-      <section className="relative overflow-hidden bg-slate-900">
+      <section className="relative overflow-hidden bg-slate-950 min-h-full flex items-center justify-center p-3 sm:p-5 lg:p-6">
         <img
-          src="http://content.didimax.co.id/Upload/2023/01/16/zcvERBwM/20230116090648517.jpg"
-          alt="Professional working in office"
-          className="absolute inset-0 w-full h-full object-cover"
+          src={mockupFeast}
+          alt="FEAST - Financial Enterprise Andalan System"
+          className="w-full h-full max-h-[94vh] object-contain object-center drop-shadow-2xl rounded-2xl select-none pointer-events-none transition duration-300 hover:scale-[1.01]"
         />
-        <div className="absolute inset-0 bg-slate-900/20"></div>
       </section>
 
       {forgotOpen && (

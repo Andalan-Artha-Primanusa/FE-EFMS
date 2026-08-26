@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
+import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
@@ -16,40 +16,46 @@ import {
 
 export function InvoiceView({ c }: { c: any }) {
   const {
-    baRows, isSPV, isManager, isDirector, invoiceRows,
+    baRows: rawBaRows, isSPV, isManager, isDirector, invoiceRows: rawInvoiceRows,
     invStatusFilter, setInvStatusFilter, invCardTab, setInvCardTab, invPeriodFilter,
     setInvPeriodFilter, showExportARDropdown, setShowExportARDropdown, showInputARDropdown, setShowInputARDropdown,
-    setDetailViewItem, templateRows, exportAROnlyExcel, exportAROnlyPDF, openCreateModal,
+    setDetailViewItem, templateRows: rawTemplateRows, exportAROnlyExcel, exportAROnlyPDF, openCreateModal,
     openEditModal, handleVerifyInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, handleDelete,
-    query
-  } = c as Record<string, any>;
+    query = ""
+  } = (c || {}) as Record<string, any>;
+  const templateRows = typeof rawTemplateRows === "function" ? rawTemplateRows : () => [];
+  const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
+  const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
+  const safeInvoiceRows: any[] = invoiceRows;
+  const safeBaRows: any[] = baRows;
+
   return (
         <div className="space-y-6">
           {(() => {
             const targetPeriodIndex = parsePeriodToMonthIndex(invPeriodFilter);
-            const periodFilteredUnpaidInvoices = invoiceRows.filter((r) => {
+            const periodFilteredUnpaidInvoices = safeInvoiceRows.filter((r) => {
               if (invPeriodFilter !== "All") {
-                const rowPeriodIndex = parsePeriodToMonthIndex(r.workPeriod || "");
+                const rowPeriodIndex = parsePeriodToMonthIndex(r?.workPeriod || "");
                 if (rowPeriodIndex > targetPeriodIndex) return false;
               }
-              const outstandingAmount = r.outstanding ?? ((r.totalInvoice || 0) - (r.totalPaid || 0));
-              if (outstandingAmount <= 0 || r.status === "Paid") return false;
+              const outstandingAmount = r?.outstanding ?? ((r?.totalInvoice || 0) - (r?.totalPaid || 0));
+              if (outstandingAmount <= 0 || r?.status === "Paid") return false;
               return true;
             });
-            const totalARAndalan = periodFilteredUnpaidInvoices.reduce((acc, r) => acc + (r.outstanding ?? ((r.totalInvoice || 0) - (r.totalPaid || 0))), 0);
-            const arMonitoringBaseline = templateRows("ar_monitoring_baseline")[0] || {};
+            const totalARAndalan = periodFilteredUnpaidInvoices.reduce((acc, r) => acc + (r?.outstanding ?? ((r?.totalInvoice || 0) - (r?.totalPaid || 0))), 0);
+            const arMonitoringBaseline = (templateRows("ar_monitoring_baseline") || [])[0] || {};
             const totalPenaltyUncut = Number(arMonitoringBaseline.totalPenaltyUncut ?? 998082501);
-            const unlinkedBASum = baRows.filter((r) => !r.invoiceNoLinked).reduce((acc, r) => acc + (r.workAmount || 0), 0);
+            const unlinkedBASum = safeBaRows.filter((r) => !r?.invoiceNoLinked).reduce((acc, r) => acc + (r?.workAmount || 0), 0);
             const totalSubjectToInvoice = unlinkedBASum > 0 ? unlinkedBASum : Number(arMonitoringBaseline.totalSubjectToFallback ?? 57583855425);
 
             // Penalty static baseline dataset from Excel (Sheet AR Monitoring Row 48-53)
             // Baseline AR Monitoring dari master data backend (finance_templates)
-            const penaltyDataRows = templateRows("ar_penalty_baseline");
+            const penaltyDataRows = templateRows("ar_penalty_baseline") || [];
 
             // Subject To Invoice dataset combining Excel baseline (Sheet AR Monitoring Row 55-63) and unlinked BAs
             const subjectToInvoiceDataRows = [
-              ...templateRows("ar_subject_invoice_baseline"),
-              ...baRows.filter((r) => !r.invoiceNoLinked).map((ba) => ({
+              ...(templateRows("ar_subject_invoice_baseline") || []),
+              ...safeBaRows.filter((r) => !r?.invoiceNoLinked).map((ba) => ({
                 id: `sti-ba-${ba.id}`,
                 customerCode: ba.customerCode || "OTHER",
                 workPeriod: ba.workPeriod || "Jul-26",

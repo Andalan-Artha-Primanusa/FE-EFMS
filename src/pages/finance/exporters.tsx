@@ -1,4 +1,4 @@
-﻿// =============================================================
+// =============================================================
 // EXPORTER PDF / EXCEL modul Finance
 // Setiap fungsi menerima snapshot state (ctx) dari controller.
 // =============================================================
@@ -647,11 +647,13 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
 export function exportARBAIMonitoringExcelImpl(ctx: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { 
-baRows, invoiceRows, periodFilter, invPeriodFilter, query, onNotice
- } = ctx;
-    const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
-    const targetPeriodIndex = parsePeriodToMonthIndex(invPeriodFilter);
-    const targetInvoices = invoiceRows.filter((r) => {
+    baRows: rawBaRows, invoiceRows: rawInvoiceRows, periodFilter = "Jul-26", invPeriodFilter = "Jul-26", query = "", onNotice = () => {}
+  } = ctx || {};
+  const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
+  const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
+  const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+  const targetPeriodIndex = parsePeriodToMonthIndex(invPeriodFilter);
+  const targetInvoices = invoiceRows.filter((r) => {
       const matchQ = JSON.stringify(r).toLowerCase().includes(query.toLowerCase());
       if (!matchQ) return false;
       if (invPeriodFilter !== "All") {
@@ -830,16 +832,18 @@ baRows, invoiceRows, periodFilter, invPeriodFilter, query, onNotice
     link.download = `AR_&_BAI_Outstanding_ANDALAN_${new Date().toISOString().split("T")[0]}.xls`;
     link.click();
     URL.revokeObjectURL(url);
-    onNotice("ðŸ“Š File Laporan Excel (AR & BAI Monitoring) berhasil di-export!");
+    onNotice("✅ File Laporan Excel (AR & BAI Monitoring) berhasil di-export!");
 }
 
 export function exportARBAIMonitoringPDFImpl(ctx: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { 
-baRows, invoiceRows, invPeriodFilter, query
- } = ctx;
-    const printWin = window.open("", "_blank", "width=1200,height=900");
-    if (!printWin) return;
+    baRows: rawBaRows, invoiceRows: rawInvoiceRows, periodFilter = "Jul-26", invPeriodFilter = "Jul-26", query = ""
+  } = ctx || {};
+  const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
+  const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
+  const printWin = window.open("", "_blank", "width=1200,height=900");
+  if (!printWin) return;
 
     const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
     const logoUrl = `${window.location.origin}/andalan-logo.png`;
@@ -1068,12 +1072,13 @@ baRows, invoiceRows, invPeriodFilter, query
 export function exportBAOnlyExcelImpl(ctx: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { 
-baRows, periodFilter, query, onNotice
- } = ctx;
-    const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
-    
-    // Export includes all BA rows for the selected periodFilter (not constrained by card status filter)
-    const targetRows = baRows.filter((r) => {
+    baRows: rawBaRows, periodFilter = "Jul-26", query = "", onNotice = () => {}
+  } = ctx || {};
+  const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
+  const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+  
+  // Export includes all BA rows for the selected periodFilter (not constrained by card status filter)
+  const targetRows = baRows.filter((r) => {
       const matchQ = JSON.stringify(r).toLowerCase().includes(query.toLowerCase());
       if (!matchQ) return false;
       if (periodFilter !== "All" && r.workPeriod !== periodFilter) return false;
@@ -1168,16 +1173,18 @@ baRows, periodFilter, query, onNotice
 export function exportBAOnlyPDFImpl(ctx: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { 
-baRows, invoiceRows, periodFilter, query
- } = ctx;
-    const printWin = window.open("", "_blank", "width=1200,height=900");
-    if (!printWin) return;
+    baRows: rawBaRows, invoiceRows: rawInvoiceRows, periodFilter = "Jul-26", query = ""
+  } = ctx || {};
+  const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
+  const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
+  const printWin = window.open("", "_blank", "width=1200,height=900");
+  if (!printWin) return;
 
-    const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
-    const logoUrl = `${window.location.origin}/andalan-logo.png`;
+  const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+  const logoUrl = `${window.location.origin}/andalan-logo.png`;
 
-    // Export includes all BA rows for the selected periodFilter (not constrained by card status filter)
-    const targetRows = baRows.filter((r) => {
+  // Export includes all BA rows for the selected periodFilter (not constrained by card status filter)
+  const targetRows = baRows.filter((r) => {
       const matchQ = JSON.stringify(r).toLowerCase().includes(query.toLowerCase());
       if (!matchQ) return false;
       if (periodFilter !== "All" && r.workPeriod !== periodFilter) return false;
@@ -1330,11 +1337,12 @@ baRows, invoiceRows, periodFilter, query
 export function exportAROnlyExcelImpl(ctx: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { 
-invoiceRows, invPeriodFilter, query, onNotice
- } = ctx;
-    const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
-    const targetPeriodIndex = parsePeriodToMonthIndex(invPeriodFilter);
-    const targetInvoices = invoiceRows.filter((r) => {
+    invoiceRows: rawInvoiceRows, invPeriodFilter = "Jul-26", query = "", onNotice = () => {}
+  } = ctx || {};
+  const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
+  const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+  const targetPeriodIndex = parsePeriodToMonthIndex(invPeriodFilter);
+  const targetInvoices = invoiceRows.filter((r) => {
       const matchQ = JSON.stringify(r).toLowerCase().includes(query.toLowerCase());
       if (!matchQ) return false;
       if (invPeriodFilter !== "All") {
@@ -1448,15 +1456,16 @@ invoiceRows, invPeriodFilter, query, onNotice
 export function exportAROnlyPDFImpl(ctx: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { 
-invoiceRows, invPeriodFilter, query
- } = ctx;
-    const printWin = window.open("", "_blank", "width=1200,height=900");
-    if (!printWin) return;
+    invoiceRows: rawInvoiceRows, invPeriodFilter = "Jul-26", query = ""
+  } = ctx || {};
+  const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
+  const printWin = window.open("", "_blank", "width=1200,height=900");
+  if (!printWin) return;
 
-    const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
-    const logoUrl = `${window.location.origin}/andalan-logo.png`;
-    const targetPeriodIndex = parsePeriodToMonthIndex(invPeriodFilter);
-    const targetInvoices = invoiceRows.filter((r) => {
+  const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+  const logoUrl = `${window.location.origin}/andalan-logo.png`;
+  const targetPeriodIndex = parsePeriodToMonthIndex(invPeriodFilter);
+  const targetInvoices = invoiceRows.filter((r) => {
       const matchQ = JSON.stringify(r).toLowerCase().includes(query.toLowerCase());
       if (!matchQ) return false;
       if (invPeriodFilter !== "All") {

@@ -13,8 +13,15 @@ import { DashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute, C
 
 export function App() {
   const [user, setUser] = useState<User | null>(() => {
-    const raw = localStorage.getItem("financeerp.user");
-    return raw ? JSON.parse(raw) : null;
+    try {
+      const raw = localStorage.getItem("financeerp.user");
+      if (!raw || raw === "undefined" || raw === "null") return null;
+      return JSON.parse(raw);
+    } catch (e) {
+      console.warn("Failed to parse user from localStorage:", e);
+      localStorage.removeItem("financeerp.user");
+      return null;
+    }
   });
 
   if (!user) {

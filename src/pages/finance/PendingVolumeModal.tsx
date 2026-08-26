@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
+import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
@@ -52,9 +52,10 @@ export function PendingVolumeModal({ c }: { c: any }) {
             <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto text-xs">
               {/* Top 4 KPI Metrics */}
               {(() => {
-                const activeLedgers = pendingVolumeLedgers.filter((l: any) => l.remainingVolume > 0 || l.status === "Active" || l.status === "Partially Settled");
+                const ledgers = Array.isArray(pendingVolumeLedgers) ? pendingVolumeLedgers : [];
+                const activeLedgers = ledgers.filter((l: any) => l.remainingVolume > 0 || l.status === "Active" || l.status === "Partially Settled");
                 const totalRemainingVol = activeLedgers.reduce((s: number, l: any) => s + (l.remainingVolume || 0), 0);
-                const totalAbsorbedVol = pendingVolumeLedgers.reduce((s: number, l: any) => s + (l.absorbedVolume || 0), 0);
+                const totalAbsorbedVol = ledgers.reduce((s: number, l: any) => s + (l.absorbedVolume || 0), 0);
                 const totalNominalEst = activeLedgers.reduce((sum: number, l: any) => sum + (l.remainingVolume * (l.ob1Rate * 0.75 + l.ob2Rate * 0.25 || 27000)), 0);
 
                 return (

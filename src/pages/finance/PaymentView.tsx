@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
+import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
@@ -16,16 +16,18 @@ import {
 
 export function PaymentView({ c }: { c: any }) {
   const {
-    invoiceRows, paymentRows, setDetailViewItem, openEditModal, handleDelete,
+    invoiceRows: rawInvoiceRows, paymentRows: rawPaymentRows, setDetailViewItem, openEditModal, handleDelete,
     query
   } = c as Record<string, any>;
+  const paymentRows = Array.isArray(rawPaymentRows) ? rawPaymentRows : [];
+  const invoiceRows = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
   return (
         <div className="space-y-4">
           <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <span className="text-xs text-slate-500 uppercase font-bold tracking-wider">Total Recorded Receipt</span>
               <div className="text-2xl font-black text-emerald-700 tracking-tight font-mono mt-1">
-                {formatIDR(paymentRows.reduce((sum, r) => sum + (r.amountPaid || 0), 0))}
+                {formatIDR(paymentRows.reduce((sum, r) => sum + (r?.amountPaid || 0), 0))}
               </div>
             </div>
             <div className="text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 px-3.5 py-2 rounded-xl">

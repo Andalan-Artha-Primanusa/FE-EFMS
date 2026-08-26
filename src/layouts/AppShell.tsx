@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate, useParams, useOutlet } from "react-router-dom";
 import { Bell, ChevronDown, LogOut, Menu, Search, UserCog, X } from "lucide-react";
 import { NotificationPanel } from "../components/NotificationPanel";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { ACCOUNT_SETTINGS_VIEW, menu, menuPermissionMap, titleFromSlug, viewMap, viewPath } from "../data/navigation";
 import { api, type AuditLog, type Dashboard, type Permission, type RoleAccess, type Transaction, type User } from "../lib/api";
 import { AccountSettingsPage } from "../pages/AccountSettingsPage";
@@ -41,21 +42,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [roles, setRoles] = useState<RoleAccess[]>([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
-  const [toasts, setToasts] = useState<Array<{ id: number; message: string; tone: "success" | "error" | "info" }>>([]);
-
-  const pushToast = useCallback((message: string, tone: "success" | "error" | "info") => {
-    const id = Date.now() + Math.random();
-    setToasts((prev) => [...prev.slice(-3), { id, message, tone }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4500);
-  }, []);
-
-  const setNotice = useCallback((msg: string) => {
-    if (!msg) return;
-    const tone = /gagal|error|tidak dapat|ditolak|invalid/i.test(msg) ? "error"
-      : /berhasil|sukses|tersimpan|saved|success/i.test(msg) ? "success"
-      : "info";
-    pushToast(msg, tone);
-  }, [pushToast]);
+  const [notice, setNotice] = useState("");
 
   async function refresh() {
     const [dash, trx] = await Promise.all([api<Dashboard>("/api/dashboard"), api<Transaction[]>("/api/transactions")]);
@@ -151,7 +138,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
         </nav>
       </aside>
       <main className="workspace">
-        <header className="topbar sticky top-0 z-20">
+        <header className="sticky top-0 z-20 topbar">
           <button className="icon-btn mobile-only" onClick={() => setSidebarOpen(!sidebarOpen)}><Menu size={20} /></button>
           <button className="icon-btn desktop-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? "Buka sidebar" : "Tutup sidebar"}><Menu size={20} /></button>
           <div>
@@ -170,25 +157,27 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
           </div>
         </header>
 
-        <Outlet context={{ 
-          user, permissions, roles, notice: "", setNotice, 
-          dashboard, transactions, query, refresh 
-        }} />
-        {outlet ? null : activeView === "Variable SOW Form"
-          ? <VariableSOWFormPage />
-          : activeView === "Variable SOW"
-          ? <VariableSOWPage viewTitle={activeView} query={query} onNotice={setNotice} />
-          : <ModulePage
-              config={activeConfig}
-              rows={viewRows}
-              loading={viewLoading}
-              query={query}
-              onCreateTransaction={() => navigate(routes.transaction.new)}
-              onEditTransaction={(transaction) => navigate(routes.transaction.edit(transaction.id), { state: { transaction } })}
-              onNotice={setNotice}
-              onRefresh={async () => { await refreshAll(); }}
-            />
-        }
+        <ErrorBoundary key={location.pathname} fallbackTitle={`Gagal memuat modul "${activeView}"`}>
+          <Outlet context={{ 
+            user, permissions, roles, notice, setNotice, 
+            dashboard, transactions, query, refresh 
+          }} />
+          {outlet ? null : activeView === "Variable SOW Form"
+            ? <VariableSOWFormPage />
+            : activeView === "Variable SOW"
+            ? <VariableSOWPage viewTitle={activeView} query={query} onNotice={setNotice} />
+            : <ModulePage
+                config={activeConfig}
+                rows={viewRows}
+                loading={viewLoading}
+                query={query}
+                onCreateTransaction={() => navigate(routes.transaction.new)}
+                onEditTransaction={(transaction) => navigate(routes.transaction.edit(transaction.id), { state: { transaction } })}
+                onNotice={setNotice}
+                onRefresh={async () => { await refreshAll(); }}
+              />
+          }
+        </ErrorBoundary>
       </main>
       <NotificationPanel items={notifications} open={notificationOpen} onClose={() => setNotificationOpen(false)} />
       {toasts.length > 0 && (
