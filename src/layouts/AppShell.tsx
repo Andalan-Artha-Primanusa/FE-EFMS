@@ -184,7 +184,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
         <div
           className="fixed top-5 left-1/2 -translate-x-1/2 z-[99999] max-w-xl w-[92%] sm:w-auto flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-900 text-white shadow-2xl border border-slate-700/80 backdrop-blur-md transition-all duration-300 pointer-events-auto cursor-pointer"
           onClick={() => setNotice("")}
-        >
+        > 
           <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold">
             <span>{notice}</span>
           </div>
@@ -194,7 +194,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
               event.stopPropagation();
               setNotice("");
             }}
-            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition"
+            className="p-1 transition rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white"
           >
             <X size={16} />
           </button>
