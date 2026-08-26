@@ -171,7 +171,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
         </header>
 
         <Outlet context={{ 
-          user, permissions, roles, notice, setNotice, 
+          user, permissions, roles, notice: "", setNotice, 
           dashboard, transactions, query, refresh 
         }} />
         {outlet ? null : activeView === "Variable SOW Form"
@@ -191,24 +191,26 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
         }
       </main>
       <NotificationPanel items={notifications} open={notificationOpen} onClose={() => setNotificationOpen(false)} />
-      {notice && (
-        <div
-          className="fixed top-5 left-1/2 -translate-x-1/2 z-[99999] max-w-xl w-[92%] sm:w-auto flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-900 text-white shadow-2xl border border-slate-700/80 backdrop-blur-md transition-all duration-300 pointer-events-auto cursor-pointer"
-          onClick={() => setNotice("")}
-        >
-          <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold">
-            <span>{notice}</span>
-          </div>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setNotice("");
-            }}
-            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition"
-          >
-            <X size={16} />
-          </button>
+      {toasts.length > 0 && (
+        <div className="toast-stack">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`toast-item toast-${toast.tone}`}
+              onClick={() => setToasts((prev) => prev.filter((item) => item.id !== toast.id))}
+            >
+              <span>{toast.message}</span>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setToasts((prev) => prev.filter((item) => item.id !== toast.id));
+                }}
+              >
+                <X size={15} />
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>
