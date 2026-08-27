@@ -27,9 +27,56 @@ export const menu = [
 export type ViewConfig = {
   title: string;
   endpoint: string;
+  menuCode?: string;
+  menuPermissionModule?: string;
   importType?: "master_records" | "transactions" | "budgets" | "operational_transactions";
   masterType?: string;
 };
+
+const groupCodes: Record<string, string> = {
+  Dashboard: "DSH",
+  "Master Data": "MD",
+  "Budget Management": "BUD",
+  "Transaction Request": "TRX",
+  Finance: "FIN",
+  Accounting: "ACC",
+  Reconciliation: "REC",
+  "Period Closing": "CLS",
+  "Financial Reporting": "RPT",
+  Governance: "GOV"
+};
+
+const menuCodes = Object.fromEntries(
+  menu.flatMap((group) =>
+    group.items.map((item) => [
+      item,
+      `FEAST-${groupCodes[group.group] ?? "MOD"}-${slugify(item).toUpperCase().replace(/-/g, "_")}`
+    ])
+  )
+) as Record<string, string>;
+
+export function menuCodeFor(item: string) {
+  return menuCodes[item] ?? `FEAST-MOD-${slugify(item).toUpperCase().replace(/-/g, "_")}`;
+}
+
+export function menuPermissionModuleFor(item: string): string {
+  const grants = menuPermissionMap[item];
+  if (grants && grants.length) {
+    return grants[0].split(":")[0];
+  }
+  const lower = slugify(item);
+  if (lower.includes("budget")) return "budget";
+  if (lower.includes("reconcil")) return "reconciliation";
+  if (lower.includes("closing") || lower.includes("accrual") || lower.includes("depreci") || lower.includes("review") || lower.includes("close")) return "period_closing";
+  if (lower.includes("journal") || lower.includes("ledger") || lower.includes("trial")) return "accounting";
+  if (lower.includes("invoice") || lower.includes("payment") || lower.includes("ba") || lower.includes("receipt") || lower.includes("customer")) return "operational_transaction";
+  if (lower.includes("report") || lower.includes("aging") || lower.includes("statement") || lower.includes("cash-flow")) return "financial_report";
+  if (lower.includes("dashboard")) return "management_dashboard";
+  if (lower.includes("approval")) return "approval";
+  if (lower.includes("audit") || lower.includes("notification")) return "audit_trail";
+  if (lower.includes("rbac") || lower.includes("role") || lower.includes("setting")) return "user_management";
+  return "master_data";
+}
 
 export const viewMap: Record<string, ViewConfig> = {
   "Executive Dashboard": { title: "Executive Dashboard", endpoint: "/api/management-dashboard" },
@@ -139,7 +186,6 @@ export const menuPermissionMap: Record<string, string[]> = {
   "Berita Acara (BA) Tracker": ["operational_transaction:read"],
   "Invoice Management": ["operational_transaction:read"],
   "Payment & Receipt Log": ["operational_transaction:read"],
-  "Customer & Credit Terms": ["master_data:read"],
   "Purchase to Pay AP": ["operational_transaction:read"],
   "Order to Cash AR": ["operational_transaction:read"],
   "Cash and Bank Management": ["operational_transaction:read"],

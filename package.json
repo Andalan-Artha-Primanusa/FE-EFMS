@@ -9,6 +9,7 @@
     "preview": "node node_modules/vite/bin/vite.js preview --host 127.0.0.1"
   },
   "dependencies": {
+    "@fortune-sheet/react": "^1.0.4",
     "@glideapps/glide-data-grid": "^6.0.3",
     "@types/lodash": "^4.17.25",
     "@vitejs/plugin-react": "^4.7.0",

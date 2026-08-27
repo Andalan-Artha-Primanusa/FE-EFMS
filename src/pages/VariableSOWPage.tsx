@@ -185,8 +185,8 @@ export function VariableSOWPage({
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-12">
       {/* Top Banner Header */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-950 p-6 sm:p-7 rounded-3xl border border-slate-700/60 shadow-xl text-white">
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-cyan-500/10 via-amber-500/5 to-transparent pointer-events-none" />
+      <div className="relative overflow-hidden bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-700/60 shadow-xl text-white">
+        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-cyan-500/10 pointer-events-none" />
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div className="space-y-2 max-w-2xl">
@@ -218,7 +218,7 @@ export function VariableSOWPage({
             </button>
             <button
               onClick={openCreateGridModal}
-              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-cyan-500/25 transition active:scale-95 cursor-pointer"
+              className="px-5 py-3 rounded-2xl bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-cyan-500/25 transition active:scale-95 cursor-pointer"
             >
               <Plus size={18} className="stroke-[3]" />
               <span>+ Input Tarif SOW Baru</span>

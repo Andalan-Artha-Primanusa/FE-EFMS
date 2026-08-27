@@ -17,11 +17,11 @@ Full-stack ERP Financial Enterprise Andalan System dengan frontend React TypeScr
 Copy `backend/.env.example` ke environment runtime atau set variable berikut:
 
 ```env
-APP_ADDR=:8080
-APP_SECRET=change-me-in-production
-MYSQL_DSN=admin:HkQV5KXNt45JO7Iz@tcp(160.19.165.216:3306)/finacneerp?parseTime=true&multiStatements=true
-UPLOAD_DIR=\\160.19.165.217\E-Finance\uploads
-CORS_ORIGIN=http://localhost:5173
+APP_ADDR=:7070
+APP_SECRET=replace-with-a-long-random-secret
+MYSQL_DSN=user:password@tcp(mysql-host:3306)/database_name?parseTime=true&multiStatements=true
+UPLOAD_DIR=/app/uploads
+CORS_ORIGIN=http://160.19.165.216:2021
 ```
 
 ## Jalankan

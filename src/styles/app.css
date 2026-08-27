@@ -233,9 +233,7 @@ textarea { min-height: 94px; resize: vertical; }
   flex-direction: column;
   justify-content: flex-end;
   gap: 22px;
-  background:
-    linear-gradient(135deg, rgba(22,32,59,0.98), rgba(30,43,77,0.92) 46%, rgba(165,124,80,0.85)),
-    radial-gradient(circle at 80% 18%, rgba(229,215,194,.38), transparent 260px);
+  background: #16203b;
   min-width: 0;
   position: relative;
   overflow: hidden;
@@ -244,12 +242,9 @@ textarea { min-height: 94px; resize: vertical; }
   content: "";
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(rgba(255,255,255,.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.055) 1px, transparent 1px);
-  background-size: 54px 54px;
-  mask-image: linear-gradient(135deg, transparent, #000 18%, #000 68%, transparent);
-  opacity: .65;
+  background-image: none;
+  background-color: rgba(255,255,255,.03);
+  opacity: .5;
 }
 .login-visual::after {
   content: "";
@@ -392,15 +387,12 @@ textarea { min-height: 94px; resize: vertical; }
   height: 1px;
   flex: 1;
   min-width: 24px;
-  background: linear-gradient(90deg, rgba(167,239,246,.2), rgba(167,239,246,.8));
+  background: #7dd3e8;
 }
 
 .app-shell {
   @apply flex min-h-screen bg-finance-canvas text-finance-ink;
-  background:
-    radial-gradient(circle at top left, rgba(165,124,80,.07), transparent 330px),
-    linear-gradient(180deg, rgba(30,43,77,.03), rgba(248,250,252,0) 260px),
-    #f8fafc;
+  background: #f8fafc;
 }
 .sidebar {
   @apply sticky top-0 h-screen overflow-y-auto border-r border-slate-200 bg-white px-3.5 py-4 shadow-[8px_0_26px_rgba(15,23,42,.045)] backdrop-blur-xl;
@@ -449,7 +441,7 @@ details button:hover, details button.active, summary:hover {
 }
 details button.active {
   font-weight: 850;
-  background: linear-gradient(90deg, rgba(165,124,80,.15), rgba(250,246,240,.9));
+  background: #faf6f0;
   box-shadow: inset 4px 0 0 #a57c50;
 }
 .sidebar-collapsed .sidebar {
@@ -968,7 +960,7 @@ th { color: #607080; font-size: 12px; text-transform: uppercase; }
   align-items: center;
   gap: 14px;
   color: #ffffff;
-  background: linear-gradient(90deg, #a57c50 0%, #1e2b4d 100%);
+  background: #1e2b4d;
   border-radius: 8px 8px 0 0;
   box-shadow: 0 12px 26px rgba(15, 23, 42, .08);
 }
@@ -1221,9 +1213,7 @@ th { color: #607080; font-size: 12px; text-transform: uppercase; }
   .login-page {
     grid-template-columns: 1fr;
     min-height: 100dvh;
-    background:
-      linear-gradient(180deg, rgba(30,43,77,.08), rgba(248,250,252,1) 260px),
-      #f8fafc;
+    background: #f8fafc;
   }
   .login-panel {
     width: min(100%, 520px);

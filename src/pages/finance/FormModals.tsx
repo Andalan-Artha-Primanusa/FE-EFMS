@@ -1236,7 +1236,7 @@ export function FormModals({ c }: { c: any }) {
               {/* ================= DEDICATED MODAL INPUT PENDING VOLUME ================= */}
               {modalType === "pending_volume" && (
                 <div className="space-y-4 text-xs">
-                  <div className="p-4 bg-gradient-to-r from-indigo-50 via-white to-purple-50 border border-indigo-200 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-2xs">
+                  <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-2xs">
                     <div>
                       <h4 className="text-xs font-black uppercase text-indigo-950 tracking-wider flex items-center gap-2">
                         <Scale size={16} className="text-indigo-700" /> Pencatatan Pending Volume (Over Kontrak / Stripping Ratio)

@@ -3,14 +3,14 @@ import { Outlet, useLocation, useNavigate, useParams, useOutlet } from "react-ro
 import { Bell, ChevronDown, LogOut, Menu, Search, UserCog, X } from "lucide-react";
 import { NotificationPanel } from "../components/NotificationPanel";
 import { ErrorBoundary } from "../components/ErrorBoundary";
-import { ACCOUNT_SETTINGS_VIEW, menu, menuPermissionMap, titleFromSlug, viewMap, viewPath } from "../data/navigation";
-import { api, type AuditLog, type Dashboard, type Permission, type RoleAccess, type Transaction, type User } from "../lib/api";
+import { ACCOUNT_SETTINGS_VIEW, menu, menuCodeFor, menuPermissionModuleFor, titleFromSlug, viewMap, viewPath } from "../data/navigation";
+import { api, type AuditLog, type Dashboard, type Permission, type RoleAccess, type TCode, type Transaction, type User } from "../lib/api";
 import { AccountSettingsPage } from "../pages/AccountSettingsPage";
 import { DashboardPage } from "../pages/DashboardPage";
 
 import { ModulePage } from "../pages/ModulePage";
 import { RBACPage } from "../pages/RBACPage";
-import { canAccessMenu, isSuperAdminRole } from "../lib/auth";
+import { authorized, canAccessMenu, canViewAuditTrail, filterRowsByCompanyScope, scopedEndpoint } from "../lib/auth";
 import { routes } from "../router/routes";
 
 import { VariableSOWPage } from "../pages/VariableSOWPage";
@@ -18,6 +18,8 @@ import { VariableSOWFormPage } from "../pages/VariableSOWFormPage";
 import { MasterRaiseFallPage } from "../pages/MasterRaiseFallPage";
 import { CoalIndexPage } from "../pages/CoalIndexPage";
 import { GeneralJournalPage } from "../pages/GeneralJournalPage";
+import { NotFoundPage } from "../pages/NotFoundPage";
+import { PermissionDeniedPage } from "../pages/PermissionDeniedPage";
 
 export function AppShell({ user, onLogout }: { user: User; onLogout: () => void }) {
   const params = useParams();
@@ -26,13 +28,15 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   const outlet = useOutlet();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const requestedSlug = params.slug || params["*"]?.split("/")[0];
+  const resolvedView = titleFromSlug(requestedSlug);
   const activeView = location.pathname.startsWith("/transaction/") 
     ? "Transaction Form"
     : location.pathname.startsWith("/variable-sow/new") || location.pathname.startsWith("/variable-sow/edit")
     ? "Variable SOW Form"
     : location.pathname === "/account-settings"
     ? ACCOUNT_SETTINGS_VIEW
-    : titleFromSlug(params.slug || params["*"]?.split('/')[0]) ?? "Finance Dashboard";
+    : resolvedView ?? "Finance Dashboard";
   const [viewRows, setViewRows] = useState<any[]>([]);
   const [viewLoading, setViewLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -40,6 +44,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   const [query, setQuery] = useState("");
   const [notifications, setNotifications] = useState<AuditLog[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [tcodes, setTcodes] = useState<TCode[]>([]);
   const [roles, setRoles] = useState<RoleAccess[]>([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notice, setNotice] = useState("");
@@ -47,11 +52,11 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   async function refresh() {
     try {
       const [dash, trx] = await Promise.all([
-        api<Dashboard>("/api/dashboard").catch(() => null),
-        api<Transaction[]>("/api/transactions").catch(() => [])
+        api<Dashboard>(scopedEndpoint("/api/dashboard", user)).catch(() => null),
+        api<Transaction[]>(scopedEndpoint("/api/transactions", user)).catch(() => [])
       ]);
-      if (dash) setDashboard(dash);
-      if (Array.isArray(trx)) setTransactions(trx);
+      setDashboard(dash ?? null);
+      setTransactions(Array.isArray(trx) ? filterRowsByCompanyScope(trx, user) : []);
     } catch {
       // Graceful fallback
     }
@@ -59,8 +64,12 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
 
   async function refreshNotifications() {
     try {
+      if (!canViewAuditTrail({ ...user, permissions, tcodes })) {
+        setNotifications([]);
+        return;
+      }
       const items = await api<AuditLog[]>("/api/audit-logs").catch(() => []);
-      setNotifications(Array.isArray(items) ? items : []);
+      setNotifications(Array.isArray(items) ? filterRowsByCompanyScope(items, user) : []);
     } catch {
       setNotifications([]);
     }
@@ -68,14 +77,20 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
 
   async function refreshAccess() {
     try {
-      const [myPermissions, roleAccess] = await Promise.all([
-        api<Permission[]>("/api/permissions/my").catch(() => []),
-        isSuperAdminRole(user.role) ? api<RoleAccess[]>("/api/roles").catch(() => []) : Promise.resolve([])
-      ]);
-      setPermissions(Array.isArray(myPermissions) ? myPermissions : []);
-      setRoles(Array.isArray(roleAccess) ? roleAccess : []);
+      const myPermResult = await api<{ permissions: Permission[]; tcodes: TCode[] }>("/api/permissions/my").catch(() => null);
+      const myPerms = Array.isArray(myPermResult?.permissions) ? myPermResult!.permissions : [];
+      const myTcodes = Array.isArray(myPermResult?.tcodes) ? myPermResult!.tcodes : [];
+      setPermissions(myPerms);
+      setTcodes(myTcodes);
+      if (authorized({ ...user, permissions: myPerms, tcodes: myTcodes }, "user_management", "manage")) {
+        const roleAccess = await api<RoleAccess[]>("/api/roles").catch(() => []);
+        setRoles(Array.isArray(roleAccess) ? roleAccess : []);
+      } else {
+        setRoles([]);
+      }
     } catch {
       setPermissions([]);
+      setTcodes([]);
       setRoles([]);
     }
   }
@@ -88,11 +103,11 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
     }
     setViewLoading(true);
     try {
-      const data = await api<any>(config.endpoint);
+      const data = await api<any>(scopedEndpoint(config.endpoint, user));
       const rows = Array.isArray(data)
         ? data
         : data?.reports ?? data?.kpis ?? data?.indicators ?? Object.entries(data ?? {}).map(([key, value]) => ({ metric: key, value }));
-      setViewRows(Array.isArray(rows) ? rows : []);
+      setViewRows(Array.isArray(rows) ? filterRowsByCompanyScope(rows, user) : []);
     } catch {
       setViewRows([]);
     } finally {
@@ -124,11 +139,17 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
     await Promise.all([refresh(), loadView(activeView), refreshNotifications()]);
   }
 
-  const activeConfig = activeView === "Account Settings" || activeView === "RBAC Management" || activeView === "Role and Permission" ? { title: activeView, endpoint: "" } : viewMap[activeView] ?? viewMap["Finance Dashboard"];
+  const activeConfig = {
+    ...(viewMap[activeView] ?? viewMap["Finance Dashboard"]),
+    menuCode: menuCodeFor(activeView),
+    menuPermissionModule: menuPermissionModuleFor(activeView)
+  };
   const visibleMenu = menu.map((group) => ({
     ...group,
-    items: group.items.filter((item) => canAccessMenu(item, user.role, permissions))
+    items: group.items.filter((item) => canAccessMenu(item, user.role, permissions, tcodes))
   })).filter((group) => group.items.length > 0);
+  const isUnknownModuleRoute = !outlet && Boolean(requestedSlug) && !resolvedView;
+  const cannotAccessModuleRoute = !outlet && !isUnknownModuleRoute && activeView in viewMap && !canAccessMenu(activeView, user.role, permissions, tcodes);
 
   return (
     <div className={`app-shell bg-finance-canvas text-finance-ink ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
@@ -149,12 +170,13 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
         </nav>
       </aside>
       <main className="workspace">
-        <header className="topbar sticky top-0 z-20">
+        <header className="sticky top-0 z-20 topbar">
           <button className="icon-btn mobile-only" onClick={() => setSidebarOpen(!sidebarOpen)}><Menu size={20} /></button>
           <button className="icon-btn desktop-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? "Buka sidebar" : "Tutup sidebar"}><Menu size={20} /></button>
           <div>
             <p className="eyebrow">Finance Command Center</p>
             <h2>{activeConfig.title}</h2>
+            <small className="header-meta">{activeConfig.menuCode}</small>
           </div>
           <div className="top-actions">
             <div className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari transaksi, vendor, akun..." /></div>
@@ -170,10 +192,14 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
 
         <ErrorBoundary key={location.pathname} fallbackTitle={`Gagal memuat modul "${activeView}"`}>
           <Outlet context={{ 
-            user, permissions, roles, notice, setNotice, 
-            dashboard, transactions, query, refresh 
+            user: { ...user, permissions, tcodes }, permissions, tcodes, roles, notice, setNotice, 
+            dashboard, transactions, query, refresh, notifications
           }} />
-          {outlet ? null : activeView === "Variable SOW Form"
+          {outlet ? null : isUnknownModuleRoute
+            ? <NotFoundPage />
+            : cannotAccessModuleRoute
+            ? <PermissionDeniedPage requiredView={activeView} />
+            : activeView === "Variable SOW Form"
             ? <VariableSOWFormPage />
             : activeView === "Variable SOW"
             ? <VariableSOWPage viewTitle={activeView} query={query} onNotice={setNotice} />
@@ -182,6 +208,8 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
                 rows={viewRows}
                 loading={viewLoading}
                 query={query}
+                user={user}
+                permissions={permissions}
                 onCreateTransaction={() => navigate(routes.transaction.new)}
                 onEditTransaction={(transaction) => navigate(routes.transaction.edit(transaction.id), { state: { transaction } })}
                 onNotice={setNotice}
@@ -201,11 +229,11 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
           </div>
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={(event) => {
+              event.stopPropagation();
               setNotice("");
             }}
-            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition"
+            className="p-1 transition rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white"
           >
             <X size={16} />
           </button>

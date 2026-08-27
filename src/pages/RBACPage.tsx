@@ -21,7 +21,8 @@ import {
   Check,
   Building,
   Briefcase,
-  Plus
+  Plus,
+  Hash
 } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import {
@@ -34,10 +35,16 @@ import {
   updateRolePermissions,
   deleteRole as deleteRoleApi,
   resetUserPassword,
+  getTCodes,
+  createTCode,
+  updateTCode,
+  deleteTCode,
   type Permission,
   type RoleAccess,
+  type TCode,
   type User as UserType
 } from "../lib/api";
+import { authorized, defaultCompanyOptions, companyOptionsForUser, isHeadOfficeUser, roleScopeOf, rolesAssignableBy, userScopeType } from "../lib/auth";
 
 export function isSuperAdminRole(role: string | undefined | null): boolean {
   const r = (role ?? "").trim().toLowerCase();
@@ -70,13 +77,15 @@ const roleColors: Record<string, { bg: string; text: string; border: string }> =
 export function RBACPage({
   user,
   roles,
-  myPermissions
+  myPermissions,
+  myTcodes
 }: {
   user: UserType;
   roles: RoleAccess[];
   myPermissions: Permission[];
+  myTcodes?: TCode[];
 }) {
-  const [activeTab, setActiveTab] = useState<"users" | "matrix" | "simulate">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "matrix" | "simulate" | "tcodes">("users");
   const [userList, setUserList] = useState<UserType[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -92,7 +101,10 @@ export function RBACPage({
     email: "",
     password: "",
     role: "Admin Finance Site",
-    status: "active"
+    status: "active",
+    companyCode: "AAP",
+    companyName: "PT Andalan Artha Primanusa",
+    companyScope: ["AAP"] as string[] | "ALL"
   });
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -117,6 +129,91 @@ export function RBACPage({
   const [resetTarget, setResetTarget] = useState<UserType | null>(null);
   const [resetPasswordValue, setResetPasswordValue] = useState("");
   const [resetResult, setResetResult] = useState<{ generated: boolean; password: string } | null>(null);
+
+  // T-Code management
+  const [tcodesList, setTcodesList] = useState<TCode[]>([]);
+  const [loadingTcodes, setLoadingTcodes] = useState(false);
+  const [tcodeModalOpen, setTcodeModalOpen] = useState(false);
+  const [tcodeModalMode, setTcodeModalMode] = useState<"create" | "edit">("create");
+  const [tcodeForm, setTcodeForm] = useState({ code: "", description: "", route: "", module: "", action: "read" });
+  const [tcodeTarget, setTcodeTarget] = useState<TCode | null>(null);
+  const [deleteTcodeTarget, setDeleteTcodeTarget] = useState<TCode | null>(null);
+
+  // Role T-code assignment
+  const [roleTcodeModalOpen, setRoleTcodeModalOpen] = useState(false);
+  const [roleTcodeTarget, setRoleTcodeTarget] = useState<RoleAccess | null>(null);
+  const [selectedTcodes, setSelectedTcodes] = useState<string[]>([]);
+
+  const loadTcodes = async () => {
+    setLoadingTcodes(true);
+    try {
+      const data = await getTCodes();
+      setTcodesList(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      setFeedback({ type: "error", message: err?.message || "Gagal memuat T-Codes" });
+    } finally {
+      setLoadingTcodes(false);
+    }
+  };
+
+  const handleCreateTCode = async () => {
+    try {
+      await createTCode(tcodeForm);
+      setTcodeModalOpen(false);
+      setTcodeForm({ code: "", description: "", route: "", module: "", action: "read" });
+      await loadTcodes();
+      setFeedback({ type: "success", message: "T-Code berhasil dibuat" });
+    } catch (err: any) {
+      setFeedback({ type: "error", message: err?.message || "Gagal membuat T-Code" });
+    }
+  };
+
+  const handleUpdateTCode = async () => {
+    if (!tcodeTarget) return;
+    try {
+      await updateTCode(tcodeTarget.id, tcodeForm);
+      setTcodeModalOpen(false);
+      setTcodeTarget(null);
+      setTcodeForm({ code: "", description: "", route: "", module: "", action: "read" });
+      await loadTcodes();
+      setFeedback({ type: "success", message: "T-Code berhasil diupdate" });
+    } catch (err: any) {
+      setFeedback({ type: "error", message: err?.message || "Gagal update T-Code" });
+    }
+  };
+
+  const handleDeleteTCode = async () => {
+    if (!deleteTcodeTarget) return;
+    try {
+      await deleteTCode(deleteTcodeTarget.id);
+      setDeleteTcodeTarget(null);
+      await loadTcodes();
+      setFeedback({ type: "success", message: "T-Code berhasil dihapus" });
+    } catch (err: any) {
+      setFeedback({ type: "error", message: err?.message || "Gagal hapus T-Code" });
+    }
+  };
+
+  const openRoleTcodeModal = (access: RoleAccess) => {
+    setRoleTcodeTarget(access);
+    setSelectedTcodes(access.tcodes?.map((tc) => tc.code) ?? []);
+    setRoleTcodeModalOpen(true);
+  };
+
+  const handleSaveRoleTcodes = async () => {
+    if (!roleTcodeTarget) return;
+    try {
+      const existingPermissions = roleTcodeTarget.permissions.map((p) => `${p.module}:${p.action}`);
+      await updateRolePermissions(roleTcodeTarget.role, existingPermissions, selectedTcodes);
+      const updatedRoles = await getRoles();
+      setRoleList(Array.isArray(updatedRoles) ? updatedRoles : []);
+      setRoleTcodeModalOpen(false);
+      setRoleTcodeTarget(null);
+      setFeedback({ type: "success", message: "T-Code assignment berhasil disimpan" });
+    } catch (err: any) {
+      setFeedback({ type: "error", message: err?.message || "Gagal menyimpan T-Code assignment" });
+    }
+  };
 
   const modules = Array.from(new Set(roleList.flatMap((role) => role.permissions.map((permission) => permission.module)))).sort();
   const actions = Array.from(new Set(roleList.flatMap((role) => role.permissions.map((permission) => permission.action)))).sort();
@@ -162,40 +259,28 @@ export function RBACPage({
     });
   }, [userList, searchQuery, roleFilter, statusFilter]);
 
+  const scopedCompanies = useMemo(() => companyOptionsForUser(user), [user]);
+  // Assignable roles come from backend RoleAccess metadata (role.scopeType / isSystem),
+  // NOT from hardcoded role arrays. GLOBAL -> all; HO -> HO+SITE; SITE -> SITE only.
   const allAvailableRoles = useMemo(() => {
-    const fromRoles = roleList.map((r) => r.role);
-    const defaults = [
-      "Super Admin",
-      "Director",
-      "Finance Manager",
-      "FATB Manager",
-      "SPV Verificator",
-      "Finance Specialist",
-      "Admin Finance Site",
-      "Admin Finance HO",
-      "Treasury",
-      "Account Receivable Officer",
-      "Account Payable Officer",
-      "Accounting",
-      "Budget Controller",
-      "Tax Officer",
-      "Department User",
-      "Department Head",
-      "General Manager",
-      "Auditor"
-    ];
-    return Array.from(new Set([...fromRoles, ...defaults])).sort();
-  }, [roleList]);
+    if (!roleList.length) return [] as string[];
+    const assigned = rolesAssignableBy(user, roleList);
+    return Array.from(new Set(assigned)).sort();
+  }, [roleList, user]);
 
   const openCreateModal = () => {
     setModalMode("create");
     setSelectedUser(null);
+    const defaultCompany = scopedCompanies[0] ?? defaultCompanyOptions[0];
     setFormData({
       name: "",
       email: "",
       password: "",
-      role: "Admin Finance Site",
-      status: "active"
+      role: allAvailableRoles[0] ?? "Admin Finance Site",
+      status: "active",
+      companyCode: defaultCompany.code,
+      companyName: defaultCompany.name,
+      companyScope: defaultCompany.code === "HO" ? "ALL" : [defaultCompany.code]
     });
     setModalOpen(true);
   };
@@ -208,7 +293,10 @@ export function RBACPage({
       email: target.email,
       password: "",
       role: target.role,
-      status: target.status || "active"
+      status: target.status || "active",
+      companyCode: target.companyCode ?? "AAP",
+      companyName: target.companyName ?? "PT Andalan Artha Primanusa",
+      companyScope: target.companyScope ?? (target.companyCode ? [target.companyCode] : ["AAP"])
     });
     setModalOpen(true);
   };
@@ -222,11 +310,17 @@ export function RBACPage({
 
     setSubmitting(true);
     try {
+      const selectedCompany = defaultCompanyOptions.find((company) => company.code === formData.companyCode);
+      const payload = {
+        ...formData,
+        companyName: selectedCompany?.name ?? formData.companyName,
+        companyScope: formData.companyCode === "HO" ? "ALL" as const : [formData.companyCode]
+      };
       if (modalMode === "create") {
-        await createUser(formData);
+        await createUser(payload);
         setFeedback({ type: "success", message: `User '${formData.name}' berhasil ditambahkan dengan role '${formData.role}'!` });
       } else if (selectedUser) {
-        await updateUser(selectedUser.id, formData);
+        await updateUser(selectedUser.id, payload);
         setFeedback({ type: "success", message: `Data user '${formData.name}' dan hak akses role berhasil diperbarui!` });
       }
       setModalOpen(false);
@@ -366,10 +460,10 @@ export function RBACPage({
     return roleList.find((r) => r.role === simulatedRole) || { role: simulatedRole, permissions: [], scopes: ["company", "site"] };
   }, [roleList, simulatedRole]);
 
-  if (!isSuperAdminRole(user.role)) {
+  if (!authorized(user, "user_management", "manage")) {
     return (
       <section className="p-6 max-w-3xl mx-auto space-y-4">
-        <PageHeader title="Access Denied" description="Menu User & RBAC Management hanya tersedia untuk Super Admin." />
+        <PageHeader title="Access Denied" description="Menu User & RBAC Management hanya tersedia untuk kredensial dengan izin user_management:manage." />
         <div className="p-4 rounded-xl bg-rose-50 text-rose-900 border border-rose-200 flex items-center gap-2.5 text-sm font-semibold">
           <Lock size={18} className="text-rose-600" />
           Role Anda saat ini: <strong>{user.role || "unknown"}</strong>. Hubungi Super Admin untuk meminta akses.
@@ -485,6 +579,18 @@ export function RBACPage({
         >
           <Sparkles size={17} /> Simulasi Hak Akses Role
         </button>
+        {userScopeType(user) === "GLOBAL" && (
+          <button
+            onClick={() => { setActiveTab("tcodes"); if (tcodesList.length === 0) loadTcodes(); }}
+            className={`pb-3 px-4 text-sm font-bold border-b-2 flex items-center gap-2 transition ${
+              activeTab === "tcodes"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Hash size={17} /> T-Codes ({tcodesList.length})
+          </button>
+        )}
       </div>
 
       {/* TAB 1: USER MANAGEMENT */}
@@ -556,6 +662,7 @@ export function RBACPage({
                   <tr>
                     <th className="py-3.5 px-4">Pengguna</th>
                     <th className="py-3.5 px-4">Role Akses</th>
+                    <th className="py-3.5 px-4">Company</th>
                     <th className="py-3.5 px-4">Status</th>
                     <th className="py-3.5 px-4">Login Terakhir</th>
                     <th className="py-3.5 px-4 text-right">Aksi</th>
@@ -564,7 +671,7 @@ export function RBACPage({
                 <tbody className="divide-y divide-slate-100 font-medium">
                   {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-slate-400">
+                      <td colSpan={6} className="py-8 text-center text-slate-400">
                         Tidak ada data pengguna yang sesuai dengan filter.
                       </td>
                     </tr>
@@ -597,6 +704,9 @@ export function RBACPage({
                               <Shield size={12} className={color.text} />
                               {u.role}
                             </span>
+                          </td>
+                          <td className="py-3 px-4 text-xs text-slate-600 font-bold">
+                            {isHeadOfficeUser(u) ? "ALL Company (HO)" : `${u.companyCode ?? "-"}${u.companyName ? ` - ${u.companyName}` : ""}`}
                           </td>
                           <td className="py-3 px-4">
                             {u.status === "active" ? (
@@ -687,7 +797,7 @@ export function RBACPage({
                 bg: "bg-slate-100 text-slate-900 border-slate-200",
                 text: "text-slate-700"
               };
-              const locked = isSuperAdminRole(role.role);
+              const locked = role.isSystem || roleScopeOf(role) === "GLOBAL";
               return (
                 <article key={role.role} className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs flex flex-col justify-between">
                   <div>
@@ -951,6 +1061,95 @@ export function RBACPage({
         </section>
       )}
 
+      {/* TAB 4: T-CODE MANAGEMENT */}
+      {activeTab === "tcodes" && userScopeType(user) === "GLOBAL" && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-slate-900 flex items-center gap-2">
+              <Hash size={20} className="text-purple-600" /> Transaction Codes (T-Codes)
+            </h3>
+            <button
+              onClick={() => { setTcodeModalMode("create"); setTcodeForm({ code: "", description: "", route: "", module: "", action: "read" }); setTcodeModalOpen(true); }}
+              className="px-4 py-2 bg-purple-600 text-white rounded-xl text-sm font-bold hover:bg-purple-700 flex items-center gap-2"
+            >
+              <Plus size={16} /> Tambah T-Code
+            </button>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="px-4 py-3 text-left font-bold text-slate-700">Code</th>
+                  <th className="px-4 py-3 text-left font-bold text-slate-700">Description</th>
+                  <th className="px-4 py-3 text-left font-bold text-slate-700">Route</th>
+                  <th className="px-4 py-3 text-left font-bold text-slate-700">Module</th>
+                  <th className="px-4 py-3 text-left font-bold text-slate-700">Action</th>
+                  <th className="px-4 py-3 text-center font-bold text-slate-700">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingTcodes ? (
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">Memuat T-Codes...</td></tr>
+                ) : tcodesList.length === 0 ? (
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">Belum ada T-Code</td></tr>
+                ) : tcodesList.map((tc) => (
+                  <tr key={tc.id} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="px-4 py-2 font-mono text-xs font-bold text-purple-700">{tc.code}</td>
+                    <td className="px-4 py-2 font-medium">{tc.description}</td>
+                    <td className="px-4 py-2 font-mono text-xs text-slate-500">{tc.route}</td>
+                    <td className="px-4 py-2 text-xs">
+                      <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">{tc.module}</span>
+                    </td>
+                    <td className="px-4 py-2 text-xs">
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-bold">{tc.action}</span>
+                    </td>
+                    <td className="px-4 py-2 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <button onClick={() => { setTcodeModalMode("edit"); setTcodeTarget(tc); setTcodeForm({ code: tc.code, description: tc.description, route: tc.route, module: tc.module, action: tc.action }); setTcodeModalOpen(true); }} className="p-1.5 hover:bg-blue-100 rounded-lg text-blue-600" title="Edit">
+                          <Edit2 size={14} />
+                        </button>
+                        <button onClick={() => setDeleteTcodeTarget(tc)} className="p-1.5 hover:bg-rose-100 rounded-lg text-rose-600" title="Hapus">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Role T-Code Assignment */}
+          <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+            <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
+              <ShieldCheck size={16} className="text-blue-600" /> Assignment T-Code per Role
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {roleList.filter((r) => !r.isSystem && roleScopeOf(r) !== "GLOBAL").map((access) => (
+                <div key={access.role} className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-100/50 transition">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-bold text-sm text-slate-900">{access.role}</span>
+                    <span className="text-xs text-slate-500">{access.tcodes?.length ?? 0} T-Codes</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {(access.tcodes ?? []).slice(0, 5).map((tc) => (
+                      <span key={tc.code} className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-purple-100 text-purple-700">{tc.code}</span>
+                    ))}
+                    {(access.tcodes?.length ?? 0) > 5 && (
+                      <span className="text-[10px] text-slate-400">+{(access.tcodes?.length ?? 0) - 5} lagi</span>
+                    )}
+                  </div>
+                  <button onClick={() => openRoleTcodeModal(access)} className="w-full px-3 py-1.5 text-xs font-bold bg-white border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition">
+                    Kelola T-Codes
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* MODAL: TAMBAH / EDIT USER */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
@@ -1037,6 +1236,32 @@ export function RBACPage({
                     <option value="locked">Locked (Terkunci)</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Company Scope *</label>
+                <select
+                  value={formData.companyCode}
+                  onChange={(e) => {
+                    const selectedCompany = scopedCompanies.find((company) => company.code === e.target.value);
+                    setFormData({
+                      ...formData,
+                      companyCode: e.target.value,
+                      companyName: selectedCompany?.name ?? "",
+                      companyScope: e.target.value === "HO" ? "ALL" : [e.target.value]
+                    });
+                  }}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-bold text-xs"
+                >
+                  {scopedCompanies.map((company) => (
+                    <option key={company.code} value={company.code}>
+                      {company.code === "HO" ? "HO - All Company" : `${company.code} - ${company.name}`}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-slate-500 font-medium">
+                  User HO dapat melihat semua company. User company tertentu hanya dapat membuka dan mengubah data company tersebut.
+                </p>
               </div>
 
               {/* Dynamic Permissions Preview Box */}
@@ -1261,6 +1486,154 @@ export function RBACPage({
                 {submitting ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
                 Ya, Hapus Role
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CREATE / EDIT T-CODE */}
+      {tcodeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                <Hash size={20} className="text-purple-600" />
+                {tcodeModalMode === "create" ? "Tambah T-Code Baru" : "Edit T-Code"}
+              </h3>
+              <button onClick={() => { setTcodeModalOpen(false); setTcodeTarget(null); }} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Code *</label>
+                <input type="text" required value={tcodeForm.code} onChange={(e) => setTcodeForm({ ...tcodeForm, code: e.target.value.toUpperCase() })} placeholder="Contoh: MD_CUSTOMER" className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs focus:outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Description *</label>
+                <input type="text" required value={tcodeForm.description} onChange={(e) => setTcodeForm({ ...tcodeForm, description: e.target.value })} placeholder="Contoh: Customer Master & Credit Terms" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Route *</label>
+                <input type="text" required value={tcodeForm.route} onChange={(e) => setTcodeForm({ ...tcodeForm, route: e.target.value })} placeholder="Contoh: /customer-master-credit-terms" className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs focus:outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Module *</label>
+                  <input type="text" required value={tcodeForm.module} onChange={(e) => setTcodeForm({ ...tcodeForm, module: e.target.value })} placeholder="Contoh: master_data" className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs focus:outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Action *</label>
+                  <select value={tcodeForm.action} onChange={(e) => setTcodeForm({ ...tcodeForm, action: e.target.value })} className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-xs font-bold focus:outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500">
+                    <option value="read">read</option>
+                    <option value="write">write</option>
+                    <option value="approve">approve</option>
+                    <option value="post">post</option>
+                    <option value="run">run</option>
+                    <option value="close">close</option>
+                    <option value="submit">submit</option>
+                    <option value="review">review</option>
+                    <option value="manage">manage</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button onClick={() => { setTcodeModalOpen(false); setTcodeTarget(null); }} className="px-4 py-2 border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-700 transition">Batal</button>
+              <button onClick={tcodeModalMode === "create" ? handleCreateTCode : handleUpdateTCode} className="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-sm transition">
+                {tcodeModalMode === "create" ? "Buat T-Code" : "Simpan Perubahan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: DELETE T-CODE CONFIRM */}
+      {deleteTcodeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto"><Trash2 size={24} /></div>
+            <div className="space-y-1">
+              <h3 className="font-bold text-slate-900 text-lg">Hapus T-Code?</h3>
+              <p className="text-xs text-slate-500">T-Code <strong className="font-mono text-rose-600">{deleteTcodeTarget.code}</strong> ({deleteTcodeTarget.description}) akan dihapus permanen.</p>
+            </div>
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button onClick={() => setDeleteTcodeTarget(null)} className="px-4 py-2 border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-700 transition">Batal</button>
+              <button onClick={handleDeleteTCode} className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-sm transition">Hapus</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ROLE T-CODE ASSIGNMENT */}
+      {roleTcodeModalOpen && roleTcodeTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                <ShieldCheck size={20} className="text-blue-600" />
+                T-Codes untuk Role: <span className="text-blue-600">{roleTcodeTarget.role}</span>
+              </h3>
+              <button onClick={() => { setRoleTcodeModalOpen(false); setRoleTcodeTarget(null); }} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">Pilih T-Codes yang ingin diassign ke role ini. User dengan role ini akan mendapat akses ke menu/route sesuai T-Codes yang dipilih.</p>
+            <div className="space-y-2">
+              {["Governance", "Master Data", "Budget", "Transaction Request", "Finance", "Operational", "Accounting", "Reconciliation", "Period End", "Reports", "Dashboard"].map((group) => {
+                const groupTcodes = tcodesList.filter((tc) => {
+                  if (group === "Governance") return tc.code.startsWith("GOV_");
+                  if (group === "Master Data") return tc.code.startsWith("MD_");
+                  if (group === "Budget") return tc.code.startsWith("BGT_");
+                  if (group === "Transaction Request") return tc.code.startsWith("TRX_");
+                  if (group === "Finance") return tc.code.startsWith("FIN_");
+                  if (group === "Operational") return tc.code.startsWith("OPS_");
+                  if (group === "Accounting") return tc.code.startsWith("ACCT_");
+                  if (group === "Reconciliation") return tc.code.startsWith("RECON_");
+                  if (group === "Period End") return tc.code.startsWith("PE_");
+                  if (group === "Reports") return tc.code.startsWith("RPT_");
+                  if (group === "Dashboard") return tc.code.startsWith("DASH_");
+                  return false;
+                });
+                if (groupTcodes.length === 0) return null;
+                const allSelected = groupTcodes.every((tc) => selectedTcodes.includes(tc.code));
+                return (
+                  <div key={group} className="p-3 rounded-xl border border-slate-200 bg-slate-50/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <input type="checkbox" checked={allSelected} onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedTcodes((prev) => [...new Set([...prev, ...groupTcodes.map((tc) => tc.code)])]);
+                        } else {
+                          setSelectedTcodes((prev) => prev.filter((code) => !groupTcodes.some((tc) => tc.code === code)));
+                        }
+                      }} className="rounded" />
+                      <span className="font-bold text-xs text-slate-900">{group}</span>
+                      <span className="text-[10px] text-slate-400">({groupTcodes.filter((tc) => selectedTcodes.includes(tc.code)).length}/{groupTcodes.length})</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 ml-6">
+                      {groupTcodes.map((tc) => (
+                        <label key={tc.code} className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-mono cursor-pointer transition ${selectedTcodes.includes(tc.code) ? "bg-purple-100 border-purple-300 text-purple-800" : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"}`}>
+                          <input type="checkbox" checked={selectedTcodes.includes(tc.code)} onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedTcodes((prev) => [...prev, tc.code]);
+                            } else {
+                              setSelectedTcodes((prev) => prev.filter((code) => code !== tc.code));
+                            }
+                          }} className="hidden" />
+                          {tc.code}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+              <span className="text-xs text-slate-500">{selectedTcodes.length} T-Codes dipilih</span>
+              <div className="flex items-center gap-2">
+                <button onClick={() => { setRoleTcodeModalOpen(false); setRoleTcodeTarget(null); }} className="px-4 py-2 border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-700 transition">Batal</button>
+                <button onClick={handleSaveRoleTcodes} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition">Simpan Assignment</button>
+              </div>
             </div>
           </div>
         </div>

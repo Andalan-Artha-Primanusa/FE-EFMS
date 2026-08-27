@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, { lazy, Suspense, useState, useEffect, useMemo, useCallback, useRef } from "react";
 import * as XLSX from "xlsx";
+import "@fortune-sheet/react/dist/index.css";
+import type { Sheet as FortuneSheet } from "@fortune-sheet/core";
 import { 
   FileSpreadsheet, 
   Plus, 
@@ -36,6 +38,8 @@ import {
 } from "../lib/api";
 import { useCollaboration } from "../lib/useCollaboration";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+
+const FortuneWorkbook = lazy(() => import("@fortune-sheet/react").then(({ Workbook }) => ({ default: Workbook })));
 
 const formatIDR = (val: number) => {
   if (!val && val !== 0) return "Rp 0";
@@ -460,6 +464,70 @@ export function GeneralJournalPage({
   const totalCredit = useMemo(() => displayedRows.reduce((acc, r) => acc + r.credit, 0), [displayedRows]);
   const balanceDiff = totalDebit - totalCredit;
   const isGlobalBalanced = Math.abs(balanceDiff) < 1;
+  const fortuneSheetData = useMemo<FortuneSheet[]>(() => {
+    const headers = [
+      "No. Jurnal",
+      "Tanggal",
+      "Bulan",
+      "No. Bukti",
+      "Project",
+      "Uraian",
+      "Kode Akun",
+      "Nama Akun",
+      "Kode Bantu",
+      "Debet",
+      "Kredit",
+      "Status"
+    ];
+    const rows = displayedRows.slice(0, 500).map((row) => [
+      row.journalNumber,
+      row.journalDate,
+      row.monthIndex,
+      row.sourceReference,
+      row.projectCode,
+      row.description,
+      row.accountCode,
+      row.accountName,
+      row.subAccountCode,
+      row.debit,
+      row.credit,
+      row.status
+    ]);
+    const data = [headers, ...rows].map((row, rowIndex) =>
+      row.map((value) => ({
+        v: value ?? "",
+        m: value == null ? "" : String(value),
+        bl: rowIndex === 0 ? 1 : 0,
+        bg: rowIndex === 0 ? "#f3f4f6" : undefined,
+        fc: rowIndex === 0 ? "#334155" : undefined
+      }))
+    );
+
+    return [{
+      id: "journal-posting-review",
+      name: "Journal Posting",
+      data,
+      row: Math.max(data.length, 30),
+      column: headers.length,
+      config: {
+        rowlen: { 0: 28 },
+        columnlen: {
+          0: 130,
+          1: 110,
+          2: 70,
+          3: 150,
+          4: 90,
+          5: 260,
+          6: 120,
+          7: 220,
+          8: 120,
+          9: 130,
+          10: 130,
+          11: 120
+        }
+      }
+    }];
+  }, [displayedRows]);
 
   // Real-Time Collaboration Remote Event Handlers
   const handleRemoteCellEdit = useCallback((lineId: number, field: string, value: any, actor: string) => {
@@ -917,7 +985,23 @@ export function GeneralJournalPage({
               </div>
             </div>
 
-            {/* Direct In-Cell Editable Table (100% Reliable & Native Excel Experience) */}
+            {viewTitle === "Journal Posting" ? (
+              <div className="flex-1 min-h-0 bg-white">
+                <Suspense fallback={<div className="grid h-full place-items-center text-sm font-bold text-slate-500">Memuat spreadsheet posting...</div>}>
+                  <FortuneWorkbook
+                    data={fortuneSheetData}
+                    allowEdit={false}
+                    showToolbar={false}
+                    showFormulaBar={false}
+                    showSheetTabs={false}
+                    rowHeaderWidth={46}
+                    columnHeaderHeight={28}
+                    defaultRowHeight={26}
+                    defaultColWidth={130}
+                  />
+                </Suspense>
+              </div>
+            ) : (
             <div className="flex-1 w-full overflow-auto bg-white">
               <table className="w-full text-xs text-left border-collapse font-mono select-text">
                 <thead className="bg-[#f3f4f6] text-slate-700 uppercase text-[10px] sticky top-0 z-10 border-b border-[#cbd5e1] shadow-sm">
@@ -1122,6 +1206,7 @@ export function GeneralJournalPage({
                 </tbody>
               </table>
             </div>
+            )}
           </div>
         )}
 

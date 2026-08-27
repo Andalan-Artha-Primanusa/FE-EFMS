@@ -28,7 +28,9 @@ jobs:
             git checkout master
             git reset --hard origin/master
 
-            docker compose up -d --build
+            docker compose down --remove-orphans || true
+            docker ps -aq --filter "name=efms-frontend" | xargs -r docker rm -f
+            docker compose up -d --build --force-recreate --remove-orphans
 
             docker image prune -f
 

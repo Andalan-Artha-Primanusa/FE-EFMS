@@ -8,8 +8,7 @@ import { MasterDataFormRoute } from "./pages/MasterDataFormRoute";
 import { TransactionFormPage } from "./pages/TransactionFormPage";
 import { ProtectedRoute } from "./router/ProtectedRoute";
 import { NotFoundPage } from "./pages/NotFoundPage";
-import { routes } from "./router/routes";
-import { DashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute, CoalIndexRoute, RaiseFallRoute, FinanceDashboardRoute, FinanceBATrackerRoute, FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute, SiteSetupRoute } from "./router/RouteWrappers";
+import { DashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute, CoalIndexRoute, RaiseFallRoute, FinanceDashboardRoute, FinanceBATrackerRoute, FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute, SiteSetupRoute, CompanyRoute } from "./router/RouteWrappers";
 
 export function App() {
   const [user, setUser] = useState<User | null>(() => {
@@ -53,11 +52,12 @@ export function App() {
           <Route path="setup-parameter-site-klien" element={<ProtectedRoute requiredView="Setup Parameter Site & Klien"><SiteSetupRoute /></ProtectedRoute>} />
           
           <Route path="coal-index" element={<ProtectedRoute requiredView="Coal Index"><CoalIndexRoute /></ProtectedRoute>} />
+          <Route path="company" element={<ProtectedRoute requiredView="Company"><CompanyRoute /></ProtectedRoute>} />
           <Route path="raise-fall" element={<ProtectedRoute requiredView="RAISE & FALL"><RaiseFallRoute viewTitle="RAISE & FALL" /></ProtectedRoute>} />
           <Route path="currency" element={<ProtectedRoute requiredView="Currency"><RaiseFallRoute viewTitle="Currency" /></ProtectedRoute>} />
           
-          <Route path="transaction/new" element={<TransactionFormPage />} />
-          <Route path="transaction/:id/edit" element={<TransactionFormPage />} />
+          <Route path="transaction/new" element={<ProtectedRoute requiredView="Payment Request"><TransactionFormPage /></ProtectedRoute>} />
+          <Route path="transaction/:id/edit" element={<ProtectedRoute requiredView="Payment Request"><TransactionFormPage /></ProtectedRoute>} />
           
           <Route path="finance-ar-dashboard" element={<ProtectedRoute requiredView="Finance & AR Dashboard"><FinanceDashboardRoute /></ProtectedRoute>} />
           <Route path="berita-acara-ba-tracker" element={<ProtectedRoute requiredView="Berita Acara (BA) Tracker"><FinanceBATrackerRoute /></ProtectedRoute>} />
@@ -68,10 +68,11 @@ export function App() {
           <Route path="client-setup" element={<ProtectedRoute requiredView="Client Setup"><FinanceCustomerRoute viewTitle="Client Setup" /></ProtectedRoute>} />
           <Route path="customer-master-credit-terms" element={<ProtectedRoute requiredView="Client Setup"><FinanceCustomerRoute viewTitle="Client Setup" /></ProtectedRoute>} />
           
-          <Route path="variable-sow/new" element={<VariableSOWFormPage />} />
-          <Route path="variable-sow/:id/edit" element={<VariableSOWFormPage />} />
+          <Route path="variable-sow/new" element={<ProtectedRoute requiredView="Variable SOW"><VariableSOWFormPage /></ProtectedRoute>} />
+          <Route path="variable-sow/:id/edit" element={<ProtectedRoute requiredView="Variable SOW"><VariableSOWFormPage /></ProtectedRoute>} />
           <Route path=":slug/new" element={<MasterDataFormRoute />} />
           <Route path=":slug/:id/edit" element={<MasterDataFormRoute />} />
+          <Route path=":slug" element={null} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

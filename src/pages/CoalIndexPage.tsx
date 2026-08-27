@@ -210,8 +210,8 @@ export function CoalIndexPage({
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-12">
       {/* Top Banner Header */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-950 p-6 sm:p-7 rounded-3xl border border-slate-700/60 shadow-xl text-white">
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-cyan-500/10 via-amber-500/5 to-transparent pointer-events-none" />
+      <div className="relative overflow-hidden bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-700/60 shadow-xl text-white">
+        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-cyan-500/10 pointer-events-none" />
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div className="space-y-2 max-w-2xl">
@@ -243,7 +243,7 @@ export function CoalIndexPage({
             </button>
             <button
               onClick={handleOpenCreateModal}
-              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-amber-500/25 transition active:scale-95 cursor-pointer"
+              className="px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-amber-500/25 transition active:scale-95 cursor-pointer"
             >
               <Plus size={18} className="stroke-[3]" />
               <span>+ Input Periode Baru</span>
@@ -285,7 +285,7 @@ export function CoalIndexPage({
       {currentIndex && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Active Tier Highlight Card */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-amber-500/15 via-white to-amber-50/40 p-5 sm:p-6 rounded-3xl border-2 border-amber-300/90 shadow-sm flex flex-col justify-between">
+          <div className="relative overflow-hidden bg-amber-50 p-5 sm:p-6 rounded-3xl border-2 border-amber-300/90 shadow-sm flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-black uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
                 <Sparkles size={14} className="text-amber-600" />
@@ -340,7 +340,7 @@ export function CoalIndexPage({
             </div>
             <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-1">
               <div
-                className="h-full bg-gradient-to-r from-cyan-500 to-amber-500 rounded-full"
+                className="h-full bg-amber-500 rounded-full"
                 style={{ width: `${tierPercentage}%` }}
               />
             </div>
@@ -434,7 +434,7 @@ export function CoalIndexPage({
           {/* Tier 3 Box */}
           <div className={`p-3.5 rounded-2xl border transition-all ${
             currentIndex?.activeTier === "Tier 3"
-              ? "bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 border-amber-600 shadow-lg ring-2 ring-amber-400"
+              ? "bg-amber-500 text-slate-950 border-amber-600 shadow-lg ring-2 ring-amber-400"
               : "bg-slate-50 text-slate-700 border-slate-200"
           }`}>
             <div className="font-black text-sm">TIER 3 (R3 &gt; $75) 🔥 AKTIF</div>
@@ -663,7 +663,7 @@ export function CoalIndexPage({
               </div>
 
               {/* Live Preview Card in Modal */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-amber-100/60 border border-amber-300 flex items-center justify-between text-xs">
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 flex items-center justify-between text-xs">
                 <div>
                   <p className="font-extrabold text-amber-950">
                     Kalkulasi Rata-Rata: Avg R3 = ${formData.avgR3 ? formData.avgR3.toFixed(2) : "0.00"} USD/MT

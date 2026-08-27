@@ -889,7 +889,7 @@ export function DetailModal({ c }: { c: any }) {
                               <span className="text-cyan-800 font-extrabold">{percent}% Lunas</span>
                             </div>
                             <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden border border-slate-300">
-                              <div className="bg-gradient-to-r from-cyan-600 to-emerald-500 h-full transition-all duration-300" style={{ width: `${percent}%` }} />
+                              <div className="bg-emerald-500 h-full transition-all duration-300" style={{ width: `${percent}%` }} />
                             </div>
                           </div>
                         </div>

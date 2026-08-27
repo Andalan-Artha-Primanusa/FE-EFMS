@@ -8,8 +8,9 @@ import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
 import { RecordDialog } from "../components/RecordDialog";
 import { expandMasterRecord, schemaFor } from "../data/masterSchemas";
-import { approvalAction, cancelTransaction, closePeriod, deleteMasterRecord, downloadTemplate, generateJournal, importCSV, runReconciliation, type MasterRecord, type Transaction } from "../lib/api";
+import { approvalAction, cancelTransaction, closePeriod, deleteMasterRecord, downloadTemplate, generateJournal, importCSV, runReconciliation, type MasterRecord, type Permission, type Transaction, type User } from "../lib/api";
 import { formatCell, humanize } from "../lib/format";
+import { authorized } from "../lib/auth";
 import type { ViewConfig } from "../data/navigation";
 
 export function ModulePage({
@@ -17,6 +18,8 @@ export function ModulePage({
   rows,
   loading,
   query,
+  user,
+  permissions,
   onCreateTransaction,
   onEditTransaction,
   onNotice,
@@ -26,12 +29,19 @@ export function ModulePage({
   rows: any[];
   loading: boolean;
   query: string;
+  user: User;
+  permissions: Permission[];
   onCreateTransaction: () => void;
   onEditTransaction: (transaction: Transaction) => void;
   onNotice: (message: string) => void;
   onRefresh: () => Promise<void>;
 }) {
   const navigate = useNavigate();
+  const permModule = (config as { menuPermissionModule?: string }).menuPermissionModule ?? "";
+  const canWrite = authorized(user, permModule, "write");
+  const canManage = authorized(user, permModule, "manage");
+  const canAct = authorized(user, permModule, "approve") || authorized(user, permModule, "post");
+  const canWriteOrManage = canWrite || canManage;
   const filteredRows = rows.filter((row) => JSON.stringify(row ?? {}).toLowerCase().includes(query.trim().toLowerCase()));
   const isTransaction = config.endpoint.startsWith("/api/transactions");
   const isMasterData = config.endpoint.startsWith("/api/master-data");
@@ -81,7 +91,7 @@ export function ModulePage({
     <PageHeader
       title={config.title}
       description="Data modul ditarik langsung dari endpoint backend dan filter di bawah hanya memakai kolom yang tersedia dari API."
-      meta={<span className="header-meta">{visibleRows.length} dari {rows.length} data</span>}
+      meta={<span className="header-meta">{config.menuCode} · {visibleRows.length} dari {rows.length} data</span>}
     >
       <div className="filter-row">
         <label>Status<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} disabled={!statusOptions.length}>
@@ -96,12 +106,12 @@ export function ModulePage({
       </div>
     </PageHeader>
     <Panel title="Data" action={<div className="module-actions">
-      {isMasterData && <button className="primary compact" onClick={() => navigate(window.location.pathname + "/new")}><FilePlus2 size={16} /> Create</button>}
-      {isTransaction && <button className="primary compact" onClick={onCreateTransaction}><FilePlus2 size={16} /> Create</button>}
+      {isMasterData && canWriteOrManage && <button className="primary compact" onClick={() => navigate(window.location.pathname + "/new")}><FilePlus2 size={16} /> Create</button>}
+      {isTransaction && canWriteOrManage && <button className="primary compact" onClick={onCreateTransaction}><FilePlus2 size={16} /> Create</button>}
       {config.endpoint.includes("accounting") && <button className="ghost" onClick={() => runProcess("journal")}><Play size={16} /> Generate Journal</button>}
       {config.endpoint.includes("reconciliations") && <button className="ghost" onClick={() => runProcess("reconcile")}><RefreshCw size={16} /> Run Reconcile</button>}
       {config.endpoint.includes("closing-periods") && <button className="ghost" onClick={() => runProcess("close")}><Check size={16} /> Close Period</button>}
-      {config.importType && <>
+      {config.importType && (canWriteOrManage) && <>
       <button className="ghost" onClick={() => downloadTemplate(config.importType!)}><Download size={16} /> Template</button>
       <label className="ghost import-trigger"><FolderUp size={16} /> Import CSV<input type="file" accept=".csv,text/csv" onChange={upload} /></label>
       </>}
@@ -126,46 +136,50 @@ export function ModulePage({
                     {isMasterData && (
                       <>
                         <button className="icon-mini" title="View" onClick={() => setViewRecord(row)}><Eye size={15} /></button>
-                        <button className="icon-mini" title="Edit" onClick={() => navigate(`${window.location.pathname}/${row.id}/edit`)}><Pencil size={15} /></button>
-                        <button className="icon-mini danger" title="Delete" onClick={() => setConfirmAction({
-                          title: "Delete master data",
-                          message: `Nonaktifkan master data ${row.code ?? row.name}? Data akan tetap ada untuk audit dan referensi transaksi.`,
-                          label: "Delete",
-                          danger: true,
-                          run: async () => { await deleteMasterRecord(row.id); onNotice("Master data dinonaktifkan."); await onRefresh(); }
-                        })}><Trash2 size={15} /></button>
+                        {canWriteOrManage && <>
+                          <button className="icon-mini" title="Edit" onClick={() => navigate(`${window.location.pathname}/${row.id}/edit`)}><Pencil size={15} /></button>
+                          <button className="icon-mini danger" title="Delete" onClick={() => setConfirmAction({
+                            title: "Delete master data",
+                            message: `Nonaktifkan master data ${row.code ?? row.name}? Data akan tetap ada untuk audit dan referensi transaksi.`,
+                            label: "Delete",
+                            danger: true,
+                            run: async () => { await deleteMasterRecord(row.id); onNotice("Master data dinonaktifkan."); await onRefresh(); }
+                          })}><Trash2 size={15} /></button>
+                        </>}
                       </>
                     )}
                     {isTransaction && (
                       <>
                         <button className="icon-mini" title="View" onClick={() => setViewRecord(row)}><Eye size={15} /></button>
-                        <button className="icon-mini" title="Edit" onClick={() => onEditTransaction(row)}><Pencil size={15} /></button>
-                        <button className="icon-mini" title="Approve" onClick={() => setConfirmAction({
-                          title: "Approve transaksi",
-                          message: `Approve ${row.number}? Transaksi akan lanjut ke proses berikutnya.`,
-                          label: "Approve",
-                          run: async () => { await approvalAction(row.id, "approve", "Approved from module"); onNotice("Transaksi approved."); await onRefresh(); }
-                        })}><Check size={15} /></button>
-                        <button className="icon-mini" title="Reject" onClick={() => setConfirmAction({
-                          title: "Reject transaksi",
-                          message: `Reject ${row.number}? Transaksi akan dikembalikan dari workflow approval.`,
-                          label: "Reject",
-                          danger: true,
-                          run: async () => { await approvalAction(row.id, "reject", "Rejected from module"); onNotice("Transaksi rejected."); await onRefresh(); }
-                        })}><XCircle size={15} /></button>
-                        <button className="icon-mini" title="Generate Journal" onClick={() => setConfirmAction({
+                        {canWriteOrManage && <button className="icon-mini" title="Edit" onClick={() => onEditTransaction(row)}><Pencil size={15} /></button>}
+                        {canAct && <>
+                          <button className="icon-mini" title="Approve" onClick={() => setConfirmAction({
+                            title: "Approve transaksi",
+                            message: `Approve ${row.number}? Transaksi akan lanjut ke proses berikutnya.`,
+                            label: "Approve",
+                            run: async () => { await approvalAction(row.id, "approve", "Approved from module"); onNotice("Transaksi approved."); await onRefresh(); }
+                          })}><Check size={15} /></button>
+                          <button className="icon-mini" title="Reject" onClick={() => setConfirmAction({
+                            title: "Reject transaksi",
+                            message: `Reject ${row.number}? Transaksi akan dikembalikan dari workflow approval.`,
+                            label: "Reject",
+                            danger: true,
+                            run: async () => { await approvalAction(row.id, "reject", "Rejected from module"); onNotice("Transaksi rejected."); await onRefresh(); }
+                          })}><XCircle size={15} /></button>
+                        </>}
+                        {canWriteOrManage && <button className="icon-mini" title="Generate Journal" onClick={() => setConfirmAction({
                           title: "Generate journal",
                           message: `Generate journal untuk ${row.number}?`,
                           label: "Generate",
                           run: async () => { await generateJournal("Transaction Request", row.number); onNotice("Journal generated."); await onRefresh(); }
-                        })}><Play size={15} /></button>
-                        <button className="icon-mini danger" title="Cancel" onClick={() => setConfirmAction({
+                        })}><Play size={15} /></button>}
+                        {canWriteOrManage && <button className="icon-mini danger" title="Cancel" onClick={() => setConfirmAction({
                           title: "Cancel transaksi",
                           message: `Cancel ${row.number}? Data tidak dihapus fisik, status akan menjadi Cancelled untuk audit trail.`,
                           label: "Cancel transaksi",
                           danger: true,
                           run: async () => { await cancelTransaction(row.id); onNotice("Transaksi dicancel."); await onRefresh(); }
-                        })}><Trash2 size={15} /></button>
+                        })}><Trash2 size={15} /></button>}
                       </>
                     )}
                   </div>

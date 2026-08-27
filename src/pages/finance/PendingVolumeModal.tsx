@@ -79,7 +79,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
           <div className="bg-white border border-slate-200 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-6">
             
             {/* Modal Header */}
-            <div className="p-5 bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white flex items-center justify-between">
+            <div className="p-5 bg-indigo-900 text-white flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
                   <Scale size={22} />
@@ -156,7 +156,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
               })()}
 
               {/* SOW Contract Rules Box */}
-              <div className="p-4 bg-gradient-to-r from-indigo-50/60 via-purple-50/40 to-slate-50 border border-indigo-200/70 rounded-2xl flex items-start gap-3">
+              <div className="p-4 bg-indigo-50 border border-indigo-200/70 rounded-2xl flex items-start gap-3">
                 <Info size={18} className="text-indigo-700 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <div className="font-extrabold text-indigo-950 uppercase tracking-wide text-[11px]">
