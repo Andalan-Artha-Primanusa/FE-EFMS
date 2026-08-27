@@ -65,7 +65,7 @@ export type Dashboard = {
   cashPosition: Array<Record<string, number | string>>;
 };
 
-export const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8080";
+export const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://160.19.165.216:7070";
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem("financeerp.token");
