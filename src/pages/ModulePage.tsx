@@ -47,8 +47,6 @@ export function ModulePage({
   const isMasterData = config.endpoint.startsWith("/api/master-data");
   const masterSchema = schemaFor(config.masterType);
   const [viewRecord, setViewRecord] = useState<Record<string, unknown> | null>(null);
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [typeFilter, setTypeFilter] = useState("All");
   const [confirmAction, setConfirmAction] = useState<null | {
     title: string;
     message: string;
@@ -56,13 +54,7 @@ export function ModulePage({
     danger?: boolean;
     run: () => Promise<void>;
   }>(null);
-  const statusOptions = Array.from(new Set(rows.map((row) => String(row?.status ?? row?.budgetStatus ?? row?.postingStatus ?? "")).filter(Boolean)));
-  const typeOptions = Array.from(new Set(rows.map((row) => String(row?.type ?? row?.flow ?? row?.category ?? row?.module ?? "")).filter(Boolean)));
-  const visibleRows = filteredRows.filter((row) => {
-    const rowStatus = String(row?.status ?? row?.budgetStatus ?? row?.postingStatus ?? "");
-    const rowType = String(row?.type ?? row?.flow ?? row?.category ?? row?.module ?? "");
-    return (statusFilter === "All" || rowStatus === statusFilter) && (typeFilter === "All" || rowType === typeFilter);
-  });
+  const visibleRows = filteredRows;
   const displayRows = isMasterData ? visibleRows.map((row) => expandMasterRecord(row)) : visibleRows;
   const columns = isMasterData
     ? masterSchema.tableColumns
@@ -90,21 +82,9 @@ export function ModulePage({
   return <section className="module-view">
     <PageHeader
       title={config.title}
-      description="Data modul ditarik langsung dari endpoint backend dan filter di bawah hanya memakai kolom yang tersedia dari API."
+      description="Data modul ditarik langsung dari endpoint backend sesuai menu yang sedang dibuka."
       meta={<span className="header-meta">{config.menuCode} · {visibleRows.length} dari {rows.length} data</span>}
-    >
-      <div className="filter-row">
-        <label>Status<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} disabled={!statusOptions.length}>
-          <option>All</option>
-          {statusOptions.map((status) => <option key={status}>{status}</option>)}
-        </select></label>
-        <label>Tipe<select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} disabled={!typeOptions.length}>
-          <option>All</option>
-          {typeOptions.map((type) => <option key={type}>{type}</option>)}
-        </select></label>
-        <button className="ghost" onClick={() => { setStatusFilter("All"); setTypeFilter("All"); }}>Reset</button>
-      </div>
-    </PageHeader>
+    />
     <Panel title="Data" action={<div className="module-actions">
       {isMasterData && canWriteOrManage && <button className="primary compact" onClick={() => navigate(window.location.pathname + "/new")}><FilePlus2 size={16} /> Create</button>}
       {isTransaction && canWriteOrManage && <button className="primary compact" onClick={onCreateTransaction}><FilePlus2 size={16} /> Create</button>}
@@ -187,7 +167,7 @@ export function ModulePage({
               }
             }] : [])
           ]}
-          emptyMessage={query || statusFilter !== "All" || typeFilter !== "All" ? "Tidak ada data yang cocok dengan filter." : "Belum ada data dari API untuk modul ini."}
+          emptyMessage={query ? "Tidak ada data yang cocok dengan pencarian." : "Belum ada data dari API untuk modul ini."}
         />
       )}
     </Panel>

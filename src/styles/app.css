@@ -536,16 +536,6 @@ details button.active {
 .header-meta {
   @apply inline-flex min-h-8 items-center rounded-full bg-cyan-50 px-3 text-xs font-black text-finance-teal;
 }
-.filter-row {
-  @apply flex flex-wrap items-end justify-end gap-2;
-}
-.filter-row label {
-  @apply min-w-36 gap-1 text-[11px] uppercase text-slate-500;
-}
-.filter-row select {
-  @apply min-h-9 rounded-enterprise border-slate-200 bg-slate-50 px-3 py-1 text-sm normal-case text-finance-navy;
-}
-
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(180px, 1fr));
@@ -1285,9 +1275,6 @@ th { color: #607080; font-size: 12px; text-transform: uppercase; }
   .page-header-side {
     width: 100%;
     align-items: stretch;
-  }
-  .filter-row {
-    justify-content: flex-start;
   }
   .kpi-grid { grid-template-columns: 1fr; }
   .master-form-grid { @apply grid-cols-1; }
