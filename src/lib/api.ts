@@ -4,6 +4,11 @@ export type User = {
   email: string;
   role: string;
   status: string;
+  companyId?: number | null;
+  companyCode?: string | null;
+  companyName?: string | null;
+  companyScope?: string[] | "ALL" | null;
+  isHeadOffice?: boolean;
   twoFactorEnabled?: boolean;
   lastLoginAt?: string | null;
 };
@@ -49,10 +54,28 @@ export type Permission = {
   description: string;
 };
 
+export type TCode = {
+  id: number;
+  code: string;
+  description: string;
+  route: string;
+  module: string;
+  action: string;
+};
+
 export type RoleAccess = {
   role: string;
   permissions: Permission[];
+  tcodes: TCode[];
   scopes: string[];
+};
+
+export type Company = {
+  id: number;
+  code: string;
+  name: string;
+  isHo: boolean;
+  createdAt: string;
 };
 
 export type Dashboard = {
@@ -65,7 +88,7 @@ export type Dashboard = {
   cashPosition: Array<Record<string, number | string>>;
 };
 
-export const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://160.19.165.216:7070";
+export const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem("financeerp.token");
@@ -197,11 +220,11 @@ export function getUsers() {
   return api<User[]>("/api/users");
 }
 
-export function createUser(input: { name: string; email: string; password?: string; role: string; status: string }) {
+export function createUser(input: { name: string; email: string; password?: string; role: string; status: string; companyId?: number | null; companyCode?: string; companyName?: string; companyScope?: string[] | "ALL" }) {
   return api<User>("/api/users", { method: "POST", body: JSON.stringify(input) });
 }
 
-export function updateUser(id: number, input: { name: string; email: string; password?: string; role: string; status: string }) {
+export function updateUser(id: number, input: { name: string; email: string; password?: string; role: string; status: string; companyId?: number | null; companyCode?: string; companyName?: string; companyScope?: string[] | "ALL" }) {
   return api<User>(`/api/users/${id}`, { method: "PUT", body: JSON.stringify(input) });
 }
 
@@ -220,19 +243,36 @@ export function getRoles() {
   return api<RoleAccess[]>("/api/roles");
 }
 
-export function createRole(input: { name: string; description?: string; permissions: string[] }) {
+export function createRole(input: { name: string; description?: string; permissions: string[]; tcodes?: string[] }) {
   return api<RoleAccess>("/api/roles", { method: "POST", body: JSON.stringify(input) });
 }
 
-export function updateRolePermissions(role: string, permissions: string[]) {
+export function updateRolePermissions(role: string, permissions: string[], tcodes?: string[]) {
   return api<RoleAccess>(`/api/roles/${encodeURIComponent(role)}/permissions`, {
     method: "PUT",
-    body: JSON.stringify({ permissions })
+    body: JSON.stringify({ permissions, tcodes })
   });
 }
 
 export function deleteRole(role: string) {
   return api<{ status: string }>(`/api/roles/${encodeURIComponent(role)}`, { method: "DELETE" });
+}
+
+// T-Codes
+export function getTCodes() {
+  return api<TCode[]>("/api/t-codes");
+}
+
+export function createTCode(input: { code: string; description: string; route: string; module: string; action: string }) {
+  return api<TCode>("/api/t-codes", { method: "POST", body: JSON.stringify(input) });
+}
+
+export function updateTCode(id: number, input: { code: string; description: string; route: string; module: string; action: string }) {
+  return api<TCode>(`/api/t-codes/${id}`, { method: "PUT", body: JSON.stringify(input) });
+}
+
+export function deleteTCode(id: number) {
+  return api<void>(`/api/t-codes/${id}`, { method: "DELETE" });
 }
 
 // Finance Templates (master data yang sebelumnya hardcoded di FinancePage)
@@ -287,56 +327,58 @@ export function resetPassword(token: string, newPassword: string) {
 }
 
 // Accounting Endpoints
-export function getJournals() {
-  return api<any[]>("/api/accounting/journals");
+import type { JournalEntry, COAAccount, SubLedger, GeneralLedgerEntry, TrialBalanceRow, ProfitLossData, BalanceSheetData } from "../types";
+
+export function getJournals(): Promise<JournalEntry[]> {
+  return api<JournalEntry[]>("/api/accounting/journals");
 }
 
-export function saveJournal(entry: any) {
-  return api<any>("/api/accounting/journals", { method: "POST", body: JSON.stringify(entry) });
+export function saveJournal(entry: Partial<JournalEntry>): Promise<JournalEntry> {
+  return api<JournalEntry>("/api/accounting/journals", { method: "POST", body: JSON.stringify(entry) });
 }
 
-export function verifyJournal(id: number) {
-  return api<any>(`/api/accounting/journals/${id}/verify`, { method: "POST" });
+export function verifyJournal(id: number): Promise<{ status: string }> {
+  return api<{ status: string }>(`/api/accounting/journals/${id}/verify`, { method: "POST" });
 }
 
-export function approveJournal(id: number) {
-  return api<any>(`/api/accounting/journals/${id}/approve`, { method: "POST" });
+export function approveJournal(id: number): Promise<{ status: string }> {
+  return api<{ status: string }>(`/api/accounting/journals/${id}/approve`, { method: "POST" });
 }
 
-export function postJournalsBatch(ids: number[]) {
-  return api<any[]>("/api/accounting/journals/post-batch", { method: "POST", body: JSON.stringify({ ids }) });
+export function postJournalsBatch(ids: number[]): Promise<{ status: string }> {
+  return api<{ status: string }>("/api/accounting/journals/post-batch", { method: "POST", body: JSON.stringify({ ids }) });
 }
 
-export function getCOAAccounts() {
-  return api<any[]>("/api/accounting/coa");
+export function getCOAAccounts(): Promise<COAAccount[]> {
+  return api<COAAccount[]>("/api/accounting/coa");
 }
 
-export function saveCOAAccount(account: any) {
-  return api<any>("/api/accounting/coa", { method: "POST", body: JSON.stringify(account) });
+export function saveCOAAccount(account: Partial<COAAccount>): Promise<COAAccount> {
+  return api<COAAccount>("/api/accounting/coa", { method: "POST", body: JSON.stringify(account) });
 }
 
-export function getSubLedgers() {
-  return api<any[]>("/api/accounting/sub-ledgers");
+export function getSubLedgers(): Promise<SubLedger[]> {
+  return api<SubLedger[]>("/api/accounting/sub-ledgers");
 }
 
-export function saveSubLedger(sub: any) {
-  return api<any>("/api/accounting/sub-ledgers", { method: "POST", body: JSON.stringify(sub) });
+export function saveSubLedger(sub: Partial<SubLedger>): Promise<SubLedger> {
+  return api<SubLedger>("/api/accounting/sub-ledgers", { method: "POST", body: JSON.stringify(sub) });
 }
 
-export function getGeneralLedger(accountCode = "1101.001", period = "Juni 2026") {
-  return api<any>(`/api/accounting/general-ledger?account=${encodeURIComponent(accountCode)}&period=${encodeURIComponent(period)}`);
+export function getGeneralLedger(accountCode = "1101.001", period = "Juni 2026"): Promise<GeneralLedgerEntry[]> {
+  return api<GeneralLedgerEntry[]>(`/api/accounting/general-ledger?account=${encodeURIComponent(accountCode)}&period=${encodeURIComponent(period)}`);
 }
 
-export function getTrialBalance(period = "Juni 2026") {
-  return api<any[]>(`/api/accounting/trial-balance?period=${encodeURIComponent(period)}`);
+export function getTrialBalance(period = "Juni 2026"): Promise<TrialBalanceRow[]> {
+  return api<TrialBalanceRow[]>(`/api/accounting/trial-balance?period=${encodeURIComponent(period)}`);
 }
 
-export function getProfitLoss(site = "CoY", period = "Juni 2026") {
-  return api<any>(`/api/accounting/profit-loss?site=${encodeURIComponent(site)}&period=${encodeURIComponent(period)}`);
+export function getProfitLoss(site = "CoY", period = "Juni 2026"): Promise<ProfitLossData> {
+  return api<ProfitLossData>(`/api/accounting/profit-loss?site=${encodeURIComponent(site)}&period=${encodeURIComponent(period)}`);
 }
 
-export function getBalanceSheet(site = "CoY", period = "Juni 2026") {
-  return api<any>(`/api/accounting/balance-sheet?site=${encodeURIComponent(site)}&period=${encodeURIComponent(period)}`);
+export function getBalanceSheet(site = "CoY", period = "Juni 2026"): Promise<BalanceSheetData> {
+  return api<BalanceSheetData>(`/api/accounting/balance-sheet?site=${encodeURIComponent(site)}&period=${encodeURIComponent(period)}`);
 }
 
 export const money = (value: number) =>
@@ -344,4 +386,27 @@ export const money = (value: number) =>
 
 export const compactMoney = (value: number) =>
   new Intl.NumberFormat("id-ID", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+
+// Company Endpoints
+export function getCompanies() {
+  return api<Company[]>("/api/companies");
+}
+
+export function createCompany(input: { code: string; name: string; isHo: boolean }) {
+  return api<Company>("/api/companies", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export function updateCompany(id: number, input: { code: string; name: string; isHo: boolean }) {
+  return api<Company>(`/api/companies/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input)
+  });
+}
+
+export function deleteCompany(id: number) {
+  return api<void>(`/api/companies/${id}`, { method: "DELETE" });
+}
 

@@ -11,6 +11,7 @@ import { FinanceBATrackerPage } from "../pages/FinanceBATrackerPage";
 import { FinanceInvoicePage } from "../pages/FinanceInvoicePage";
 import { FinancePaymentPage } from "../pages/FinancePaymentPage";
 import { FinanceCustomerPage } from "../pages/FinanceCustomerPage";
+import { CompanyPage } from "../pages/CompanyPage";
 
 export function DashboardRoute() {
   const { dashboard, transactions, query, refresh, setNotice } = useOutletContext<any>();
@@ -19,15 +20,14 @@ export function DashboardRoute() {
 }
 
 export function AccountSettingsRoute() {
-  const { user, setNotice } = useOutletContext<any>();
+  const { user, notifications } = useOutletContext<any>();
   const navigate = useNavigate();
-  // auditLogs was previously passed from notifications in AppShell. We can fetch it or ignore if not critical, or pass it via context.
-  return <AccountSettingsPage user={user} auditLogs={[]} onBack={() => navigate("/")} />;
+  return <AccountSettingsPage user={user} auditLogs={notifications ?? []} onBack={() => navigate("/")} />;
 }
 
 export function RBACRoute() {
-  const { user, roles, permissions } = useOutletContext<any>();
-  return <RBACPage user={user} roles={roles} myPermissions={permissions} />;
+  const { user, roles, permissions, tcodes } = useOutletContext<any>();
+  return <RBACPage user={user} roles={roles} myPermissions={permissions} myTcodes={tcodes} />;
 }
 
 export function GeneralJournalRoute({ viewTitle }: { viewTitle: string }) {
@@ -68,4 +68,9 @@ export function FinancePaymentRoute() {
 export function FinanceCustomerRoute() {
   const { query, setNotice, user } = useOutletContext<any>();
   return <FinanceCustomerPage viewTitle="Customer Master & Credit Terms" query={query} onNotice={setNotice} user={user} />;
+}
+
+export function CompanyRoute() {
+  const { query, setNotice, user } = useOutletContext<any>();
+  return <CompanyPage viewTitle="Company" query={query} onNotice={setNotice} user={user} />;
 }

@@ -9,7 +9,7 @@ import { TransactionFormPage } from "./pages/TransactionFormPage";
 import { ProtectedRoute } from "./router/ProtectedRoute";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { routes } from "./router/routes";
-import { DashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute, CoalIndexRoute, RaiseFallRoute, FinanceDashboardRoute, FinanceBATrackerRoute, FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute } from "./router/RouteWrappers";
+import { DashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute, CoalIndexRoute, RaiseFallRoute, FinanceDashboardRoute, FinanceBATrackerRoute, FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute, CompanyRoute } from "./router/RouteWrappers";
 
 export function App() {
   const [user, setUser] = useState<User | null>(() => {
@@ -50,6 +50,7 @@ export function App() {
           <Route path="closing-period" element={<ProtectedRoute requiredView="Closing Period"><GeneralJournalRoute viewTitle="Closing Period" /></ProtectedRoute>} />
           
           <Route path="coal-index" element={<ProtectedRoute requiredView="Coal Index"><CoalIndexRoute /></ProtectedRoute>} />
+          <Route path="company" element={<ProtectedRoute requiredView="Company"><CompanyRoute /></ProtectedRoute>} />
           <Route path="raise-fall" element={<ProtectedRoute requiredView="RAISE & FALL"><RaiseFallRoute viewTitle="RAISE & FALL" /></ProtectedRoute>} />
           <Route path="currency" element={<ProtectedRoute requiredView="Currency"><RaiseFallRoute viewTitle="Currency" /></ProtectedRoute>} />
           
@@ -64,10 +65,11 @@ export function App() {
           <Route path="payment-receipt-log" element={<ProtectedRoute requiredView="Payment & Receipt Log"><FinancePaymentRoute /></ProtectedRoute>} />
           <Route path="customer-master-credit-terms" element={<ProtectedRoute requiredView="Customer Master & Credit Terms"><FinanceCustomerRoute /></ProtectedRoute>} />
           
-          <Route path="variable-sow/new" element={<VariableSOWFormPage />} />
-          <Route path="variable-sow/:id/edit" element={<VariableSOWFormPage />} />
+          <Route path="variable-sow/new" element={<ProtectedRoute requiredView="Variable SOW"><VariableSOWFormPage /></ProtectedRoute>} />
+          <Route path="variable-sow/:id/edit" element={<ProtectedRoute requiredView="Variable SOW"><VariableSOWFormPage /></ProtectedRoute>} />
           <Route path=":slug/new" element={<MasterDataFormRoute />} />
           <Route path=":slug/:id/edit" element={<MasterDataFormRoute />} />
+          <Route path=":slug" element={null} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

@@ -1,16 +1,19 @@
 import { ArrowLeft, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { schemaFor, metadataOf } from "../data/masterSchemas";
-import { createMasterRecord, previewNumber, updateMasterRecord, type MasterRecord } from "../lib/api";
+import { createMasterRecord, previewNumber, updateMasterRecord, type MasterRecord, type User } from "../lib/api";
+import { companyScopeOf } from "../lib/auth";
 
 export function MasterDataForm({
   type,
   record,
+  user,
   onCancel,
   onSaved
 }: {
   type: string;
   record?: MasterRecord | null;
+  user?: User;
   onCancel: () => void;
   onSaved: () => void;
 }) {
@@ -60,6 +63,8 @@ export function MasterDataForm({
         metadata[field.key] = form[field.key] ?? "";
       }
     });
+    const scope = user ? companyScopeOf(user) : { all: true, codes: [] as string[] };
+    if (!scope.all && scope.codes[0] && !metadata.companyCode) metadata.companyCode = scope.codes[0];
     const payload = {
       type,
       code: record?.code ?? "",

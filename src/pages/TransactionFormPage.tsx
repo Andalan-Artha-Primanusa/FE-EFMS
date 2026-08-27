@@ -1,16 +1,20 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { createTransaction, updateTransaction, type Transaction } from "../lib/api";
+import { companyOptionsForUser, isHeadOfficeUser } from "../lib/auth";
 
 export function TransactionFormPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useOutletContext<any>();
   const transaction = location.state?.transaction as Transaction | undefined;
+  const companyOptions = companyOptionsForUser(user);
+  const canChooseCompany = isHeadOfficeUser(user);
 
   const [form, setForm] = useState({
     type: transaction?.type ?? "Payment Request",
-    companyId: 1,
+    companyId: transaction?.company ? companyOptions.find((company) => company.code === transaction.company || company.name === transaction.company)?.id ?? companyOptions[0]?.id ?? 1 : companyOptions[0]?.id ?? 1,
     description: transaction?.description ?? "",
     amount: transaction?.amount ?? 0
   });
@@ -55,6 +59,21 @@ export function TransactionFormPage() {
               <option key={item}>{item}</option>
             ))}
           </select>
+        </label>
+
+        <label>
+          <span>Company</span>
+          <select
+            value={form.companyId}
+            onChange={(e) => setForm({ ...form, companyId: Number(e.target.value) })}
+            disabled={!canChooseCompany}
+            className="w-full mt-2"
+          >
+            {companyOptions.map((company) => (
+              <option key={company.id} value={company.id}>{company.code} - {company.name}</option>
+            ))}
+          </select>
+          {!canChooseCompany && <small className="text-xs text-slate-500">Company dikunci sesuai akses user.</small>}
         </label>
         
         <label>

@@ -1,10 +1,13 @@
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useNavigate, useParams, useLocation, useOutletContext } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { MasterDataForm } from "../components/MasterDataForm";
-import { viewMap, titleFromSlug } from "../data/navigation";
+import { menuPermissionModuleFor, viewMap, titleFromSlug } from "../data/navigation";
 import { api, type MasterRecord } from "../lib/api";
+import { filterRowsByCompanyScope, isSuperAdminRole, scopedEndpoint } from "../lib/auth";
+import { PermissionDeniedPage } from "./PermissionDeniedPage";
 
 export function MasterDataFormRoute() {
+  const { user, permissions } = useOutletContext<any>();
   const { slug, id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -15,15 +18,18 @@ export function MasterDataFormRoute() {
   const title = titleFromSlug(slug) || "Unknown";
   const config = viewMap[title];
   const masterType = config?.masterType || "";
+  const permModule = menuPermissionModuleFor(title);
+  const canWrite = isSuperAdminRole(user?.role) ||
+    (permModule && Array.isArray(permissions) && permissions.some((p: any) => (p.action === "write" || p.action === "manage" || p.action === "*") && p.module === permModule));
 
   useEffect(() => {
     if (id && masterType) {
       // Fetch the specific record for editing
       setLoading(true);
-      api<any>(config.endpoint)
+      api<any>(scopedEndpoint(config.endpoint, user))
         .then((data) => {
           const rows = Array.isArray(data) ? data : (data?.reports || data?.kpis || []);
-          const found = rows.find((r: any) => r.id === Number(id));
+          const found = filterRowsByCompanyScope(rows, user).find((r: any) => r.id === Number(id));
           if (found) {
             setRecord(found as MasterRecord);
           } else {
@@ -42,6 +48,10 @@ export function MasterDataFormRoute() {
     return <div className="p-8 text-center text-red-500">Invalid master type configuration for {slug}</div>;
   }
 
+  if (!canWrite) {
+    return <PermissionDeniedPage requiredView={title} />;
+  }
+
   if (loading) {
     return <div className="p-8 text-center text-slate-500 animate-pulse">Memuat form data...</div>;
   }
@@ -55,6 +65,7 @@ export function MasterDataFormRoute() {
       <MasterDataForm
         type={masterType}
         record={record}
+        user={user}
         onCancel={() => navigate(`/${slug}`)}
         onSaved={() => navigate(`/${slug}`, { state: { notice: "Data berhasil disimpan" } })}
       />

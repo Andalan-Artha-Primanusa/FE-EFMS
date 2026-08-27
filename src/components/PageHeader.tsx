@@ -39,7 +39,7 @@ export function PageHeader({
             ))}
           </nav>
         ) : (
-          <p className="eyebrow text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">FEAST Workspace</p>
+          <p className="eyebrow text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">FEAST Finance Enterprise</p>
         )}
         
         <div className="flex items-start justify-between w-full">

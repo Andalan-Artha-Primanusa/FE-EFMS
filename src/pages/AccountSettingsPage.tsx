@@ -3,6 +3,7 @@ import { ArrowLeft, Camera, KeyRound, ShieldCheck, UserRound, RefreshCw, CheckCi
 import { PageHeader } from "../components/PageHeader";
 import { changePassword } from "../lib/api";
 import type { AuditLog, User } from "../lib/api";
+import { isHeadOfficeUser } from "../lib/auth";
 
 export function AccountSettingsPage({
   user,
@@ -74,7 +75,7 @@ export function AccountSettingsPage({
           <div><dt>Status</dt><dd>{user.status}</dd></div>
           <div><dt>Department</dt><dd>Belum tersedia di API</dd></div>
           <div><dt>Position</dt><dd>{user.role}</dd></div>
-          <div><dt>Company</dt><dd>Belum tersedia di API</dd></div>
+          <div><dt>Company</dt><dd>{isHeadOfficeUser(user) ? "HO - All Company" : user.companyName ?? user.companyCode ?? "Belum tersedia di API"}</dd></div>
         </dl>
       </section>
 
@@ -85,7 +86,7 @@ export function AccountSettingsPage({
           <div><dt>2FA</dt><dd>{user.twoFactorEnabled ? "Enabled" : "Not enabled"}</dd></div>
           <div><dt>Login Method</dt><dd>Email + Password</dd></div>
           <div><dt>Session</dt><dd>JWT authenticated</dd></div>
-          <div><dt>Scope</dt><dd>Company, Site, Department, Project</dd></div>
+          <div><dt>Scope</dt><dd>{isHeadOfficeUser(user) ? "All Company" : user.companyCode ?? "Company"}</dd></div>
           <div><dt>Password Policy</dt><dd>Managed by backend auth</dd></div>
         </dl>
       </section>
