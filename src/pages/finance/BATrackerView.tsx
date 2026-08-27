@@ -296,7 +296,7 @@ export function BATrackerView({ c }: { c: any }) {
                       </div>
                       <div className="flex items-center justify-between text-[11px] text-indigo-700 font-medium">
                         <span className="truncate">Saldo OB di atas rasio SOW (3:1)</span>
-                        <span className="text-[10px] font-bold underline shrink-0">Buka Kartu Kontrol â†—</span>
+                        <span className="text-[10px] font-bold underline shrink-0">Buka Kartu Kontrol ↗</span>
                       </div>
                     </div>
                   );
@@ -554,18 +554,29 @@ export function BATrackerView({ c }: { c: any }) {
                               <tr key={row.id} className={`hover:bg-slate-50/90 transition group ${isDropdownOpen ? "relative z-30" : ""}`}>
                                 {/* Kolom 1: Identitas BA & Customer */}
                                 <td className="p-3">
-                                  <div className="space-y-0.5">
+                                  <div className="space-y-1">
                                     <div className="font-mono font-black text-slate-900 text-xs">
                                       {row.baNumber}
                                     </div>
-                                    <div className="flex items-center gap-1.5 text-[11px]">
+                                    <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
                                       <span className="px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-900 font-extrabold text-[10px]">
                                         {row.customerCode || "POS"}
                                       </span>
-                                      <span className="text-slate-500 font-medium">
+                                      <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-medium text-[10px]">
+                                        {row.dataSource || "Joint Survey"}
+                                      </span>
+                                      <span className="text-slate-500 font-medium text-[10px]">
                                         PIC: {row.picAAP || "Site Engineer"}
                                       </span>
                                     </div>
+                                    {/* Ratio OB:Coal Indicator (for BGG / Coal clients) */}
+                                    {row.customerCode === "BGG" && row.coalVolume && row.coalVolume > 0 && row.obVolume && (
+                                      <div className="pt-0.5 flex items-center gap-1">
+                                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold font-mono bg-slate-100 text-slate-800">
+                                          SR {(row.obVolume / row.coalVolume).toFixed(2)} : 1
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
                                 </td>
 
@@ -600,7 +611,7 @@ export function BATrackerView({ c }: { c: any }) {
                                     <span className="font-semibold">{row.baSignedDate ? new Date(row.baSignedDate).toLocaleDateString("id-ID") : "-"}</span>
                                     {row.leadTimeDays ? (
                                       <span className="ml-1 px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-bold text-[10px]">
-                                        â±ï¸ {row.leadTimeDays}h
+                                        {row.leadTimeDays} hari
                                       </span>
                                     ) : null}
                                   </div>
@@ -665,7 +676,7 @@ export function BATrackerView({ c }: { c: any }) {
                                             title="Terbitkan Sisa Invoice Kategori 2: Mine Development (MDO)"
                                           >
                                             <Building2 size={13} />
-                                            <span>âš¡ + Inv MDO</span>
+                                            <span>+ Inv MDO</span>
                                           </button>
                                         ) : (
                                           <button
@@ -675,7 +686,7 @@ export function BATrackerView({ c }: { c: any }) {
                                             title="Terbitkan Sisa Invoice Kategori 1: Operations & Mining"
                                           >
                                             <Pickaxe size={13} />
-                                            <span>âš¡ + Inv Mining</span>
+                                            <span>+ Inv Mining</span>
                                           </button>
                                         )}
 
@@ -687,13 +698,13 @@ export function BATrackerView({ c }: { c: any }) {
                                             const targetInv = invStatus.createdMiningInv || invStatus.createdMDOInv;
                                             if (targetInv) {
                                               setDetailViewItem({ type: "invoice", data: targetInv });
-                                              onNotice(`ðŸ“„ Membuka Detail Invoice ${targetInv.invoiceNo}`);
+                                              onNotice(`Membuka Detail Invoice ${targetInv.invoiceNo}`);
                                             }
                                           }}
                                           title={`Lihat Invoice yang sudah terbit (${invStatus.createdMiningInv?.invoiceNo || invStatus.createdMDOInv?.invoiceNo})`}
                                         >
                                           <Archive size={11} className="text-purple-700" />
-                                          <span>{invStatus.createdMiningInv ? "Inv Mining âœ“" : "Inv MDO âœ“"}</span>
+                                          <span>{invStatus.createdMiningInv ? "Inv Mining ✓" : "Inv MDO ✓"}</span>
                                           <ExternalLink size={10} className="text-purple-700" />
                                         </button>
                                       </div>
@@ -796,7 +807,7 @@ export function BATrackerView({ c }: { c: any }) {
                                                       <Pickaxe size={14} className="text-cyan-700 mt-0.5 shrink-0" />
                                                       <div>
                                                         <strong className="block text-slate-900 font-extrabold text-[11px]">1. Inv Operations & Mining</strong>
-                                                        <span className="text-[10px] text-slate-500 font-mono font-bold">{invStatus.createdMiningInv.invoiceNo} â†—</span>
+                                                        <span className="text-[10px] text-slate-500 font-mono font-bold">{invStatus.createdMiningInv.invoiceNo} ↗</span>
                                                       </div>
                                                     </button>
                                                   )}
@@ -812,7 +823,7 @@ export function BATrackerView({ c }: { c: any }) {
                                                       <Building2 size={14} className="text-indigo-700 mt-0.5 shrink-0" />
                                                       <div>
                                                         <strong className="block text-slate-900 font-extrabold text-[11px]">2. Inv Mine Dev (MDO)</strong>
-                                                        <span className="text-[10px] text-slate-500 font-mono font-bold">{invStatus.createdMDOInv.invoiceNo} â†—</span>
+                                                        <span className="text-[10px] text-slate-500 font-mono font-bold">{invStatus.createdMDOInv.invoiceNo} ↗</span>
                                                       </div>
                                                     </button>
                                                   )}
@@ -827,7 +838,7 @@ export function BATrackerView({ c }: { c: any }) {
                                             onClick={() => {
                                               if (linkedInvoice) {
                                                 setDetailViewItem({ type: "invoice", data: linkedInvoice });
-                                                onNotice(`ðŸ“„ Membuka Detail Invoice No. ${linkedInvoice.invoiceNo} (${linkedInvoice.customerCode})`);
+                                                onNotice(`Membuka Detail Invoice No. ${linkedInvoice.invoiceNo} (${linkedInvoice.customerCode})`);
                                               } else {
                                                 onNotice(`Invoice No. ${row.invoiceNoLinked || "-"} terhubung dengan BA ${row.baNumber}.`);
                                               }
@@ -841,17 +852,14 @@ export function BATrackerView({ c }: { c: any }) {
                                         )}
                                       </div>
                                     )}
-                                    {(row.customerCode === "BGG" || row.customerCode === "PT BGG") && !row.invoiceNoLinked && (
-                                      <button
-                                        type="button"
-                                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[11px] shadow-xs flex items-center gap-1 transition cursor-pointer"
-                                        onClick={() => handleGenerateInvoiceFromBA(row.id)}
-                                        title="1-Click: Buat Invoice Penambangan BGG dari BA ini"
-                                      >
-                                        <Zap size={13} className="text-amber-300" />
-                                        <span>âš¡ Buat Inv</span>
-                                      </button>
+
+                                    {/* Belum Diverifikasi (Belum Ready to Invoice) */}
+                                    {!isReady && !invStatus.isFullyInvoiced && !invStatus.isPartiallyInvoiced && (
+                                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                                        Menunggu Verifikasi
+                                      </span>
                                     )}
+
                                     <button
                                       className="p-1.5 rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 transition cursor-pointer"
                                       onClick={() => openBAModal(row, false)}
@@ -895,7 +903,7 @@ export function BATrackerView({ c }: { c: any }) {
                   <tfoot className="border-t-2 border-slate-200 bg-slate-50/95 text-slate-800 font-bold text-xs uppercase">
                     <tr>
                       <td colSpan={2} className="p-3 font-black text-slate-800 tracking-wider">
-                        TOTAL KLAIM BA {periodFilter === "All" ? "SEMUA PERIODE" : periodFilter} â€” ALL SITE
+                        TOTAL KLAIM BA {periodFilter === "All" ? "SEMUA PERIODE" : periodFilter} — ALL SITE
                       </td>
                       <td className="p-3 text-right font-mono text-sm text-slate-900 font-black">
                         {formatIDR(nominalApprovedPeriod + baOnProgressNominal)}

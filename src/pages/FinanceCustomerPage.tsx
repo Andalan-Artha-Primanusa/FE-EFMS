@@ -1,12 +1,12 @@
-﻿import { FinanceShell } from "./finance/FinanceShell";
+import { FinanceShell } from "./finance/FinanceShell";
 import { CustomerView } from "./finance/CustomerView";
 
-// Halaman: Customer Master & Credit Terms
+// Halaman: Client Setup (Terpadu Profil Klien, SOW & Aturan Penagihan)
 // Data & modal bersama di FinanceShell; konten spesifik di CustomerView.
 export function FinanceCustomerPage(props: { viewTitle?: string; query?: string; onNotice?: (msg: string) => void; user?: any }) {
   return (
     <FinanceShell
-      viewTitle="Customer & Credit Terms"
+      viewTitle={props.viewTitle ?? "Client Setup"}
       query={props.query ?? ""}
       onNotice={props.onNotice}
       user={props.user}

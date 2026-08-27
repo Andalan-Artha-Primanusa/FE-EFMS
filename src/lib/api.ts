@@ -291,6 +291,15 @@ export type FinanceTemplate = {
   payload: any;
 };
 
+export function getAuditLogs(params?: { module?: string; referenceType?: string; referenceId?: string }) {
+  const query = new URLSearchParams();
+  if (params?.module) query.append("module", params.module);
+  if (params?.referenceType) query.append("referenceType", params.referenceType);
+  if (params?.referenceId) query.append("referenceId", params.referenceId);
+  const qStr = query.toString();
+  return api<AuditLog[]>(`/api/audit-logs${qStr ? `?${qStr}` : ""}`);
+}
+
 export function getFinanceTemplates() {
   return api<Record<string, FinanceTemplate[]>>("/api/finance/templates");
 }

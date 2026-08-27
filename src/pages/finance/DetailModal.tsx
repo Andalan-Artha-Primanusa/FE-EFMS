@@ -16,16 +16,17 @@ import {
 
 export function DetailModal({ c }: { c: any }) {
   const {
-    isSPV, isManager, isDirector, invoiceRows: rawInvoiceRows, paymentRows: rawPaymentRows,
+    isSPV, isManager, isDirector, invoiceRows: rawInvoiceRows, paymentRows: rawPaymentRows, baRows: rawBaRows,
     detailViewItem, setDetailViewItem, showAddPartialPayment, setShowAddPartialPayment, partialPaymentForm,
-    setPartialPaymentForm, rfIndexCalculated, invLineItems, customerContractMap, getItemEffectiveVolume,
+    setPartialPaymentForm, rfIndexCalculated, invLineItems, formData, buildInvoiceItemsFromBA, customerContractMap, getItemEffectiveVolume,
     getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations, subtotalA, subtotalB,
     subtotalC, subtotalD, subtotalE, subtotalF, exportPaymentDetailPDF,
     handleSavePartialPayment, handleVerifyPartialPayment, createInvoiceFromBA, handleVerifyBA, handleApproveBA,
-    handleVerifyInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, user
+    handleVerifyInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, openEditModal, user
   } = (c || {}) as Record<string, any>;
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
   const paymentRows: any[] = Array.isArray(rawPaymentRows) ? rawPaymentRows : [];
+  const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
 
   if (!detailViewItem || !detailViewItem.data) return null;
 
@@ -43,16 +44,22 @@ export function DetailModal({ c }: { c: any }) {
                 </h3>
               </div>
               <div className="flex items-center gap-2">
-                {detailViewItem.type === "invoice" && (
-                  <button
-                    type="button"
-                    onClick={() => exportPaymentDetailPDF(detailViewItem.data)}
-                    title="Export / Cetak Dokumen Official INVOICE PDF"
-                    className="px-3 py-1.5 bg-cyan-700 hover:bg-cyan-800 text-white font-extrabold rounded-lg transition shadow-xs flex items-center gap-1.5 text-xs cursor-pointer"
-                  >
-                    <FileText size={15} /> ðŸ“„ Export PDF Invoice
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const itemToEdit = detailViewItem.data;
+                    const typeToEdit = detailViewItem.type;
+                    setDetailViewItem(null);
+                    if (typeof openEditModal === "function") {
+                      openEditModal(typeToEdit, itemToEdit);
+                    }
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  title="Buka Form Modal Edit untuk Mengubah Data"
+                >
+                  <Edit2 size={14} />
+                  <span>Edit Data</span>
+                </button>
                 <button className="p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition" onClick={() => setDetailViewItem(null)}>
                   <X size={20} />
                 </button>
@@ -72,11 +79,10 @@ export function DetailModal({ c }: { c: any }) {
                   </div>
                   {detailViewItem.type === "invoice" && (
                     <button
-                      type="button"
                       onClick={() => exportPaymentDetailPDF(detailViewItem.data)}
-                      className="px-3 py-1 rounded bg-cyan-700 hover:bg-cyan-800 text-white font-extrabold text-xs transition flex items-center gap-1 shadow-xs"
+                      className="px-3 py-1.5 rounded-lg bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-xs transition flex items-center gap-1 shadow-xs cursor-pointer"
                     >
-                      <FileText size={13} /> ðŸ–¨ï¸ Cetak / Simpan PDF
+                      <FileText size={13} /> Cetak / Simpan PDF
                     </button>
                   )}
                 </div>
@@ -85,7 +91,7 @@ export function DetailModal({ c }: { c: any }) {
                 {detailViewItem.type === "ba" && (
                   <div className="space-y-4">
                     {/* Quick 1-Click Invoice Callout if Ready */}
-                    {(detailViewItem.data.statusBA === "Ready to Invoice" || detailViewItem.data.statusBA === "Approved") && (
+                    {(detailViewItem.data.statusBA === "Ready to Invoice" || Boolean(detailViewItem.data.verifiedBy)) && !detailViewItem.data.invoiceNoLinked && (
                       <div className="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
                         <div className="flex items-center gap-3">
                           <div className="p-2 bg-emerald-600 text-white rounded-xl">
@@ -93,10 +99,10 @@ export function DetailModal({ c }: { c: any }) {
                           </div>
                           <div>
                             <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wider">
-                              BA Lengkap & Siap Terbit Invoice!
+                              BA Terverifikasi — Siap Diproses Invoice!
                             </h4>
                             <p className="text-[11px] text-emerald-800 font-medium">
-                              Seluruh volume telah diverifikasi dan ditandatangani. Klik tombol untuk auto-generate form Invoice.
+                              Volume telah diverifikasi Finance Specialist. Klik tombol untuk membuka Form Invoice dan periksa rincian sebelum disimpan.
                             </p>
                           </div>
                         </div>
@@ -106,7 +112,7 @@ export function DetailModal({ c }: { c: any }) {
                           className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition cursor-pointer shrink-0"
                         >
                           <Zap size={14} className="fill-amber-300 text-amber-300" />
-                          <span>âš¡ Terbitkan Invoice Sekarang</span>
+                          <span>+ Buat Draf Invoice</span>
                         </button>
                       </div>
                     )}
@@ -211,10 +217,18 @@ export function DetailModal({ c }: { c: any }) {
                   </div>
                 )}
 
-                {/* Invoice Detail Summary â€” Official INVOICE Document Sheet (Dynamic Layout per Customer) */}
+                {/* Invoice Detail Summary — Official INVOICE Document Sheet (Dynamic Layout per Customer) */}
                 {detailViewItem.type === "invoice" && (() => {
                   const viewCustCode = (detailViewItem.data.customerCode || "POS").toUpperCase();
-                  const cCalc = getCustomerCalculations(invLineItems, viewCustCode);
+                  const activeItems = (detailViewItem.data.items && Array.isArray(detailViewItem.data.items) && detailViewItem.data.items.length > 0)
+                    ? detailViewItem.data.items
+                    : (invLineItems && invLineItems.length > 0 && formData?.invoiceNo === detailViewItem.data.invoiceNo
+                        ? invLineItems
+                        : (typeof buildInvoiceItemsFromBA === "function"
+                            ? buildInvoiceItemsFromBA(baRows?.find((b: any) => b.baNumber === detailViewItem.data.baNoReference) || detailViewItem.data, viewCustCode, detailViewItem.data.invoiceCategory)
+                            : (detailViewItem.data.items || []))
+                      );
+                  const cCalc = getCustomerCalculations(activeItems, viewCustCode);
                   const cInfo = customerContractMap[viewCustCode];
                   const isMDO = detailViewItem.data.invoiceCategory === "MDO" || (detailViewItem.data.activityGroup || "").includes("MDO") || (detailViewItem.data.invoiceNo || "").includes("MDO");
                   const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
@@ -305,44 +319,52 @@ export function DetailModal({ c }: { c: any }) {
                                 <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
                                   <td className="p-2 underline border-r border-slate-200">A. OB REMOVAL</td>
                                   <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
-                                    {invLineItems.filter(i => i.section === "A").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
+                                    {activeItems.filter((i: any) => i.section === "A").reduce((s: number, i: any) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                                   </td>
                                   <td className="p-2 text-center border-r border-slate-200 font-bold">Bcm</td>
                                   <td className="p-2 text-right border-r border-slate-200"></td>
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalA)}</td>
                                 </tr>
                                 <tr className="bg-slate-50 font-bold"><td colSpan={5} className="p-1.5 pl-4 text-slate-700">A1. Pit Kungkilan</td></tr>
-                                {invLineItems.filter(i => i.section === "A").map(i => (
-                                  <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
-                                    <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">
-                                      {i.description} &nbsp; &nbsp; <span className="text-[10px] text-slate-500 font-normal">{i.period}</span>
-                                    </td>
-                                    <td className="p-2 text-center font-mono border-r border-slate-200">{(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-                                    <td className="p-2 text-center border-r border-slate-200">{i.unit || "Bcm"}</td>
-                                    <td className="p-2 text-right font-mono border-r border-slate-200">{(i.unitRateIDR || 0).toLocaleString("id-ID")}</td>
-                                    <td className="p-2 text-right font-mono font-extrabold">{formatIDR(Math.round((i.volume || 0) * (i.unitRateIDR || 0)))}</td>
-                                  </tr>
-                                ))}
+                                {activeItems.filter((i: any) => i.section === "A").map((i: any) => {
+                                  const effVol = getItemEffectiveVolume(i);
+                                  const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+                                  return (
+                                    <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
+                                      <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">
+                                        {i.description} &nbsp; &nbsp; <span className="text-[10px] text-slate-500 font-normal">{i.period}</span>
+                                      </td>
+                                      <td className="p-2 text-center font-mono border-r border-slate-200">{effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
+                                      <td className="p-2 text-center border-r border-slate-200">{i.unit || "Bcm"}</td>
+                                      <td className="p-2 text-right font-mono border-r border-slate-200">{unitRate.toLocaleString("id-ID")}</td>
+                                      <td className="p-2 text-right font-mono font-extrabold">{formatIDR(amount)}</td>
+                                    </tr>
+                                  );
+                                })}
 
                                 <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
                                   <td className="p-2 underline border-r border-slate-200">B. COAL WINNING</td>
                                   <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
-                                    {invLineItems.filter(i => i.section === "B").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
+                                    {activeItems.filter((i: any) => i.section === "B").reduce((s: number, i: any) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                                   </td>
                                   <td className="p-2 text-center border-r border-slate-200 font-bold">Ton</td>
                                   <td className="p-2 text-right border-r border-slate-200"></td>
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalB)}</td>
                                 </tr>
                                 <tr className="bg-slate-50 font-bold"><td colSpan={5} className="p-1.5 pl-4 text-slate-700">B1. Pit Kungkilan</td></tr>
-                                {invLineItems.filter(i => i.section === "B").map(i => (
-                                  <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
-                                    <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">{i.description}</td>
-                                    <td className="p-2 text-center font-mono border-r border-slate-200">{(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-                                    <td className="p-2 text-center border-r border-slate-200">{i.unit || "Ton"}</td>
-                                    <td className="p-2 text-right font-mono border-r border-slate-200">{(i.unitRateIDR || 0).toLocaleString("id-ID")}</td>
-                                    <td className="p-2 text-right font-mono font-extrabold">{formatIDR(Math.round((i.volume || 0) * (i.unitRateIDR || 0)))}</td>
-                                  </tr>
-                                ))}
+                                {activeItems.filter((i: any) => i.section === "B").map((i: any) => {
+                                  const effVol = getItemEffectiveVolume(i);
+                                  const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+                                  return (
+                                    <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
+                                      <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">{i.description}</td>
+                                      <td className="p-2 text-center font-mono border-r border-slate-200">{effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
+                                      <td className="p-2 text-center border-r border-slate-200">{i.unit || "Ton"}</td>
+                                      <td className="p-2 text-right font-mono border-r border-slate-200">{unitRate.toLocaleString("id-ID")}</td>
+                                      <td className="p-2 text-right font-mono font-extrabold">{formatIDR(amount)}</td>
+                                    </tr>
+                                  );
+                                })}
 
                                 <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
                                   <td className="p-2 underline border-r border-slate-200">C. OVER DISTANCE</td>
@@ -351,20 +373,23 @@ export function DetailModal({ c }: { c: any }) {
                                   <td className="p-2 text-right border-r border-slate-200"></td>
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalC)}</td>
                                 </tr>
-                                {invLineItems.filter(i => i.section === "C").map(i => {
-                                  const diffMtr = (i.overhaulMtr || 1000) - 1000;
+                                {activeItems.filter((i: any) => i.section === "C").map((i: any) => {
+                                  const effVol = getItemEffectiveVolume(i);
+                                  const effMtr = getItemEffectiveOverhaulMtr(i);
+                                  const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+                                  const diffMtr = effMtr - 1000;
                                   return (
                                     <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
                                       <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">
-                                        <div>{i.subSection || "Over Distance"}</div>
+                                        <div>{i.subSection || i.description}</div>
                                         <div className="text-[10px] text-slate-500 font-mono font-normal">
-                                          {(i.overhaulMtr/1000).toFixed(3)} mtr - 1000 mtr = {diffMtr} mtr &nbsp; &nbsp; {i.period}
+                                          {effMtr} mtr - 1000 mtr = ({diffMtr > 0 ? `+${diffMtr}` : diffMtr}) mtr &nbsp; &nbsp; {i.period}
                                         </div>
                                       </td>
-                                      <td className="p-2 text-center font-mono border-r border-slate-200">{(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-                                      <td className="p-2 text-center border-r border-slate-200">{i.unit || "Bcm"}</td>
-                                      <td className="p-2 text-right font-mono border-r border-slate-200">{(i.unitRateIDR || 0).toLocaleString("id-ID")}</td>
-                                      <td className="p-2 text-right font-mono font-extrabold">{formatIDR(Math.round((i.volume || 0) * (i.unitRateIDR || 0)))}</td>
+                                      <td className="p-2 text-center font-mono border-r border-slate-200">{effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
+                                      <td className="p-2 text-center border-r border-slate-200">{i.unit || (i.subSection?.includes("Coal") ? "Ton" : "Bcm")}</td>
+                                      <td className="p-2 text-right font-mono border-r border-slate-200">{unitRate.toLocaleString("id-ID")}</td>
+                                      <td className="p-2 text-right font-mono font-extrabold">{formatIDR(amount)}</td>
                                     </tr>
                                   );
                                 })}
@@ -376,39 +401,49 @@ export function DetailModal({ c }: { c: any }) {
                                   <td className="p-2 text-right border-r border-slate-200"></td>
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalD)}</td>
                                 </tr>
-                                {invLineItems.filter(i => i.section === "D").map(i => (
-                                  <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
-                                    <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">
-                                      {i.subSection || ""} {i.description} &nbsp; &nbsp; <span className="text-[10px] text-slate-500 font-normal">{i.period}</span>
-                                    </td>
-                                    <td className="p-2 text-center font-mono border-r border-slate-200">{(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-                                    <td className="p-2 text-center border-r border-slate-200">{i.unit || "Bcm"}</td>
-                                    <td className="p-2 text-right font-mono border-r border-slate-200">{(i.unitRateIDR || 0).toLocaleString("id-ID")}</td>
-                                    <td className="p-2 text-right font-mono font-extrabold">{formatIDR(Math.round((i.volume || 0) * (i.unitRateIDR || 0)))}</td>
-                                  </tr>
-                                ))}
+                                {activeItems.filter((i: any) => i.section === "D").map((i: any) => {
+                                  const effVol = getItemEffectiveVolume(i);
+                                  const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+                                  return (
+                                    <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
+                                      <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">
+                                        {i.subSection || ""} {i.description} &nbsp; &nbsp; <span className="text-[10px] text-slate-500 font-normal">{i.period}</span>
+                                      </td>
+                                      <td className="p-2 text-center font-mono border-r border-slate-200">{effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
+                                      <td className="p-2 text-center border-r border-slate-200">{i.unit || "Bcm"}</td>
+                                      <td className="p-2 text-right font-mono border-r border-slate-200">{unitRate.toLocaleString("id-ID")}</td>
+                                      <td className="p-2 text-right font-mono font-extrabold">{formatIDR(amount)}</td>
+                                    </tr>
+                                  );
+                                })}
 
                                 <tr className="bg-rose-50/70 font-extrabold text-rose-900 border-t border-b border-rose-200">
-                                  <td colSpan={4} className="p-2 underline">E. DISCOUNT ON OVERDISTANCE</td>
+                                  <td colSpan={4} className="p-2 underline">E. DISCOUNT ON OVERDISTANCE (Deduction 25%)</td>
                                   <td className="p-2 text-right font-mono font-black text-rose-900">({formatIDR(Math.abs(cCalc.subtotalE))})</td>
                                 </tr>
-                                {invLineItems.filter(i => i.section === "E").map(i => (
-                                  <tr key={i.id} className="hover:bg-rose-50/30 border-b border-slate-200">
-                                    <td colSpan={4} className="p-2 pl-6 font-medium text-slate-700">{i.description}</td>
-                                    <td className="p-2 text-right font-mono font-bold text-rose-800">({formatIDR(Math.abs(i.amount || 0))})</td>
-                                  </tr>
-                                ))}
+                                {activeItems.filter((i: any) => i.section === "E").map((i: any) => {
+                                  const { amount } = calculateItemRateAndAmount(i, "BGG");
+                                  return (
+                                    <tr key={i.id} className="hover:bg-rose-50/30 border-b border-slate-200">
+                                      <td colSpan={4} className="p-2 pl-6 font-medium text-slate-700">{i.description}</td>
+                                      <td className="p-2 text-right font-mono font-bold text-rose-800">({formatIDR(Math.abs(amount))})</td>
+                                    </tr>
+                                  );
+                                })}
 
                                 <tr className="bg-rose-50/70 font-extrabold text-rose-900 border-t border-b border-rose-200">
-                                  <td colSpan={4} className="p-2 underline">F. DP FUEL & TRANSPORT</td>
+                                  <td colSpan={4} className="p-2 underline">F. DP FUEL & TRANSPORT (Deduction)</td>
                                   <td className="p-2 text-right font-mono font-black text-rose-900">({formatIDR(Math.abs(cCalc.subtotalF))})</td>
                                 </tr>
-                                {invLineItems.filter(i => i.section === "F").map(i => (
-                                  <tr key={i.id} className="hover:bg-rose-50/30 border-b border-slate-200">
-                                    <td colSpan={4} className="p-2 pl-6 font-medium text-slate-700">{i.description}</td>
-                                    <td className="p-2 text-right font-mono font-bold text-rose-800">({formatIDR(Math.abs(i.amount || 0))})</td>
-                                  </tr>
-                                ))}
+                                {activeItems.filter((i: any) => i.section === "F").map((i: any) => {
+                                  const { amount } = calculateItemRateAndAmount(i, "BGG");
+                                  return (
+                                    <tr key={i.id} className="hover:bg-rose-50/30 border-b border-slate-200">
+                                      <td colSpan={4} className="p-2 pl-6 font-medium text-slate-700">{i.description}</td>
+                                      <td className="p-2 text-right font-mono font-bold text-rose-800">({formatIDR(Math.abs(amount))})</td>
+                                    </tr>
+                                  );
+                                })}
                               </>
                             )}
 
@@ -418,7 +453,7 @@ export function DetailModal({ c }: { c: any }) {
                                 <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
                                   <td className="p-2 underline border-r border-slate-200">A. OB REMOVAL</td>
                                   <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
-                                    {invLineItems.filter(i => i.section === "A").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}
+                                    {activeItems.filter((i: any) => i.section === "A").reduce((s: number, i: any) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}
                                   </td>
                                   <td className="p-2 text-center border-r border-slate-200 font-bold">Bcm</td>
                                   <td className="p-2 text-right border-r border-slate-200"></td>
@@ -426,7 +461,7 @@ export function DetailModal({ c }: { c: any }) {
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalA)}</td>
                                 </tr>
                                 <tr className="bg-slate-50 font-bold"><td colSpan={6} className="p-1.5 pl-4 text-slate-700">A1. PIT SAPAN</td></tr>
-                                {invLineItems.filter(i => i.section === "A").map(i => (
+                                {activeItems.filter((i: any) => i.section === "A").map((i: any) => (
                                   <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
                                     <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">{i.description}</td>
                                     <td className="p-2 text-center font-mono border-r border-slate-200">{(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}</td>
@@ -440,7 +475,7 @@ export function DetailModal({ c }: { c: any }) {
                                 <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
                                   <td className="p-2 underline border-r border-slate-200">B. COAL WINNING</td>
                                   <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
-                                    {invLineItems.filter(i => i.section === "B").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}
+                                    {activeItems.filter((i: any) => i.section === "B").reduce((s: number, i: any) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}
                                   </td>
                                   <td className="p-2 text-center border-r border-slate-200 font-bold">Ton</td>
                                   <td className="p-2 text-right border-r border-slate-200"></td>
@@ -448,7 +483,7 @@ export function DetailModal({ c }: { c: any }) {
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalB)}</td>
                                 </tr>
                                 <tr className="bg-slate-50 font-bold"><td colSpan={6} className="p-1.5 pl-4 text-slate-700">B1. PIT SAPAN</td></tr>
-                                {invLineItems.filter(i => i.section === "B").map(i => (
+                                {activeItems.filter((i: any) => i.section === "B").map((i: any) => (
                                   <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
                                     <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">PIT SAPAN</td>
                                     <td className="p-2 text-center font-mono border-r border-slate-200">{(i.actualVolume || i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}</td>
@@ -467,7 +502,7 @@ export function DetailModal({ c }: { c: any }) {
                                   <td className="p-2 border-r border-slate-200"></td>
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalC)}</td>
                                 </tr>
-                                {invLineItems.filter(i => i.section === "C").map(i => {
+                                {activeItems.filter((i: any) => i.section === "C").map((i: any) => {
                                   const baseM = i.baseMtr || 1000;
                                   const diff = (i.overhaulMtr || baseM) - baseM;
                                   return (
@@ -495,13 +530,13 @@ export function DetailModal({ c }: { c: any }) {
                                 <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
                                   <td className="p-2 underline border-r border-slate-200">OB REMOVAL</td>
                                   <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
-                                    {invLineItems.filter(i => i.section === "A").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
+                                    {activeItems.filter((i: any) => i.section === "A").reduce((s: number, i: any) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                                   </td>
                                   <td className="p-2 text-center border-r border-slate-200 font-bold">UoM</td>
                                   <td className="p-2 text-right border-r border-slate-200"></td>
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalA)}</td>
                                 </tr>
-                                {invLineItems.filter(i => i.section === "A").map(i => (
+                                {activeItems.filter((i: any) => i.section === "A").map((i: any) => (
                                   <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
                                     <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">{i.description}</td>
                                     <td className="p-2 text-center font-mono border-r border-slate-200">{(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
@@ -514,13 +549,13 @@ export function DetailModal({ c }: { c: any }) {
                                 <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
                                   <td className="p-2 underline border-r border-slate-200">JASA PENUNJANG PRODUKSI</td>
                                   <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
-                                    {invLineItems.filter(i => i.section === "B").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
+                                    {activeItems.filter((i: any) => i.section === "B").reduce((s: number, i: any) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                                   </td>
                                   <td className="p-2 text-center border-r border-slate-200 font-bold">UoM</td>
                                   <td className="p-2 text-right border-r border-slate-200"></td>
                                   <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalB)}</td>
                                 </tr>
-                                {invLineItems.filter(i => i.section === "B").map(i => (
+                                {activeItems.filter((i: any) => i.section === "B").map((i: any) => (
                                   <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
                                     <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">{i.description}</td>
                                     <td className="p-2 text-center font-mono border-r border-slate-200">{(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
@@ -534,10 +569,10 @@ export function DetailModal({ c }: { c: any }) {
 
                             {/* POS DEFAULT LAYOUT */}
                             {viewCustCode === "POS" && (() => {
-                              const secAItems = invLineItems.filter(i => i.section === "A");
-                              const secBItems = invLineItems.filter(i => i.section === "B");
-                              const secCItems = invLineItems.filter(i => i.section === "C");
-                              const secDItems = invLineItems.filter(i => i.section === "D");
+                              const secAItems = activeItems.filter((i: any) => i.section === "A");
+                              const secBItems = activeItems.filter((i: any) => i.section === "B");
+                              const secCItems = activeItems.filter((i: any) => i.section === "C");
+                              const secDItems = activeItems.filter((i: any) => i.section === "D");
 
                               return (
                                 <>
@@ -546,13 +581,13 @@ export function DetailModal({ c }: { c: any }) {
                                       <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
                                         <td className="p-2 underline border-r border-slate-200">{isMDO ? "A. MINE DEVELOPMENT (MDO)" : "A. PRODUCTION"}</td>
                                         <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
-                                          {secAItems.reduce((sum, i) => sum + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
+                                          {secAItems.reduce((sum: number, i: any) => sum + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                                         </td>
                                         <td className="p-2 text-center border-r border-slate-200 font-bold">{isMDO ? "" : "Bcm"}</td>
                                         <td className="p-2 text-right border-r border-slate-200"></td>
                                         <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalA)}</td>
                                       </tr>
-                                      {secAItems.map((item) => {
+                                      {secAItems.map((item: any) => {
                                         const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
                                         return (
                                           <tr key={item.id} className="hover:bg-slate-50 border-b border-slate-200">
@@ -578,7 +613,7 @@ export function DetailModal({ c }: { c: any }) {
                                         <td className="p-2 text-right border-r border-slate-200"></td>
                                         <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalB)}</td>
                                       </tr>
-                                      {secBItems.map((item) => {
+                                      {secBItems.map((item: any) => {
                                         const effVol = getItemEffectiveVolume(item);
                                         const effMtr = getItemEffectiveOverhaulMtr(item);
                                         const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
@@ -760,7 +795,7 @@ export function DetailModal({ c }: { c: any }) {
 
                           {/* Blank signature space (no stamp/signature) */}
                           <div className="h-14 border-b border-dashed border-slate-400 my-2 flex items-center justify-center text-[10px] text-slate-400 italic">
-                            ( Area Tanda Tangan & Stempel â€” Kosong )
+                            ( Area Tanda Tangan & Stempel — Kosong )
                           </div>
 
                           <div>
@@ -956,7 +991,7 @@ export function DetailModal({ c }: { c: any }) {
                               <div className="flex justify-between items-start">
                                 <span className="font-black text-emerald-700 font-mono text-sm">{formatIDR(p.amountPaid)}</span>
                                 <span className={`text-[10px] px-2 py-0.5 rounded font-extrabold ${isVerified ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "bg-amber-100 text-amber-800 border border-amber-300"}`}>
-                                  {isVerified ? "âœ“ Verified" : "â³ Pending Verifikasi"}
+                                  {isVerified ? "✓ Verified" : "⏳ Pending Verifikasi"}
                                 </span>
                               </div>
                               <div className="flex justify-between text-[11px] text-slate-600 font-semibold">

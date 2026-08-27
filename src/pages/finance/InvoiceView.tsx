@@ -115,10 +115,13 @@ export function InvoiceView({ c }: { c: any }) {
                           onChange={(e) => setInvStatusFilter(e.target.value)}
                         >
                           <option value="All">Semua Status</option>
-                          <option value="Overdue">Overdue</option>
+                          <option value="Draft">Draft</option>
+                          <option value="Verified">Verified SPV</option>
+                          <option value="Approved_Tier1">Approved Mgr (Tier 1)</option>
+                          <option value="Issued">Issued (Approved Dir)</option>
                           <option value="Paid">Paid (Lunas)</option>
-                          <option value="Partial">Partial</option>
-                          <option value="Open">Open</option>
+                          <option value="Tax_Reported">Tax Reported (SPT)</option>
+                          <option value="Overdue">Overdue</option>
                         </select>
                       </div>
 
@@ -284,8 +287,8 @@ export function InvoiceView({ c }: { c: any }) {
                   </div>
                 </div>
 
-                {/* TABLE SAJIAN TERKELOMPOK PER CLIENT MATCHING EXCEL GAMBAR 3 */}
-                <Panel title={invCardTab === "AR_ANDALAN" ? "Tabel Outstandings AR â€” Total AR Andalan (Per Client)" : invCardTab === "PENALTY_UNCUT" ? "Tabel Progress Pinalty yang Belum Dipotong (Per Client)" : "Tabel Subject To Invoice â€” BA Ready To Invoice (Per Client)"}>
+                {/* Table Sajian Terkelompok Per Client */}
+                <Panel title={invCardTab === "AR_ANDALAN" ? "Tabel Outstandings AR — Total AR Andalan (Per Klien)" : invCardTab === "PENALTY_UNCUT" ? "Tabel Progress Penalti Belum Terpotong (Per Klien)" : "Tabel Subject To Invoice — BA Ready To Invoice (Per Klien)"}>
                   <div className="table-wrapper overflow-x-auto rounded-lg border border-slate-200 shadow-2xs">
                     <table className="data-table w-full min-w-[1350px] text-xs text-left border-collapse">
                       <thead>
@@ -310,7 +313,17 @@ export function InvoiceView({ c }: { c: any }) {
                           const filteredInv = invoiceRows.filter((r) => {
                             const matchQ = JSON.stringify(r).toLowerCase().includes(query.toLowerCase());
                             if (!matchQ) return false;
-                            if (invStatusFilter !== "All" && r.status !== invStatusFilter) return false;
+
+                            if (invStatusFilter !== "All") {
+                              const s = (r.status || "").trim();
+                              if (invStatusFilter === "Draft") {
+                                if (s !== "Draft" && s !== "Draft Invoice" && s !== "Pending" && s !== "Submitted" && s !== "") return false;
+                              } else if (invStatusFilter === "Issued") {
+                                if (s !== "Issued" && s !== "Approved_Tier2" && s !== "Approved") return false;
+                              } else if (s !== invStatusFilter) {
+                                return false;
+                              }
+                            }
                             
                             // Period Cut-Off: Tampilkan invoice periode terpilih & periode sebelumnya
                             if (invPeriodFilter !== "All") {
@@ -318,9 +331,9 @@ export function InvoiceView({ c }: { c: any }) {
                               if (rowPeriodIndex > targetPeriodIndex) return false;
                             }
 
-                            // Khusus invoice yang belum terbayar (outstanding > 0 dan status bukan Paid)
-                            const outstandingAmount = r.outstanding ?? ((r.totalInvoice || 0) - (r.totalPaid || 0));
-                            if (invStatusFilter === "All" && (outstandingAmount <= 0 || r.status === "Paid")) {
+                            // Khusus filter "All": Tampilkan invoice yang belum lunas (outstanding > 0 dan status bukan Paid/Tax_Reported)
+                            const outstandingAmount = r.outstanding !== undefined ? Number(r.outstanding) : ((Number(r.totalInvoice) || 0) - (Number(r.totalPaid) || 0));
+                            if (invStatusFilter === "All" && (outstandingAmount <= 0 || r.status === "Paid" || r.status === "Tax_Reported")) {
                               return false;
                             }
 
@@ -358,62 +371,81 @@ export function InvoiceView({ c }: { c: any }) {
                                     </div>
                                   </td>
                                 </tr>
-                                {clientRows.map((row: any) => (
-                                  <tr key={row.id} className="hover:bg-slate-50 transition group">
-                                    <td className="p-2.5 font-bold text-slate-900">{row.customerCode}</td>
-                                    <td className="p-2.5 text-slate-700 font-medium">{row.workPeriod || "Juni 2026"}</td>
-                                    <td className="p-2.5 font-mono font-bold text-cyan-800">{row.invoiceNo}</td>
-                                    <td className="p-2.5 text-slate-700 font-medium">{row.jobType || row.notes || "OB & CG"}</td>
-                                    <td className="p-2.5 text-right font-mono text-slate-900">{formatIDR(row.totalInvoice)}</td>
-                                    <td className="p-2.5 text-slate-700">{row.invoiceDate ? new Date(row.invoiceDate).toLocaleDateString("id-ID") : "-"}</td>
-                                    <td className="p-2.5 text-slate-700">{row.invoiceIssuedDate ? new Date(row.invoiceIssuedDate).toLocaleDateString("id-ID") : "-"}</td>
-                                    <td className="p-2.5 text-slate-700">{row.dueDate ? new Date(row.dueDate).toLocaleDateString("id-ID") : "-"}</td>
-                                    <td className="p-2.5 text-right font-mono font-bold text-rose-700">{formatIDR(row.outstanding)}</td>
-                                    <td className="p-2.5 text-center">
-                                      {renderInvoiceStatusBadge(row.status)}
-                                    </td>
-                                    <td className="p-2.5 text-right whitespace-nowrap sticky right-0 z-10 bg-white group-hover:bg-slate-50 transition-colors shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] border-l border-slate-200">
-                                      <div className="flex items-center justify-end gap-1.5 flex-nowrap min-w-[150px]">
-                                        {isSPV && (row.status === "Draft" || !row.status || row.status === "Pending") && (
-                                          <button
-                                            className="px-2 py-1 bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-[11px] rounded shadow-sm inline-flex items-center gap-1 transition shrink-0 whitespace-nowrap font-sans"
-                                            onClick={() => handleVerifyInvoice(row.id)}
-                                            title="Verifikasi Invoice (SPV)"
-                                          >
-                                            <ShieldCheck size={12} /> Verifikasi SPV
-                                          </button>
-                                        )}
-                                        {isManager && (row.status === "Verified" || row.status === "Draft" || row.status === "Pending") && (
-                                          <button
-                                            className="px-2 py-1 bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-[11px] rounded shadow-sm inline-flex items-center gap-1 transition shrink-0 whitespace-nowrap font-sans"
-                                            onClick={() => handleApproveInvoiceTier1(row.id)}
-                                            title="Approve Tier 1 (Manager)"
-                                          >
-                                            <UserCheck size={12} /> Approve Mgr (T1)
-                                          </button>
-                                        )}
-                                        {isDirector && (row.status === "Approved_Tier1" || row.status === "Verified") && (
-                                          <button
-                                            className="px-2 py-1 bg-purple-700 hover:bg-purple-800 text-white font-bold text-[11px] rounded shadow-sm inline-flex items-center gap-1 transition shrink-0 whitespace-nowrap font-sans"
-                                            onClick={() => handleApproveInvoiceTier2(row.id)}
-                                            title="Approve Tier 2 (Direktur Eksekutif)"
-                                          >
-                                            <FileCheck size={12} /> Approve Dir (T2)
-                                          </button>
-                                        )}
-                                        <button className="p-1.5 rounded border border-cyan-200 bg-cyan-50 text-cyan-800 hover:bg-cyan-100 transition shrink-0" onClick={() => setDetailViewItem({ type: "invoice", data: row })} title="Lihat Detail & Tracking Log">
-                                          <Eye size={14} />
-                                        </button>
-                                        <button className="p-1.5 rounded border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition shrink-0" onClick={() => openEditModal("invoice", row)} title="Edit Invoice">
-                                          <Edit2 size={14} />
-                                        </button>
-                                        <button className="p-1.5 rounded border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition shrink-0" onClick={() => handleDelete("invoice", row.id)} title="Hapus Invoice">
-                                          <Trash2 size={14} />
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))}
+                                  {clientRows.map((row: any) => {
+                                    const isImmutable = row.status === "Tax_Reported" || row.status === "Paid";
+                                    return (
+                                      <tr key={row.id} className="hover:bg-slate-50 transition group">
+                                        <td className="p-2.5 font-bold text-slate-900">{row.customerCode}</td>
+                                        <td className="p-2.5 text-slate-700 font-medium">{row.workPeriod || "Juni 2026"}</td>
+                                        <td className="p-2.5 font-mono font-bold text-cyan-800">
+                                          <div>{row.invoiceNo}</div>
+                                          {row.relatedInvoiceNo && (
+                                            <div className="text-[10px] text-indigo-700 font-sans font-bold flex items-center gap-1 mt-0.5">
+                                              <span>🔗 Pasangan:</span>
+                                              <span className="font-mono">{row.relatedInvoiceNo}</span>
+                                            </div>
+                                          )}
+                                        </td>
+                                        <td className="p-2.5 text-slate-700 font-medium">{row.jobType || row.notes || "OB & CG"}</td>
+                                        <td className="p-2.5 text-right font-mono text-slate-900">{formatIDR(row.totalInvoice)}</td>
+                                        <td className="p-2.5 text-slate-700">{row.invoiceDate ? new Date(row.invoiceDate).toLocaleDateString("id-ID") : "-"}</td>
+                                        <td className="p-2.5 text-slate-700">{row.invoiceIssuedDate ? new Date(row.invoiceIssuedDate).toLocaleDateString("id-ID") : "-"}</td>
+                                        <td className="p-2.5 text-slate-700">{row.dueDate ? new Date(row.dueDate).toLocaleDateString("id-ID") : "-"}</td>
+                                        <td className="p-2.5 text-right font-mono font-bold text-rose-700">{formatIDR(row.outstanding)}</td>
+                                        <td className="p-2.5 text-center">
+                                          {renderInvoiceStatusBadge(row.status)}
+                                        </td>
+                                        <td className="p-2.5 text-right whitespace-nowrap sticky right-0 z-10 bg-white group-hover:bg-slate-50 transition-colors shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] border-l border-slate-200">
+                                          <div className="flex items-center justify-end gap-1.5 flex-nowrap min-w-[150px]">
+                                            {isSPV && (row.status === "Draft" || !row.status || row.status === "Pending") && (
+                                              <button
+                                                className="px-2 py-1 bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-[11px] rounded shadow-sm inline-flex items-center gap-1 transition shrink-0 whitespace-nowrap font-sans cursor-pointer"
+                                                onClick={() => handleVerifyInvoice(row.id)}
+                                                title="Verifikasi Invoice (SPV)"
+                                              >
+                                                <ShieldCheck size={12} /> Verifikasi SPV
+                                              </button>
+                                            )}
+                                            {isManager && (row.status === "Verified" || row.status === "Draft" || row.status === "Pending") && (
+                                              <button
+                                                className="px-2 py-1 bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-[11px] rounded shadow-sm inline-flex items-center gap-1 transition shrink-0 whitespace-nowrap font-sans cursor-pointer"
+                                                onClick={() => handleApproveInvoiceTier1(row.id)}
+                                                title="Approve Tier 1 (Manager)"
+                                              >
+                                                <UserCheck size={12} /> Approve Mgr (T1)
+                                              </button>
+                                            )}
+                                            {isDirector && (row.status === "Approved_Tier1" || row.status === "Verified") && (
+                                              <button
+                                                className="px-2 py-1 bg-purple-700 hover:bg-purple-800 text-white font-bold text-[11px] rounded shadow-sm inline-flex items-center gap-1 transition shrink-0 whitespace-nowrap font-sans cursor-pointer"
+                                                onClick={() => handleApproveInvoiceTier2(row.id)}
+                                                title="Approve Tier 2 (Direktur Eksekutif)"
+                                              >
+                                                <FileCheck size={12} /> Approve Dir (T2)
+                                              </button>
+                                            )}
+                                            <button className="p-1.5 rounded border border-cyan-200 bg-cyan-50 text-cyan-800 hover:bg-cyan-100 transition shrink-0 cursor-pointer" onClick={() => setDetailViewItem({ type: "invoice", data: row })} title="Lihat Detail & Tracking Log">
+                                              <Eye size={14} />
+                                            </button>
+                                            {isImmutable ? (
+                                              <span className="p-1.5 rounded border border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed" title={`Terkunci: Status ${row.status} tidak dapat diubah (Immutability Lock)`}>
+                                                <Lock size={14} />
+                                              </span>
+                                            ) : (
+                                              <>
+                                                <button className="p-1.5 rounded border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition shrink-0 cursor-pointer" onClick={() => openEditModal("invoice", row)} title="Edit Invoice">
+                                                  <Edit2 size={14} />
+                                                </button>
+                                                <button className="p-1.5 rounded border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition shrink-0 cursor-pointer" onClick={() => handleDelete("invoice", row.id)} title="Hapus Invoice">
+                                                  <Trash2 size={14} />
+                                                </button>
+                                              </>
+                                            )}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
                                 {/* Client Group Subtotal Row */}
                                 <tr className="bg-slate-50 font-bold text-slate-800 border-b border-slate-200 font-sans">
                                   <td colSpan={4} className="p-2.5 text-right uppercase tracking-wider text-xs font-extrabold text-slate-700 font-sans">TOTAL AR {custCode}:</td>

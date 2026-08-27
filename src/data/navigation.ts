@@ -13,7 +13,7 @@ import {
 
 export const menu = [
   { group: "Dashboard", icon: LayoutDashboard, items: ["Executive Dashboard", "Finance Dashboard"] },
-  { group: "Master Data", icon: Building2, items: ["Chart of Accounts", "Company", "Site", "Department", "Cost Center", "Project", "Vendor", "Customer Master & Credit Terms", "Employee", "Bank", "Tax", "Currency", "Coal Index", "Variable SOW", "RAISE & FALL"] },
+  { group: "Master Data", icon: Building2, items: ["Chart of Accounts", "Company", "Site", "Department", "Cost Center", "Project", "Vendor", "Client Setup", "Employee", "Bank", "Tax", "Currency", "Coal Index", "Variable SOW", "RAISE & FALL"] },
   { group: "Budget Management", icon: WalletCards, items: ["Annual Budget", "Monthly Budget", "Budget Submission", "Budget Approval", "Budget Revision", "Budget Transfer", "Budget versus Actual"] },
   { group: "Transaction Request", icon: ClipboardCheck, items: ["Purchase Request", "Expense Request", "Cash Advance", "Reimbursement", "Payment Request"] },
   { group: "Finance", icon: Landmark, items: ["Finance & AR Dashboard", "Berita Acara (BA) Tracker", "Invoice Management", "Payment & Receipt Log"] },
@@ -88,7 +88,8 @@ export const viewMap: Record<string, ViewConfig> = {
   "Cost Center": { title: "Cost Center", endpoint: "/api/master-data?type=cost_center_department", importType: "master_records", masterType: "cost_center_department" },
   "Project": { title: "Project", endpoint: "/api/master-data?type=project_site", importType: "master_records", masterType: "project_site" },
   "Vendor": { title: "Vendor", endpoint: "/api/master-data?type=vendor", importType: "master_records", masterType: "vendor" },
-  "Customer Master & Credit Terms": { title: "Customer Master & Credit Terms", endpoint: "/api/finance/customers", importType: "master_records", masterType: "customer" },
+  "Client Setup": { title: "Client Setup", endpoint: "/api/finance/customers", importType: "master_records", masterType: "customer" },
+  "Customer Master & Credit Terms": { title: "Client Setup", endpoint: "/api/finance/customers", importType: "master_records", masterType: "customer" },
   "Employee": { title: "Employee", endpoint: "/api/master-data?type=employee", importType: "master_records", masterType: "employee" },
   "Bank": { title: "Bank", endpoint: "/api/master-data/bank-accounts", importType: "master_records", masterType: "bank_account" },
   "Tax": { title: "Tax", endpoint: "/api/master-data?type=tax_term_payment", importType: "master_records", masterType: "tax_term_payment" },
@@ -159,7 +160,9 @@ export const menuPermissionMap: Record<string, string[]> = {
   "Cost Center": ["master_data:read"],
   "Project": ["master_data:read"],
   "Vendor": ["master_data:read"],
+  "Client Setup": ["master_data:read"],
   "Customer Master & Credit Terms": ["master_data:read"],
+  "Customer": ["master_data:read"],
   "Employee": ["master_data:read"],
   "Bank": ["master_data:read"],
   "Tax": ["master_data:read"],

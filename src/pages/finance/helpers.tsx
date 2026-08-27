@@ -1,5 +1,5 @@
-﻿import * as React from "react";
-import { Archive } from "lucide-react";
+import * as React from "react";
+import { Archive, Clock } from "lucide-react";
 import { API_BASE } from "../../lib/api";
 
 // =============================================================
@@ -151,8 +151,12 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
   const baNum = (ba.baNumber || "").trim().toLowerCase();
   const linkedNo = (ba.invoiceNoLinked || "").trim().toLowerCase();
 
-  // Find all invoices that reference this BA or whose invoiceNo matches linkedNo
+  const custCode = (ba.customerCode || "POS").trim().toUpperCase();
+
+  // Find all invoices that reference this BA or whose invoiceNo matches linkedNo AND customer
   const matchedInvoices = (allInvoices || []).filter((inv) => {
+    const invCust = (inv.customerCode || "").trim().toUpperCase();
+    if (custCode && invCust && custCode !== invCust) return false;
     const invRef = (inv.baNoReference || "").trim().toLowerCase();
     const invNo = (inv.invoiceNo || "").trim().toLowerCase();
     if (baNum && invRef === baNum) return true;
@@ -160,7 +164,7 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
     return false;
   });
 
-  const isPOS = (ba.customerCode || "POS") === "POS";
+  const isPOS = custCode === "POS";
 
   if (isPOS) {
     const createdMiningInv = matchedInvoices.find((inv) => 
@@ -204,36 +208,66 @@ export function renderBAStatusBadge(status: string, invoiceNoLinked?: string, is
   const s = (status || "").trim();
   const isPOS = baRow?.customerCode === "POS";
 
-  if (isPOS && allInvoices && baRow) {
+  if (allInvoices && baRow) {
     const invStatus = getBAInvoiceStatus(baRow, allInvoices);
-    if (invStatus.isFullyInvoiced) {
-      return (
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-purple-100 text-purple-900 border border-purple-300 inline-flex items-center gap-1 shadow-2xs">
-            <Archive size={11} className="text-purple-700" /> Arsip (2/2 Terbit)
-          </span>
-          <span className="text-[9px] font-mono text-purple-800 font-bold text-center leading-tight">
-            {invStatus.createdMiningInv?.invoiceNo} &<br/>{invStatus.createdMDOInv?.invoiceNo}
-          </span>
-        </div>
-      );
-    } else if (invStatus.isPartiallyInvoiced) {
-      const created = invStatus.createdMiningInv ? "Mining" : "MDO";
-      const missing = invStatus.createdMiningInv ? "MDO" : "Mining";
-      const createdInvNo = invStatus.createdMiningInv?.invoiceNo || invStatus.createdMDOInv?.invoiceNo;
-
-      return (
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1 shadow-2xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-            1/2 Inv Terbit
-          </span>
-          <div className="text-[9px] flex flex-col items-center leading-tight">
-            <span className="text-emerald-700 font-bold">âœ“ {created}: {createdInvNo}</span>
-            <span className="text-amber-800 font-extrabold">â³ Belum: Inv {missing}</span>
+    if (isPOS) {
+      if (invStatus.isFullyInvoiced) {
+        return (
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-purple-100 text-purple-900 border border-purple-300 inline-flex items-center gap-1 shadow-2xs">
+              <Archive size={11} className="text-purple-700" /> Arsip (2/2 Terbit)
+            </span>
+            <span className="text-[9px] font-mono text-purple-800 font-bold text-center leading-tight">
+              {invStatus.createdMiningInv?.invoiceNo} &<br/>{invStatus.createdMDOInv?.invoiceNo}
+            </span>
           </div>
-        </div>
-      );
+        );
+      } else if (invStatus.isPartiallyInvoiced) {
+        const created = invStatus.createdMiningInv ? "Mining" : "MDO";
+        const missing = invStatus.createdMiningInv ? "MDO" : "Mining";
+        const createdInvNo = invStatus.createdMiningInv?.invoiceNo || invStatus.createdMDOInv?.invoiceNo;
+
+        return (
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1 shadow-2xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+              1/2 Inv Terbit
+            </span>
+            <div className="text-[9px] flex flex-col items-center leading-tight">
+              <span className="text-emerald-700 font-bold">✓ {created}: {createdInvNo}</span>
+              <span className="text-amber-800 font-extrabold">⏳ Belum: Inv {missing}</span>
+            </div>
+          </div>
+        );
+      }
+    } else {
+      // Non-POS (BGG, SBS, DBK)
+      if (invStatus.isFullyInvoiced) {
+        const inv = invStatus.createdInvoices[0];
+        const isDraft = inv?.status === "Draft" || inv?.status === "Submitted" || inv?.status === "Pending Approval";
+        if (isDraft) {
+          return (
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1 shadow-2xs">
+                <Clock size={11} className="text-amber-700" /> Invoice Draft (Menunggu Mgr)
+              </span>
+              <span className="text-[10px] font-mono text-amber-800 font-bold">
+                {inv.invoiceNo}
+              </span>
+            </div>
+          );
+        }
+        return (
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-purple-100 text-purple-900 border border-purple-300 inline-flex items-center gap-1 shadow-2xs">
+              <Archive size={11} className="text-purple-700" /> Arsip (Inv Terbit)
+            </span>
+            <span className="text-[10px] font-mono text-purple-700 font-bold">
+              {inv?.invoiceNo || invoiceNoLinked}
+            </span>
+          </div>
+        );
+      }
     }
   }
 
@@ -308,7 +342,7 @@ export function getBAStatusForExport(ba: any, allInvoices: any[]) {
       return {
         label: "1/2 INV TERBIT",
         badgeClass: "bg-amber",
-        subtext: `âœ“ ${created}: ${invNo} | â³ Belum: ${missing}`,
+        subtext: `✓ ${created}: ${invNo} | ⏳ Belum: ${missing}`,
       };
     }
   } else {
@@ -335,13 +369,17 @@ export function getBAStatusForExport(ba: any, allInvoices: any[]) {
 
 export function renderInvoiceStatusBadge(status: string) {
   const s = (status || "").trim();
-  if (s === "Paid") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-block whitespace-nowrap">Paid</span>;
+  if (s === "Paid") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-block whitespace-nowrap">Paid (Lunas)</span>;
+  if (s === "Tax_Reported") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-300 font-extrabold inline-block whitespace-nowrap">Tax Reported (SPT)</span>;
   if (s === "Overdue") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-block whitespace-nowrap">Overdue</span>;
   if (s === "Verified") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-100 text-cyan-800 border border-cyan-300 inline-block whitespace-nowrap">Verified SPV</span>;
   if (s === "Approved_Tier1") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-300 inline-block whitespace-nowrap">Approved Mgr (Tier 1)</span>;
-  if (s === "Issued" || s === "Approved_Tier2") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300 font-extrabold inline-block whitespace-nowrap">Issued (Approved Dir)</span>;
+  if (s === "Issued" || s === "Approved_Tier2" || s === "Approved") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300 font-extrabold inline-block whitespace-nowrap">Issued (Approved Dir)</span>;
   if (s === "Rejected") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-block whitespace-nowrap">Rejected</span>;
-  return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-block whitespace-nowrap">{status || "Draft"}</span>;
+  if (s === "Draft" || s === "Draft Invoice" || !s || s === "Pending" || s === "Submitted") {
+    return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-block whitespace-nowrap">Draft (Menunggu Mgr)</span>;
+  }
+  return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-block whitespace-nowrap">{status}</span>;
 }
 
 export function parsePeriodToMonthIndex(periodStr: string): number {
@@ -425,49 +463,39 @@ export const generateAuditTimeline = (type: string, item: any) => {
 
   if (type === "ba") {
     const isVerified = Boolean(item.verifiedBy || ["Pending Berita Acara", "Verified", "Ready to Invoice", "Approved"].includes(item.statusBA));
-    const isApproved = item.statusBA === "Ready to Invoice" || item.statusBA === "Approved";
     const isRejected = item.statusBA === "Revisi" || item.statusBA === "Rejected";
 
     return [
       {
         step: 1,
-        title: "BA Dibuat (Draft)",
-        user: item.picAAP || "Admin Finance Site",
-        role: "Admin Finance Site",
-        time: item.createdAt ? formatDateDisplay(item.createdAt) : item.workEndDate ? formatDateDisplay(item.workEndDate) : "31/01/2026",
+        title: "Draft BA Dibuat (Site Entri)",
+        user: item.picAAP || "Operations / Site Engineer",
+        role: "Site Engineer / Finance Site",
+        time: item.createdAt ? formatDateDisplay(item.createdAt) : item.baSubmittedDate ? formatDateDisplay(item.baSubmittedDate) : formatDateDisplay(new Date()),
         status: "completed",
-        desc: `Draft Berita Acara #${item.baNumber} dibuat oleh Admin Finance Site.`
+        desc: `Draft Berita Acara ${item.baNumber || item.draftBARefNo || ""} dibuat oleh ${item.picAAP || "Operations / Site Engineer"}.`
       },
       {
         step: 2,
-        title: "Verifikasi SPV Site",
-        user: item.verifiedBy ? item.verifiedBy : (isVerified ? "SPV Verifikator (Verified)" : "Belum Diverifikasi"),
-        role: "SPV Verifikator",
-        time: item.verifiedAt ? formatDateDisplay(item.verifiedAt) : (isVerified ? "Terverifikasi" : "Menunggu SPV"),
+        title: "Verifikasi Finance Specialist",
+        user: item.verifiedBy ? item.verifiedBy : (isVerified ? "Finance Specialist (Verified)" : "Belum Diverifikasi"),
+        role: "Finance Specialist",
+        time: item.verifiedAt ? formatDateDisplay(item.verifiedAt) : (isVerified ? "Terverifikasi" : "Menunggu Specialist"),
         status: isVerified ? "completed" : (isRejected ? "rejected" : "pending"),
         desc: item.verifiedBy
-          ? `Dokumen BA diverifikasi & dicatat oleh akun: ${item.verifiedBy}.`
-          : (isVerified ? "Pemeriksaan fisik & data BA telah disetujui SPV." : "Menunggu verifikasi rincian operasional oleh SPV Site.")
+          ? `Volume joint survey & nilai klaim diverifikasi sah oleh ${item.verifiedBy}.`
+          : (isVerified ? "Verifikasi keabsahan volume disetujui Finance Specialist." : "Menunggu verifikasi hasil survey oleh Finance Specialist.")
       },
       {
         step: 3,
-        title: "Approval Manager (Final BA)",
-        user: item.approvedBy ? item.approvedBy : (isApproved ? "Finance Manager (Approved)" : "Belum Disetujui"),
-        role: "Manager",
-        time: item.approvedAt ? formatDateDisplay(item.approvedAt) : (item.baSignedDate ? formatDateDisplay(item.baSignedDate) : "Menunggu Manager"),
-        status: isApproved ? "completed" : (isRejected ? "rejected" : "pending"),
-        desc: item.approvedBy
-          ? `Persetujuan BA disahkan oleh akun: ${item.approvedBy}. Status BA Approved.`
-          : (isApproved ? "Berita Acara telah disetujui Manager & TTD aktif." : "Menunggu persetujuan utama dari Manager.")
-      },
-      {
-        step: 4,
-        title: "Relasi Invoice Penagihan",
-        user: item.invoiceNoLinked ? "Admin Finance HO" : "Belum Diterbitkan",
-        role: "Admin Finance HO",
-        time: item.invoiceIssuedDate ? formatDateDisplay(item.invoiceIssuedDate) : "Belum Terbit",
-        status: item.invoiceNoLinked ? "completed" : "pending",
-        desc: item.invoiceNoLinked ? `Terhubung resmi ke Invoice Penagihan #${item.invoiceNoLinked}` : "Invoice penagihan belum diterbitkan dari BA ini."
+        title: "Invoice & Approval FATB Manager",
+        user: item.invoiceNoLinked ? "Finance Site (Invoice Terbit)" : "Siap Diterbitkan",
+        role: "Finance Site & FATB Manager",
+        time: item.invoiceIssuedDate ? formatDateDisplay(item.invoiceIssuedDate) : (item.invoiceNoLinked ? "Invoice Terbit" : (isVerified ? "Siap Terbit" : "Menunggu BA Verified")),
+        status: item.invoiceNoLinked ? "completed" : (isVerified ? "active" : "pending"),
+        desc: item.invoiceNoLinked
+          ? `Invoice #${item.invoiceNoLinked} telah diterbitkan dan diajukan untuk approval FATB Manager.`
+          : (isVerified ? "BA terverifikasi. Finance Site dapat men-generate invoice untuk diapprove FATB Manager." : "Invoice dapat digenerate setelah BA diverifikasi oleh Finance Specialist.")
       }
     ];
   }

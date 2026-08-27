@@ -33,6 +33,7 @@ export const routes = {
   },
 
   masterData: {
+    siteSetup: "/site-setup",
     coalIndex: "/coal-index",
     raiseFall: "/raise-fall",
     currency: "/currency",

@@ -50,30 +50,47 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   const [notice, setNotice] = useState("");
 
   async function refresh() {
-    const [dash, trx] = await Promise.all([api<Dashboard>(scopedEndpoint("/api/dashboard", user)), api<Transaction[]>(scopedEndpoint("/api/transactions", user))]);
-    setDashboard(dash ?? null);
-    setTransactions(Array.isArray(trx) ? filterRowsByCompanyScope(trx, user) : []);
+    try {
+      const [dash, trx] = await Promise.all([
+        api<Dashboard>(scopedEndpoint("/api/dashboard", user)).catch(() => null),
+        api<Transaction[]>(scopedEndpoint("/api/transactions", user)).catch(() => [])
+      ]);
+      setDashboard(dash ?? null);
+      setTransactions(Array.isArray(trx) ? filterRowsByCompanyScope(trx, user) : []);
+    } catch {
+      // Graceful fallback
+    }
   }
 
   async function refreshNotifications() {
-    if (!canViewAuditTrail({ ...user, permissions, tcodes })) {
+    try {
+      if (!canViewAuditTrail({ ...user, permissions, tcodes })) {
+        setNotifications([]);
+        return;
+      }
+      const items = await api<AuditLog[]>("/api/audit-logs").catch(() => []);
+      setNotifications(Array.isArray(items) ? filterRowsByCompanyScope(items, user) : []);
+    } catch {
       setNotifications([]);
-      return;
     }
-    const items = await api<AuditLog[]>("/api/audit-logs");
-    setNotifications(Array.isArray(items) ? filterRowsByCompanyScope(items, user) : []);
   }
 
   async function refreshAccess() {
-    const myPermResult = await api<{ permissions: Permission[]; tcodes: TCode[] }>("/api/permissions/my").catch(() => null);
-    const myPerms = Array.isArray(myPermResult?.permissions) ? myPermResult!.permissions : [];
-    const myTcodes = Array.isArray(myPermResult?.tcodes) ? myPermResult!.tcodes : [];
-    setPermissions(myPerms);
-    setTcodes(myTcodes);
-    if (authorized({ ...user, permissions: myPerms, tcodes: myTcodes }, "user_management", "manage")) {
-      const roleAccess = await api<RoleAccess[]>("/api/roles").catch(() => []);
-      setRoles(Array.isArray(roleAccess) ? roleAccess : []);
-    } else {
+    try {
+      const myPermResult = await api<{ permissions: Permission[]; tcodes: TCode[] }>("/api/permissions/my").catch(() => null);
+      const myPerms = Array.isArray(myPermResult?.permissions) ? myPermResult!.permissions : [];
+      const myTcodes = Array.isArray(myPermResult?.tcodes) ? myPermResult!.tcodes : [];
+      setPermissions(myPerms);
+      setTcodes(myTcodes);
+      if (authorized({ ...user, permissions: myPerms, tcodes: myTcodes }, "user_management", "manage")) {
+        const roleAccess = await api<RoleAccess[]>("/api/roles").catch(() => []);
+        setRoles(Array.isArray(roleAccess) ? roleAccess : []);
+      } else {
+        setRoles([]);
+      }
+    } catch {
+      setPermissions([]);
+      setTcodes([]);
       setRoles([]);
     }
   }
@@ -91,22 +108,17 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
         ? data
         : data?.reports ?? data?.kpis ?? data?.indicators ?? Object.entries(data ?? {}).map(([key, value]) => ({ metric: key, value }));
       setViewRows(Array.isArray(rows) ? filterRowsByCompanyScope(rows, user) : []);
+    } catch {
+      setViewRows([]);
     } finally {
       setViewLoading(false);
     }
   }
 
   useEffect(() => {
-    refresh().catch(() => {
-      setDashboard(null);
-      setTransactions([]);
-      setNotice("Backend belum mengirim data dashboard.");
-    });
-    refreshNotifications().catch(() => setNotifications([]));
-    refreshAccess().catch(() => {
-      setPermissions([]);
-      setRoles([]);
-    });
+    refresh();
+    refreshNotifications();
+    refreshAccess();
   }, []);
 
   useEffect(() => {
