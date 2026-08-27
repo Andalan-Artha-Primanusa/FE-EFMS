@@ -8,15 +8,26 @@ import { formatIDR, getBAStatusForExport, parsePeriodToMonthIndex } from "./help
 export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { 
-formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffectiveVolume, getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations, subtotalA, subtotalB, subtotalC, subtotalD, subtotalE, subtotalF
- } = ctx;
+    formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffectiveVolume,
+    getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations, baRows, buildInvoiceItemsFromBA
+  } = ctx;
     const printWin = window.open("", "_blank", "width=1000,height=800");
     if (!printWin) return;
 
-    const custCode = itemData?.customerCode || formData.customerCode || "POS";
+    const custCode = (itemData?.customerCode || formData?.customerCode || "POS").toUpperCase();
     const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
     const logoUrl = `${window.location.origin}/andalan-logo.png`;
-    const c = getCustomerCalculations(invLineItems, custCode);
+
+    const activeItems = (itemData?.items && Array.isArray(itemData.items) && itemData.items.length > 0)
+      ? itemData.items
+      : (invLineItems && invLineItems.length > 0 && (!itemData?.invoiceNo || formData?.invoiceNo === itemData?.invoiceNo)
+          ? invLineItems
+          : (typeof buildInvoiceItemsFromBA === "function"
+              ? buildInvoiceItemsFromBA(baRows?.find((b: any) => b.baNumber === itemData?.baNoReference) || itemData, custCode, itemData?.invoiceCategory)
+              : (itemData?.items || []))
+        );
+
+    const c = getCustomerCalculations(activeItems, custCode);
     const contractInfo = customerContractMap[custCode];
 
     let tableBodyHTML = "";
@@ -25,15 +36,15 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
 
     if (custCode === "BGG") {
       // BGG Table Layout (Gambar 2)
-      const secAItems = invLineItems.filter(i => i.section === "A");
-      const secBItems = invLineItems.filter(i => i.section === "B");
-      const secCItems = invLineItems.filter(i => i.section === "C");
-      const secDItems = invLineItems.filter(i => i.section === "D");
-      const secEItems = invLineItems.filter(i => i.section === "E");
-      const secFItems = invLineItems.filter(i => i.section === "F");
+      const secAItems = activeItems.filter((i: any) => i.section === "A");
+      const secBItems = activeItems.filter((i: any) => i.section === "B");
+      const secCItems = activeItems.filter((i: any) => i.section === "C");
+      const secDItems = activeItems.filter((i: any) => i.section === "D");
+      const secEItems = activeItems.filter((i: any) => i.section === "E");
+      const secFItems = activeItems.filter((i: any) => i.section === "F");
 
-      const volA = secAItems.reduce((s, i) => s + (i.volume || 0), 0);
-      const volB = secBItems.reduce((s, i) => s + (i.volume || 0), 0);
+      const volA = secAItems.reduce((s: number, i: any) => s + (getItemEffectiveVolume(i) || i.volume || 0), 0);
+      const volB = secBItems.reduce((s: number, i: any) => s + (getItemEffectiveVolume(i) || i.volume || 0), 0);
 
       tableBodyHTML = `
         <tr class="sec-hdr">
@@ -44,15 +55,19 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
           <td class="text-right font-mono font-black">${c.subtotalA.toLocaleString("id-ID")}</td>
         </tr>
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">A1. Pit Kungkilan</td></tr>
-        ${secAItems.map(i => `
-          <tr>
-            <td style="padding-left: 20px;">${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.period || ""}</span></td>
-            <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-            <td class="text-center">${i.unit || "Bcm"}</td>
-            <td class="text-right font-mono">${(i.unitRateIDR || 0).toLocaleString("id-ID")}</td>
-            <td class="text-right font-mono">${Math.round((i.volume || 0) * (i.unitRateIDR || 0)).toLocaleString("id-ID")}</td>
-          </tr>
-        `).join("")}
+        ${secAItems.map((i: any) => {
+          const effVol = getItemEffectiveVolume(i);
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+          return `
+            <tr>
+              <td style="padding-left: 20px;">${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.period || ""}</span></td>
+              <td class="text-center font-mono">${effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
+              <td class="text-center">${i.unit || "Bcm"}</td>
+              <td class="text-right font-mono">${unitRate.toLocaleString("id-ID")}</td>
+              <td class="text-right font-mono">${amount.toLocaleString("id-ID")}</td>
+            </tr>
+          `;
+        }).join("")}
 
         <tr class="sec-hdr">
           <td>B. COAL WINNING</td>
@@ -62,15 +77,19 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
           <td class="text-right font-mono font-black">${c.subtotalB.toLocaleString("id-ID")}</td>
         </tr>
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">B1. Pit Kungkilan</td></tr>
-        ${secBItems.map(i => `
-          <tr>
-            <td style="padding-left: 20px;">${i.description}</td>
-            <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-            <td class="text-center">${i.unit || "Ton"}</td>
-            <td class="text-right font-mono">${(i.unitRateIDR || 0).toLocaleString("id-ID")}</td>
-            <td class="text-right font-mono">${Math.round((i.volume || 0) * (i.unitRateIDR || 0)).toLocaleString("id-ID")}</td>
-          </tr>
-        `).join("")}
+        ${secBItems.map((i: any) => {
+          const effVol = getItemEffectiveVolume(i);
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+          return `
+            <tr>
+              <td style="padding-left: 20px;">${i.description}</td>
+              <td class="text-center font-mono">${effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
+              <td class="text-center">${i.unit || "Ton"}</td>
+              <td class="text-right font-mono">${unitRate.toLocaleString("id-ID")}</td>
+              <td class="text-right font-mono">${amount.toLocaleString("id-ID")}</td>
+            </tr>
+          `;
+        }).join("")}
 
         <tr class="sec-hdr">
           <td>C. OVER DISTANCE</td>
@@ -80,34 +99,40 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
           <td class="text-right font-mono font-black">${c.subtotalC.toLocaleString("id-ID")}</td>
         </tr>
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">C1. Over Distance For OB Removal</td></tr>
-        ${secCItems.filter(i => i.subSection?.includes("OB")).map(i => {
-          const diffMtr = (i.overhaulMtr || 1000) - 1000;
+        ${secCItems.filter((i: any) => i.subSection?.includes("OB") || i.description?.includes("OB")).map((i: any) => {
+          const effVol = getItemEffectiveVolume(i);
+          const effMtr = getItemEffectiveOverhaulMtr(i);
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+          const diffMtr = effMtr - 1000;
           return `
             <tr>
               <td style="padding-left: 20px;">
                 Pit Kungkilan<br/>
-                <span style="font-size: 8.5px; color: #475569;">${(i.overhaulMtr/1000).toFixed(3)} mtr - 1000 mtr = ${diffMtr} mtr &nbsp; &nbsp; ${i.period || ""}</span>
+                <span style="font-size: 8.5px; color: #475569;">${effMtr} mtr - 1000 mtr = ${diffMtr > 0 ? `+${diffMtr}` : diffMtr} mtr &nbsp; &nbsp; ${i.period || ""}</span>
               </td>
-              <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
+              <td class="text-center font-mono">${effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
               <td class="text-center">${i.unit || "Bcm"}</td>
-              <td class="text-right font-mono">${(i.unitRateIDR || 0).toLocaleString("id-ID")}</td>
-              <td class="text-right font-mono">${Math.round((i.volume || 0) * (i.unitRateIDR || 0)).toLocaleString("id-ID")}</td>
+              <td class="text-right font-mono">${unitRate.toLocaleString("id-ID")}</td>
+              <td class="text-right font-mono">${amount.toLocaleString("id-ID")}</td>
             </tr>
           `;
         }).join("")}
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">C2. Over Distance For Coal Winning</td></tr>
-        ${secCItems.filter(i => !i.subSection?.includes("OB")).map(i => {
-          const diffMtr = (i.overhaulMtr || 1000) - 1000;
+        ${secCItems.filter((i: any) => !i.subSection?.includes("OB") && !i.description?.includes("OB")).map((i: any) => {
+          const effVol = getItemEffectiveVolume(i);
+          const effMtr = getItemEffectiveOverhaulMtr(i);
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+          const diffMtr = effMtr - 1000;
           return `
             <tr>
               <td style="padding-left: 20px;">
                 Pit Kungkilan<br/>
-                <span style="font-size: 8.5px; color: #475569;">${(i.overhaulMtr/1000).toFixed(3)} mtr - 1000 mtr = ${(diffMtr/1000).toFixed(3)} mtr &nbsp; &nbsp; ${i.period || ""}</span>
+                <span style="font-size: 8.5px; color: #475569;">${effMtr} mtr - 1000 mtr = ${diffMtr > 0 ? `+${diffMtr}` : diffMtr} mtr &nbsp; &nbsp; ${i.period || ""}</span>
               </td>
-              <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
+              <td class="text-center font-mono">${effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
               <td class="text-center">${i.unit || "Ton"}</td>
-              <td class="text-right font-mono">${(i.unitRateIDR || 0).toLocaleString("id-ID")}</td>
-              <td class="text-right font-mono">${Math.round((i.volume || 0) * (i.unitRateIDR || 0)).toLocaleString("id-ID")}</td>
+              <td class="text-right font-mono">${unitRate.toLocaleString("id-ID")}</td>
+              <td class="text-right font-mono">${amount.toLocaleString("id-ID")}</td>
             </tr>
           `;
         }).join("")}
@@ -119,37 +144,47 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
           <td></td>
           <td class="text-right font-mono font-black">${c.subtotalD.toLocaleString("id-ID")}</td>
         </tr>
-        ${secDItems.map(i => `
-          <tr>
-            <td style="padding-left: 20px;">${i.subSection || ""} ${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.period || ""}</span></td>
-            <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-            <td class="text-center">${i.unit || "Bcm"}</td>
-            <td class="text-right font-mono">${(i.unitRateIDR || 0).toLocaleString("id-ID")}</td>
-            <td class="text-right font-mono">${Math.round((i.volume || 0) * (i.unitRateIDR || 0)).toLocaleString("id-ID")}</td>
-          </tr>
-        `).join("")}
+        ${secDItems.map((i: any) => {
+          const effVol = getItemEffectiveVolume(i);
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+          return `
+            <tr>
+              <td style="padding-left: 20px;">${i.subSection || ""} ${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.period || ""}</span></td>
+              <td class="text-center font-mono">${effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
+              <td class="text-center">${i.unit || "Bcm"}</td>
+              <td class="text-right font-mono">${unitRate.toLocaleString("id-ID")}</td>
+              <td class="text-right font-mono">${amount.toLocaleString("id-ID")}</td>
+            </tr>
+          `;
+        }).join("")}
 
         <tr class="sec-hdr" style="background: #fee2e2;">
-          <td colspan="4">E. DISCOUNT ON OVERDISTANCE</td>
+          <td colspan="4">E. DISCOUNT ON OVERDISTANCE (Deduction 25%)</td>
           <td class="text-right font-mono font-black">(${Math.abs(c.subtotalE).toLocaleString("id-ID")})</td>
         </tr>
-        ${secEItems.map(i => `
-          <tr>
-            <td colspan="4" style="padding-left: 20px;">${i.description}</td>
-            <td class="text-right font-mono">(${Math.abs(i.amount || 0).toLocaleString("id-ID")})</td>
-          </tr>
-        `).join("")}
+        ${secEItems.map((i: any) => {
+          const { amount } = calculateItemRateAndAmount(i, "BGG");
+          return `
+            <tr>
+              <td colspan="4" style="padding-left: 20px;">${i.description}</td>
+              <td class="text-right font-mono">(${Math.abs(amount).toLocaleString("id-ID")})</td>
+            </tr>
+          `;
+        }).join("")}
 
         <tr class="sec-hdr" style="background: #fee2e2;">
-          <td colspan="4">F. DP FUEL & TRANSPORT</td>
+          <td colspan="4">F. DP FUEL & TRANSPORT (Deduction)</td>
           <td class="text-right font-mono font-black">(${Math.abs(c.subtotalF).toLocaleString("id-ID")})</td>
         </tr>
-        ${secFItems.map(i => `
-          <tr>
-            <td colspan="4" style="padding-left: 20px;">${i.description}</td>
-            <td class="text-right font-mono">(${Math.abs(i.amount || 0).toLocaleString("id-ID")})</td>
-          </tr>
-        `).join("")}
+        ${secFItems.map((i: any) => {
+          const { amount } = calculateItemRateAndAmount(i, "BGG");
+          return `
+            <tr>
+              <td colspan="4" style="padding-left: 20px;">${i.description}</td>
+              <td class="text-right font-mono">(${Math.abs(amount).toLocaleString("id-ID")})</td>
+            </tr>
+          `;
+        }).join("")}
       `;
 
       totalsFooterHTML = `
@@ -184,12 +219,12 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
       `;
     } else if (custCode === "DBK") {
       // DBK Table Layout (Gambar 3 - Dual Currency USD & IDR)
-      const secAItems = invLineItems.filter(i => i.section === "A");
-      const secBItems = invLineItems.filter(i => i.section === "B");
-      const secCItems = invLineItems.filter(i => i.section === "C");
+      const secAItems = activeItems.filter((i: any) => i.section === "A");
+      const secBItems = activeItems.filter((i: any) => i.section === "B");
+      const secCItems = activeItems.filter((i: any) => i.section === "C");
 
-      const volA = secAItems.reduce((s, i) => s + (i.volume || 0), 0);
-      const volB = secBItems.reduce((s, i) => s + (i.volume || 0), 0);
+      const volA = secAItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
+      const volB = secBItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
 
       tableBodyHTML = `
         <tr class="sec-hdr">
@@ -201,7 +236,7 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
           <td class="text-right font-mono font-black">${c.subtotalA.toLocaleString("id-ID")}</td>
         </tr>
         <tr><td colspan="6" style="font-weight: bold; padding-left: 10px; background: #fafafa;">A1. PIT SAPAN</td></tr>
-        ${secAItems.map(i => `
+        ${secAItems.map((i: any) => `
           <tr>
             <td style="padding-left: 20px;">${i.description}</td>
             <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}</td>
@@ -221,7 +256,7 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
           <td class="text-right font-mono font-black">${c.subtotalB.toLocaleString("id-ID")}</td>
         </tr>
         <tr><td colspan="6" style="font-weight: bold; padding-left: 10px; background: #fafafa;">B1. PIT SAPAN</td></tr>
-        ${secBItems.map(i => `
+        ${secBItems.map((i: any) => `
           <tr>
             <td style="padding-left: 20px;">PIT SAPAN</td>
             <td class="text-center font-mono">${(i.actualVolume || i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}</td>
@@ -240,7 +275,7 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
           <td></td>
           <td class="text-right font-mono font-black">${c.subtotalC.toLocaleString("id-ID")}</td>
         </tr>
-        ${secCItems.map(i => {
+        ${secCItems.map((i: any) => {
           const baseM = i.baseMtr || 1000;
           const diff = (i.overhaulMtr || baseM) - baseM;
           return `
@@ -284,12 +319,12 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
       `;
     } else if (custCode === "SBS") {
       // SBS Table Layout (Gambar 4)
-      const secAItems = invLineItems.filter(i => i.section === "A");
-      const secBItems = invLineItems.filter(i => i.section === "B");
-      const secPItems = invLineItems.filter(i => i.section === "P");
+      const secAItems = activeItems.filter((i: any) => i.section === "A");
+      const secBItems = activeItems.filter((i: any) => i.section === "B");
+      const secPItems = activeItems.filter((i: any) => i.section === "P");
 
-      const volA = secAItems.reduce((s, i) => s + (i.volume || 0), 0);
-      const volB = secBItems.reduce((s, i) => s + (i.volume || 0), 0);
+      const volA = secAItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
+      const volB = secBItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
 
       tableBodyHTML = `
         <tr class="sec-hdr">
@@ -299,7 +334,7 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
           <td></td>
           <td class="text-right font-mono font-black">${c.subtotalA.toLocaleString("id-ID")}</td>
         </tr>
-        ${secAItems.map(i => `
+        ${secAItems.map((i: any) => `
           <tr>
             <td style="padding-left: 20px;">${i.description}</td>
             <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
@@ -316,7 +351,7 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
           <td></td>
           <td class="text-right font-mono font-black">${c.subtotalB.toLocaleString("id-ID")}</td>
         </tr>
-        ${secBItems.map(i => `
+        ${secBItems.map((i: any) => `
           <tr>
             <td style="padding-left: 20px;">${i.description}</td>
             <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
@@ -362,7 +397,7 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
               </tr>
             </thead>
             <tbody>
-              ${secPItems.map(p => `
+              ${secPItems.map((p: any) => `
                 <tr>
                   <td>${p.description}</td>
                   <td class="text-center">${p.unit || ""}</td>
@@ -380,13 +415,13 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
       `;
     } else {
       // Default: POS Mining Table Layout (Gambar 1)
-      const secAItems = invLineItems.filter(i => i.section === "A");
-      const secBItems = invLineItems.filter(i => i.section === "B");
-      const secCItems = invLineItems.filter(i => i.section === "C");
-      const secDItems = invLineItems.filter(i => i.section === "D");
+      const secAItems = activeItems.filter((i: any) => i.section === "A");
+      const secBItems = activeItems.filter((i: any) => i.section === "B");
+      const secCItems = activeItems.filter((i: any) => i.section === "C");
+      const secDItems = activeItems.filter((i: any) => i.section === "D");
 
-      const volA = secAItems.reduce((s, i) => s + (i.volume || 0), 0);
-      const isMDO = (formData.invoiceCategory === "MDO" || formData.activityGroup?.includes("MDO"));
+      const volA = secAItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
+      const isMDO = (itemData?.invoiceCategory === "MDO" || itemData?.activityGroup?.includes("MDO") || formData?.invoiceCategory === "MDO");
 
       const secAHTML = secAItems.length > 0 ? `
         <tr class="sec-hdr">
@@ -396,7 +431,7 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
           <td></td>
           <td class="text-right font-mono font-black">${c.subtotalA.toLocaleString("id-ID")}</td>
         </tr>
-        ${secAItems.map((item, idx) => {
+        ${secAItems.map((item: any, idx: number) => {
           const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
           const cleanDesc = (item.description || "").replace(/^[A-Z][0-9]*[\.\s\-]+\s*/i, "").trim();
           return `<tr>
@@ -417,7 +452,7 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
           <td></td>
           <td class="text-right font-mono font-black">${c.subtotalB < 0 ? `(${Math.abs(c.subtotalB).toLocaleString("id-ID")})` : c.subtotalB.toLocaleString("id-ID")}</td>
         </tr>
-        ${secBItems.map((item, idx) => {
+        ${secBItems.map((item: any, idx: number) => {
           const effVol = getItemEffectiveVolume(item);
           const effMtr = getItemEffectiveOverhaulMtr(item);
           const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
@@ -444,7 +479,7 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
           <td></td>
           <td class="text-right font-mono font-black">${c.subtotalC.toLocaleString("id-ID")}</td>
         </tr>
-        ${secCItems.map((item, idx) => {
+        ${secCItems.map((item: any, idx: number) => {
           const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
           const cleanDesc = (item.description || "").replace(/^[A-Z][0-9]*[\.\s\-]+\s*/i, "").trim();
           return `<tr>
@@ -465,7 +500,7 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
           <td></td>
           <td class="text-right font-mono font-black">${c.subtotalD.toLocaleString("id-ID")}</td>
         </tr>
-        ${secDItems.map((item, idx) => {
+        ${secDItems.map((item: any, idx: number) => {
           const effVol = getItemEffectiveVolume(item);
           const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
           const cleanDesc = (item.description || "").replace(/^[A-Z][0-9]*[\.\s\-]+\s*/i, "").trim();
@@ -550,7 +585,7 @@ formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffective
         </style>
       </head>
       <body>
-        <button class="btn-print" onclick="window.print()">ðŸ–¨ï¸ Cetak / Simpan PDF Dokumen Official (1 Halaman A4)</button>
+        <button class="btn-print" onclick="window.print()">Cetak / Simpan PDF Dokumen Official (1 Halaman A4)</button>
 
         <div class="logo-header">
           <img src="${logoUrl}" alt="ANDALAN Logo" class="logo-img" />
@@ -992,7 +1027,7 @@ export function exportARBAIMonitoringPDFImpl(ctx: any) {
         </style>
       </head>
       <body>
-        <button class="btn-print" onclick="window.print()">ðŸ–¨ï¸ Cetak / Simpan Laporan PDF Official (A4 Landscape)</button>
+        <button class="btn-print" onclick="window.print()">Cetak / Simpan Laporan PDF Official (A4 Landscape)</button>
 
         <div class="header-box">
           <div class="header-cell" style="width: 40%;">
@@ -1000,7 +1035,7 @@ export function exportARBAIMonitoringPDFImpl(ctx: any) {
           </div>
           <div class="header-cell title-area" style="width: 60%;">
             <h1>AR & BAI OUTSTANDING MONITORING REPORT</h1>
-            <p>PT ANDALAN ARTHA PRIMANUSA â€” As of Date: ${formattedDate}</p>
+            <p>PT ANDALAN ARTHA PRIMANUSA — As of Date: ${formattedDate}</p>
           </div>
         </div>
 
@@ -1167,7 +1202,7 @@ export function exportBAOnlyExcelImpl(ctx: any) {
     link.download = `BAI_Monitoring_ANDALAN_${periodFilter}_${new Date().toISOString().split("T")[0]}.xls`;
     link.click();
     URL.revokeObjectURL(url);
-    onNotice("ðŸ“Š File Excel Laporan BA Tracker berhasil di-export!");
+    onNotice("📊 File Excel Laporan BA Tracker berhasil di-export!");
 }
 
 export function exportBAOnlyPDFImpl(ctx: any) {
@@ -1279,7 +1314,7 @@ export function exportBAOnlyPDFImpl(ctx: any) {
         </style>
       </head>
       <body>
-        <button class="btn-print" onclick="window.print()">ðŸ–¨ï¸ Cetak Laporan PDF Official BA Tracker (A4 Landscape)</button>
+        <button class="btn-print" onclick="window.print()">Cetak Laporan PDF Official BA Tracker (A4 Landscape)</button>
 
         <div class="header-box">
           <div class="header-cell" style="width: 40%;">
@@ -1287,7 +1322,7 @@ export function exportBAOnlyPDFImpl(ctx: any) {
           </div>
           <div class="header-cell title-area" style="width: 60%;">
             <h1>BERITA ACARA INVOICE (BAI) MONITORING REPORT</h1>
-            <p>PT ANDALAN ARTHA PRIMANUSA â€” As of Date: ${formattedDate}</p>
+            <p>PT ANDALAN ARTHA PRIMANUSA — As of Date: ${formattedDate}</p>
           </div>
         </div>
 
@@ -1450,7 +1485,7 @@ export function exportAROnlyExcelImpl(ctx: any) {
     link.download = `AR_Outstanding_ANDALAN_${new Date().toISOString().split("T")[0]}.xls`;
     link.click();
     URL.revokeObjectURL(url);
-    onNotice("ðŸ“Š File Excel Laporan AR Outstanding berhasil di-export!");
+    onNotice("File Excel Laporan AR Outstanding berhasil di-export!");
 }
 
 export function exportAROnlyPDFImpl(ctx: any) {
@@ -1562,7 +1597,7 @@ export function exportAROnlyPDFImpl(ctx: any) {
         </style>
       </head>
       <body>
-        <button class="btn-print" onclick="window.print()">ðŸ–¨ï¸ Cetak Laporan PDF Official AR Outstanding (A4 Landscape)</button>
+        <button class="btn-print" onclick="window.print()">Cetak Laporan PDF Official AR Outstanding (A4 Landscape)</button>
 
         <div class="header-box">
           <div class="header-cell" style="width: 40%;">
@@ -1570,7 +1605,7 @@ export function exportAROnlyPDFImpl(ctx: any) {
           </div>
           <div class="header-cell title-area" style="width: 60%;">
             <h1>AR OUTSTANDING MONITORING REPORT</h1>
-            <p>PT ANDALAN ARTHA PRIMANUSA â€” Periode Cut-Off: ${invPeriodFilter === "All" ? "Semua Periode" : `s/d ${invPeriodFilter}`} (Khusus Outstanding) â€” As of Date: ${formattedDate}</p>
+            <p>PT ANDALAN ARTHA PRIMANUSA — Periode Cut-Off: ${invPeriodFilter === "All" ? "Semua Periode" : `s/d ${invPeriodFilter}`} (Khusus Outstanding) — As of Date: ${formattedDate}</p>
           </div>
         </div>
 

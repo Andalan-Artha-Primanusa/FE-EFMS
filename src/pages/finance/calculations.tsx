@@ -1,4 +1,4 @@
-﻿// =============================================================
+// =============================================================
 // CONTROL RUMUS FINANCE
 // Semua rumus bisnis modul Finance (RF index, volume efektif,
 // rate & amount item, rekap per customer) dikumpulkan di sini
@@ -31,7 +31,45 @@ export function createFinanceCalculations(deps: {
   const { formData, invLineItems, rfIndexCalculated, getSowMasterRate, mRate } = deps;
   const getItemEffectiveVolume = (item: any) => {
     if (!item) return 0;
-    if (formData.customerCode === "POS") {
+    const cust = formData.customerCode || "POS";
+
+    if (cust === "BGG") {
+      if (item.section === "C") {
+        if (item.subSection?.includes("OB") || item.description?.includes("OB")) {
+          const obSum = invLineItems.filter(i => i.section === "A").reduce((sum, i) => sum + (i.volume || 0), 0);
+          return (item.volume && item.volume > 0) ? item.volume : obSum;
+        }
+        if (item.subSection?.includes("Coal") || item.description?.includes("Coal")) {
+          const coalSum = invLineItems.filter(i => i.section === "B").reduce((sum, i) => sum + (i.volume || 0), 0);
+          return (item.volume && item.volume > 0) ? item.volume : coalSum;
+        }
+      }
+      if (item.section === "D") {
+        if (item.description?.includes("75%")) {
+          const itemA1 = invLineItems.find(i => i.section === "A" && i.description?.includes("75%"));
+          return itemA1?.volume || 0;
+        }
+        if (item.description?.includes("25%")) {
+          const itemA2 = invLineItems.find(i => i.section === "A" && i.description?.includes("25%"));
+          return itemA2?.volume || 0;
+        }
+        if (item.subSection?.includes("D2") || item.description?.includes("OB")) {
+          const obSum = invLineItems.filter(i => i.section === "A").reduce((sum, i) => sum + (i.volume || 0), 0);
+          return obSum;
+        }
+        if (item.subSection?.includes("D3") || (item.description?.includes("Coal Winning") && !item.description?.includes("Over Distance"))) {
+          const coalSum = invLineItems.filter(i => i.section === "B").reduce((sum, i) => sum + (i.volume || 0), 0);
+          return coalSum;
+        }
+        if (item.subSection?.includes("D4") || item.description?.includes("Coal")) {
+          const coalSum = invLineItems.filter(i => i.section === "B").reduce((sum, i) => sum + (i.volume || 0), 0);
+          return coalSum;
+        }
+      }
+      return item.volume || 0;
+    }
+
+    if (cust === "POS") {
       if (item.section === "B") {
         if (item.code === "B1" || item.description.includes("OB Removal")) {
           const itemA = invLineItems.find(i => i.section === "A" && (i.code === "A1" || i.description.includes("OVER BURDEN")));
@@ -87,6 +125,68 @@ export function createFinanceCalculations(deps: {
     let unitRate = 0;
     let amount = 0;
 
+    // Customer: BGG (Sesuai Kontrak & Excel JUN 26)
+    if (cust === "BGG") {
+      if (item.section === "A" || item.section === "B") {
+        unitRate = Number(item.unitRateIDR || 0);
+        amount = Math.round(vol * unitRate);
+        return { unitRate, amount };
+      }
+
+      if (item.section === "C") {
+        const diffMtr = mtr - 1000;
+        // Jika unitRateIDR sudah diisi langsung:
+        if (item.unitRateIDR !== undefined && item.unitRateIDR !== 0) {
+          unitRate = Number(item.unitRateIDR);
+        } else {
+          // Default rate per 100m (Hm): OB = 650/Hm, Coal = 550/Hm
+          const baseRatePerHm = (item.subSection?.includes("Coal") || item.description?.includes("Coal")) ? 550 : 650;
+          unitRate = Math.round(baseRatePerHm * (diffMtr / 100));
+        }
+        amount = Math.round(vol * unitRate);
+        return { unitRate, amount };
+      }
+
+      if (item.section === "D") {
+        unitRate = Number(item.unitRateIDR || 0);
+        amount = Math.round(vol * unitRate);
+        return { unitRate, amount };
+      }
+
+      if (item.section === "E") {
+        // Discount on Overdistance (Deduction 25%)
+        if (item.amount !== undefined && item.amount !== null && item.amount !== 0) {
+          amount = -Math.abs(Number(item.amount));
+        } else {
+          // Auto calculate -25% dari Section C yang berpasangan
+          const isCoal = (item.description || "").toLowerCase().includes("coal");
+          const targetSec = invLineItems.find(i => i.section === "C" && (isCoal ? (i.subSection?.includes("Coal") || i.description?.includes("Coal")) : (i.subSection?.includes("OB") || i.description?.includes("OB"))));
+          if (targetSec) {
+            const targetAmt = calculateItemRateAndAmount(targetSec, "BGG").amount;
+            amount = -Math.round(targetAmt * 0.25);
+          } else {
+            amount = 0;
+          }
+        }
+        return { unitRate: 0, amount };
+      }
+
+      if (item.section === "F" || item.category === "DP Fuel" || item.isDeduction) {
+        // DP Fuel & Transport Deduction (Pengurang)
+        const val = Number(item.amount !== undefined && item.amount !== 0 ? item.amount : (item.unitRateIDR || 0));
+        amount = -Math.abs(val);
+        return { unitRate: 0, amount };
+      }
+
+      if (item.amount !== undefined && item.amount !== null && item.amount !== 0) {
+        return { unitRate: 0, amount: item.amount };
+      }
+
+      unitRate = Number(item.unitRateIDR || 0);
+      amount = Math.round(vol * unitRate);
+      return { unitRate, amount };
+    }
+
     // Explicit amount item (e.g. Discounts / Deductions)
     if (item.amount !== undefined && item.amount !== null && item.amount !== 0) {
       return { unitRate: 0, amount: item.amount };
@@ -104,7 +204,7 @@ export function createFinanceCalculations(deps: {
       return { unitRate, amount };
     }
 
-    // Customer: BGG or SBS with explicit unitRateIDR
+    // Customer: SBS with explicit unitRateIDR
     if (item.unitRateIDR !== undefined) {
       unitRate = item.unitRateIDR;
       amount = Math.round(vol * unitRate);
@@ -156,12 +256,12 @@ export function createFinanceCalculations(deps: {
     let totalDibayar = 0;
 
     if (cust === "BGG") {
-      // Total = A + B + C + D + E (deduction) + F (deduction)
+      // Total = A + B + C + D + E (deduction) + F (DP Fuel & Transport deduction)
       totalGross = subA + subB + subC + subD + subE + subF;
       dpp11_12 = Math.round(totalGross * 11 / 12);
       vat12 = Math.round(dpp11_12 * 0.12);
       pph23 = Math.round(totalGross * 0.02);
-      totalInvoice = dpp11_12 + vat12 - pph23;
+      totalInvoice = totalGross + vat12 - pph23;
       totalDibayar = totalInvoice;
     } else if (cust === "DBK") {
       totalGross = subA + subB + subC;

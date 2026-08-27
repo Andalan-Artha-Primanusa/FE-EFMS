@@ -105,8 +105,7 @@ export function DashboardView({ c }: { c: any }) {
             </div>
           </div>
 
-          {/* Aging Matrix Table dengan Summary Total Footer Row */}
-          <Panel title="ðŸ“Š Aging Analysis â€” Posisi Piutang Saat Ini per Customer">
+          <Panel title="Aging Analysis — Posisi Piutang Saat Ini per Customer">
             <div className="table-wrapper overflow-x-auto rounded-xl border border-slate-200 shadow-xs">
               <table className="data-table w-full text-xs text-left border-collapse font-sans">
                 <thead>
@@ -154,7 +153,7 @@ export function DashboardView({ c }: { c: any }) {
           {/* Top Overdue & BA Bottlenecks */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <Panel title="âš ï¸ Top Invoice Overdue â€” Prioritas Collection Action">
+              <Panel title="Top Invoice Overdue — Prioritas Collection Action">
                 <div className="table-wrapper overflow-x-auto rounded-xl border border-slate-200 shadow-xs">
                   <table className="data-table w-full text-xs text-left border-collapse font-sans">
                     <thead>
@@ -196,7 +195,7 @@ export function DashboardView({ c }: { c: any }) {
                       {(dashboardData?.topOverdueInvoices ?? []).length === 0 && (
                         <tr>
                           <td colSpan={7} className="p-6 text-center text-slate-500 font-medium">
-                            ðŸŽ‰ Tidak ada tagihan yang melewati jatuh tempo (Overdue). Semua penagihan dalam batas waktu lancar.
+                            Tidak ada tagihan yang melewati jatuh tempo (Overdue). Semua penagihan dalam batas waktu lancar.
                           </td>
                         </tr>
                       )}
@@ -207,7 +206,7 @@ export function DashboardView({ c }: { c: any }) {
             </div>
 
             <div>
-              <Panel title="ðŸ¢ Internal BA Bottleneck Summary">
+              <Panel title="Internal BA Bottleneck Summary">
                 <div className="space-y-3">
                   {(dashboardData?.baBottlenecks ?? []).map((b: any, idx: number) => (
                     <div key={idx} className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200 shadow-xs space-y-1 hover:border-slate-300 transition">

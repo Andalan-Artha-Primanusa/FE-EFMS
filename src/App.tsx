@@ -9,7 +9,7 @@ import { TransactionFormPage } from "./pages/TransactionFormPage";
 import { ProtectedRoute } from "./router/ProtectedRoute";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { routes } from "./router/routes";
-import { DashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute, CoalIndexRoute, RaiseFallRoute, FinanceDashboardRoute, FinanceBATrackerRoute, FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute } from "./router/RouteWrappers";
+import { DashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute, CoalIndexRoute, RaiseFallRoute, FinanceDashboardRoute, FinanceBATrackerRoute, FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute, SiteSetupRoute } from "./router/RouteWrappers";
 
 export function App() {
   const [user, setUser] = useState<User | null>(() => {
@@ -49,6 +49,9 @@ export function App() {
           <Route path="trial-balance" element={<ProtectedRoute requiredView="Trial Balance"><GeneralJournalRoute viewTitle="Trial Balance" /></ProtectedRoute>} />
           <Route path="closing-period" element={<ProtectedRoute requiredView="Closing Period"><GeneralJournalRoute viewTitle="Closing Period" /></ProtectedRoute>} />
           
+          <Route path="site-setup" element={<ProtectedRoute requiredView="Setup Parameter Site & Klien"><SiteSetupRoute /></ProtectedRoute>} />
+          <Route path="setup-parameter-site-klien" element={<ProtectedRoute requiredView="Setup Parameter Site & Klien"><SiteSetupRoute /></ProtectedRoute>} />
+          
           <Route path="coal-index" element={<ProtectedRoute requiredView="Coal Index"><CoalIndexRoute /></ProtectedRoute>} />
           <Route path="raise-fall" element={<ProtectedRoute requiredView="RAISE & FALL"><RaiseFallRoute viewTitle="RAISE & FALL" /></ProtectedRoute>} />
           <Route path="currency" element={<ProtectedRoute requiredView="Currency"><RaiseFallRoute viewTitle="Currency" /></ProtectedRoute>} />
@@ -62,7 +65,8 @@ export function App() {
           <Route path="invoice-management" element={<ProtectedRoute requiredView="Invoice Management"><FinanceInvoiceRoute /></ProtectedRoute>} />
           
           <Route path="payment-receipt-log" element={<ProtectedRoute requiredView="Payment & Receipt Log"><FinancePaymentRoute /></ProtectedRoute>} />
-          <Route path="customer-master-credit-terms" element={<ProtectedRoute requiredView="Customer Master & Credit Terms"><FinanceCustomerRoute /></ProtectedRoute>} />
+          <Route path="client-setup" element={<ProtectedRoute requiredView="Client Setup"><FinanceCustomerRoute viewTitle="Client Setup" /></ProtectedRoute>} />
+          <Route path="customer-master-credit-terms" element={<ProtectedRoute requiredView="Client Setup"><FinanceCustomerRoute viewTitle="Client Setup" /></ProtectedRoute>} />
           
           <Route path="variable-sow/new" element={<VariableSOWFormPage />} />
           <Route path="variable-sow/:id/edit" element={<VariableSOWFormPage />} />

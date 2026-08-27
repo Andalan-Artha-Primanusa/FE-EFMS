@@ -45,9 +45,9 @@ export function MasterRaiseFallPage({
   viewTitle: string;
   query: string;
   onNotice: (msg: string) => void;
-  initialTab?: "monthly" | "base" | "mrate" | "rates";
+  initialTab?: "monthly" | "base" | "umk" | "mrate" | "rates";
 }) {
-  const [activeTab, setActiveTab] = useState<"monthly" | "base" | "mrate" | "rates">(
+  const [activeTab, setActiveTab] = useState<"monthly" | "base" | "umk" | "mrate" | "rates">(
     initialTab || (viewTitle === "Currency" ? "mrate" : "monthly")
   );
   const [loading, setLoading] = useState(true);
@@ -58,6 +58,7 @@ export function MasterRaiseFallPage({
   const [rfRows, setRfRows] = useState<any[]>([]);
   const [mrateRows, setMrateRows] = useState<any[]>([]);
   const [sowRows, setSowRows] = useState<any[]>([]);
+  const [umkRows, setUmkRows] = useState<any[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState("POS");
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -87,9 +88,10 @@ export function MasterRaiseFallPage({
 
   // Modals
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalType, setModalType] = useState<"rf" | "mrate">("rf");
+  const [modalType, setModalType] = useState<"rf" | "mrate" | "umk">("rf");
   const [editItem, setEditItem] = useState<any>(null);
   const [deleteRfTarget, setDeleteRfTarget] = useState<{ id: number } | null>(null);
+  const [deleteUmkTarget, setDeleteUmkTarget] = useState<{ id: number } | null>(null);
 
   // Form states
   const [rfForm, setRfForm] = useState<any>({
@@ -97,6 +99,7 @@ export function MasterRaiseFallPage({
     customerCode: "POS",
     projectSite: "POS PROJECT",
     contractNo: "002/POS-AAP/2025",
+    formulaScheme: "TRIPLE_FACTOR_DLF",
     weightFuelA: 0.34,
     weightLaborB: 0.25,
     weightFixedC: 0.41,
@@ -106,6 +109,15 @@ export function MasterRaiseFallPage({
     actualFuelFn: 1.422,
     actualLaborLn: 3721423,
     actualMRateXn: 17923.30,
+    notes: ""
+  });
+
+  const [umkForm, setUmkForm] = useState<any>({
+    site: "POS PROJECT",
+    year: 2026,
+    amountIdr: 3721423,
+    skNumber: "SK-GUB-SULTENG/2026/014",
+    effectiveDate: "2026-01-01",
     notes: ""
   });
 
@@ -119,14 +131,16 @@ export function MasterRaiseFallPage({
   async function loadData() {
     setLoading(true);
     try {
-      const [resRf, resMrate, resSow] = await Promise.all([
+      const [resRf, resMrate, resSow, resUmk] = await Promise.all([
         api<any[]>("/api/master-data/raise-fall"),
         api<any[]>("/api/master-data/daily-exchange-rates"),
         api<any[]>("/api/master-data/variable-sow"),
+        api<any[]>("/api/master-data/min-wages").catch(() => []),
       ]);
       setRfRows(Array.isArray(resRf) ? resRf : []);
       setMrateRows(Array.isArray(resMrate) ? resMrate : []);
       setSowRows(Array.isArray(resSow) ? resSow : []);
+      setUmkRows(Array.isArray(resUmk) ? resUmk : []);
     } catch (err: any) {
       onNotice(err?.message || "Gagal memuat data Master Raise & Fall");
     } finally {
@@ -149,6 +163,7 @@ export function MasterRaiseFallPage({
     customerCode: "POS",
     projectSite: "POS PROJECT",
     contractNo: "002/POS-AAP/2025",
+    formulaScheme: "TRIPLE_FACTOR_DLF",
     weightFuelA: 0.34,
     weightLaborB: 0.25,
     weightFixedC: 0.41,
@@ -158,7 +173,7 @@ export function MasterRaiseFallPage({
     actualFuelFn: 1.422,
     actualLaborLn: 3721423,
     actualMRateXn: 17923.30,
-    rfIndexResult: 1.521
+    rfIndexResult: 1.479
   };
 
   // Average M-Rate calculation
@@ -166,17 +181,25 @@ export function MasterRaiseFallPage({
     ? mrateRows.reduce((sum, r) => sum + (r.kursTengah || (r.kursJual + r.kursBeli) / 2), 0) / mrateRows.length
     : 17923.30;
 
-  // Real-time formula calculations for modal
+  // Real-time formula calculations
+  const isBGGStyle = rfForm.formulaScheme === "SINGLE_FACTOR_FUEL" || rfForm.customerCode === "BGG";
+  
+  // BGG 1-Factor: Index = 0.60 + 0.40 * (Fn / Fo)
+  const calcBGGRF = rfForm.baseFuelFo > 0
+    ? 0.60 + (0.40 * (rfForm.actualFuelFn / (rfForm.baseFuelFo || 9000)))
+    : 1.56;
+
+  // POS 3-Factor: D + L + F where L = b * (Ln / Lo) (pure IDR ratio, NO Forex Xn/Xo)
   const calcFuelD = rfForm.baseFuelFo > 0
-    ? (rfForm.weightFuelA * rfForm.actualFuelFn * rfForm.actualMRateXn) / rfForm.baseFuelFo
+    ? (rfForm.weightFuelA * rfForm.actualFuelFn * (rfForm.actualFuelFn < 100 ? rfForm.actualMRateXn : 1)) / rfForm.baseFuelFo
     : 0;
 
-  const calcLaborL = (rfForm.baseLaborLo > 0 && rfForm.baseForexXo > 0)
-    ? (rfForm.weightLaborB * rfForm.actualLaborLn * rfForm.actualMRateXn) / (rfForm.baseLaborLo * rfForm.baseForexXo)
+  const calcLaborL = rfForm.baseLaborLo > 0
+    ? (rfForm.weightLaborB * rfForm.actualLaborLn) / rfForm.baseLaborLo
     : 0;
 
   const calcFixedF = rfForm.weightFixedC || 0.41;
-  const calcTotalRF = calcFuelD + calcLaborL + calcFixedF;
+  const calcTotalRF = isBGGStyle ? calcBGGRF : (calcFuelD + calcLaborL + calcFixedF);
 
   const handleSaveRf = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -194,6 +217,37 @@ export function MasterRaiseFallPage({
       loadData();
     } catch (err: any) {
       onNotice(err?.message || "Gagal menyimpan data Raise & Fall");
+    }
+  };
+
+  const handleSaveUmk = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      let endpoint = "/api/master-data/min-wages";
+      if (editItem?.id) {
+        endpoint += `/${editItem.id}`;
+        await api(endpoint, { method: "PUT", body: JSON.stringify(umkForm) });
+        onNotice("Referensi UMK berhasil diperbarui!");
+      } else {
+        await api(endpoint, { method: "POST", body: JSON.stringify(umkForm) });
+        onNotice("Referensi UMK baru berhasil ditambahkan!");
+      }
+      setModalOpen(false);
+      loadData();
+    } catch (err: any) {
+      onNotice(err?.message || "Gagal menyimpan Referensi UMK");
+    }
+  };
+
+  const handleDeleteUmk = async (id: number) => {
+    try {
+      await api(`/api/master-data/min-wages/${id}`, { method: "DELETE" });
+      onNotice("Referensi UMK berhasil dihapus");
+      loadData();
+    } catch (err: any) {
+      onNotice(err?.message || "Gagal menghapus UMK");
+    } finally {
+      setDeleteUmkTarget(null);
     }
   };
 
@@ -231,21 +285,42 @@ export function MasterRaiseFallPage({
   const openCreateRfModal = () => {
     setModalType("rf");
     setEditItem(null);
+    const isBGG = selectedCustomer === "BGG";
+    
+    // Auto-lookup UMK for site
+    const matchedUmk = umkRows.find((u) => u.site === (isBGG ? "PT Budi Gema Gempita Site" : "POS PROJECT") && u.year === 2026);
+    const autoLn = matchedUmk ? matchedUmk.amountIdr : (isBGG ? 3565000 : 3721423);
+
     setRfForm({
       period: "Juli 2026",
-      customerCode: "POS",
-      projectSite: "POS PROJECT",
-      contractNo: "002/POS-AAP/2025",
-      weightFuelA: 0.34,
-      weightLaborB: 0.25,
-      weightFixedC: 0.41,
-      baseFuelFo: 10699.97,
-      baseLaborLo: 3594536,
+      customerCode: selectedCustomer === "ALL" ? "POS" : selectedCustomer,
+      projectSite: isBGG ? "PT Budi Gema Gempita Site" : "POS PROJECT",
+      contractNo: isBGG ? "09/BGG-AAP/VIII/2018" : "002/POS-AAP/2025",
+      formulaScheme: isBGG ? "SINGLE_FACTOR_FUEL" : "TRIPLE_FACTOR_DLF",
+      weightFuelA: isBGG ? 0.40 : 0.34,
+      weightLaborB: isBGG ? 0.0 : 0.25,
+      weightFixedC: isBGG ? 0.60 : 0.41,
+      baseFuelFo: isBGG ? 9000 : 10699.97,
+      baseLaborLo: isBGG ? 0 : 3594536,
       baseForexXo: 15388.75,
-      actualFuelFn: 1.450,
-      actualLaborLn: 3721423,
+      actualFuelFn: isBGG ? 21601.53 : 1.450,
+      actualLaborLn: autoLn,
       actualMRateXn: Math.round(avgMRateCalc),
-      notes: "Kalkulasi RF Periode Baru"
+      notes: isBGG ? "Kalkulasi RF BGG 1-Faktor BBM" : "Kalkulasi RF POS 3-Faktor DLF"
+    });
+    setModalOpen(true);
+  };
+
+  const openCreateUmkModal = () => {
+    setModalType("umk");
+    setEditItem(null);
+    setUmkForm({
+      site: "POS PROJECT",
+      year: 2026,
+      amountIdr: 3721423,
+      skNumber: "",
+      effectiveDate: "2026-01-01",
+      notes: ""
     });
     setModalOpen(true);
   };
@@ -455,7 +530,7 @@ export function MasterRaiseFallPage({
         </div>
       )}
 
-      {/* Tabs Navigation (Only for Raise & Fall page: 2 tabs) */}
+      {/* Tabs Navigation */}
       {!isCurrencyPage && (
         <div className="bg-white p-1.5 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap gap-1">
           <button
@@ -479,6 +554,17 @@ export function MasterRaiseFallPage({
           >
             <Sliders size={15} /> Formulasi & Indeks Dasar Kontrak
           </button>
+
+          <button
+            onClick={() => setActiveTab("umk")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all ${
+              activeTab === "umk"
+                ? "bg-cyan-900 text-white shadow-md shadow-cyan-900/20"
+                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            }`}
+          >
+            <Building2 size={15} /> Referensi UMK Site ({umkRows.length})
+          </button>
         </div>
       )}
 
@@ -491,7 +577,8 @@ export function MasterRaiseFallPage({
                 <tr className="bg-slate-100 text-slate-800 font-extrabold text-[11px] uppercase border-b border-slate-200">
                   <th className="p-3 border-r border-slate-200">PERIODE</th>
                   <th className="p-3 border-r border-slate-200">KONTRAK & CUSTOMER</th>
-                  <th className="p-3 text-right border-r border-slate-200">FUEL (Fn USD)</th>
+                  <th className="p-3 border-r border-slate-200">SKEMA FORMULA</th>
+                  <th className="p-3 text-right border-r border-slate-200">FUEL (Fn)</th>
                   <th className="p-3 text-right border-r border-slate-200">LABOR (Ln IDR)</th>
                   <th className="p-3 text-right border-r border-slate-200">M-RATE (Xn IDR)</th>
                   <th className="p-3 text-right border-r border-slate-200">KOMPONEN D</th>
@@ -502,11 +589,20 @@ export function MasterRaiseFallPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 font-medium text-slate-900">
-                {rfRows.map((r) => {
-                  const d = r.baseFuelFo > 0 ? (r.weightFuelA * r.actualFuelFn * r.actualMRateXn) / r.baseFuelFo : 0;
-                  const l = (r.baseLaborLo > 0 && r.baseForexXo > 0) ? (r.weightLaborB * r.actualLaborLn * r.actualMRateXn) / (r.baseLaborLo * r.baseForexXo) : 0;
-                  const f = r.weightFixedC || 0.41;
-                  const totalRf = r.rfIndexResult || (d + l + f);
+                {filteredRfRows.map((r) => {
+                  const isSingle = r.formulaScheme === "SINGLE_FACTOR_FUEL" || r.customerCode === "BGG";
+                  let d = 0, l = 0, f = 0, totalRf = 0;
+
+                  if (isSingle) {
+                    const fo = r.baseFuelFo || 9000;
+                    const fn = r.actualFuelFn || fo;
+                    totalRf = r.rfIndexResult || (0.60 + 0.40 * (fn / fo));
+                  } else {
+                    d = r.baseFuelFo > 0 ? (r.weightFuelA * r.actualFuelFn * (r.actualFuelFn < 100 ? r.actualMRateXn : 1)) / r.baseFuelFo : 0;
+                    l = r.baseLaborLo > 0 ? (r.weightLaborB * r.actualLaborLn) / r.baseLaborLo : 0;
+                    f = r.weightFixedC || 0.41;
+                    totalRf = r.rfIndexResult || (d + l + f);
+                  }
 
                   return (
                     <tr key={r.id} className="hover:bg-slate-50 border-b border-slate-200">
@@ -517,23 +613,30 @@ export function MasterRaiseFallPage({
                         <div className="font-bold text-slate-900">{r.customerCode} — {r.projectSite}</div>
                         <div className="text-[10px] font-mono text-slate-500">{r.contractNo}</div>
                       </td>
-                      <td className="p-3 text-right font-mono font-bold border-r border-slate-200">
-                        USD {r.actualFuelFn?.toFixed(3)}
+                      <td className="p-3 border-r border-slate-200">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                          isSingle ? "bg-amber-100 text-amber-800" : "bg-cyan-100 text-cyan-800"
+                        }`}>
+                          {isSingle ? "1-Faktor BBM" : "3-Faktor (D+L+F)"}
+                        </span>
                       </td>
                       <td className="p-3 text-right font-mono font-bold border-r border-slate-200">
-                        Rp {r.actualLaborLn?.toLocaleString("id-ID")}
+                        {r.actualFuelFn > 100 ? `Rp ${r.actualFuelFn?.toLocaleString("id-ID")}` : `USD ${r.actualFuelFn?.toFixed(3)}`}
                       </td>
                       <td className="p-3 text-right font-mono font-bold border-r border-slate-200">
-                        Rp {r.actualMRateXn?.toLocaleString("id-ID")}
+                        {isSingle ? <span className="text-slate-400 font-sans">N/A</span> : `Rp ${r.actualLaborLn?.toLocaleString("id-ID")}`}
+                      </td>
+                      <td className="p-3 text-right font-mono font-bold border-r border-slate-200">
+                        {isSingle ? <span className="text-slate-400 font-sans">N/A</span> : `Rp ${r.actualMRateXn?.toLocaleString("id-ID")}`}
                       </td>
                       <td className="p-3 text-right font-mono text-slate-700 border-r border-slate-200">
-                        {d.toFixed(3)}
+                        {isSingle ? <span className="text-slate-400 font-sans">-</span> : d.toFixed(3)}
                       </td>
                       <td className="p-3 text-right font-mono text-slate-700 border-r border-slate-200">
-                        {l.toFixed(3)}
+                        {isSingle ? <span className="text-slate-400 font-sans">-</span> : l.toFixed(3)}
                       </td>
                       <td className="p-3 text-right font-mono text-slate-700 border-r border-slate-200">
-                        {f.toFixed(3)}
+                        {isSingle ? <span className="text-slate-400 font-sans">-</span> : f.toFixed(3)}
                       </td>
                       <td className="p-3 text-right font-mono font-black text-sm text-cyan-900 border-r border-slate-200 underline">
                         {totalRf.toFixed(3)}
@@ -567,26 +670,40 @@ export function MasterRaiseFallPage({
 
       {/* Tab 2: Formulasi & Indeks Dasar Kontrak */}
       {activeTab === "base" && (
-        <Panel title="Parameter Formula & Indeks Dasar Kontrak (Base Index)">
+        <Panel title="Parameter Formula & Indeks Dasar Kontrak (Multi-Scheme Engine)">
           <div className="space-y-5 text-xs text-slate-800">
-            {/* Box Rumus Resmi */}
-            <div className="p-4 bg-slate-900 text-white rounded-2xl shadow-md space-y-2 border border-slate-800 font-mono">
-              <div className="text-xs font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2">
-                <Calculator size={16} /> FORMULA STANDARD: INDEX RF = D + L + F
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Skema 1: BGG 1-Faktor BBM */}
+              <div className="p-4 bg-slate-900 text-white rounded-2xl shadow-md space-y-3 border border-slate-800 font-mono">
+                <div className="text-xs font-black text-amber-400 uppercase tracking-widest flex items-center gap-2">
+                  <Flame size={16} /> SKEMA BGG: 1-FAKTOR FUEL (ESKALASI BBM MURNI)
+                </div>
+                <div className="p-3 bg-slate-800/90 rounded-xl border border-slate-700 text-slate-200 text-xs">
+                  <code>Index = 0,60 + 0,40 × (Fn / Fo)</code>
+                </div>
+                <ul className="text-[11px] text-slate-300 space-y-1 font-sans">
+                  <li>• <strong>Tanpa Komponen Upah/Labor</strong> & tanpa faktor kurs forex.</li>
+                  <li>• <strong>Fo (Baseline Fuel):</strong> Rp 9.000 / Liter (Konvensi Kontrak BGG).</li>
+                  <li>• <strong>Fn (Aktual Fuel):</strong> Harga solar industri aktual periode berjalan.</li>
+                </ul>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 text-[11px] text-slate-300">
-                <div className="p-2.5 bg-slate-800/80 rounded-xl border border-slate-700">
-                  <strong className="text-amber-400 block mb-1">D (Komponen Fuel)</strong>
-                  <code>D = [ Rate * a * (Fn * Xn) ] / (Fo * Xo)</code>
+
+              {/* Skema 2: POS 3-Faktor DLF */}
+              <div className="p-4 bg-slate-900 text-white rounded-2xl shadow-md space-y-3 border border-slate-800 font-mono">
+                <div className="text-xs font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2">
+                  <Calculator size={16} /> SKEMA POS: 3-FAKTOR D + L + F (DIESEL, LABOR, FIXED)
                 </div>
-                <div className="p-2.5 bg-slate-800/80 rounded-xl border border-slate-700">
-                  <strong className="text-teal-400 block mb-1">L (Komponen Labor)</strong>
-                  <code>L = [ Rate * b * (Ln * Xn) ] / (Lo * Xo)</code>
+                <div className="p-3 bg-slate-800/90 rounded-xl border border-slate-700 text-slate-200 text-xs">
+                  <code>Index = D + L + F</code>
+                  <div className="text-[10px] text-teal-300 mt-1">
+                    D = [a × Fn × Xn] / Fo | L = b × (Ln / Lo) (Rasio IDR Murni!) | F = c
+                  </div>
                 </div>
-                <div className="p-2.5 bg-slate-800/80 rounded-xl border border-slate-700">
-                  <strong className="text-cyan-400 block mb-1">F (Komponen Fixed)</strong>
-                  <code>F = Rate * c</code>
-                </div>
+                <ul className="text-[11px] text-slate-300 space-y-1 font-sans">
+                  <li>• <strong>Bobot:</strong> Fuel (a) 34%, Labor (b) 25%, Fixed (c) 41%.</li>
+                  <li>• <strong>Ln (Upah Aktual):</strong> Auto-fill dari Referensi UMK Site Morowali.</li>
+                  <li>• <strong>Labor Tanpa Forex:</strong> Menggunakan rasio murni Rupiah UMK (Ln / Lo).</li>
+                </ul>
               </div>
             </div>
 
@@ -594,7 +711,7 @@ export function MasterRaiseFallPage({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 bg-slate-50 border border-slate-300 rounded-xl space-y-3">
                 <h4 className="font-extrabold uppercase text-slate-900 text-xs tracking-wider flex items-center gap-2">
-                  <Percent size={15} className="text-cyan-700" /> Bobot Komponen Terbobot (Base Weights):
+                  <Percent size={15} className="text-cyan-700" /> Bobot Komponen Terbobot (POS Project):
                 </h4>
                 <div className="space-y-2 text-xs">
                   <div className="flex justify-between p-2 bg-white rounded-lg border border-slate-200">
@@ -618,20 +735,98 @@ export function MasterRaiseFallPage({
                 </h4>
                 <div className="space-y-2 text-xs font-mono">
                   <div className="flex justify-between p-2 bg-white rounded-lg border border-slate-200">
-                    <span className="font-bold text-slate-600 font-sans">Fo (Base Fuel Price IDR)</span>
+                    <span className="font-bold text-slate-600 font-sans">Fo (Base Fuel POS)</span>
                     <strong className="text-slate-900">Rp 10.699,97</strong>
                   </div>
                   <div className="flex justify-between p-2 bg-white rounded-lg border border-slate-200">
-                    <span className="font-bold text-slate-600 font-sans">Lo (Base Labor Index IDR)</span>
+                    <span className="font-bold text-slate-600 font-sans">Lo (Base Labor POS)</span>
                     <strong className="text-slate-900">Rp 3.594.536,00</strong>
                   </div>
                   <div className="flex justify-between p-2 bg-white rounded-lg border border-slate-200">
-                    <span className="font-bold text-slate-600 font-sans">Xo (Base Forex Rate IDR)</span>
+                    <span className="font-bold text-slate-600 font-sans">Xo (Base Forex POS)</span>
                     <strong className="text-slate-900">Rp 15.388,75</strong>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
+        </Panel>
+      )}
+
+      {/* Tab UMK: Referensi UMK Site (Master Data Baru per PRD §3.3) */}
+      {activeTab === "umk" && (
+        <Panel
+          title="Master Data: Referensi UMK (Upah Minimum Kabupaten/Kota) Per Site"
+          action={
+            <button
+              onClick={openCreateUmkModal}
+              className="bg-cyan-800 hover:bg-slate-900 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+            >
+              <Plus size={15} /> + Tambah Nilai UMK Baru
+            </button>
+          }
+        >
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-100 text-slate-800 font-extrabold text-[11px] uppercase border-b border-slate-200">
+                  <th className="p-3 border-r border-slate-200">PROJECT SITE</th>
+                  <th className="p-3 text-center border-r border-slate-200">TAHUN BERLAKU</th>
+                  <th className="p-3 text-right border-r border-slate-200 font-black text-cyan-900">NILAI UMK (IDR)</th>
+                  <th className="p-3 border-r border-slate-200">NO. SK / PERATURAN GUBERNUR</th>
+                  <th className="p-3 text-center border-r border-slate-200">TANGGAL EFEKTIF</th>
+                  <th className="p-3 border-r border-slate-200">CATATAN AUDIT</th>
+                  <th className="p-3 text-center">AKSI</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 font-medium text-slate-900">
+                {umkRows.map((u) => (
+                  <tr key={u.id} className="hover:bg-slate-50 border-b border-slate-200">
+                    <td className="p-3 font-extrabold text-cyan-900 border-r border-slate-200">
+                      {u.site}
+                    </td>
+                    <td className="p-3 text-center font-bold font-mono border-r border-slate-200">
+                      {u.year}
+                    </td>
+                    <td className="p-3 text-right font-mono font-black text-sm text-slate-900 border-r border-slate-200">
+                      Rp {u.amountIdr?.toLocaleString("id-ID")}
+                    </td>
+                    <td className="p-3 font-mono text-[11px] text-slate-700 border-r border-slate-200">
+                      {u.skNumber || "-"}
+                    </td>
+                    <td className="p-3 text-center font-mono text-[11px] border-r border-slate-200">
+                      {u.effectiveDate || "-"}
+                    </td>
+                    <td className="p-3 text-slate-600 text-[11px] border-r border-slate-200">
+                      {u.notes || "-"}
+                    </td>
+                    <td className="p-3 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => {
+                            setModalType("umk");
+                            setEditItem(u);
+                            setUmkForm({ ...u });
+                            setModalOpen(true);
+                          }}
+                          className="p-1.5 text-cyan-700 hover:bg-cyan-50 rounded-lg transition-colors"
+                          title="Edit UMK"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button
+                          onClick={() => setDeleteUmkTarget({ id: u.id })}
+                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          title="Hapus UMK"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </Panel>
       )}
@@ -726,7 +921,7 @@ export function MasterRaiseFallPage({
         </Panel>
       )}
 
-      {/* Modal Popup (Calculated RF / MRate) */}
+      {/* Modal Popup (Calculated RF / MRate / UMK) */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
@@ -735,6 +930,8 @@ export function MasterRaiseFallPage({
                 <Calculator size={18} className="text-cyan-400" />
                 {modalType === "rf"
                   ? (editItem ? "Edit Rekam Kalkulasi Raise & Fall" : "Hitung / Input Periode Raise & Fall Baru")
+                  : modalType === "umk"
+                  ? (editItem ? "Edit Referensi UMK Site" : "Tambah Referensi UMK Baru")
                   : "Tambah Kurs Harian Bank Indonesia"}
               </h3>
               <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-white">
@@ -756,65 +953,110 @@ export function MasterRaiseFallPage({
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Nomor Kontrak</label>
-                      <input
+                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Skema Formula</label>
+                      <select
                         className="w-full bg-slate-50 border border-slate-300 font-bold text-xs p-2 rounded-lg outline-none focus:border-cyan-600"
-                        value={rfForm.contractNo}
-                        onChange={(e) => setRfForm({ ...rfForm, contractNo: e.target.value })}
-                      />
+                        value={rfForm.formulaScheme || (rfForm.customerCode === "BGG" ? "SINGLE_FACTOR_FUEL" : "TRIPLE_FACTOR_DLF")}
+                        onChange={(e) => setRfForm({ ...rfForm, formulaScheme: e.target.value })}
+                      >
+                        <option value="SINGLE_FACTOR_FUEL">1-Faktor BBM: 0,60 + 0,40*(Fn/Fo) (BGG)</option>
+                        <option value="TRIPLE_FACTOR_DLF">3-Faktor: D + L + F (POS)</option>
+                      </select>
                     </div>
                   </div>
 
-                  <div className="p-3 bg-slate-100 border border-slate-200 rounded-xl space-y-2">
-                    <h5 className="text-[11px] font-extrabold uppercase text-cyan-900 tracking-wider">Input Indikator Aktual (Current Period):</h5>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Fn (Fuel USD)</label>
-                        <input
-                          type="number"
-                          step="0.001"
-                          className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-lg"
-                          value={rfForm.actualFuelFn}
-                          onChange={(e) => setRfForm({ ...rfForm, actualFuelFn: parseFloat(e.target.value) || 0 })}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Ln (Labor IDR)</label>
-                        <input
-                          type="number"
-                          className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-lg"
-                          value={rfForm.actualLaborLn}
-                          onChange={(e) => setRfForm({ ...rfForm, actualLaborLn: parseFloat(e.target.value) || 0 })}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Xn (M-Rate IDR)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-lg"
-                          value={rfForm.actualMRateXn}
-                          onChange={(e) => setRfForm({ ...rfForm, actualMRateXn: parseFloat(e.target.value) || 0 })}
-                        />
+                  {/* Input parameters based on scheme */}
+                  {isBGGStyle ? (
+                    <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2">
+                      <h5 className="text-[11px] font-extrabold uppercase text-amber-900 tracking-wider">Parameter 1-Faktor BBM (BGG):</h5>
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-700 mb-0.5">Fo (Base Fuel IDR)</label>
+                          <input
+                            type="number"
+                            className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-lg"
+                            value={rfForm.baseFuelFo || 9000}
+                            onChange={(e) => setRfForm({ ...rfForm, baseFuelFo: parseFloat(e.target.value) || 0 })}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-700 mb-0.5">Fn (Aktual Fuel IDR)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-lg"
+                            value={rfForm.actualFuelFn || 21601.53}
+                            onChange={(e) => setRfForm({ ...rfForm, actualFuelFn: parseFloat(e.target.value) || 0 })}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="p-3 bg-slate-100 border border-slate-200 rounded-xl space-y-2">
+                      <h5 className="text-[11px] font-extrabold uppercase text-cyan-900 tracking-wider">Input Indikator Aktual (POS 3-Faktor):</h5>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Fn (Fuel USD)</label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-lg"
+                            value={rfForm.actualFuelFn}
+                            onChange={(e) => setRfForm({ ...rfForm, actualFuelFn: parseFloat(e.target.value) || 0 })}
+                          />
+                        </div>
+                        <div>
+                          <div className="flex justify-between items-center mb-0.5">
+                            <label className="text-[10px] font-bold text-slate-600">Ln (UMK IDR)</label>
+                            <span className="text-[9px] text-cyan-800 font-bold">Auto UMK ✅</span>
+                          </div>
+                          <input
+                            type="number"
+                            className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-lg"
+                            value={rfForm.actualLaborLn}
+                            onChange={(e) => setRfForm({ ...rfForm, actualLaborLn: parseFloat(e.target.value) || 0 })}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Xn (M-Rate IDR)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-lg"
+                            value={rfForm.actualMRateXn}
+                            onChange={(e) => setRfForm({ ...rfForm, actualMRateXn: parseFloat(e.target.value) || 0 })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Real-time Calculation Breakdown Preview */}
                   <div className="p-3 bg-slate-900 text-white rounded-xl space-y-2 font-mono text-[11px]">
                     <div className="text-[10px] font-extrabold uppercase text-cyan-400">Live Calculation Preview:</div>
-                    <div className="flex justify-between text-slate-300">
-                      <span>D = (34% * {rfForm.actualFuelFn} * {rfForm.actualMRateXn}) / Fo:</span>
-                      <strong className="text-amber-300">{calcFuelD.toFixed(3)}</strong>
-                    </div>
-                    <div className="flex justify-between text-slate-300">
-                      <span>L = (25% * {rfForm.actualLaborLn} * {rfForm.actualMRateXn}) / (Lo*Xo):</span>
-                      <strong className="text-teal-300">{calcLaborL.toFixed(3)}</strong>
-                    </div>
-                    <div className="flex justify-between text-slate-300">
-                      <span>F = Fixed (41%):</span>
-                      <strong className="text-cyan-300">{calcFixedF.toFixed(3)}</strong>
-                    </div>
+                    {isBGGStyle ? (
+                      <div className="space-y-1 text-slate-300">
+                        <div className="flex justify-between">
+                          <span>Formula: 0,60 + 0,40 × (Fn / Fo):</span>
+                          <strong className="text-amber-300">0,60 + 0,40 × ({(rfForm.actualFuelFn || 21601.53).toLocaleString("id-ID")} / {(rfForm.baseFuelFo || 9000).toLocaleString("id-ID")})</strong>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex justify-between text-slate-300">
+                          <span>D = (34% × {rfForm.actualFuelFn} × {rfForm.actualMRateXn}) / Fo:</span>
+                          <strong className="text-amber-300">{calcFuelD.toFixed(3)}</strong>
+                        </div>
+                        <div className="flex justify-between text-slate-300">
+                          <span>L = 25% × ({rfForm.actualLaborLn} / {rfForm.baseLaborLo}) (Murni IDR):</span>
+                          <strong className="text-teal-300">{calcLaborL.toFixed(3)}</strong>
+                        </div>
+                        <div className="flex justify-between text-slate-300">
+                          <span>F = Fixed (41%):</span>
+                          <strong className="text-cyan-300">{calcFixedF.toFixed(3)}</strong>
+                        </div>
+                      </>
+                    )}
                     <div className="pt-2 border-t border-slate-800 flex justify-between text-sm font-black text-white">
                       <span>INDEX RF RESULT =</span>
                       <span className="text-emerald-400 underline">{calcTotalRF.toFixed(3)}</span>
@@ -827,6 +1069,85 @@ export function MasterRaiseFallPage({
                     </button>
                     <button type="submit" className="px-5 py-2 bg-cyan-900 hover:bg-slate-900 text-white font-extrabold text-xs rounded-xl">
                       Simpan Master RF
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {modalType === "umk" && (
+                <form onSubmit={handleSaveUmk} className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Project Site Tambang</label>
+                    <select
+                      className="w-full bg-slate-50 border border-slate-300 font-bold text-xs p-2 rounded-lg"
+                      value={umkForm.site}
+                      onChange={(e) => setUmkForm({ ...umkForm, site: e.target.value })}
+                      required
+                    >
+                      <option value="POS PROJECT">POS PROJECT (Morowali)</option>
+                      <option value="PT Budi Gema Gempita Site">PT Budi Gema Gempita Site (Lahat)</option>
+                      <option value="PT Satria Bahana Sarana Site">PT Satria Bahana Sarana Site (Muara Enim)</option>
+                      <option value="PT Daya Bumindo Karunia Site">PT Daya Bumindo Karunia Site (Murung Raya)</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Tahun Berlaku</label>
+                      <input
+                        type="number"
+                        className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-xs p-2 rounded-lg"
+                        value={umkForm.year}
+                        onChange={(e) => setUmkForm({ ...umkForm, year: parseInt(e.target.value) || 2026 })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Nilai UMK (IDR)</label>
+                      <input
+                        type="number"
+                        className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-xs p-2 rounded-lg"
+                        value={umkForm.amountIdr}
+                        onChange={(e) => setUmkForm({ ...umkForm, amountIdr: parseFloat(e.target.value) || 0 })}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Nomor SK / Peraturan</label>
+                      <input
+                        className="w-full bg-slate-50 border border-slate-300 text-xs p-2 rounded-lg"
+                        value={umkForm.skNumber}
+                        onChange={(e) => setUmkForm({ ...umkForm, skNumber: e.target.value })}
+                        placeholder="e.g. SK-GUB-SULTENG/2026/014"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Tanggal Efektif</label>
+                      <input
+                        type="date"
+                        className="w-full bg-slate-50 border border-slate-300 text-xs p-2 rounded-lg"
+                        value={umkForm.effectiveDate}
+                        onChange={(e) => setUmkForm({ ...umkForm, effectiveDate: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Catatan Audit</label>
+                    <input
+                      className="w-full bg-slate-50 border border-slate-300 text-xs p-2 rounded-lg"
+                      value={umkForm.notes}
+                      onChange={(e) => setUmkForm({ ...umkForm, notes: e.target.value })}
+                      placeholder="e.g. UMK Kab. Morowali Penetapan Resmi 2026"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 bg-slate-100 font-bold text-xs rounded-xl text-slate-700">
+                      Batal
+                    </button>
+                    <button type="submit" className="px-5 py-2 bg-cyan-900 hover:bg-slate-900 text-white font-extrabold text-xs rounded-xl">
+                      Simpan Referensi UMK
                     </button>
                   </div>
                 </form>
@@ -897,6 +1218,16 @@ export function MasterRaiseFallPage({
           danger
           onCancel={() => setDeleteRfTarget(null)}
           onConfirm={() => handleDeleteRf(deleteRfTarget.id)}
+        />
+      )}
+      {deleteUmkTarget && (
+        <ConfirmDialog
+          title="Hapus Referensi UMK Site"
+          message="Nilai Referensi UMK site ini akan dihapus permanen. Lanjutkan?"
+          confirmLabel="Hapus"
+          danger
+          onCancel={() => setDeleteUmkTarget(null)}
+          onConfirm={() => handleDeleteUmk(deleteUmkTarget.id)}
         />
       )}
     </div>

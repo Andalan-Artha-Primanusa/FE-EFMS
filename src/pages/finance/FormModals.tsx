@@ -1,9 +1,9 @@
-import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Search, Fuel } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
-import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, User as UserType } from "../../lib/api";
+import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, getAuditLogs, User as UserType } from "../../lib/api";
 
 import {
   resolveDocumentUrl, formatIDR, parseNumber, formatThousand, formatDateInput,
@@ -13,6 +13,148 @@ import {
   getBAStatusForExport, renderInvoiceStatusBadge, parsePeriodToMonthIndex,
   RupiahInput, generateAuditTimeline
 } from "./helpers";
+
+// Search Select Component for SOW Master Catalog per Site
+function SowSearchSelect({
+  value,
+  onChange,
+  onSelectSow,
+  customerCode,
+  activeSOWCatalog = [],
+  mRate,
+  placeholder = "Ketik / cari Master SOW...",
+  id = "sow-select",
+  isDistanceOnly = false
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  onSelectSow: (sow: { name: string; unit: string; defaultRate: number; isDistanceVar?: boolean }) => void;
+  customerCode: string;
+  activeSOWCatalog?: any[];
+  mRate?: number;
+  placeholder?: string;
+  id?: string;
+  isDistanceOnly?: boolean;
+}) {
+  const siteSowOptions = useMemo(() => {
+    const code = (customerCode || "POS").toUpperCase();
+
+    // 1. Get from activeSOWCatalog matching this customer
+    const matchedFromCatalog = (activeSOWCatalog || []).filter(s => {
+      if (!s) return false;
+      const c = (s.customer || s.customerCode || "").toUpperCase();
+      return !c || c === code || (code === "POS" && (!c || c === "POS"));
+    });
+
+    // 2. Default standard SOW list per site
+    const siteDefaults: Record<string, Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean }>> = {
+      BGG: [
+        { name: "OVER BURDEN REMOVAL 1 (75%)", unit: "BCM", defaultRate: 29500, category: "Penambangan BGG", isDistanceVar: false },
+        { name: "OVER BURDEN REMOVAL 2 (25%)", unit: "BCM", defaultRate: 28750, category: "Penambangan BGG", isDistanceVar: false },
+        { name: "Coal Winning", unit: "Ton", defaultRate: 17500, category: "Penambangan BGG", isDistanceVar: false },
+        { name: "Over Distance For OB Removal", unit: "BCM", defaultRate: 1550, category: "Over Distance", isDistanceVar: true },
+        { name: "Over Distance For Coal Winning", unit: "Ton", defaultRate: 19700, category: "Over Distance", isDistanceVar: true },
+      ],
+      POS: [
+        { name: "Top Soil Removal", unit: "BCM", defaultRate: 60500, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Overburden / Waste Removal", unit: "BCM", defaultRate: 59500, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Limonite Ore Mining", unit: "WMT", defaultRate: 60200, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Saprolite Ore Mining", unit: "WMT", defaultRate: 62200, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Uncrushed Rock", unit: "BCM", defaultRate: 142275, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Cut & Fill / Earthwork", unit: "BCM", defaultRate: 38150, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Crushed Rock", unit: "BCM", defaultRate: 233900, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Land Clearing", unit: "m2", defaultRate: 6830, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Over/Underhaul For OB Removal", unit: "BCM", defaultRate: 9643, category: "Over Distance", isDistanceVar: true },
+        { name: "Over/Underhaul For Top Soil Removal", unit: "BCM", defaultRate: 9643, category: "Over Distance", isDistanceVar: true },
+        { name: "Over/Underhaul For Limonite", unit: "BCM", defaultRate: 9428, category: "Over Distance", isDistanceVar: true },
+        { name: "Over/Underhaul For Saprolite", unit: "BCM", defaultRate: 9428, category: "Over Distance", isDistanceVar: true },
+        { name: "Mine Development (MDO) - Clearing & Access Road", unit: "Ha", defaultRate: 15500000, category: "MDO", isDistanceVar: false },
+        { name: "Rocks for construction - under/overhaul", unit: "USD/1KM", defaultRate: 9450, category: "MDO", isDistanceVar: true },
+        { name: "Uncrushed rocks for construction (MDO)", unit: "BCM", defaultRate: 142275, category: "MDO", isDistanceVar: false },
+        { name: "Road Construction & Drainage", unit: "Mtr", defaultRate: 450000, category: "MDO", isDistanceVar: false },
+      ],
+      DBK: [
+        { name: "OB Removal (Pit Sapan)", unit: "BCM", defaultRate: 31500, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Coal Winning (Pit Sapan)", unit: "Ton", defaultRate: 36000, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Land Clearing & Grubbing", unit: "Ha", defaultRate: 12500000, category: "Operation & Mining", isDistanceVar: false },
+      ],
+      SBS: [
+        { name: "OB Removal Area Kerja", unit: "BCM", defaultRate: 28000, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Jasa Penunjang Produksi", unit: "Hours", defaultRate: 350000, category: "Penunjang", isDistanceVar: false },
+        { name: "Hauling & Water Management", unit: "Hours", defaultRate: 420000, category: "Penunjang", isDistanceVar: false },
+      ]
+    };
+
+    const defaults = siteDefaults[code] || siteDefaults["POS"];
+    const merged: Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean }> = [];
+    const seen = new Set<string>();
+
+    matchedFromCatalog.forEach(c => {
+      const key = (c.name || "").toLowerCase().trim();
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        const isDist = key.includes("overhaul") || key.includes("distance") || (c.category || "").toLowerCase().includes("distance");
+        merged.push({
+          name: c.name,
+          unit: c.unit || "BCM",
+          defaultRate: c.defaultRate || c.rateIDR || (c.rateUSD ? Math.round(c.rateUSD * (mRate || 17923.30)) : 0),
+          category: c.category,
+          isDistanceVar: isDist
+        });
+      }
+    });
+
+    defaults.forEach(d => {
+      const key = (d.name || "").toLowerCase().trim();
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        merged.push(d);
+      }
+    });
+
+    // Filter strictly based on isDistanceOnly:
+    // If isDistanceOnly is true, only return distance/overhaul items.
+    // If isDistanceOnly is false, only return material/production items.
+    return merged.filter(item => isDistanceOnly ? Boolean(item.isDistanceVar) : !item.isDistanceVar);
+  }, [customerCode, activeSOWCatalog, mRate, isDistanceOnly]);
+
+  const handleLookupAndSelect = (inputName: string) => {
+    onChange(inputName);
+    const norm = inputName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!norm) return;
+
+    // Find exact or closest match within the filtered list
+    const matched = siteSowOptions.find(o => o.name.toLowerCase().trim() === inputName.toLowerCase().trim()) ||
+      siteSowOptions.find(o => {
+        const itemNorm = o.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+        return itemNorm.includes(norm) || norm.includes(itemNorm);
+      });
+
+    if (matched) {
+      onSelectSow(matched);
+    }
+  };
+
+  const datalistId = `sow-datalist-${id}`;
+
+  return (
+    <div className="relative w-full">
+      <input
+        list={datalistId}
+        type="text"
+        className="w-full bg-cyan-50/60 hover:bg-cyan-50 focus:bg-white border border-cyan-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:border-cyan-700 outline-none transition"
+        value={value || ""}
+        placeholder={placeholder}
+        onChange={(e) => handleLookupAndSelect(e.target.value)}
+      />
+      <datalist id={datalistId}>
+        {siteSowOptions.map((sow, idx) => (
+          <option key={idx} value={sow.name} />
+        ))}
+      </datalist>
+    </div>
+  );
+}
 
 export function FormModals({ c }: { c: any }) {
   const {
@@ -34,6 +176,28 @@ export function FormModals({ c }: { c: any }) {
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
   const customerRows: any[] = Array.isArray(rawCustomerRows) ? rawCustomerRows : [];
 
+  const [auditTab, setAuditTab] = useState<"flow" | "activity">("flow");
+  const [baAuditLogs, setBaAuditLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (modalType === "ba") {
+      const fetchLogs = () => {
+        const targetId = String(formData?.id || editItem?.id || "");
+        getAuditLogs({ referenceType: "ba_tracker", referenceId: targetId })
+          .then((logs) => {
+            if (Array.isArray(logs) && logs.length > 0) {
+              setBaAuditLogs(logs);
+            }
+          })
+          .catch(() => {});
+      };
+
+      fetchLogs();
+      const interval = setInterval(fetchLogs, 4000);
+      return () => clearInterval(interval);
+    }
+  }, [modalType, formData?.id, editItem?.id]);
+
   if (!modalType || modalType === "none") return null;
 
   return (
@@ -53,7 +217,7 @@ export function FormModals({ c }: { c: any }) {
                 <h3 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
                   {modalType === "ba"
                     ? (editItem ? `Berita Acara: ${formData.baNumber || formData.signedBANumber || formData.draftBARefNo || "Draft BA"}` : "Input Berita Acara Baru")
-                    : `${editItem ? "Edit Data" : "Tambah Data Baru"} â€” ${modalType === "pending_volume" ? "Pending Volume (Joint Survey)" : modalType === "invoice" ? "Invoice" : modalType === "payment" ? "Payment Receipt" : "Customer Master"}`
+                    : `${editItem ? "Edit Data" : "Tambah Data Baru"} — ${modalType === "pending_volume" ? "Pending Volume (Joint Survey)" : modalType === "invoice" ? "Invoice" : modalType === "payment" ? "Payment Receipt" : "Customer Master"}`
                   }
                 </h3>
               </div>
@@ -75,7 +239,6 @@ export function FormModals({ c }: { c: any }) {
                           }
                           return (
                             <div className="flex items-center gap-1.5">
-                              {/* Tombol Inv Mining jika belum dibuat */}
                               {!modalInvStatus.createdMiningInv && (
                                 <button
                                   type="button"
@@ -87,10 +250,9 @@ export function FormModals({ c }: { c: any }) {
                                   title="Auto-generate Form Invoice Kategori 1: Operations & Mining"
                                 >
                                   <Pickaxe size={14} />
-                                  <span>âš¡ Terbitkan Inv Mining</span>
+                                  <span>+ Inv Mining</span>
                                 </button>
                               )}
-                              {/* Tombol Inv MDO jika belum dibuat */}
                               {!modalInvStatus.createdMDOInv && (
                                 <button
                                   type="button"
@@ -102,10 +264,9 @@ export function FormModals({ c }: { c: any }) {
                                   title="Auto-generate Form Invoice Kategori 2: Mine Development (MDO)"
                                 >
                                   <Building2 size={14} />
-                                  <span>ðŸ—ï¸ Terbitkan Inv MDO</span>
+                                  <span>+ Inv MDO</span>
                                 </button>
                               )}
-                              {/* Info Invoice yang sudah terbit jika ada */}
                               {modalInvStatus.isPartiallyInvoiced && (
                                 <button
                                   type="button"
@@ -118,7 +279,7 @@ export function FormModals({ c }: { c: any }) {
                                   className="px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-900 font-extrabold text-xs flex items-center gap-1 transition cursor-pointer"
                                 >
                                   <Archive size={12} className="text-purple-700" />
-                                  <span>{modalInvStatus.createdMiningInv ? "Inv Mining âœ“" : "Inv MDO âœ“"}</span>
+                                  <span>{modalInvStatus.createdMiningInv ? "Inv Mining ✓" : "Inv MDO ✓"}</span>
                                   <ExternalLink size={11} className="text-purple-700 ml-0.5" />
                                 </button>
                               )}
@@ -136,7 +297,7 @@ export function FormModals({ c }: { c: any }) {
                           title="Auto-generate Form Invoice dari BA ini"
                         >
                           <Zap size={14} className="fill-amber-300 text-amber-300" />
-                          <span>âš¡ Terbitkan Invoice</span>
+                          <span>+ Terbitkan Invoice</span>
                         </button>
                       )
                     )}
@@ -152,11 +313,11 @@ export function FormModals({ c }: { c: any }) {
                     >
                       {isInlineEditingBA ? (
                         <>
-                          <Eye size={14} /> ðŸ‘ï¸ Mode Pratinjau
+                          <Eye size={14} /> Mode Pratinjau
                         </>
                       ) : (
                         <>
-                          <Edit2 size={14} /> âœï¸ Mode Edit Data
+                          <Edit2 size={14} /> Mode Edit Data
                         </>
                       )}
                     </button>
@@ -187,34 +348,34 @@ export function FormModals({ c }: { c: any }) {
                         <button
                           type="button"
                           onClick={loadDemoPOSData}
-                          className="px-2 py-1 text-[11px] font-extrabold text-cyan-900 bg-cyan-100 hover:bg-cyan-200 border border-cyan-300 rounded transition flex items-center gap-1"
-                          title="Isi otomatis dengan data demo POS Mining"
+                          className="px-2 py-1 text-[11px] font-extrabold text-cyan-900 bg-cyan-100 hover:bg-cyan-200 border border-cyan-300 rounded transition flex items-center gap-1 cursor-pointer"
+                          title="Isi otomatis dengan template data POS Mining"
                         >
-                          <Pickaxe size={12} /> âš¡ Demo POS
+                          <Pickaxe size={12} /> Template POS
                         </button>
                         <button
                           type="button"
                           onClick={loadDemoBGGData}
-                          className="px-2 py-1 text-[11px] font-extrabold text-emerald-900 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 rounded transition flex items-center gap-1"
-                          title="Isi otomatis dengan data demo BGG Mining (Gambar 2)"
+                          className="px-2 py-1 text-[11px] font-extrabold text-emerald-900 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 rounded transition flex items-center gap-1 cursor-pointer"
+                          title="Isi otomatis dengan template data BGG Mining"
                         >
-                          <Pickaxe size={12} /> âš¡ Demo BGG
+                          <Pickaxe size={12} /> Template BGG
                         </button>
                         <button
                           type="button"
                           onClick={loadDemoDBKData}
-                          className="px-2 py-1 text-[11px] font-extrabold text-blue-900 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded transition flex items-center gap-1"
-                          title="Isi otomatis dengan data demo DBK Petrosea (Gambar 3)"
+                          className="px-2 py-1 text-[11px] font-extrabold text-blue-900 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded transition flex items-center gap-1 cursor-pointer"
+                          title="Isi otomatis dengan template data DBK Petrosea"
                         >
-                          <Pickaxe size={12} /> âš¡ Demo DBK
+                          <Pickaxe size={12} /> Template DBK
                         </button>
                         <button
                           type="button"
                           onClick={loadDemoSBSData}
-                          className="px-2 py-1 text-[11px] font-extrabold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded transition flex items-center gap-1"
-                          title="Isi otomatis dengan data demo SBS Mining (Gambar 4)"
+                          className="px-2 py-1 text-[11px] font-extrabold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded transition flex items-center gap-1 cursor-pointer"
+                          title="Isi otomatis dengan template data SBS Mining"
                         >
-                          <Pickaxe size={12} /> âš¡ Demo SBS
+                          <Pickaxe size={12} /> Template SBS
                         </button>
                         <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded border border-slate-300">
                           RF Index: <strong className="text-amber-700 font-mono font-black">{rfIndexCalculated.toFixed(3)}</strong>
@@ -235,7 +396,7 @@ export function FormModals({ c }: { c: any }) {
                         <option value="">-- Tanpa BA Reference (Input Manual) --</option>
                         {baRows.map((ba: any) => (
                           <option key={ba.id} value={ba.baNumber}>
-                            {ba.baNumber} â€” Client: {ba.customerCode} â€” Periode: {ba.workPeriod || "-"} ({formatIDR(ba.workAmount || 0)}) [{ba.statusBA || "Submit"}]
+                            {ba.baNumber} — Client: {ba.customerCode} — Periode: {ba.workPeriod || "-"} ({formatIDR(ba.workAmount || 0)}) [{ba.statusBA || "Submit"}]
                           </option>
                         ))}
                       </select>
@@ -255,7 +416,7 @@ export function FormModals({ c }: { c: any }) {
                             <option value="">-- Pilih Customer --</option>
                             {customerRows.map((c: any) => (
                               <option key={c.id || c.code} value={c.code}>
-                                {c.code} â€” {c.fullName}
+                                {c.code} — {c.fullName}
                               </option>
                             ))}
                           </select>
@@ -360,7 +521,7 @@ export function FormModals({ c }: { c: any }) {
                         >
                           {masterBankAccounts.map((b) => (
                             <option key={b.id} value={b.bankName}>
-                              {b.bankName} â€” A/C {b.bankAccountNo} ({b.bankBranch})
+                              {b.bankName} — A/C {b.bankAccountNo} ({b.bankBranch})
                             </option>
                           ))}
                         </select>
@@ -495,29 +656,58 @@ export function FormModals({ c }: { c: any }) {
                                   <td className="p-2 text-right"></td>
                                   <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalC)}</td>
                                 </tr>
-                                {invLineItems.filter(i => i.section === "C").map(item => (
-                                  <tr key={item.id} className="hover:bg-slate-50 transition">
-                                    <td className="p-2 text-center">
-                                      <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
-                                    </td>
-                                    <td className="p-2 font-bold text-slate-800">
-                                      <div>{item.subSection || "Over Distance"}</div>
-                                      <div className="text-[10px] text-slate-500 font-mono">
-                                        Dist: {item.overhaulMtr} mtr &nbsp; &nbsp; ({item.period})
-                                      </div>
-                                    </td>
-                                    <td className="p-2 text-center">
-                                      <div className="flex items-center justify-center gap-1">
-                                        <input type="number" step="0.01" className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="0" value={item.volume === 0 ? "" : (item.volume ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemVolume(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
-                                        <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Bcm"}</span>
-                                      </div>
-                                    </td>
-                                    <td className="p-2 text-right">
-                                      <input type="number" className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="0" value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemRateIDR(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
-                                    </td>
-                                    <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateIDR || 0)))}</td>
-                                  </tr>
-                                ))}
+                                {invLineItems.filter(i => i.section === "C").map(item => {
+                                  const effVol = getItemEffectiveVolume(item);
+                                  const effMtr = getItemEffectiveOverhaulMtr(item);
+                                  const { unitRate, amount } = calculateItemRateAndAmount(item, "BGG");
+                                  const diffMtr = effMtr - 1000;
+                                  return (
+                                    <tr key={item.id} className="hover:bg-slate-50 transition">
+                                      <td className="p-2 text-center">
+                                        <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
+                                      </td>
+                                      <td className="p-2 font-bold text-slate-800">
+                                        <div>{item.subSection || item.description}</div>
+                                        <div className="flex items-center gap-1.5 mt-1">
+                                          <input
+                                            type="number"
+                                            className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                            placeholder="1000"
+                                            value={item.overhaulMtr === 0 ? "" : (item.overhaulMtr ?? "")}
+                                            onFocus={(e) => e.target.select()}
+                                            onChange={(e) => updateInvItemOverhaul(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
+                                          />
+                                          <span className="text-[10px] text-slate-600 font-mono font-bold">mtr - 1000 mtr = ({diffMtr > 0 ? `+${diffMtr}` : diffMtr}) mtr</span>
+                                        </div>
+                                      </td>
+                                      <td className="p-2 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                          <input
+                                            type="number"
+                                            step="0.01"
+                                            className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                            placeholder={String(effVol)}
+                                            value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                            onFocus={(e) => e.target.select()}
+                                            onChange={(e) => updateInvItemVolume(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
+                                          />
+                                          <span className="text-[11px] text-slate-600 font-bold">{item.unit || (item.subSection?.includes("Coal") ? "Ton" : "Bcm")}</span>
+                                        </div>
+                                      </td>
+                                      <td className="p-2 text-right">
+                                        <input
+                                          type="number"
+                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                          placeholder={String(unitRate)}
+                                          value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
+                                          onFocus={(e) => e.target.select()}
+                                          onChange={(e) => updateInvItemRateIDR(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
+                                        />
+                                      </td>
+                                      <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
+                                    </tr>
+                                  );
+                                })}
 
                                 {/* Section D: Raise & Fall Factor */}
                                 <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
@@ -527,44 +717,64 @@ export function FormModals({ c }: { c: any }) {
                                   <td className="p-2 text-right"></td>
                                   <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalD)}</td>
                                 </tr>
-                                {invLineItems.filter(i => i.section === "D").map(item => (
-                                  <tr key={item.id} className="hover:bg-slate-50 transition">
-                                    <td className="p-2 text-center">
-                                      <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
-                                    </td>
-                                    <td className="p-2 font-bold text-slate-800">
-                                      {item.subSection || ""} {item.description} &nbsp; &nbsp; <span className="text-[10px] text-slate-500 font-mono">({item.period})</span>
-                                    </td>
-                                    <td className="p-2 text-center">
-                                      <div className="flex items-center justify-center gap-1">
-                                        <input type="number" step="0.01" className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="0" value={item.volume === 0 ? "" : (item.volume ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemVolume(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
-                                        <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Bcm"}</span>
-                                      </div>
-                                    </td>
-                                    <td className="p-2 text-right">
-                                      <input type="number" className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="0" value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemRateIDR(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
-                                    </td>
-                                    <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateIDR || 0)))}</td>
-                                  </tr>
-                                ))}
+                                {invLineItems.filter(i => i.section === "D").map(item => {
+                                  const effVol = getItemEffectiveVolume(item);
+                                  const { unitRate, amount } = calculateItemRateAndAmount(item, "BGG");
+                                  return (
+                                    <tr key={item.id} className="hover:bg-slate-50 transition">
+                                      <td className="p-2 text-center">
+                                        <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
+                                      </td>
+                                      <td className="p-2 font-bold text-slate-800">
+                                        {item.subSection || ""} {item.description}
+                                      </td>
+                                      <td className="p-2 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                          <input
+                                            type="number"
+                                            step="0.01"
+                                            className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                            placeholder={String(effVol)}
+                                            value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                            onFocus={(e) => e.target.select()}
+                                            onChange={(e) => updateInvItemVolume(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
+                                          />
+                                          <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Bcm"}</span>
+                                        </div>
+                                      </td>
+                                      <td className="p-2 text-right">
+                                        <input
+                                          type="number"
+                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                          placeholder={String(unitRate)}
+                                          value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
+                                          onFocus={(e) => e.target.select()}
+                                          onChange={(e) => updateInvItemRateIDR(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
+                                        />
+                                      </td>
+                                      <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
+                                    </tr>
+                                  );
+                                })}
 
                                 {/* Section E: Discount on Overdistance */}
                                 <tr className="bg-rose-50/70 font-extrabold text-rose-900 border-t-2 border-rose-300">
                                   <td className="p-2 text-center text-rose-400">#</td>
-                                  <td colSpan={3} className="p-2 underline">E. DISCOUNT ON OVERDISTANCE (Deduction)</td>
+                                  <td colSpan={3} className="p-2 underline">E. DISCOUNT ON OVERDISTANCE (Deduction 25%)</td>
                                   <td className="p-2 text-right font-mono text-rose-900 font-extrabold">({formatIDR(Math.abs(cCalc.subtotalE))})</td>
                                 </tr>
-                                {invLineItems.filter(i => i.section === "E").map(item => (
-                                  <tr key={item.id} className="hover:bg-rose-50/30 transition">
-                                    <td className="p-2 text-center">
-                                      <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
-                                    </td>
-                                    <td colSpan={3} className="p-2 font-medium text-slate-700">{item.description}</td>
-                                    <td className="p-2 text-right font-mono">
-                                      <input type="number" className="w-32 bg-slate-50 border border-rose-300 font-mono font-extrabold text-rose-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white outline-none" placeholder="0" value={item.amount === 0 ? "" : Math.abs(item.amount)} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemAmount(item.id, -(e.target.value === "" ? 0 : Math.abs(parseFloat(e.target.value)) || 0))} />
-                                    </td>
-                                  </tr>
-                                ))}
+                                {invLineItems.filter(i => i.section === "E").map(item => {
+                                  const { amount } = calculateItemRateAndAmount(item, "BGG");
+                                  return (
+                                    <tr key={item.id} className="hover:bg-rose-50/30 transition">
+                                      <td className="p-2 text-center">
+                                        <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
+                                      </td>
+                                      <td colSpan={3} className="p-2 font-medium text-slate-700">{item.description}</td>
+                                      <td className="p-2 text-right font-mono text-rose-900 font-extrabold">({formatIDR(Math.abs(amount))})</td>
+                                    </tr>
+                                  );
+                                })}
 
                                 {/* Section F: DP Fuel & Transport */}
                                 <tr className="bg-rose-50/70 font-extrabold text-rose-900 border-t-2 border-rose-300">
@@ -1155,14 +1365,53 @@ export function FormModals({ c }: { c: any }) {
 
                 const getBAEffectiveVolume = (item: any, allItems: any[], isSurvey: boolean = false) => {
                   if (isDistanceItem(item)) {
+                    const selfVol = isSurvey ? Number(item.adjustedVolume ?? item.initialVolume ?? 0) : Number(item.initialVolume || 0);
+                    if (selfVol > 0) return selfVol;
+
+                    const mLow = (item.material || "").toLowerCase();
+                    const itemPeriod = (item.period || item.notes || "").trim().toLowerCase();
+
+                    // Klaim volume Over Distance OB digabung dari akumulasi OB 1 (75%) + OB 2 (25%)
+                    if (mLow.includes("ob") || mLow.includes("overburden") || mLow.includes("waste") || mLow.includes("over burden")) {
+                      const obParents = allItems.filter(p => {
+                        if (p.id === item.id || isDistanceItem(p)) return false;
+                        const pLow = (p.material || "").toLowerCase();
+                        const isOB = pLow.includes("ob") || pLow.includes("overburden") || pLow.includes("waste") || pLow.includes("over burden");
+                        if (!isOB) return false;
+                        if (itemPeriod) {
+                          const pPeriod = (p.period || p.notes || "").trim().toLowerCase();
+                          return pPeriod === itemPeriod || !pPeriod;
+                        }
+                        return true;
+                      });
+                      if (obParents.length > 0) {
+                        return obParents.reduce((acc, p) => acc + (isSurvey ? Number(p.adjustedVolume ?? p.initialVolume ?? 0) : Number(p.initialVolume || 0)), 0);
+                      }
+                    }
+
+                    // Klaim volume Over Distance Coal dari volume Coal Winning
+                    if (mLow.includes("coal") || mLow.includes("batubara")) {
+                      const coalParents = allItems.filter(p => {
+                        if (p.id === item.id || isDistanceItem(p)) return false;
+                        const pLow = (p.material || "").toLowerCase();
+                        const isCoal = pLow.includes("coal") || pLow.includes("batubara");
+                        if (!isCoal) return false;
+                        if (itemPeriod) {
+                          const pPeriod = (p.period || p.notes || "").trim().toLowerCase();
+                          return pPeriod === itemPeriod || !pPeriod;
+                        }
+                        return true;
+                      });
+                      if (coalParents.length > 0) {
+                        return coalParents.reduce((acc, p) => acc + (isSurvey ? Number(p.adjustedVolume ?? p.initialVolume ?? 0) : Number(p.initialVolume || 0)), 0);
+                      }
+                    }
+
                     const parent = allItems.find(p => {
                       if (p.id === item.id) return false;
                       if (isDistanceItem(p)) return false;
                       if (item.parentMaterial) return p.material === item.parentMaterial;
-                      const mLow = (item.material || "").toLowerCase();
                       const pLow = (p.material || "").toLowerCase();
-                      if (mLow.includes("ob") || mLow.includes("waste") || mLow.includes("overburden")) return pLow.includes("ob") || pLow.includes("waste") || pLow.includes("overburden");
-                      if (mLow.includes("coal") || mLow.includes("batubara")) return pLow.includes("coal") || pLow.includes("batubara");
                       if (mLow.includes("top soil")) return pLow.includes("top soil");
                       if (mLow.includes("limonite")) return pLow.includes("limonite");
                       if (mLow.includes("saprolite")) return pLow.includes("saprolite");
@@ -1177,16 +1426,17 @@ export function FormModals({ c }: { c: any }) {
 
                 const getBAItemSubtotal = (item: any, volume: number) => {
                   const r = Number(item.rate || 0);
+                  if (item.category === "DP Fuel" || item.isDeduction || (item.material || "").toLowerCase().includes("dp fuel")) {
+                    const amt = r !== 0 ? r : (item.subtotalInitial ? Number(item.subtotalInitial) : 0);
+                    const vol = volume > 0 ? volume : 1;
+                    return -Math.abs(vol === 1 ? amt : vol * amt);
+                  }
                   if (isDistanceItem(item)) {
-                    if (item.unit === "Bcm.Hm" || item.material?.toLowerCase().includes("ob removal") || item.material?.toLowerCase().includes("hm")) {
-                      const hm = Number(item.distanceWeightAvg || 0);
-                      return Math.round(volume * hm * r);
-                    }
-                    if (item.material?.toLowerCase().includes("over/underhaul") || item.material?.toLowerCase().includes("overhaul")) {
-                      const dist = Number(item.distanceWeightAvg ?? 1000);
-                      const diff100 = (dist - 1000) / 100;
-                      return Math.round(volume * diff100 * r);
-                    }
+                    const dist = Number(item.distanceWeightAvg ?? 1000);
+                    // Jarak dasar adalah 1.000 meter. Jarak lebih/kurang dibagi 1.000 (Km)
+                    // Kurang dari 1.000 mtr menghasilkan nilai negatif (mengurangi pendapatan)
+                    const diffKm = (dist - 1000) / 1000;
+                    return Math.round(volume * diffKm * r);
                   }
                   return Math.round(volume * r);
                 };
@@ -1201,11 +1451,11 @@ export function FormModals({ c }: { c: any }) {
                     <div className="xl:col-span-8 2xl:col-span-9 space-y-4 border-b xl:border-b-0 xl:border-r border-slate-200 pb-6 xl:pb-0 xl:pr-6">
                       
                       {/* Stepper Navigation Bar */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200 text-xs font-bold">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200 text-xs font-bold">
                         <button
                           type="button"
                           onClick={() => setActiveBAStep(1)}
-                          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg transition ${activeBAStep === 1 ? "bg-cyan-800 text-white shadow-xs font-extrabold" : "text-slate-600 hover:bg-slate-200"}`}
+                          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg transition cursor-pointer ${activeBAStep === 1 ? "bg-cyan-800 text-white shadow-xs font-extrabold" : "text-slate-600 hover:bg-slate-200"}`}
                         >
                           <Layers size={13} />
                           <span>1. SOW Operasi & Volume</span>
@@ -1214,7 +1464,7 @@ export function FormModals({ c }: { c: any }) {
                         <button
                           type="button"
                           onClick={() => setActiveBAStep(2)}
-                          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg transition ${activeBAStep === 2 ? "bg-cyan-800 text-white shadow-xs font-extrabold" : "text-slate-600 hover:bg-slate-200"}`}
+                          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg transition cursor-pointer ${activeBAStep === 2 ? "bg-cyan-800 text-white shadow-xs font-extrabold" : "text-slate-600 hover:bg-slate-200"}`}
                         >
                           <Calculator size={13} />
                           <span>2. Survey & Delta BA</span>
@@ -1223,19 +1473,10 @@ export function FormModals({ c }: { c: any }) {
                         <button
                           type="button"
                           onClick={() => setActiveBAStep(3)}
-                          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg transition ${activeBAStep === 3 ? "bg-cyan-800 text-white shadow-xs font-extrabold" : "text-slate-600 hover:bg-slate-200"}`}
+                          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg transition cursor-pointer ${activeBAStep === 3 ? "bg-cyan-800 text-white shadow-xs font-extrabold" : "text-slate-600 hover:bg-slate-200"}`}
                         >
                           <UserCheck size={13} />
                           <span>3. Tanda Tangan & Final</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setActiveBAStep(4)}
-                          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg transition ${activeBAStep === 4 ? "bg-cyan-800 text-white shadow-xs font-extrabold" : "text-slate-600 hover:bg-slate-200"}`}
-                        >
-                          <History size={13} />
-                          <span>4. Jejak Audit & Flow</span>
                         </button>
                       </div>
 
@@ -1253,21 +1494,27 @@ export function FormModals({ c }: { c: any }) {
                                 onChange={(e) => {
                                   const code = e.target.value;
                                   const isBGG = code === "BGG" || code === "PT BGG";
+                                  const currentPeriod = formData.workPeriod || "Agustus 2026";
                                   setFormData({ ...formData, customerCode: code });
                                   if (isBGG) {
-                                    setBaOperatingItems(defaultBGGBAItems);
+                                    setBaOperatingItems([
+                                      { id: `bgg_ob1_${Date.now()}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 1 (75%)", period: currentPeriod, notes: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 29500, subtotalInitial: 0, subtotalAdjusted: 0 },
+                                      { id: `bgg_ob2_${Date.now() + 1}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 2 (25%)", period: currentPeriod, notes: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 28750, subtotalInitial: 0, subtotalAdjusted: 0 },
+                                      { id: `bgg_cw_${Date.now() + 2}`, category: "Operating & Mining", area: "", material: "Coal Winning", period: currentPeriod, notes: "", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: 17500, subtotalInitial: 0, subtotalAdjusted: 0 },
+                                      { id: `bgg_od_ob_${Date.now() + 3}`, category: "Over Distance", area: "", material: "Over Distance For OB Removal", period: currentPeriod, notes: "", unit: "BCM", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 1550, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+                                      { id: `bgg_od_cw_${Date.now() + 4}`, category: "Over Distance", area: "", material: "Over Distance For Coal Winning", period: currentPeriod, notes: "", unit: "Ton", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 19700, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
+                                    ]);
                                     setBaMDOItems([]);
                                   } else {
-                                    setBaOperatingItems(defaultPOSBAOperatingItems);
-                                    setBaMDOItems(defaultPOSBAMDOItems);
+                                    setBaOperatingItems(defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", period: currentPeriod })));
+                                    setBaMDOItems(defaultPOSBAMDOItems.map(it => ({ ...it, area: "", period: currentPeriod })));
                                   }
                                 }}
-                                required
                               >
-                                <option value="POS">POS â€“ PT Position / Paramitha</option>
-                                <option value="SBS">SBS â€“ PT Sumber Bara Sejahtera</option>
-                                <option value="BGG">BGG â€“ PT Budi Gema Gempita</option>
-                                <option value="DBK">DBK â€“ PT Dayabumi Kencana</option>
+                                <option value="POS">POS – PT Position / Paramitha</option>
+                                <option value="SBS">SBS – PT Sumber Bara Sejahtera</option>
+                                <option value="BGG">BGG – PT Budi Gema Gempita</option>
+                                <option value="DBK">DBK – PT Dayabumi Kencana</option>
                               </select>
                             </div>
                             <div>
@@ -1276,9 +1523,14 @@ export function FormModals({ c }: { c: any }) {
                               </label>
                               <input
                                 className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 text-xs focus:border-cyan-700 outline-none"
-                                placeholder="June 2026 / Juni 2026"
+                                placeholder="e.g. Agustus 2026"
                                 value={formData.workPeriod || ""}
-                                onChange={(e) => setFormData({ ...formData, workPeriod: e.target.value })}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setFormData({ ...formData, workPeriod: val });
+                                  setBaOperatingItems(prev => prev.map(it => ({ ...it, period: val, keterangan: val })));
+                                  setBaMDOItems(prev => prev.map(it => ({ ...it, period: val, keterangan: val })));
+                                }}
                                 required
                               />
                             </div>
@@ -1304,65 +1556,52 @@ export function FormModals({ c }: { c: any }) {
                       </div>
 
                       {/* STEP 1: SOW Operasional & MDO */}
-                      {activeBAStep === 1 && (() => {
-                        const coalItem1 = allBAItems.find(it => (it.material || "").toLowerCase().includes("coal") || (it.material || "").toLowerCase().includes("batubara"));
-                        const obItems1 = allBAItems.filter(it => !isDistanceItem(it) && ((it.material || "").toLowerCase().includes("ob") || (it.material || "").toLowerCase().includes("overburden") || (it.material || "").toLowerCase().includes("waste") || (it.material || "").toLowerCase().includes("top soil")));
-                        const coalVolStep1 = coalItem1 ? Number(coalItem1.initialVolume || 0) : 0;
-                        const obVolStep1 = obItems1.reduce((sum, it) => sum + Number(it.initialVolume || 0), 0);
-                        const srStep1 = coalVolStep1 > 0 ? (obVolStep1 / coalVolStep1) : 0;
-                        const maxQuotaOB1 = coalVolStep1 * 3.0;
-                        const excessOB1 = obVolStep1 > maxQuotaOB1 ? (obVolStep1 - maxQuotaOB1) : 0;
-
-                        return (
-                          <div className="space-y-4">
-                            {/* Stripping Ratio 3:1 SOW Quota Live Indicator for BGG */}
-                            {isCustomerBGG && coalVolStep1 > 0 && (
-                              <div className={`p-3.5 rounded-xl border flex items-start gap-3 text-xs ${excessOB1 > 0 ? "bg-amber-50/90 border-amber-300 text-amber-950" : "bg-emerald-50/90 border-emerald-300 text-emerald-950"}`}>
-                                <Scale className={excessOB1 > 0 ? "text-amber-700 shrink-0 mt-0.5" : "text-emerald-700 shrink-0 mt-0.5"} size={18} />
-                                <div className="flex-1 space-y-1">
-                                  <div className="flex items-center justify-between">
-                                    <strong className="font-extrabold uppercase tracking-wide">
-                                      Validasi Kuota Stripping Ratio Kontrak SOW (Maks. 3.0 : 1)
-                                    </strong>
-                                    <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${excessOB1 > 0 ? "bg-amber-200 text-amber-900 border border-amber-400" : "bg-emerald-200 text-emerald-900 border border-emerald-400"}`}>
-                                      SR Aktual: {srStep1.toFixed(2)} : 1
-                                    </span>
-                                  </div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 font-mono text-[11px]">
-                                    <div>Coal: <strong>{coalVolStep1.toLocaleString('id-ID', {minimumFractionDigits: 2})} Ton</strong></div>
-                                    <div>Kapasitas Kuota OB (3x): <strong>{maxQuotaOB1.toLocaleString('id-ID', {minimumFractionDigits: 2})} BCM</strong></div>
-                                    <div>Volume OB Aktual: <strong>{obVolStep1.toLocaleString('id-ID', {minimumFractionDigits: 2})} BCM</strong></div>
-                                  </div>
-                                  {excessOB1 > 0 ? (
-                                    <div className="text-[11px] text-amber-900 font-bold bg-amber-100/90 p-2 rounded-lg mt-1 border border-amber-200">
-                                      âš ï¸ Volume OB melebihi kuota kontrak sebesar <strong>{excessOB1.toLocaleString('id-ID', {minimumFractionDigits: 2})} BCM</strong>. Volume kelebihan ini otomatis dialokasikan ke <strong>Pending Volume (Carry-Forward)</strong> dan akan diserap saat ada sisa kuota di invoice berikutnya.
-                                    </div>
-                                  ) : (
-                                    <div className="text-[11px] text-emerald-900 font-semibold bg-emerald-100/80 p-1.5 rounded-lg mt-1 border border-emerald-200">
-                                      âœ… Volume OB berada di dalam kuota kontrak SOW ({srStep1.toFixed(2)} â‰¤ 3.0). Seluruh volume siap ditagihkan penuh.
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Tabel 1: Operating & Mining */}
-                            <div className="space-y-2">
+                      {activeBAStep === 1 && (
+                        <div className="space-y-4">
+                          {/* Tabel 1: Operating & Mining */}
+                          <div className="space-y-2">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-black uppercase text-cyan-900 flex items-center gap-1.5">
                                   <Pickaxe size={14} className="text-cyan-700" /> {isCustomerBGG ? "Kategori: Penambangan Batubara & OB Removal (BGG)" : "Kategori 1: Operating & Mining"}
                                 </span>
-                                {isInlineEditingBA && (
-                                  <div className="relative inline-block text-left">
+                                <div className="flex items-center gap-2">
+                                  {isInlineEditingBA && (
                                     <button
                                       type="button"
-                                      onClick={() => setShowAddRowDropdown(!showAddRowDropdown)}
-                                      className="text-[11px] font-bold text-cyan-800 bg-cyan-100 hover:bg-cyan-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer border border-cyan-300 shadow-2xs"
+                                      onClick={() => {
+                                        const curPer = formData.workPeriod || "Agustus 2026";
+                                        if (isCustomerBGG) {
+                                          setBaOperatingItems([
+                                            { id: `bgg_ob1_${Date.now()}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 1 (75%)", period: curPer, notes: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 29500, subtotalInitial: 0, subtotalAdjusted: 0 },
+                                            { id: `bgg_ob2_${Date.now() + 1}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 2 (25%)", period: curPer, notes: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 28750, subtotalInitial: 0, subtotalAdjusted: 0 },
+                                            { id: `bgg_cw_${Date.now() + 2}`, category: "Operating & Mining", area: "", material: "Coal Winning", period: curPer, notes: "", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: 17500, subtotalInitial: 0, subtotalAdjusted: 0 },
+                                            { id: `bgg_od_ob_${Date.now() + 3}`, category: "Over Distance", area: "", material: "Over Distance For OB Removal", period: curPer, notes: "", unit: "BCM", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 1550, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+                                            { id: `bgg_od_cw_${Date.now() + 4}`, category: "Over Distance", area: "", material: "Over Distance For Coal Winning", period: curPer, notes: "", unit: "Ton", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 19700, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
+                                          ]);
+                                          setBaMDOItems([]);
+                                        } else {
+                                          setBaOperatingItems(defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", period: curPer })));
+                                          setBaMDOItems(defaultPOSBAMDOItems.map(it => ({ ...it, area: "", period: curPer })));
+                                        }
+                                      }}
+                                      className="text-[11px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer border border-slate-300 shadow-2xs"
+                                      title="Muat Ulang Item SOW Standar Kontrak"
                                     >
-                                      <Plus size={13} />
-                                      <span>Tambah Baris</span>
-                                      <ChevronDown size={12} className={`transition-transform duration-200 ${showAddRowDropdown ? "rotate-180" : ""}`} />
+                                      <RefreshCw size={12} />
+                                      <span>Muat Template SOW</span>
                                     </button>
+                                  )}
+                                  {isInlineEditingBA && (
+                                    <div className="relative inline-block text-left">
+                                      <button
+                                        type="button"
+                                        onClick={() => setShowAddRowDropdown(!showAddRowDropdown)}
+                                        className="text-[11px] font-bold text-cyan-800 bg-cyan-100 hover:bg-cyan-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer border border-cyan-300 shadow-2xs"
+                                      >
+                                        <Plus size={13} />
+                                        <span>Tambah Baris</span>
+                                        <ChevronDown size={12} className={`transition-transform duration-200 ${showAddRowDropdown ? "rotate-180" : ""}`} />
+                                      </button>
 
                                     {showAddRowDropdown && (
                                       <div 
@@ -1427,11 +1666,44 @@ export function FormModals({ c }: { c: any }) {
                                             <div className="text-[10px] text-slate-500 font-normal">Jarak Hauling & Over/Underhaul</div>
                                           </div>
                                         </button>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const curPer = formData.workPeriod || "Agustus 2026";
+                                            setBaOperatingItems([...baOperatingItems, {
+                                              id: `dp_fuel_${Date.now()}`,
+                                              category: "DP Fuel",
+                                              area: "",
+                                              material: "DP Fuel & Transport (Pengurang Solar BGG)",
+                                              period: curPer,
+                                              notes: "Uang Muka / Budget Solar BGG",
+                                              unit: "Lot",
+                                              initialVolume: 1,
+                                              adjustedVolume: 1,
+                                              rate: 0,
+                                              isDeduction: true,
+                                              subtotalInitial: 0,
+                                              subtotalAdjusted: 0
+                                            }]);
+                                            setShowAddRowDropdown(false);
+                                          }}
+                                          className="w-full text-left px-3.5 py-2.5 text-xs text-slate-800 hover:bg-rose-50 hover:text-rose-950 font-bold flex items-center gap-2.5 transition cursor-pointer"
+                                        >
+                                          <div className="w-6 h-6 rounded-lg bg-rose-100 flex items-center justify-center text-rose-800 shrink-0">
+                                            <Fuel size={13} />
+                                          </div>
+                                          <div>
+                                            <div className="font-bold text-rose-900">+ DP Fuel & Transport (Potongan Solar)</div>
+                                            <div className="text-[10px] text-slate-500 font-normal">Input budget / uang solar BGG (Pengurang)</div>
+                                          </div>
+                                        </button>
                                       </div>
                                     )}
                                   </div>
                                 )}
                               </div>
+                            </div>
 
                             <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-xs">
                               <table className="w-full text-xs text-left">
@@ -1439,6 +1711,7 @@ export function FormModals({ c }: { c: any }) {
                                   <tr>
                                     <th className="p-2.5 w-24">Area / Lokasi</th>
                                     <th className="p-2.5 min-w-[200px]">Material / Pekerjaan (Master SOW)</th>
+                                    <th className="p-2.5 w-28 text-center">Keterangan</th>
                                     <th className="p-2.5 text-center w-18">Satuan</th>
                                     <th className="p-2.5 text-right w-28">Volume Awal</th>
                                     <th className="p-2.5 text-right w-28">SOW Rate (Rp)</th>
@@ -1449,11 +1722,12 @@ export function FormModals({ c }: { c: any }) {
                                 <tbody className="divide-y divide-slate-100">
                                   {baOperatingItems.map((item, idx) => {
                                     const isDistance = isDistanceItem(item);
+                                    const isDPFuel = item.category === "DP Fuel" || item.isDeduction || (item.material || "").toLowerCase().includes("dp fuel");
                                     const effVol = getBAEffectiveVolume(item, allBAItems, false);
                                     const subtotal = getBAItemSubtotal(item, effVol);
 
                                     return (
-                                      <tr key={item.id || idx} className={`hover:bg-slate-50/80 transition ${isDistance ? "bg-amber-50/20" : ""}`}>
+                                      <tr key={item.id || idx} className={`hover:bg-slate-50/80 transition ${isDPFuel ? "bg-rose-50/30" : isDistance ? "bg-amber-50/20" : ""}`}>
                                         <td className="p-2.5 font-bold text-slate-800 align-top">
                                           {!isInlineEditingBA ? (
                                             <span className="pt-1 block">{item.area || (isCustomerBGG ? "Pit KKL" : "WM1")}</span>
@@ -1471,17 +1745,49 @@ export function FormModals({ c }: { c: any }) {
                                           )}
                                         </td>
                                         <td className="p-2.5 font-medium text-slate-900 align-top">
-                                          {!isDistance ? (
+                                          {isDPFuel ? (
+                                            <div>
+                                              {!isInlineEditingBA ? (
+                                                <span className="font-bold text-slate-900 pt-1 block">{item.material || "DP Fuel & Transport (Pengurang Solar BGG)"}</span>
+                                              ) : (
+                                                <input
+                                                  type="text"
+                                                  className="w-full bg-slate-50 hover:bg-white border border-slate-300 rounded px-2 py-1 text-xs font-bold text-slate-900 focus:border-cyan-700 outline-none"
+                                                  value={item.material || ""}
+                                                  placeholder="DP Fuel & Transport (Pengurang Solar BGG)"
+                                                  onChange={(e) => {
+                                                    const updated = [...baOperatingItems];
+                                                    updated[idx].material = e.target.value;
+                                                    setBaOperatingItems(updated);
+                                                  }}
+                                                />
+                                              )}
+                                            </div>
+                                          ) : !isDistance ? (
                                             !isInlineEditingBA ? (
                                               <span className="font-bold text-slate-900 pt-1 block">{item.material || "-"}</span>
                                             ) : (
-                                              <input
-                                                className="w-full bg-cyan-50/50 border border-cyan-300 rounded px-2 py-1 text-xs font-bold text-slate-900 focus:border-cyan-700 outline-none"
+                                              <SowSearchSelect
+                                                id={`sow-op-${idx}`}
+                                                isDistanceOnly={false}
                                                 value={item.material || ""}
-                                                placeholder="Nama Material (e.g. Volume OB)..."
-                                                onChange={(e) => {
+                                                customerCode={formData.customerCode || "POS"}
+                                                activeSOWCatalog={activeSOWCatalog}
+                                                mRate={mRate}
+                                                placeholder="Cari Master SOW (e.g. Volume OB)..."
+                                                onChange={(val) => {
                                                   const updated = [...baOperatingItems];
-                                                  updated[idx].material = e.target.value;
+                                                  updated[idx].material = val;
+                                                  setBaOperatingItems(updated);
+                                                }}
+                                                onSelectSow={(sow) => {
+                                                  const updated = [...baOperatingItems];
+                                                  updated[idx].material = sow.name;
+                                                  updated[idx].unit = sow.unit;
+                                                  updated[idx].rate = sow.defaultRate;
+                                                  if (sow.isDistanceVar) {
+                                                    updated[idx].isDistanceVar = true;
+                                                  }
                                                   setBaOperatingItems(updated);
                                                 }}
                                               />
@@ -1491,70 +1797,84 @@ export function FormModals({ c }: { c: any }) {
                                               {!isInlineEditingBA ? (
                                                 <div className="font-bold text-slate-900 pt-0.5">{item.material || "Distance / Overhaul"}</div>
                                               ) : (
-                                                <input
-                                                  className="w-full bg-amber-50/50 border border-amber-300 rounded px-2 py-1 text-xs font-bold text-slate-900 focus:border-amber-700 outline-none mb-1"
-                                                  value={item.material || ""}
-                                                  placeholder="Nama Variabel Distance (e.g. Distance OB Removal)..."
-                                                  onChange={(e) => {
-                                                    const updated = [...baOperatingItems];
-                                                    updated[idx].material = e.target.value;
-                                                    setBaOperatingItems(updated);
-                                                  }}
-                                                />
+                                                <div className="mb-1">
+                                                  <SowSearchSelect
+                                                    id={`sow-dist-${idx}`}
+                                                    isDistanceOnly={true}
+                                                    value={item.material || ""}
+                                                    customerCode={formData.customerCode || "POS"}
+                                                    activeSOWCatalog={activeSOWCatalog}
+                                                    mRate={mRate}
+                                                    placeholder="Cari Variabel Distance / Overhaul..."
+                                                    onChange={(val) => {
+                                                      const updated = [...baOperatingItems];
+                                                      updated[idx].material = val;
+                                                      setBaOperatingItems(updated);
+                                                    }}
+                                                    onSelectSow={(sow) => {
+                                                      const updated = [...baOperatingItems];
+                                                      updated[idx].material = sow.name;
+                                                      updated[idx].unit = sow.unit;
+                                                      updated[idx].rate = sow.defaultRate;
+                                                      updated[idx].isDistanceVar = true;
+                                                      setBaOperatingItems(updated);
+                                                    }}
+                                                  />
+                                                </div>
                                               )}
-                                              <div className="flex items-center gap-1.5 mt-1 text-[11px] font-mono text-slate-700 whitespace-nowrap bg-amber-50/80 border border-amber-200 px-2 py-1 rounded-md w-fit">
-                                                {isCustomerBGG ? (
-                                                  <>
-                                                    <span className="font-bold text-amber-900">Jarak (Hm):</span>
-                                                    {!isInlineEditingBA ? (
-                                                      <span className="font-bold text-slate-900 bg-white border border-amber-300 px-1.5 py-0.5 rounded font-mono">{item.distanceWeightAvg || 0} Hm</span>
-                                                    ) : (
-                                                      <input
-                                                        type="number"
-                                                        step="0.001"
-                                                        className="w-18 bg-white border border-amber-300 rounded px-1.5 py-0.5 text-right font-mono font-bold text-amber-950 text-xs focus:border-amber-600 outline-none"
-                                                        placeholder="0.000"
-                                                        value={item.distanceWeightAvg === 0 ? "" : (item.distanceWeightAvg ?? "")}
-                                                        onFocus={(e) => e.target.select()}
-                                                        onChange={(e) => {
-                                                          const updated = [...baOperatingItems];
-                                                          updated[idx].distanceWeightAvg = e.target.value === "" ? 0 : parseFloat(e.target.value) || 0;
-                                                          setBaOperatingItems(updated);
-                                                        }}
-                                                      />
-                                                    )}
-                                                    <span>Hm</span>
-                                                  </>
-                                                ) : (
-                                                  <>
-                                                    <span className="font-medium text-slate-600">Jarak:</span>
-                                                    {!isInlineEditingBA ? (
-                                                      <span className="font-bold text-slate-900">{item.distanceWeightAvg || 1000} mtr - 1000 mtr = ({Number(item.distanceWeightAvg || 1000) - 1000}) mtr</span>
-                                                    ) : (
-                                                      <>
-                                                        <input
-                                                          type="number"
-                                                          className="w-16 bg-white border border-slate-300 rounded px-1.5 py-0.5 text-right font-mono font-bold text-slate-900 text-xs focus:border-cyan-700 outline-none"
-                                                          placeholder="1000"
-                                                          value={item.distanceWeightAvg === 0 ? "" : (item.distanceWeightAvg ?? "")}
-                                                          onFocus={(e) => e.target.select()}
-                                                          onChange={(e) => {
-                                                            const updated = [...baOperatingItems];
-                                                            updated[idx].distanceWeightAvg = e.target.value === "" ? 0 : parseFloat(e.target.value) || 0;
-                                                            setBaOperatingItems(updated);
-                                                          }}
-                                                        />
-                                                        <span className="text-slate-600 font-sans">mtr - 1000 mtr = <strong className="font-mono text-cyan-900">({Number(item.distanceWeightAvg || 1000) - 1000}) mtr</strong></span>
-                                                      </>
-                                                    )}
-                                                  </>
-                                                )}
-                                              </div>
+                                               <div className="flex items-center gap-1.5 mt-1 text-[11px] font-mono text-slate-700 whitespace-nowrap bg-amber-50/80 border border-amber-200 px-2.5 py-1 rounded-md w-fit">
+                                                 <span className="font-bold text-amber-900">Jarak (Meter):</span>
+                                                 {!isInlineEditingBA ? (
+                                                   <span className="font-bold text-slate-900 bg-white border border-amber-300 px-1.5 py-0.5 rounded font-mono">
+                                                     {item.distanceWeightAvg || 0}
+                                                   </span>
+                                                 ) : (
+                                                   <input
+                                                     type="number"
+                                                     className="w-20 bg-white border border-amber-400 rounded px-2 py-0.5 text-right font-mono font-bold text-amber-950 text-xs focus:border-amber-600 outline-none"
+                                                     value={item.distanceWeightAvg === 0 ? "" : (item.distanceWeightAvg ?? "")}
+                                                     placeholder="1000"
+                                                     onFocus={(e) => e.target.select()}
+                                                     onChange={(e) => {
+                                                       const updated = [...baOperatingItems];
+                                                       updated[idx].distanceWeightAvg = parseFloat(e.target.value) || 0;
+                                                       setBaOperatingItems(updated);
+                                                     }}
+                                                   />
+                                                 )}
+                                                 <span className="text-slate-500 font-sans text-[10px]">
+                                                   mtr - 1000 mtr = <strong className={Number(item.distanceWeightAvg ?? 1000) >= 1000 ? "text-emerald-700" : "text-rose-600"}>{Number(item.distanceWeightAvg ?? 1000) - 1000} mtr</strong>
+                                                   {" "}(<span className="font-semibold">{((Number(item.distanceWeightAvg ?? 1000) - 1000) / 1000).toLocaleString('id-ID', {minimumFractionDigits: 3, maximumFractionDigits: 3})} Km</span>)
+                                                 </span>
+                                               </div>
                                             </div>
                                           )}
                                         </td>
-                                        <td className="p-2.5 text-center font-mono font-bold text-slate-800 align-top">
+                                        <td className="p-2.5 font-medium text-slate-800 align-top text-center">
                                           {!isInlineEditingBA ? (
+                                            <span className="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs font-bold text-slate-700 inline-block text-center min-w-[55px] mt-0.5">
+                                              {item.period || item.notes || item.keterangan || "-"}
+                                            </span>
+                                          ) : (
+                                            <input
+                                              type="text"
+                                              className="w-24 bg-slate-50 hover:bg-white border border-slate-300 rounded px-2 py-1 text-xs font-bold text-slate-900 text-center focus:border-cyan-700 outline-none"
+                                              value={item.period ?? item.notes ?? item.keterangan ?? ""}
+                                              placeholder="e.g. Jun-26"
+                                              onChange={(e) => {
+                                                const updated = [...baOperatingItems];
+                                                updated[idx].period = e.target.value;
+                                                updated[idx].notes = e.target.value;
+                                                updated[idx].keterangan = e.target.value;
+                                                setBaOperatingItems(updated);
+                                              }}
+                                            />
+                                          )}
+                                        </td>
+                                        <td className="p-2.5 text-center font-mono font-bold text-slate-800 align-top">
+                                          {isDPFuel ? (
+                                            <span className="text-slate-400 font-bold pt-1 block">-</span>
+                                          ) : !isInlineEditingBA ? (
                                             <span className="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs inline-block text-center min-w-[45px] mt-0.5">
                                               {item.unit || "BCM"}
                                             </span>
@@ -1571,58 +1891,91 @@ export function FormModals({ c }: { c: any }) {
                                             />
                                           )}
                                         </td>
-                                        <td className="p-2.5 text-right font-mono align-top">
-                                          {!isDistance ? (
-                                            !isInlineEditingBA ? (
-                                              <span className="font-bold text-slate-900 pt-1 block">{item.initialVolume ? Number(item.initialVolume).toLocaleString("id-ID", { minimumFractionDigits: 3 }) : "0.000"}</span>
+
+                                        {/* Volume Awal & SOW Rate (Merged to single nominal input with thousand separator if DP Fuel) */}
+                                        {isDPFuel ? (
+                                          <td colSpan={2} className="p-2.5 text-right font-mono align-top">
+                                            {!isInlineEditingBA ? (
+                                              <span className="font-bold text-slate-900 pt-1 block">{item.rate ? formatThousand(item.rate) : "0"}</span>
                                             ) : (
-                                              <input
-                                                type="number"
-                                                step="0.001"
-                                                className="w-24 bg-white border border-slate-300 rounded px-2 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
-                                                value={item.initialVolume ? item.initialVolume : ""}
-                                                placeholder="0.000"
-                                                onFocus={(e) => e.target.select()}
-                                                onChange={(e) => {
-                                                  const updated = [...baOperatingItems];
-                                                  const val = parseFloat(e.target.value) || 0;
-                                                  updated[idx].initialVolume = val;
-                                                  updated[idx].adjustedVolume = val;
-                                                  setBaOperatingItems(updated);
-                                                }}
-                                              />
-                                            )
-                                          ) : (
-                                            <div className="flex flex-col items-end pt-0.5">
-                                              <div className="px-2.5 py-1 bg-amber-50/90 border border-amber-300 rounded font-mono font-black text-amber-950 text-xs shadow-2xs">
-                                                {effVol.toLocaleString("id-ID", { minimumFractionDigits: 3 })}
+                                              <div className="flex justify-end pt-0.5">
+                                                <input
+                                                  type="text"
+                                                  className="w-40 bg-slate-50 hover:bg-white border border-slate-300 rounded px-2.5 py-1 text-right font-mono font-bold text-xs text-slate-900 focus:bg-white focus:border-cyan-700 outline-none"
+                                                  value={item.rate ? formatThousand(item.rate) : ""}
+                                                  placeholder="0"
+                                                  onFocus={(e) => e.target.select()}
+                                                  onChange={(e) => {
+                                                    const num = parseNumber(e.target.value);
+                                                    const updated = [...baOperatingItems];
+                                                    updated[idx].rate = num;
+                                                    updated[idx].initialVolume = 1;
+                                                    updated[idx].adjustedVolume = 1;
+                                                    updated[idx].subtotalInitial = -num;
+                                                    updated[idx].subtotalAdjusted = -num;
+                                                    setBaOperatingItems(updated);
+                                                  }}
+                                                />
                                               </div>
-                                              <span className="text-[9px] text-amber-800 font-semibold italic mt-0.5 whitespace-nowrap">
-                                                Auto-sync {item.parentMaterial ? item.parentMaterial.replace("Volume ", "") : "Produksi"}
-                                              </span>
-                                            </div>
-                                          )}
-                                        </td>
-                                        <td className="p-2.5 text-right font-mono align-top">
-                                          {!isInlineEditingBA ? (
-                                            <span className="pt-1 block">{formatIDR(item.rate || 0)}</span>
-                                          ) : (
-                                            <input
-                                              type="number"
-                                              className="w-24 bg-slate-50 hover:bg-white border border-slate-300 rounded px-2 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
-                                              value={item.rate === 0 ? "" : (item.rate ?? "")}
-                                              placeholder="0"
-                                              onFocus={(e) => e.target.select()}
-                                              onChange={(e) => {
-                                                const updated = [...baOperatingItems];
-                                                updated[idx].rate = parseFloat(e.target.value) || 0;
-                                                setBaOperatingItems(updated);
-                                              }}
-                                            />
-                                          )}
-                                        </td>
-                                        <td className="p-2.5 text-right font-mono font-extrabold text-slate-900 align-top">
-                                          <div className="pt-1">{formatIDR(subtotal)}</div>
+                                            )}
+                                          </td>
+                                        ) : (
+                                          <>
+                                            <td className="p-2.5 text-right font-mono align-top">
+                                              {!isDistance ? (
+                                                !isInlineEditingBA ? (
+                                                  <span className="font-bold text-slate-900 pt-1 block">{item.initialVolume ? Number(item.initialVolume).toLocaleString("id-ID", { minimumFractionDigits: 3 }) : "0.000"}</span>
+                                                ) : (
+                                                  <input
+                                                    type="number"
+                                                    step="0.001"
+                                                    className="w-24 bg-white border border-slate-300 rounded px-2 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
+                                                    value={item.initialVolume ? item.initialVolume : ""}
+                                                    placeholder="0.000"
+                                                    onFocus={(e) => e.target.select()}
+                                                    onChange={(e) => {
+                                                      const updated = [...baOperatingItems];
+                                                      const val = parseFloat(e.target.value) || 0;
+                                                      updated[idx].initialVolume = val;
+                                                      updated[idx].adjustedVolume = val;
+                                                      setBaOperatingItems(updated);
+                                                    }}
+                                                  />
+                                                )
+                                              ) : (
+                                                <div className="flex flex-col items-end pt-0.5">
+                                                  <div className="px-2.5 py-1 bg-amber-50/90 border border-amber-300 rounded font-mono font-black text-amber-950 text-xs shadow-2xs">
+                                                    {effVol.toLocaleString("id-ID", { minimumFractionDigits: 3 })}
+                                                  </div>
+                                                  <span className="text-[9px] text-amber-800 font-semibold italic mt-0.5 whitespace-nowrap">
+                                                    Auto-sync {item.parentMaterial ? item.parentMaterial.replace("Volume ", "") : "Produksi"}
+                                                  </span>
+                                                </div>
+                                              )}
+                                            </td>
+                                            <td className="p-2.5 text-right font-mono align-top">
+                                              {!isInlineEditingBA ? (
+                                                <span className="pt-1 block">{formatIDR(item.rate || 0)}</span>
+                                              ) : (
+                                                <input
+                                                  type="number"
+                                                  className="w-24 bg-slate-50 hover:bg-white border border-slate-300 rounded px-2 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
+                                                  value={item.rate === 0 ? "" : (item.rate ?? "")}
+                                                  placeholder="0"
+                                                  onFocus={(e) => e.target.select()}
+                                                  onChange={(e) => {
+                                                    const updated = [...baOperatingItems];
+                                                    updated[idx].rate = parseFloat(e.target.value) || 0;
+                                                    setBaOperatingItems(updated);
+                                                  }}
+                                                />
+                                              )}
+                                            </td>
+                                          </>
+                                        )}
+
+                                        <td className="p-2.5 text-right font-mono font-extrabold align-top">
+                                          <div className={`pt-1 ${subtotal < 0 ? "text-rose-700 font-black" : "text-slate-900"}`}>{formatIDR(subtotal)}</div>
                                         </td>
                                         {isInlineEditingBA && (
                                           <td className="p-2.5 text-center align-top">
@@ -1806,6 +2159,31 @@ export function FormModals({ c }: { c: any }) {
                                         )}
                                       </tr>
                                     ))}
+                                    {baOperatingItems.length === 0 && (
+                                      <tr>
+                                        <td colSpan={isInlineEditingBA ? 8 : 7} className="p-8 text-center text-slate-500 bg-slate-50/70">
+                                          <div className="flex flex-col items-center justify-center gap-2.5">
+                                            <span className="text-xs font-bold text-slate-700">Belum ada item rincian SOW untuk Berita Acara ini.</span>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                if (isCustomerBGG) {
+                                                  setBaOperatingItems(defaultBGGBAItems);
+                                                  setBaMDOItems([]);
+                                                } else {
+                                                  setBaOperatingItems(defaultPOSBAOperatingItems);
+                                                  setBaMDOItems(defaultPOSBAMDOItems);
+                                                }
+                                              }}
+                                              className="px-3.5 py-1.5 bg-cyan-800 hover:bg-cyan-900 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+                                            >
+                                              <RefreshCw size={13} />
+                                              <span>Muat Template SOW {isCustomerBGG ? "BGG (8 Item Kontrak Sesuai Invoice 091)" : "POS"}</span>
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
                                   </tbody>
                                 </table>
                               </div>
@@ -1839,60 +2217,19 @@ export function FormModals({ c }: { c: any }) {
                             </button>
                           </div>
                         </div>
-                      );
-                    })()}
+                      )}
 
                     {/* STEP 2: Survey Lapangan & Delta Selisih (UNIFIED FOR POS & BGG) */}
-                    {activeBAStep === 2 && (() => {
-                      const coalItem2 = allBAItems.find(it => (it.material || "").toLowerCase().includes("coal") || (it.material || "").toLowerCase().includes("batubara"));
-                      const obItems2 = allBAItems.filter(it => !isDistanceItem(it) && ((it.material || "").toLowerCase().includes("ob") || (it.material || "").toLowerCase().includes("overburden") || (it.material || "").toLowerCase().includes("waste") || (it.material || "").toLowerCase().includes("top soil")));
-                      const coalVolStep2 = coalItem2 ? Number(coalItem2.adjustedVolume ?? coalItem2.initialVolume ?? 0) : 0;
-                      const obVolStep2 = obItems2.reduce((sum, it) => sum + Number(it.adjustedVolume ?? it.initialVolume ?? 0), 0);
-                      const srStep2 = coalVolStep2 > 0 ? (obVolStep2 / coalVolStep2) : 0;
-                      const maxQuotaOB2 = coalVolStep2 * 3.0;
-                      const excessOB2 = obVolStep2 > maxQuotaOB2 ? (obVolStep2 - maxQuotaOB2) : 0;
-
-                      return (
-                        <div className="space-y-4">
-                          {/* Stripping Ratio 3:1 SOW Quota Live Indicator for BGG */}
-                          {isCustomerBGG && coalVolStep2 > 0 && (
-                            <div className={`p-3.5 rounded-xl border flex items-start gap-3 text-xs ${excessOB2 > 0 ? "bg-amber-50/90 border-amber-300 text-amber-950" : "bg-emerald-50/90 border-emerald-300 text-emerald-950"}`}>
-                              <Scale className={excessOB2 > 0 ? "text-amber-700 shrink-0 mt-0.5" : "text-emerald-700 shrink-0 mt-0.5"} size={18} />
-                              <div className="flex-1 space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <strong className="font-extrabold uppercase tracking-wide">
-                                    Hasil Survey: Kuota Stripping Ratio Kontrak SOW (Maks. 3.0 : 1)
-                                  </strong>
-                                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${excessOB2 > 0 ? "bg-amber-200 text-amber-900 border border-amber-400" : "bg-emerald-200 text-emerald-900 border border-emerald-400"}`}>
-                                    SR Survey: {srStep2.toFixed(2)} : 1
-                                  </span>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 font-mono text-[11px]">
-                                  <div>Coal Survey: <strong>{coalVolStep2.toLocaleString('id-ID', {minimumFractionDigits: 2})} Ton</strong></div>
-                                  <div>Kapasitas Kuota OB (3x): <strong>{maxQuotaOB2.toLocaleString('id-ID', {minimumFractionDigits: 2})} BCM</strong></div>
-                                  <div>Volume OB Survey: <strong>{obVolStep2.toLocaleString('id-ID', {minimumFractionDigits: 2})} BCM</strong></div>
-                                </div>
-                                {excessOB2 > 0 ? (
-                                  <div className="text-[11px] text-amber-900 font-bold bg-amber-100/90 p-2 rounded-lg mt-1 border border-amber-200">
-                                    âš ï¸ Hasil survey menunjukkan kelebihan OB sebesar <strong>{excessOB2.toLocaleString('id-ID', {minimumFractionDigits: 2})} BCM</strong>. Volume kelebihan ini otomatis dicatat ke <strong>Pending Volume</strong> dan tidak ditagihkan pada invoice periode ini.
-                                  </div>
-                                ) : (
-                                  <div className="text-[11px] text-emerald-900 font-semibold bg-emerald-100/80 p-1.5 rounded-lg mt-1 border border-emerald-200">
-                                    âœ… Hasil survey berada di dalam batas rasio kontrak ({srStep2.toFixed(2)} â‰¤ 3.0). Seluruh volume hasil survey lolos tagih.
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-cyan-950">
-                            <Calculator className="text-cyan-700 shrink-0 mt-0.5" size={16} />
-                            <div>
-                              <strong>Step 2 â€” Penyesuaian Hasil Joint Survey Lapangan:</strong> Masukkan volume hasil joint visit / survey bersama client. Volume pada variabel distance otomatis tersinkronisasi dan sistem menghitung <strong>Delta Selisih</strong> (+/-) secara live.
-                            </div>
+                    {activeBAStep === 2 && (
+                      <div className="space-y-4">
+                        <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-cyan-950">
+                          <Calculator className="text-cyan-700 shrink-0 mt-0.5" size={16} />
+                          <div>
+                            <strong>Step 2 — Penyesuaian Hasil Joint Survey Lapangan:</strong> Masukkan volume hasil joint visit / survey bersama client. Volume pada variabel distance otomatis tersinkronisasi dan sistem menghitung <strong>Delta Selisih</strong> (+/-) secara live.
                           </div>
+                        </div>
 
-                          <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-xs">
+                        <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-xs">
                             <table className="w-full text-xs text-left min-w-[780px]">
                               <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
                                 <tr>
@@ -1908,6 +2245,7 @@ export function FormModals({ c }: { c: any }) {
                               <tbody className="divide-y divide-slate-100">
                                 {allBAItems.map((item, idx) => {
                                   const isDistance = isDistanceItem(item);
+                                  const isDPFuel = item.category === "DP Fuel" || item.isDeduction || (item.material || "").toLowerCase().includes("dp fuel");
                                   const volAwal = getBAEffectiveVolume(item, allBAItems, false);
                                   const volAdj = getBAEffectiveVolume(item, allBAItems, true);
                                   const r = Number(item.rate || 0);
@@ -1917,11 +2255,18 @@ export function FormModals({ c }: { c: any }) {
                                   const isOp = item.category === "Operating & Mining" || item.category === "Over Distance";
 
                                   return (
-                                    <tr key={item.id || idx} className={`hover:bg-slate-50/80 transition ${isDistance ? "bg-amber-50/20" : ""}`}>
+                                    <tr key={item.id || idx} className={`hover:bg-slate-50/80 transition ${isDPFuel ? "bg-slate-50/40" : isDistance ? "bg-amber-50/20" : ""}`}>
                                       <td className="p-2.5 font-bold text-slate-900 align-top">
-                                        <div>{item.material || "-"}</div>
+                                        <div className="flex items-center gap-1.5">
+                                          <span>{item.material || "-"}</span>
+                                          {!isDPFuel && (item.period || item.notes || item.keterangan) && (
+                                            <span className="px-1.5 py-0.5 bg-cyan-100 text-cyan-900 border border-cyan-300 rounded text-[10px] font-black">
+                                              {item.period || item.notes || item.keterangan}
+                                            </span>
+                                          )}
+                                        </div>
                                         <div className="text-[10px] text-slate-500 font-normal mt-0.5">
-                                          {item.category} â€¢ {item.area || (isCustomerBGG ? "Pit KKL" : "WM1")}
+                                          {item.category} • {item.area || (isCustomerBGG ? "Pit KKL" : "WM1")}
                                           {isDistance && (
                                             <span className="text-cyan-800 font-mono ml-1 font-bold">
                                               (Dist: {item.distanceWeightAvg || 0} {item.unit === "Bcm.Hm" ? "Hm" : "m"})
@@ -1930,15 +2275,21 @@ export function FormModals({ c }: { c: any }) {
                                         </div>
                                       </td>
                                       <td className="p-2.5 text-center font-mono font-bold text-slate-700 align-top">
-                                        <span className="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs inline-block text-center min-w-[45px] mt-0.5">
-                                          {item.unit || "BCM"}
-                                        </span>
+                                        {isDPFuel ? (
+                                          <span className="text-slate-400 font-bold pt-1 block">-</span>
+                                        ) : (
+                                          <span className="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs inline-block text-center min-w-[45px] mt-0.5">
+                                            {item.unit || "BCM"}
+                                          </span>
+                                        )}
                                       </td>
                                       <td className="p-2.5 text-right font-mono text-slate-600 align-top">
-                                        <span className="pt-1 block">{volAwal.toLocaleString("id-ID", { minimumFractionDigits: 3 })}</span>
+                                        <span className="pt-1 block">{isDPFuel ? "-" : volAwal.toLocaleString("id-ID", { minimumFractionDigits: 3 })}</span>
                                       </td>
                                       <td className="p-2.5 text-right font-mono align-top">
-                                        {!isDistance ? (
+                                        {isDPFuel ? (
+                                          <span className="pt-1 block text-slate-400 font-mono">-</span>
+                                        ) : !isDistance ? (
                                           !isInlineEditingBA ? (
                                             <span className="font-bold text-slate-900 pt-1 block">{volAdj.toLocaleString("id-ID", { minimumFractionDigits: 3 })}</span>
                                           ) : (
@@ -1981,7 +2332,7 @@ export function FormModals({ c }: { c: any }) {
                                         )}
                                       </td>
                                       <td className="p-2.5 text-right font-mono text-slate-700 align-top">
-                                        <span className="pt-1 block">{formatIDR(r)}</span>
+                                        <span className="pt-1 block font-mono text-slate-800">{isDPFuel ? (r ? formatThousand(r) : "0") : formatIDR(r)}</span>
                                       </td>
                                       <td className="p-2.5 text-right font-mono font-bold text-slate-900 align-top">
                                         <div className="pt-1">{formatIDR(subAdj)}</div>
@@ -2048,7 +2399,7 @@ export function FormModals({ c }: { c: any }) {
                               onClick={() => setActiveBAStep(1)}
                               className="px-3.5 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold rounded-xl transition text-xs cursor-pointer"
                             >
-                              â¬… Kembali ke Step 1
+                              Kembali ke Step 1
                             </button>
                             <button
                               type="button"
@@ -2060,8 +2411,7 @@ export function FormModals({ c }: { c: any }) {
                             </button>
                           </div>
                         </div>
-                      );
-                    })()}
+                      )}
 
                       {/* STEP 3: Tanda Tangan & Finalisasi Berita Acara */}
                       {activeBAStep === 3 && (
@@ -2069,7 +2419,7 @@ export function FormModals({ c }: { c: any }) {
                           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-emerald-950">
                             <UserCheck className="text-emerald-700 shrink-0 mt-0.5" size={16} />
                             <div>
-                              <strong>Step 3 â€” Verifikasi, Persetujuan & Final Signed BA:</strong> Tanda tangan digital internal (Finance Specialist & FATB Manager) dan pengesahan Berita Acara resmi customer.
+                              <strong>Step 3 — Verifikasi & Final Signed BA:</strong> Verifikasi internal oleh Finance Specialist. Approval FATB Manager akan diproses saat Invoice digenerate oleh Finance site.
                             </div>
                           </div>
 
@@ -2111,19 +2461,18 @@ export function FormModals({ c }: { c: any }) {
                             </div>
                           </div>
 
-                          {/* Dual Signatures Box with Real Action Buttons */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                            {/* TTD 1: Finance Specialist */}
+                          {/* Single Verifikator Card: Finance Specialist */}
+                          <div className="pt-1">
                             <div className={`p-4 rounded-xl border shadow-xs text-center space-y-2.5 transition ${formData.verifiedBy ? "bg-emerald-50/50 border-emerald-300" : "bg-white border-slate-200"}`}>
                               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">1. Verifikasi Specialist</span>
+                                <span className="text-[11px] font-black uppercase tracking-wider text-slate-700">Verifikator: Finance Specialist</span>
                                 {formData.verifiedBy ? (
                                   <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
-                                    <CheckCircle size={12} /> Selesai
+                                    <CheckCircle size={12} /> Selesai Diverifikasi
                                   </span>
                                 ) : (
                                   <span className="text-[10px] text-amber-600 font-bold flex items-center gap-1">
-                                    <Clock size={12} /> Pending
+                                    <Clock size={12} /> Menunggu Verifikasi
                                   </span>
                                 )}
                               </div>
@@ -2132,48 +2481,49 @@ export function FormModals({ c }: { c: any }) {
                                 {formData.verifiedBy ? (
                                   <div className="inline-flex flex-col items-center gap-1">
                                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-                                      <CheckCircle size={13} className="text-emerald-700" /> Digital Verified
+                                      <CheckCircle size={13} className="text-emerald-700" /> Digital Verified by Finance Specialist
                                     </span>
                                     <span className="text-[11px] font-bold text-slate-800">{formData.verifiedBy}</span>
                                     {formData.verifiedAt && (
                                       <span className="text-[10px] text-slate-500 font-mono">{new Date(formData.verifiedAt).toLocaleString("id-ID")}</span>
                                     )}
+                                    <span className="text-[10px] text-emerald-700 font-bold mt-0.5">Status BA: Siap Terbitkan Invoice</span>
                                   </div>
                                 ) : (
                                   <div className="space-y-2">
                                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300">
-                                      <Clock size={13} className="text-amber-700" /> Menunggu Verifikasi Specialist
+                                      <Clock size={13} className="text-amber-700" /> Menunggu Verifikasi Dokumen & Volume Joint Survey
                                     </span>
-                                    
+
                                     {/* Action Buttons for Finance Specialist / SPV */}
-                                    {editItem && isFinanceSpecialist && (
-                                      <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                                    {editItem && (
+                                      <div className="flex flex-col sm:flex-row gap-2 pt-2 max-w-md mx-auto">
                                         <button
                                           type="button"
                                           onClick={async () => {
                                             try {
                                               await verifyBATracker(editItem.id, "verify", formData.notes || "Verifikasi dokumen & volume BA disetujui Finance Specialist");
-                                              onNotice("âœ… Berita Acara berhasil diverifikasi oleh Finance Specialist! Status diteruskan ke FATB Manager.");
-                                              setFormData({ ...formData, verifiedBy: user?.name || "Finance Specialist AAP", statusBA: "Pending Berita Acara" });
+                                              onNotice("Berita Acara berhasil diverifikasi oleh Finance Specialist. Status: Siap Terbitkan Invoice.");
+                                              setFormData({ ...formData, verifiedBy: user?.name || "Finance Specialist AAP", verifiedAt: new Date().toISOString(), statusBA: "Ready to Invoice" });
                                               await loadData();
                                             } catch (err: any) {
-                                              onNotice(`âŒ Gagal verifikasi: ${err?.message}`);
+                                              onNotice(`Gagal verifikasi: ${err?.message}`);
                                             }
                                           }}
                                           className="flex-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition text-xs shadow-xs cursor-pointer"
                                         >
-                                          <Check size={14} /> Verifikasi BA (Approve)
+                                          <Check size={14} /> Verifikasi BA (Approve & Ready to Invoice)
                                         </button>
                                         <button
                                           type="button"
                                           onClick={async () => {
                                             try {
                                               await verifyBATracker(editItem.id, "reject", formData.notes || "Volume / data BA memerlukan revisi");
-                                              onNotice("âš ï¸ Berita Acara dikembalikan untuk revisi.");
+                                              onNotice("Berita Acara dikembalikan untuk revisi.");
                                               setFormData({ ...formData, statusBA: "Revisi" });
                                               await loadData();
                                             } catch (err: any) {
-                                              onNotice(`âŒ Gagal reject: ${err?.message}`);
+                                              onNotice(`Gagal reject: ${err?.message}`);
                                             }
                                           }}
                                           className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-2.5 rounded-lg flex items-center justify-center gap-1 transition text-xs shadow-xs cursor-pointer"
@@ -2188,95 +2538,6 @@ export function FormModals({ c }: { c: any }) {
 
                               <div className="pt-2 border-t border-slate-100">
                                 <strong className="block text-xs text-slate-900">Finance Specialist</strong>
-                                <span className="text-[10px] text-slate-500">PT Andalan Artha Primanusa</span>
-                              </div>
-                            </div>
-
-                            {/* TTD 2: FATB Manager */}
-                            <div className={`p-4 rounded-xl border shadow-xs text-center space-y-2.5 transition ${formData.approvedBy ? "bg-emerald-50/50 border-emerald-300" : "bg-white border-slate-200"}`}>
-                              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">2. Approval FATB Manager</span>
-                                {formData.approvedBy ? (
-                                  <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
-                                    <ShieldCheck size={12} /> Approved
-                                  </span>
-                                ) : formData.verifiedBy ? (
-                                  <span className="text-[10px] text-cyan-700 font-bold flex items-center gap-1">
-                                    <Clock size={12} /> Siap Di-Approve
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                                    <Lock size={12} /> Menunggu Step 1
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="py-1">
-                                {formData.approvedBy ? (
-                                  <div className="inline-flex flex-col items-center gap-1">
-                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-                                      <ShieldCheck size={13} className="text-emerald-700" /> Approved by FATB Manager
-                                    </span>
-                                    <span className="text-[11px] font-bold text-slate-800">{formData.approvedBy}</span>
-                                    {formData.approvedAt && (
-                                      <span className="text-[10px] text-slate-500 font-mono">{new Date(formData.approvedAt).toLocaleString("id-ID")}</span>
-                                    )}
-                                  </div>
-                                ) : formData.verifiedBy ? (
-                                  <div className="space-y-2">
-                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-cyan-50 text-cyan-900 border border-cyan-300">
-                                      <Clock size={13} className="text-cyan-700" /> Menunggu Approval FATB Manager
-                                    </span>
-
-                                    {/* Action Buttons for FATB Manager */}
-                                    {editItem && isManager && (
-                                      <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                                        <button
-                                          type="button"
-                                          onClick={async () => {
-                                            try {
-                                              await approveBATracker(editItem.id, "approve", formData.notes || "Persetujuan Berita Acara disetujui resmi FATB Manager");
-                                              onNotice("ðŸŽ‰ Berita Acara disetujui FATB Manager! Status: BA Ready to Invoice.");
-                                              setFormData({ ...formData, approvedBy: user?.name || "FATB Manager AAP", statusBA: "Ready to Invoice" });
-                                              await loadData();
-                                            } catch (err: any) {
-                                              onNotice(`âŒ Gagal approve: ${err?.message}`);
-                                            }
-                                          }}
-                                          className="flex-1 bg-cyan-700 hover:bg-cyan-800 text-white font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition text-xs shadow-xs cursor-pointer"
-                                        >
-                                          <ShieldCheck size={14} /> Approve BA (Manager)
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={async () => {
-                                            try {
-                                              await approveBATracker(editItem.id, "reject", formData.notes || "Ditolak FATB Manager untuk evaluasi");
-                                              onNotice("âš ï¸ Berita Acara ditolak oleh FATB Manager.");
-                                              setFormData({ ...formData, statusBA: "Revisi" });
-                                              await loadData();
-                                            } catch (err: any) {
-                                              onNotice(`âŒ Gagal reject: ${err?.message}`);
-                                            }
-                                          }}
-                                          className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-2.5 rounded-lg flex items-center justify-center gap-1 transition text-xs shadow-xs cursor-pointer"
-                                        >
-                                          <X size={14} /> Reject
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <div className="py-2">
-                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                                      <Lock size={13} className="text-slate-400" /> Terkunci (Perlu Verifikasi Specialist)
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="pt-2 border-t border-slate-100">
-                                <strong className="block text-xs text-slate-900">FATB Manager</strong>
                                 <span className="text-[10px] text-slate-500">PT Andalan Artha Primanusa</span>
                               </div>
                             </div>
@@ -2329,7 +2590,7 @@ export function FormModals({ c }: { c: any }) {
                                     }}
                                     className="bg-cyan-700 hover:bg-cyan-800 text-white font-extrabold py-2 px-3 rounded-xl flex items-center gap-1.5 transition text-xs shadow-xs whitespace-nowrap cursor-pointer"
                                   >
-                                    <Pickaxe size={14} /> âš¡ Inv Mining
+                                    <Pickaxe size={14} /> + Inv Mining
                                   </button>
                                   <button
                                     type="button"
@@ -2339,7 +2600,7 @@ export function FormModals({ c }: { c: any }) {
                                     }}
                                     className="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold py-2 px-3 rounded-xl flex items-center gap-1.5 transition text-xs shadow-xs whitespace-nowrap cursor-pointer"
                                   >
-                                    <Building2 size={14} /> ðŸ—ï¸ Inv MDO
+                                    <Building2 size={14} /> + Inv MDO
                                   </button>
                                 </div>
                               ) : (
@@ -2351,157 +2612,20 @@ export function FormModals({ c }: { c: any }) {
                                   }}
                                   className="bg-emerald-700 hover:bg-emerald-800 text-white font-black py-2 px-3.5 rounded-xl flex items-center gap-1.5 transition text-xs shadow-xs whitespace-nowrap cursor-pointer"
                                 >
-                                  <Zap size={14} /> âš¡ Terbitkan Invoice
+                                  <Zap size={14} /> + Terbitkan Invoice
                                 </button>
                               )}
                             </div>
                           )}
 
                           {/* Navigation Buttons */}
-                          <div className="flex justify-between items-center pt-2">
+                          <div className="flex justify-start items-center pt-2">
                             <button
                               type="button"
                               onClick={() => setActiveBAStep(2)}
                               className="px-3.5 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold rounded-xl transition text-xs cursor-pointer"
                             >
-                              â¬… Kembali ke Step 2
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setActiveBAStep(4)}
-                              className="px-4 py-2 bg-cyan-700 hover:bg-cyan-800 text-white font-bold rounded-xl flex items-center gap-1.5 transition text-xs shadow-xs cursor-pointer"
-                            >
-                              <span>Lihat Jejak Audit (Step 4)</span>
-                              <ArrowRight size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* STEP 4: Jejak Audit & Flow Tracking */}
-                      {activeBAStep === 4 && (
-                        <div className="space-y-4">
-                          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-4">
-                            <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-                              <History size={16} className="text-cyan-800" />
-                              <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">
-                                Jejak Audit & Alur Persetujuan Berita Acara
-                              </h4>
-                            </div>
-
-                            <div className="space-y-3">
-                              {/* 1. Draft BA Dibuat */}
-                              <div className="flex items-start gap-3 p-3 bg-white border border-slate-200 rounded-xl">
-                                <div className="p-2 bg-emerald-100 text-emerald-800 rounded-lg shrink-0 font-bold text-xs">1</div>
-                                <div className="space-y-0.5 text-xs flex-1">
-                                  <div className="flex items-center justify-between">
-                                    <strong className="text-slate-900 font-bold">Draft BA Dibuat (Site Entri)</strong>
-                                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                      {formData.baSubmittedDate ? new Date(formData.baSubmittedDate).toLocaleDateString("id-ID") : "Tercatat"}
-                                    </span>
-                                  </div>
-                                  <p className="text-slate-600 text-[11px]">
-                                    Draft Berita Acara dibuat oleh <strong>{formData.picAAP || "Admin Finance Site"}</strong> dan dicatat sebagai estimasi Unbilled Revenue ({formatIDR(sumInitial)}).
-                                  </p>
-                                </div>
-                              </div>
-
-                              {/* 2. Verifikasi Specialist */}
-                              <div className="flex items-start gap-3 p-3 bg-white border border-slate-200 rounded-xl">
-                                <div className={`p-2 rounded-lg shrink-0 font-bold text-xs ${formData.verifiedBy ? "bg-emerald-100 text-emerald-800" : formData.statusBA === "Revisi" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}>2</div>
-                                <div className="space-y-0.5 text-xs flex-1">
-                                  <div className="flex items-center justify-between">
-                                    <strong className="text-slate-900 font-bold">Verifikasi Specialist & Joint Survey</strong>
-                                    {formData.verifiedBy ? (
-                                      <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                                        <CheckCircle size={11} /> Terverifikasi ({formData.verifiedBy})
-                                      </span>
-                                    ) : formData.statusBA === "Revisi" ? (
-                                      <span className="text-[10px] text-rose-700 font-bold bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200 flex items-center gap-1">
-                                        <X size={11} /> Perlu Revisi
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 flex items-center gap-1">
-                                        <Clock size={11} /> Menunggu Verifikasi
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-slate-600 text-[11px]">
-                                    {formData.verifiedBy
-                                      ? `Pemeriksaan fisik volume joint survey disetujui oleh ${formData.verifiedBy}.${formData.verifiedAt ? ` (${new Date(formData.verifiedAt).toLocaleString("id-ID")})` : ""}`
-                                      : "Menunggu verifikasi keabsahan volume survei bersama oleh Finance Specialist / SPV Site."}
-                                  </p>
-                                </div>
-                              </div>
-
-                              {/* 3. Approval FATB Manager */}
-                              <div className="flex items-start gap-3 p-3 bg-white border border-slate-200 rounded-xl">
-                                <div className={`p-2 rounded-lg shrink-0 font-bold text-xs ${formData.approvedBy ? "bg-emerald-100 text-emerald-800" : formData.verifiedBy ? "bg-cyan-100 text-cyan-800" : "bg-slate-100 text-slate-500"}`}>3</div>
-                                <div className="space-y-0.5 text-xs flex-1">
-                                  <div className="flex items-center justify-between">
-                                    <strong className="text-slate-900 font-bold">Approval FATB Manager (Final BA)</strong>
-                                    {formData.approvedBy ? (
-                                      <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                                        <ShieldCheck size={11} /> Disetujui ({formData.approvedBy})
-                                      </span>
-                                    ) : formData.verifiedBy ? (
-                                      <span className="text-[10px] text-cyan-700 font-bold bg-cyan-50 px-2 py-0.5 rounded-full border border-cyan-200 flex items-center gap-1">
-                                        <Clock size={11} /> Menunggu Approval
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200 flex items-center gap-1">
-                                        <Lock size={11} /> Antrian Verifikasi
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-slate-600 text-[11px]">
-                                    {formData.approvedBy
-                                      ? `Berita Acara telah disetujui resmi oleh ${formData.approvedBy}.${formData.approvedAt ? ` (${new Date(formData.approvedAt).toLocaleString("id-ID")})` : ""}`
-                                      : "Persetujuan final dokumen BA dan pengesahan nilai klaim oleh FATB Manager."}
-                                  </p>
-                                </div>
-                              </div>
-
-                              {/* 4. Relasi Invoice Penagihan */}
-                              <div className="flex items-start gap-3 p-3 bg-white border border-slate-200 rounded-xl">
-                                <div className={`p-2 rounded-lg shrink-0 font-bold text-xs ${formData.invoiceNoLinked ? "bg-purple-100 text-purple-800" : (formData.statusBA === "Ready to Invoice" || formData.approvedBy) ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"}`}>4</div>
-                                <div className="space-y-0.5 text-xs flex-1">
-                                  <div className="flex items-center justify-between">
-                                    <strong className="text-slate-900 font-bold">Relasi Invoice Penagihan</strong>
-                                    {formData.invoiceNoLinked ? (
-                                      <span className="text-[10px] text-purple-800 font-bold bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
-                                        Invoice #{formData.invoiceNoLinked}
-                                      </span>
-                                    ) : (formData.statusBA === "Ready to Invoice" || formData.approvedBy) ? (
-                                      <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                        Siap Terbit Invoice
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-                                        Menunggu BA Approved
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-slate-600 text-[11px]">
-                                    {formData.invoiceNoLinked
-                                      ? `Invoice resmi #${formData.invoiceNoLinked} telah diterbitkan dan tercatat pada buku Order to Cash AR.`
-                                      : (formData.statusBA === "Ready to Invoice" || formData.approvedBy)
-                                      ? "Status Berita Acara siap diterbitkan Invoice oleh Tim Finance HO melalui tombol 'Terbitkan Invoice'."
-                                      : "Faktur penagihan belum dapat diterbitkan sebelum Berita Acara selesai disetujui."}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Navigation Buttons */}
-                          <div className="flex justify-start pt-2">
-                            <button
-                              type="button"
-                              onClick={() => setActiveBAStep(3)}
-                              className="px-3.5 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold rounded-xl transition text-xs cursor-pointer"
-                            >
-                              â¬… Kembali ke Step 3
+                              Kembali ke Step 2
                             </button>
                           </div>
                         </div>
@@ -2625,6 +2749,141 @@ export function FormModals({ c }: { c: any }) {
                           )}
                         </div>
                       </div>
+
+                      {/* AUDIT & WORKFLOW INTELLIGENCE (2 TABS: FLOW & ACTIVITY) */}
+                      <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                        {/* Tab Header */}
+                        <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                          <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg text-[11px] font-bold">
+                            <button
+                              type="button"
+                              onClick={() => setAuditTab("flow")}
+                              className={`px-2.5 py-1 rounded-md transition flex items-center gap-1 cursor-pointer ${auditTab === "flow" ? "bg-white text-cyan-900 shadow-xs font-black" : "text-slate-600 hover:text-slate-900"}`}
+                            >
+                              <ShieldCheck size={12} />
+                              <span>Flow Alur</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAuditTab("activity")}
+                              className={`px-2.5 py-1 rounded-md transition flex items-center gap-1 cursor-pointer ${auditTab === "activity" ? "bg-white text-cyan-900 shadow-xs font-black" : "text-slate-600 hover:text-slate-900"}`}
+                            >
+                              <History size={12} />
+                              <span>Activity Log</span>
+                            </button>
+                          </div>
+                          <span className="text-[10px] font-mono font-bold text-slate-500">Live Audit</span>
+                        </div>
+
+                        {/* TAB 1: FLOW ALUR */}
+                        {auditTab === "flow" && (
+                          <div className="space-y-2.5 text-xs">
+                            {/* 1. Draft BA Dibuat */}
+                            <div className="p-2.5 bg-white border border-slate-200 rounded-xl space-y-1">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                                  <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 text-[10px] flex items-center justify-center font-black">1</span>
+                                  <span>Draft BA Dibuat</span>
+                                </div>
+                                <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                  {formData.baSubmittedDate ? new Date(formData.baSubmittedDate).toLocaleDateString("id-ID") : "Tercatat"}
+                                </span>
+                              </div>
+                              <p className="text-slate-600 text-[11px] leading-relaxed">
+                                Dibuat oleh <strong>{formData.picAAP || "Operations / Site Engineer"}</strong> ({formatIDR(sumInitial)}).
+                              </p>
+                            </div>
+
+                            {/* 2. Verifikasi Finance Specialist */}
+                            <div className="p-2.5 bg-white border border-slate-200 rounded-xl space-y-1">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                                  <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-black ${formData.verifiedBy ? "bg-emerald-100 text-emerald-800" : formData.statusBA === "Revisi" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}>2</span>
+                                  <span>Verifikasi Finance Specialist</span>
+                                </div>
+                                {formData.verifiedBy ? (
+                                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-0.5">
+                                    <CheckCircle size={10} /> Terverifikasi
+                                  </span>
+                                ) : formData.statusBA === "Revisi" ? (
+                                  <span className="text-[10px] text-rose-700 font-bold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 flex items-center gap-0.5">
+                                    <X size={10} /> Revisi
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 flex items-center gap-0.5">
+                                    <Clock size={10} /> Menunggu
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-slate-600 text-[11px] leading-relaxed">
+                                {formData.verifiedBy ? `Volume & nilai klaim diverifikasi oleh ${formData.verifiedBy}.` : "Menunggu verifikasi keabsahan volume bersama oleh Finance Specialist."}
+                              </p>
+                            </div>
+
+                            {/* 3. Invoice & Approval FATB Manager */}
+                            <div className="p-2.5 bg-white border border-slate-200 rounded-xl space-y-1">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                                  <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-black ${formData.invoiceNoLinked ? "bg-purple-100 text-purple-800" : (formData.statusBA === "Ready to Invoice" || formData.verifiedBy) ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>3</span>
+                                  <span>Invoice & Approval FATB</span>
+                                </div>
+                                {formData.invoiceNoLinked ? (
+                                  <span className="text-[10px] text-purple-800 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
+                                    #{formData.invoiceNoLinked}
+                                  </span>
+                                ) : (formData.statusBA === "Ready to Invoice" || formData.verifiedBy) ? (
+                                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                    Siap Terbit
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] text-slate-500 font-bold bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                    Menunggu BA
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-slate-600 text-[11px] leading-relaxed">
+                                {formData.invoiceNoLinked
+                                  ? `Invoice #${formData.invoiceNoLinked} telah diterbitkan dan diajukan ke FATB Manager.`
+                                  : (formData.statusBA === "Ready to Invoice" || formData.verifiedBy)
+                                  ? "BA telah diverifikasi. Finance Site dapat men-generate invoice untuk diapprove FATB Manager."
+                                  : "Invoice akan digenerate oleh Finance site setelah BA diverifikasi oleh Finance Specialist."}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* TAB 2: ACTIVITY LOG */}
+                        {auditTab === "activity" && (
+                          <div className="space-y-2 max-h-64 overflow-y-auto pr-1 text-xs">
+                            {baAuditLogs.length > 0 ? (
+                              baAuditLogs.map((log: any, lIdx: number) => (
+                                <div key={log.id || lIdx} className="p-2.5 bg-white border border-slate-200 rounded-xl space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-bold text-slate-900 text-[11px]">{log.user || "System"}</span>
+                                    <span className="text-[10px] font-mono text-slate-500">{log.createdAt ? new Date(log.createdAt).toLocaleString("id-ID") : "-"}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-cyan-50 text-cyan-800 border border-cyan-200">
+                                      {log.action || "Activity"}
+                                    </span>
+                                    <span className="text-[11px] text-slate-700">{log.referenceType ? `${log.referenceType} #${log.referenceId}` : (log.module || "BA Update")}</span>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              generateAuditTimeline("ba", formData).map((step: any) => (
+                                <div key={step.step} className="p-2.5 bg-white border border-slate-200 rounded-xl space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-bold text-slate-900 text-[11px]">{step.user}</span>
+                                    <span className="text-[10px] font-mono text-slate-500">{step.time}</span>
+                                  </div>
+                                  <p className="text-slate-600 text-[11px]">{step.desc}</p>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -2636,7 +2895,7 @@ export function FormModals({ c }: { c: any }) {
                   {/* Section 1: Target Invoice */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 border-b border-slate-200 pb-1.5">
-                      <span className="text-xs font-black uppercase text-cyan-800 tracking-wider">ðŸ“Œ 1. Target Invoice Pembayaran</span>
+                      <span className="text-xs font-black uppercase text-cyan-800 tracking-wider">1. Target Invoice Pembayaran</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
@@ -2659,7 +2918,7 @@ export function FormModals({ c }: { c: any }) {
                   {/* Section 2: Nominal & Rekening Bank */}
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center gap-2 border-b border-slate-200 pb-1.5">
-                      <span className="text-xs font-black uppercase text-cyan-800 tracking-wider">ðŸ’° 2. Nominal Uang Masuk & Rekening Bank</span>
+                      <span className="text-xs font-black uppercase text-cyan-800 tracking-wider">2. Nominal Uang Masuk & Rekening Bank</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <RupiahInput
@@ -2703,7 +2962,7 @@ export function FormModals({ c }: { c: any }) {
                   {/* Section 1: Identitas Customer */}
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 border-b border-slate-200 pb-1.5">
-                      <span className="text-xs font-black uppercase text-cyan-800 tracking-wider">ðŸ“Œ 1. Profil Perusahaan & Credit Terms</span>
+                      <span className="text-xs font-black uppercase text-cyan-800 tracking-wider">1. Profil Perusahaan & Credit Terms</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
@@ -2730,7 +2989,7 @@ export function FormModals({ c }: { c: any }) {
                   {/* Section 2: Kontak AR */}
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center gap-2 border-b border-slate-200 pb-1.5">
-                      <span className="text-xs font-black uppercase text-cyan-800 tracking-wider">ðŸ“ž 2. Contact Person & Penagihan AR</span>
+                      <span className="text-xs font-black uppercase text-cyan-800 tracking-wider">2. Contact Person & Penagihan AR</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
@@ -2751,7 +3010,7 @@ export function FormModals({ c }: { c: any }) {
                   {/* Section 3: Kontrak & Nilai Kerjasama */}
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center gap-2 border-b border-slate-200 pb-1.5">
-                      <span className="text-xs font-black uppercase text-cyan-800 tracking-wider">ðŸ“„ 3. Kontrak & Nilai Kerjasama</span>
+                      <span className="text-xs font-black uppercase text-cyan-800 tracking-wider">3. Kontrak & Nilai Kerjasama</span>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
@@ -2782,7 +3041,7 @@ export function FormModals({ c }: { c: any }) {
                       onClick={() => setIsInlineEditingBA(true)}
                       className="px-5 py-2.5 rounded-xl bg-cyan-700 hover:bg-cyan-800 text-white font-black text-xs transition flex items-center gap-1.5 shadow-sm cursor-pointer"
                     >
-                      <Edit2 size={14} /> âœï¸ Ubah / Edit Data BA Ini
+                      <Edit2 size={14} /> Ubah / Edit Data BA Ini
                     </button>
                   )}
                 </div>

@@ -45,23 +45,39 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   const [notice, setNotice] = useState("");
 
   async function refresh() {
-    const [dash, trx] = await Promise.all([api<Dashboard>("/api/dashboard"), api<Transaction[]>("/api/transactions")]);
-    setDashboard(dash ?? null);
-    setTransactions(Array.isArray(trx) ? trx : []);
+    try {
+      const [dash, trx] = await Promise.all([
+        api<Dashboard>("/api/dashboard").catch(() => null),
+        api<Transaction[]>("/api/transactions").catch(() => [])
+      ]);
+      if (dash) setDashboard(dash);
+      if (Array.isArray(trx)) setTransactions(trx);
+    } catch {
+      // Graceful fallback
+    }
   }
 
   async function refreshNotifications() {
-    const items = await api<AuditLog[]>("/api/audit-logs");
-    setNotifications(Array.isArray(items) ? items : []);
+    try {
+      const items = await api<AuditLog[]>("/api/audit-logs").catch(() => []);
+      setNotifications(Array.isArray(items) ? items : []);
+    } catch {
+      setNotifications([]);
+    }
   }
 
   async function refreshAccess() {
-    const [myPermissions, roleAccess] = await Promise.all([
-      api<Permission[]>("/api/permissions/my"),
-      isSuperAdminRole(user.role) ? api<RoleAccess[]>("/api/roles") : Promise.resolve([])
-    ]);
-    setPermissions(Array.isArray(myPermissions) ? myPermissions : []);
-    setRoles(Array.isArray(roleAccess) ? roleAccess : []);
+    try {
+      const [myPermissions, roleAccess] = await Promise.all([
+        api<Permission[]>("/api/permissions/my").catch(() => []),
+        isSuperAdminRole(user.role) ? api<RoleAccess[]>("/api/roles").catch(() => []) : Promise.resolve([])
+      ]);
+      setPermissions(Array.isArray(myPermissions) ? myPermissions : []);
+      setRoles(Array.isArray(roleAccess) ? roleAccess : []);
+    } catch {
+      setPermissions([]);
+      setRoles([]);
+    }
   }
 
   async function loadView(view: string) {
@@ -77,22 +93,17 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
         ? data
         : data?.reports ?? data?.kpis ?? data?.indicators ?? Object.entries(data ?? {}).map(([key, value]) => ({ metric: key, value }));
       setViewRows(Array.isArray(rows) ? rows : []);
+    } catch {
+      setViewRows([]);
     } finally {
       setViewLoading(false);
     }
   }
 
   useEffect(() => {
-    refresh().catch(() => {
-      setDashboard(null);
-      setTransactions([]);
-      setNotice("Backend belum mengirim data dashboard.");
-    });
-    refreshNotifications().catch(() => setNotifications([]));
-    refreshAccess().catch(() => {
-      setPermissions([]);
-      setRoles([]);
-    });
+    refresh();
+    refreshNotifications();
+    refreshAccess();
   }, []);
 
   useEffect(() => {
