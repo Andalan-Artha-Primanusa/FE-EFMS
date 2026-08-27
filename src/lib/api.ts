@@ -9,8 +9,11 @@ export type User = {
   companyName?: string | null;
   companyScope?: string[] | "ALL" | null;
   isHeadOffice?: boolean;
+  scopeType?: "GLOBAL" | "HO" | "SITE";
   twoFactorEnabled?: boolean;
   lastLoginAt?: string | null;
+  permissions?: Permission[];
+  tcodes?: TCode[];
 };
 
 export type Transaction = {
@@ -65,6 +68,8 @@ export type TCode = {
 
 export type RoleAccess = {
   role: string;
+  scopeType?: "GLOBAL" | "HO" | "SITE";
+  isSystem?: boolean;
   permissions: Permission[];
   tcodes: TCode[];
   scopes: string[];

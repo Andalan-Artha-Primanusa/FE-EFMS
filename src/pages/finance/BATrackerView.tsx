@@ -234,7 +234,7 @@ export function BATrackerView({ c }: { c: any }) {
               {/* TOP CALCULATION STAT CARDS (4 CARDS) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 pt-1">
                 {/* Card 1: Total BA Siap Invoice (Approved) */}
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 border border-emerald-200/80 shadow-2xs space-y-1 relative overflow-hidden">
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200/80 shadow-2xs space-y-1 relative overflow-hidden">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-black uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
                       <CheckCircle2 size={16} className="text-emerald-700 shrink-0" /> Total BA Siap Invoice (Approved)
@@ -252,7 +252,7 @@ export function BATrackerView({ c }: { c: any }) {
                 </div>
 
                 {/* Card 2: BA On Progress */}
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 via-white to-amber-50/50 border border-amber-200/80 shadow-2xs space-y-1 relative overflow-hidden">
+                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200/80 shadow-2xs space-y-1 relative overflow-hidden">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-black uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
                       <Clock size={16} className="text-amber-700 shrink-0" /> BA On Progress
@@ -279,7 +279,7 @@ export function BATrackerView({ c }: { c: any }) {
                   return (
                     <div 
                       onClick={() => setShowPendingVolumeDrawer(true)}
-                      className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50 via-white to-indigo-50/50 border border-indigo-200/80 hover:border-indigo-400 hover:shadow-md transition cursor-pointer space-y-1 relative overflow-hidden group"
+                      className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200/80 hover:border-indigo-400 hover:shadow-md transition cursor-pointer space-y-1 relative overflow-hidden group"
                       title="Klik untuk membuka Kartu Kontrol Saldo Pending Volume (Carry-Forward OB)"
                     >
                       <div className="flex items-center justify-between">
@@ -303,7 +303,7 @@ export function BATrackerView({ c }: { c: any }) {
                 })()}
 
                 {/* Card 4: Estimasi Total Revenue */}
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-50 via-white to-cyan-50/50 border border-cyan-200/80 shadow-2xs space-y-1 relative overflow-hidden">
+                <div className="p-4 rounded-2xl bg-cyan-50 border border-cyan-200/80 shadow-2xs space-y-1 relative overflow-hidden">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-black uppercase tracking-wider text-cyan-900 flex items-center gap-1.5">
                       <TrendingUp size={16} className="text-cyan-700 shrink-0" /> Estimasi Total Revenue

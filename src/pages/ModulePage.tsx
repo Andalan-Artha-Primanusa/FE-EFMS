@@ -10,7 +10,7 @@ import { RecordDialog } from "../components/RecordDialog";
 import { expandMasterRecord, schemaFor } from "../data/masterSchemas";
 import { approvalAction, cancelTransaction, closePeriod, deleteMasterRecord, downloadTemplate, generateJournal, importCSV, runReconciliation, type MasterRecord, type Permission, type Transaction, type User } from "../lib/api";
 import { formatCell, humanize } from "../lib/format";
-import { isSuperAdminRole } from "../lib/auth";
+import { authorized } from "../lib/auth";
 import type { ViewConfig } from "../data/navigation";
 
 export function ModulePage({
@@ -38,9 +38,9 @@ export function ModulePage({
 }) {
   const navigate = useNavigate();
   const permModule = (config as { menuPermissionModule?: string }).menuPermissionModule ?? "";
-  const canWrite = isSuperAdminRole(user.role) || (permModule && permissions.some((p) => (p.action === "write" || p.action === "*") && p.module === permModule));
-  const canManage = isSuperAdminRole(user.role) || (permModule && permissions.some((p) => (p.action === "manage" || p.action === "*") && p.module === permModule));
-  const canAct = isSuperAdminRole(user.role) || (permModule && permissions.some((p) => (p.action === "approve" || p.action === "post" || p.action === "*") && p.module === permModule));
+  const canWrite = authorized(user, permModule, "write");
+  const canManage = authorized(user, permModule, "manage");
+  const canAct = authorized(user, permModule, "approve") || authorized(user, permModule, "post");
   const canWriteOrManage = canWrite || canManage;
   const filteredRows = rows.filter((row) => JSON.stringify(row ?? {}).toLowerCase().includes(query.trim().toLowerCase()));
   const isTransaction = config.endpoint.startsWith("/api/transactions");

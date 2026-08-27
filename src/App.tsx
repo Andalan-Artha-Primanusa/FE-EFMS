@@ -54,8 +54,8 @@ export function App() {
           <Route path="raise-fall" element={<ProtectedRoute requiredView="RAISE & FALL"><RaiseFallRoute viewTitle="RAISE & FALL" /></ProtectedRoute>} />
           <Route path="currency" element={<ProtectedRoute requiredView="Currency"><RaiseFallRoute viewTitle="Currency" /></ProtectedRoute>} />
           
-          <Route path="transaction/new" element={<TransactionFormPage />} />
-          <Route path="transaction/:id/edit" element={<TransactionFormPage />} />
+          <Route path="transaction/new" element={<ProtectedRoute requiredView="Payment Request"><TransactionFormPage /></ProtectedRoute>} />
+          <Route path="transaction/:id/edit" element={<ProtectedRoute requiredView="Payment Request"><TransactionFormPage /></ProtectedRoute>} />
           
           <Route path="finance-ar-dashboard" element={<ProtectedRoute requiredView="Finance & AR Dashboard"><FinanceDashboardRoute /></ProtectedRoute>} />
           <Route path="berita-acara-ba-tracker" element={<ProtectedRoute requiredView="Berita Acara (BA) Tracker"><FinanceBATrackerRoute /></ProtectedRoute>} />

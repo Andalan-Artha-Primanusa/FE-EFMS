@@ -10,7 +10,7 @@ import { DashboardPage } from "../pages/DashboardPage";
 
 import { ModulePage } from "../pages/ModulePage";
 import { RBACPage } from "../pages/RBACPage";
-import { canAccessMenu, canViewAuditTrail, filterRowsByCompanyScope, isSuperAdminRole, scopedEndpoint } from "../lib/auth";
+import { authorized, canAccessMenu, canViewAuditTrail, filterRowsByCompanyScope, scopedEndpoint } from "../lib/auth";
 import { routes } from "../router/routes";
 
 import { VariableSOWPage } from "../pages/VariableSOWPage";
@@ -56,7 +56,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   }
 
   async function refreshNotifications() {
-    if (!canViewAuditTrail(user.role)) {
+    if (!canViewAuditTrail({ ...user, permissions, tcodes })) {
       setNotifications([]);
       return;
     }
@@ -65,13 +65,17 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   }
 
   async function refreshAccess() {
-    const [myPermResult, roleAccess] = await Promise.all([
-      api<{ permissions: Permission[]; tcodes: TCode[] }>("/api/permissions/my"),
-      isSuperAdminRole(user.role) ? api<RoleAccess[]>("/api/roles") : Promise.resolve([])
-    ]);
-    setPermissions(Array.isArray(myPermResult?.permissions) ? myPermResult.permissions : []);
-    setTcodes(Array.isArray(myPermResult?.tcodes) ? myPermResult.tcodes : []);
-    setRoles(Array.isArray(roleAccess) ? roleAccess : []);
+    const myPermResult = await api<{ permissions: Permission[]; tcodes: TCode[] }>("/api/permissions/my").catch(() => null);
+    const myPerms = Array.isArray(myPermResult?.permissions) ? myPermResult!.permissions : [];
+    const myTcodes = Array.isArray(myPermResult?.tcodes) ? myPermResult!.tcodes : [];
+    setPermissions(myPerms);
+    setTcodes(myTcodes);
+    if (authorized({ ...user, permissions: myPerms, tcodes: myTcodes }, "user_management", "manage")) {
+      const roleAccess = await api<RoleAccess[]>("/api/roles").catch(() => []);
+      setRoles(Array.isArray(roleAccess) ? roleAccess : []);
+    } else {
+      setRoles([]);
+    }
   }
 
   async function loadView(view: string) {
@@ -176,7 +180,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
 
         <ErrorBoundary key={location.pathname} fallbackTitle={`Gagal memuat modul "${activeView}"`}>
           <Outlet context={{ 
-            user, permissions, tcodes, roles, notice, setNotice, 
+            user: { ...user, permissions, tcodes }, permissions, tcodes, roles, notice, setNotice, 
             dashboard, transactions, query, refresh, notifications
           }} />
           {outlet ? null : isUnknownModuleRoute

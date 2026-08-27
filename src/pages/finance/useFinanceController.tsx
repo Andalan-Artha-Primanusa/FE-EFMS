@@ -4,6 +4,7 @@ import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, User as UserType } from "../../lib/api";
+import { authorized } from "../../lib/auth";
 
 import {
   resolveDocumentUrl, formatIDR, parseNumber, formatThousand, formatDateInput,
@@ -36,10 +37,16 @@ export function useFinanceController({
 
   const userRole = user?.role || "Super Admin";
   const isSuper = userRole === "Super Admin" || userRole === "Superadmin";
-  const isFinanceSpecialist = isSuper || userRole.includes("Specialist") || userRole.includes("Finance") || userRole.includes("SPV") || userRole.includes("Supervisor") || userRole.includes("Admin");
-  const isSPV = isFinanceSpecialist;
-  const isManager = isSuper || userRole.includes("Manager") || userRole.includes("FATB") || userRole.includes("Head") || userRole.includes("Director") || userRole.includes("Direktur");
-  const isDirector = isSuper || userRole.includes("Director") || userRole.includes("Direktur");
+  // Action authorization is permission / T-Code driven (matches backend checkRolePermission),
+  // internally fail-closed: absent permissions deny. Super Admin bypasses via authorized().
+  // write/save/submit tier -> operational_transaction:write (BA/Inv/Pay/Cust CRUD route guard)
+  const isFinanceSpecialist = authorized(user, "operational_transaction", "write");
+  // SPV verify tier -> ba_tracker:verify | invoice:verify
+  const isSPV = authorized(user, "ba_tracker", "verify") || authorized(user, "invoice", "verify");
+  // Manager approve tier -> ba_tracker:approve | invoice:approve_tier1
+  const isManager = authorized(user, "ba_tracker", "approve") || authorized(user, "invoice", "approve_tier1");
+  // Director / executive approve tier -> invoice:approve_tier2
+  const isDirector = authorized(user, "invoice", "approve_tier2");
   const [invoiceRows, setInvoiceRows] = useState<any[]>([]);
   const [paymentRows, setPaymentRows] = useState<any[]>([]);
   const [customerRows, setCustomerRows] = useState<any[]>([]);

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Building, Plus, Edit2, Trash2, X, RefreshCw, Search, Check } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import { getCompanies, createCompany, updateCompany, deleteCompany, type Company } from "../lib/api";
-import { isSuperAdminRole } from "../lib/auth";
+import { authorized } from "../lib/auth";
 import type { User } from "../lib/api";
 
 export function CompanyPage({
@@ -103,7 +103,7 @@ export function CompanyPage({
     }
   };
 
-  const canWrite = isSuperAdminRole(user.role);
+  const canWrite = authorized(user, "master_data", "write");
 
   return (
     <section className="space-y-4">

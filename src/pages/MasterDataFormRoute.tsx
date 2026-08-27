@@ -3,11 +3,11 @@ import { useEffect, useState } from "react";
 import { MasterDataForm } from "../components/MasterDataForm";
 import { menuPermissionModuleFor, viewMap, titleFromSlug } from "../data/navigation";
 import { api, type MasterRecord } from "../lib/api";
-import { filterRowsByCompanyScope, isSuperAdminRole, scopedEndpoint } from "../lib/auth";
+import { authorized, filterRowsByCompanyScope, scopedEndpoint } from "../lib/auth";
 import { PermissionDeniedPage } from "./PermissionDeniedPage";
 
 export function MasterDataFormRoute() {
-  const { user, permissions } = useOutletContext<any>();
+  const { user } = useOutletContext<any>();
   const { slug, id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -19,8 +19,7 @@ export function MasterDataFormRoute() {
   const config = viewMap[title];
   const masterType = config?.masterType || "";
   const permModule = menuPermissionModuleFor(title);
-  const canWrite = isSuperAdminRole(user?.role) ||
-    (permModule && Array.isArray(permissions) && permissions.some((p: any) => (p.action === "write" || p.action === "manage" || p.action === "*") && p.module === permModule));
+  const canWrite = authorized(user, permModule, "write");
 
   useEffect(() => {
     if (id && masterType) {

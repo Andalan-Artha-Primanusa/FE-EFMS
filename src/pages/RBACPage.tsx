@@ -44,7 +44,7 @@ import {
   type TCode,
   type User as UserType
 } from "../lib/api";
-import { defaultCompanyOptions, isHeadOfficeUser } from "../lib/auth";
+import { authorized, defaultCompanyOptions, companyOptionsForUser, isHeadOfficeUser, roleScopeOf, rolesAssignableBy, userScopeType } from "../lib/auth";
 
 export function isSuperAdminRole(role: string | undefined | null): boolean {
   const r = (role ?? "").trim().toLowerCase();
@@ -259,43 +259,28 @@ export function RBACPage({
     });
   }, [userList, searchQuery, roleFilter, statusFilter]);
 
+  const scopedCompanies = useMemo(() => companyOptionsForUser(user), [user]);
+  // Assignable roles come from backend RoleAccess metadata (role.scopeType / isSystem),
+  // NOT from hardcoded role arrays. GLOBAL -> all; HO -> HO+SITE; SITE -> SITE only.
   const allAvailableRoles = useMemo(() => {
-    const fromRoles = roleList.map((r) => r.role);
-    const defaults = [
-      "Super Admin",
-      "Director",
-      "Finance Manager",
-      "FATB Manager",
-      "SPV Verificator",
-      "Finance Specialist",
-      "Admin Finance Site",
-      "Admin Finance HO",
-      "Treasury",
-      "Account Receivable Officer",
-      "Account Payable Officer",
-      "Accounting",
-      "Budget Controller",
-      "Tax Officer",
-      "Department User",
-      "Department Head",
-      "General Manager",
-      "Auditor"
-    ];
-    return Array.from(new Set([...fromRoles, ...defaults])).sort();
-  }, [roleList]);
+    if (!roleList.length) return [] as string[];
+    const assigned = rolesAssignableBy(user, roleList);
+    return Array.from(new Set(assigned)).sort();
+  }, [roleList, user]);
 
   const openCreateModal = () => {
     setModalMode("create");
     setSelectedUser(null);
+    const defaultCompany = scopedCompanies[0] ?? defaultCompanyOptions[0];
     setFormData({
       name: "",
       email: "",
       password: "",
-      role: "Admin Finance Site",
+      role: allAvailableRoles[0] ?? "Admin Finance Site",
       status: "active",
-      companyCode: "AAP",
-      companyName: "PT Andalan Artha Primanusa",
-      companyScope: ["AAP"]
+      companyCode: defaultCompany.code,
+      companyName: defaultCompany.name,
+      companyScope: defaultCompany.code === "HO" ? "ALL" : [defaultCompany.code]
     });
     setModalOpen(true);
   };
@@ -475,10 +460,10 @@ export function RBACPage({
     return roleList.find((r) => r.role === simulatedRole) || { role: simulatedRole, permissions: [], scopes: ["company", "site"] };
   }, [roleList, simulatedRole]);
 
-  if (!isSuperAdminRole(user.role)) {
+  if (!authorized(user, "user_management", "manage")) {
     return (
       <section className="p-6 max-w-3xl mx-auto space-y-4">
-        <PageHeader title="Access Denied" description="Menu User & RBAC Management hanya tersedia untuk Super Admin." />
+        <PageHeader title="Access Denied" description="Menu User & RBAC Management hanya tersedia untuk kredensial dengan izin user_management:manage." />
         <div className="p-4 rounded-xl bg-rose-50 text-rose-900 border border-rose-200 flex items-center gap-2.5 text-sm font-semibold">
           <Lock size={18} className="text-rose-600" />
           Role Anda saat ini: <strong>{user.role || "unknown"}</strong>. Hubungi Super Admin untuk meminta akses.
@@ -594,7 +579,7 @@ export function RBACPage({
         >
           <Sparkles size={17} /> Simulasi Hak Akses Role
         </button>
-        {isSuperAdminRole(user.role) && (
+        {userScopeType(user) === "GLOBAL" && (
           <button
             onClick={() => { setActiveTab("tcodes"); if (tcodesList.length === 0) loadTcodes(); }}
             className={`pb-3 px-4 text-sm font-bold border-b-2 flex items-center gap-2 transition ${
@@ -812,7 +797,7 @@ export function RBACPage({
                 bg: "bg-slate-100 text-slate-900 border-slate-200",
                 text: "text-slate-700"
               };
-              const locked = isSuperAdminRole(role.role);
+              const locked = role.isSystem || roleScopeOf(role) === "GLOBAL";
               return (
                 <article key={role.role} className="p-4 bg-white rounded-2xl border border-slate-200 shadow-2xs flex flex-col justify-between">
                   <div>
@@ -1077,7 +1062,7 @@ export function RBACPage({
       )}
 
       {/* TAB 4: T-CODE MANAGEMENT */}
-      {activeTab === "tcodes" && isSuperAdminRole(user.role) && (
+      {activeTab === "tcodes" && userScopeType(user) === "GLOBAL" && (
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-slate-900 flex items-center gap-2">
@@ -1141,7 +1126,7 @@ export function RBACPage({
               <ShieldCheck size={16} className="text-blue-600" /> Assignment T-Code per Role
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {roleList.filter((r) => !isSuperAdminRole(r.role)).map((access) => (
+              {roleList.filter((r) => !r.isSystem && roleScopeOf(r) !== "GLOBAL").map((access) => (
                 <div key={access.role} className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-100/50 transition">
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-bold text-sm text-slate-900">{access.role}</span>
@@ -1258,7 +1243,7 @@ export function RBACPage({
                 <select
                   value={formData.companyCode}
                   onChange={(e) => {
-                    const selectedCompany = defaultCompanyOptions.find((company) => company.code === e.target.value);
+                    const selectedCompany = scopedCompanies.find((company) => company.code === e.target.value);
                     setFormData({
                       ...formData,
                       companyCode: e.target.value,
@@ -1268,7 +1253,7 @@ export function RBACPage({
                   }}
                   className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-bold text-xs"
                 >
-                  {defaultCompanyOptions.map((company) => (
+                  {scopedCompanies.map((company) => (
                     <option key={company.code} value={company.code}>
                       {company.code === "HO" ? "HO - All Company" : `${company.code} - ${company.name}`}
                     </option>

@@ -95,7 +95,7 @@ export function AccountSettingsPage({
     <section className="permission-section account-section-page">
       <h4><ShieldCheck size={16} /> Permission Summary</h4>
       <div className="permission-tags">
-        {permissionHints(user.role).map((item) => <span key={item}>{item}</span>)}
+        {effectiveAccess(user).map((item) => <span key={item}>{item}</span>)}
       </div>
     </section>
 
@@ -158,9 +158,31 @@ export function AccountSettingsPage({
   </section>;
 }
 
-function permissionHints(role: string) {
-  if (role === "Super Admin") return ["Full access", "User & Role Management", "Master Data", "Approval", "Accounting", "Audit Trail"];
-  if (role.includes("Finance")) return ["Approval", "Accounting", "Financial Report", "Dashboard"];
-  if (role.includes("Budget")) return ["Budget Management", "Budget Control", "Approval"];
-  return ["Read Master Data", "Submit Request", "View Dashboard"];
+// Menampilkan akses efektif dari backend (permissions + T-Codes), bukan tebakan nama role.
+// Fail-safe: jika data permission belum dimuat, tampilkan peringatan alih-alih menebak hak akses.
+function effectiveAccess(user: User): string[] {
+  const perms = Array.isArray(user.permissions) ? user.permissions : [];
+  const tcs = Array.isArray(user.tcodes) ? user.tcodes : [];
+
+  if (!perms.length && !tcs.length) {
+    return ["Permission data not loaded — access is enforced by backend"];
+  }
+
+  const labels: string[] = [];
+  const seen = new Set<string>();
+  tcs.forEach((tc) => {
+    if (tc.description && !seen.has(tc.description)) {
+      seen.add(tc.description);
+      labels.push(tc.description);
+    }
+  });
+  perms.forEach((p) => {
+    if (p.action === "manage" || p.action === "*") return;
+    const label = `${p.module} : ${p.action}`;
+    if (!seen.has(label)) {
+      seen.add(label);
+      labels.push(label);
+    }
+  });
+  return labels.length ? labels : ["No explicit permissions"];
 }
