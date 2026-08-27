@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate, useParams, useOutlet } from "react-router-dom";
-import { Bell, ChevronDown, LogOut, Menu, Search, UserCog, X } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Menu, UserCog, X } from "lucide-react";
 import { NotificationPanel } from "../components/NotificationPanel";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { ACCOUNT_SETTINGS_VIEW, menu, menuCodeFor, menuPermissionModuleFor, titleFromSlug, viewMap, viewPath } from "../data/navigation";
@@ -41,7 +41,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   const [viewLoading, setViewLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [query, setQuery] = useState("");
+  const query = "";
   const [notifications, setNotifications] = useState<AuditLog[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [tcodes, setTcodes] = useState<TCode[]>([]);
@@ -136,8 +136,10 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
     ...group,
     items: group.items.filter((item) => canAccessMenu(item, user.role, permissions, tcodes))
   })).filter((group) => group.items.length > 0);
-  const isUnknownModuleRoute = !outlet && Boolean(requestedSlug) && !resolvedView;
-  const cannotAccessModuleRoute = !outlet && !isUnknownModuleRoute && activeView in viewMap && !canAccessMenu(activeView, user.role, permissions, tcodes);
+  const isGenericModuleRoute = !location.pathname.slice(1).includes("/") && Boolean(requestedSlug) && Boolean(resolvedView);
+  const shouldRenderOutlet = Boolean(outlet) && !isGenericModuleRoute;
+  const isUnknownModuleRoute = !shouldRenderOutlet && Boolean(requestedSlug) && !resolvedView;
+  const cannotAccessModuleRoute = !shouldRenderOutlet && !isUnknownModuleRoute && activeView in viewMap && !canAccessMenu(activeView, user.role, permissions, tcodes);
 
   return (
     <div className={`app-shell bg-finance-canvas text-finance-ink ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
@@ -167,7 +169,6 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
             <small className="header-meta">{activeConfig.menuCode}</small>
           </div>
           <div className="top-actions">
-            <div className="search"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari transaksi, vendor, akun..." /></div>
             <button className="icon-btn notification-button" onClick={async () => { setNotificationOpen(!notificationOpen); await refreshNotifications(); }}><Bell size={19} />{notifications.length > 0 && <b>{notifications.length}</b>}</button>
             <button className="user-pill" onClick={async () => { navigate("/account-settings"); setNotificationOpen(false); await refreshNotifications(); }}>
               <UserCog size={17} />
@@ -179,11 +180,11 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
         </header>
 
         <ErrorBoundary key={location.pathname} fallbackTitle={`Gagal memuat modul "${activeView}"`}>
-          <Outlet context={{ 
-            user: { ...user, permissions, tcodes }, permissions, tcodes, roles, notice, setNotice, 
+          {shouldRenderOutlet && <Outlet context={{ 
+            user: { ...user, permissions, tcodes }, permissions, tcodes, roles, notice, setNotice,
             dashboard, transactions, query, refresh, notifications
-          }} />
-          {outlet ? null : isUnknownModuleRoute
+          }} />}
+          {shouldRenderOutlet ? null : isUnknownModuleRoute
             ? <NotFoundPage />
             : cannotAccessModuleRoute
             ? <PermissionDeniedPage requiredView={activeView} />
