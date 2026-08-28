@@ -37,6 +37,12 @@ export const masterSchemas: Record<string, MasterSchema> = {
     title: "Vendor",
     fields: [
       ...commonFields,
+      { key: "email", label: "Email (Notifikasi Kopra Kolom L)" },
+      { key: "bankName", label: "Nama Bank (ex: MANDIRI, BCA)" },
+      { key: "bankCode", label: "Bank Code / BIC (ex: BMRIIDJA)" },
+      { key: "accountNumber", label: "Nomor Rekening" },
+      { key: "accountName", label: "Nama Pemilik Rekening" },
+      { key: "defaultTop", label: "Default TOP (Hari)" },
       { key: "bpGroup", label: "BP Group" },
       { key: "taxId", label: "NPWP / Tax ID" },
       { key: "paymentTerm", label: "Payment Term" },
@@ -46,7 +52,7 @@ export const masterSchemas: Record<string, MasterSchema> = {
       { key: "phone", label: "Phone" },
       { key: "address", label: "Address" }
     ],
-    tableColumns: ["code", "name", "bpGroup", "taxId", "paymentTerm", "currency", "reconciliationAccount", "status"]
+    tableColumns: ["code", "name", "bankName", "accountNumber", "accountName", "email", "defaultTop", "taxId", "status"]
   },
   customer: {
     title: "Customer",

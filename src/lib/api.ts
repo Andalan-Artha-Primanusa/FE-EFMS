@@ -105,7 +105,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error ?? "Request failed");
+    throw new Error(err.message ?? err.error ?? "Request failed");
   }
   if (res.status === 204) return undefined as T;
   return res.json();

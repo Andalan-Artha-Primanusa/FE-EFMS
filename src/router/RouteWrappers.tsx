@@ -13,6 +13,7 @@ import { FinancePaymentPage } from "../pages/FinancePaymentPage";
 import { FinanceCustomerPage } from "../pages/FinanceCustomerPage";
 import { SiteSetupPage } from "../pages/SiteSetupPage";
 import { CompanyPage } from "../pages/CompanyPage";
+import { TreasuryPage } from "../pages/TreasuryPage";
 
 export function SiteSetupRoute({ viewTitle = "Setup Parameter Site & Klien" }: { viewTitle?: string }) {
   const { query, setNotice, user } = useOutletContext<any>();
@@ -80,3 +81,9 @@ export function CompanyRoute() {
   const { query, setNotice, user } = useOutletContext<any>();
   return <CompanyPage viewTitle="Company" query={query} onNotice={setNotice} user={user} />;
 }
+
+export function TreasuryManagementRoute() {
+  const { query, setNotice, user } = useOutletContext<any>();
+  return <TreasuryPage viewTitle="Treasury Management" query={query} onNotice={setNotice} user={user} />;
+}
+
