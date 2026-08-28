@@ -40,6 +40,8 @@ export function App() {
           <Route index element={<DashboardRoute />} />
           <Route path="account-settings" element={<AccountSettingsRoute />} />
           <Route path="rbac-management" element={<ProtectedRoute requiredView="RBAC Management"><RBACRoute /></ProtectedRoute>} />
+          <Route path="role-and-permission" element={<ProtectedRoute requiredView="Role and Permission"><RBACRoute initialTab="matrix" pageTitle="Role and Permission" /></ProtectedRoute>} />
+          <Route path="system-settings" element={<ProtectedRoute requiredView="System Settings"><RBACRoute initialTab="tcodes" pageTitle="System Settings" /></ProtectedRoute>} />
           
           <Route path="general-journal" element={<ProtectedRoute requiredView="Journal Entry"><GeneralJournalRoute viewTitle="Journal Entry" /></ProtectedRoute>} />
           <Route path="journal-approval" element={<ProtectedRoute requiredView="Journal Approval"><GeneralJournalRoute viewTitle="Journal Approval" /></ProtectedRoute>} />

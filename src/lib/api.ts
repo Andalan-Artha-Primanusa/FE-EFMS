@@ -103,6 +103,12 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   }
   if (token) headers.set("Authorization", `Bearer ${token}`);
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  if (res.status === 401) {
+    localStorage.removeItem("financeerp.token");
+    localStorage.removeItem("financeerp.user");
+    window.location.href = "/";
+    throw new Error("Sesi telah berakhir, silakan login kembali.");
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.message ?? err.error ?? "Request failed");
@@ -110,7 +116,6 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (res.status === 204) return undefined as T;
   return res.json();
 }
-
 export async function login(email: string, password: string) {
   return api<{ token: string; user: User }>("/api/auth/login", {
     method: "POST",

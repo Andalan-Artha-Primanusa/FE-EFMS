@@ -3,7 +3,7 @@ import type { Permission, RoleAccess, TCode, User } from "./api";
 
 export function isSuperAdminRole(role: string) {
   const normalized = role?.toLowerCase() ?? "";
-  return normalized === "super admin" || normalized === "system administrator" || normalized === "erp super admin" || normalized.includes("super admin");
+  return normalized === "super admin" || normalized === "super_admin" || normalized === "system administrator" || normalized === "erp super admin" || normalized.includes("super admin") || normalized.includes("super_admin");
 }
 
 // Audit Trail (dan Notification) access driven by permission/T-Code — backend module
@@ -167,7 +167,7 @@ export function canAccessCompanyRow(row: any, user: User) {
   const rowCompanyCode = companyCodeOf(row);
   const rowCompanyId = companyIdOf(row);
   const rowCompanyName = companyNameOf(row);
-  if (!rowCompanyCode && !rowCompanyId && !rowCompanyName) return false;
+  if (!rowCompanyCode && !rowCompanyId && !rowCompanyName) return true;
   return (rowCompanyCode && scope.codes.includes(rowCompanyCode)) || (rowCompanyId != null && scope.ids.includes(rowCompanyId)) || (rowCompanyName && scope.names.some((name) => rowCompanyName.includes(name) || name.includes(rowCompanyName)));
 }
 

@@ -28,8 +28,13 @@ export function formatDate(value: string | Date | null | undefined): string {
 
 export function formatCell(value: unknown) {
   if (value === null || value === undefined) return "-";
-  if (Array.isArray(value)) return value.join(", ");
-  if (typeof value === "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return value.map(formatCell).join(", ");
+  if (typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>);
+    return entries.length
+      ? entries.map(([key, item]) => `${humanize(key)}: ${formatCell(item)}`).join(", ")
+      : "-";
+  }
   if (typeof value === "number" && value > 1000000) return money(value);
   return String(value);
 }

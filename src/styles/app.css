@@ -485,7 +485,18 @@ details button.active {
 
 .workspace { @apply min-w-0 flex-1 px-6 pb-6 pt-0; }
 .topbar {
-  @apply mb-6 -mx-6 flex min-h-[86px] items-center justify-between gap-5 border-b border-slate-200 bg-white px-6 py-4 shadow-[0_8px_24px_rgba(15,23,42,.045)];
+  @apply mb-6 -mx-6 flex min-h-[92px] items-center justify-between gap-5 border-b border-slate-200 bg-white px-6 py-4 shadow-[0_8px_24px_rgba(15,23,42,.045)];
+}
+.topbar-main {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+.topbar-title {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
 }
 .top-actions { display: flex; align-items: center; gap: 10px; }
 .search {
@@ -534,7 +545,11 @@ details button.active {
   @apply flex shrink-0 flex-col items-end gap-3;
 }
 .header-meta {
-  @apply inline-flex min-h-7 items-center rounded-full bg-aap-50 border border-aap-200 px-3 text-xs font-bold text-aap-700 tracking-wider;
+  @apply inline-flex min-h-7 w-fit items-center rounded-full bg-aap-50 border border-aap-200 px-3 text-xs font-bold text-aap-700 tracking-wider;
+  max-width: min(520px, 55vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .kpi-grid {
   display: grid;
@@ -1277,6 +1292,20 @@ th { color: #5A5046; font-size: 11px; text-transform: uppercase; letter-spacing:
   .page-header-side {
     width: 100%;
     align-items: stretch;
+  }
+  .topbar {
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .topbar-main {
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .topbar-title h2 {
+    font-size: 20px;
+  }
+  .topbar .header-meta {
+    max-width: 48vw;
   }
   .kpi-grid { grid-template-columns: 1fr; }
   .master-form-grid { @apply grid-cols-1; }

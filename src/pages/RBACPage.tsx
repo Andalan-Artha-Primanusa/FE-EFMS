@@ -35,6 +35,7 @@ import {
   updateRolePermissions,
   deleteRole as deleteRoleApi,
   resetUserPassword,
+  getCompanies,
   getTCodes,
   createTCode,
   updateTCode,
@@ -42,7 +43,8 @@ import {
   type Permission,
   type RoleAccess,
   type TCode,
-  type User as UserType
+  type User as UserType,
+  type Company
 } from "../lib/api";
 import { authorized, defaultCompanyOptions, companyOptionsForUser, isHeadOfficeUser, roleScopeOf, rolesAssignableBy, userScopeType } from "../lib/auth";
 
@@ -78,16 +80,21 @@ export function RBACPage({
   user,
   roles,
   myPermissions,
-  myTcodes
+  myTcodes,
+  initialTab = "users",
+  pageTitle = "User & RBAC Management"
 }: {
   user: UserType;
   roles: RoleAccess[];
   myPermissions: Permission[];
   myTcodes?: TCode[];
+  initialTab?: "users" | "matrix" | "simulate" | "tcodes";
+  pageTitle?: string;
 }) {
-  const [activeTab, setActiveTab] = useState<"users" | "matrix" | "simulate" | "tcodes">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "matrix" | "simulate" | "tcodes">(initialTab);
   const [userList, setUserList] = useState<UserType[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [companyList, setCompanyList] = useState<Company[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -242,10 +249,24 @@ export function RBACPage({
     }
   };
 
+  const loadCompanies = async () => {
+    try {
+      const data = await getCompanies();
+      setCompanyList(Array.isArray(data) ? data : []);
+    } catch {
+      setCompanyList([]);
+    }
+  };
+
   useEffect(() => {
     loadAllUsers();
     loadAllRoles();
+    loadCompanies();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "tcodes") loadTcodes();
+  }, [activeTab]);
 
   const filteredUsers = useMemo(() => {
     return userList.filter((u) => {
@@ -259,7 +280,14 @@ export function RBACPage({
     });
   }, [userList, searchQuery, roleFilter, statusFilter]);
 
-  const scopedCompanies = useMemo(() => companyOptionsForUser(user), [user]);
+  const scopedCompanies = useMemo(() => {
+    const base = companyList.length
+      ? companyList.map((company) => ({ id: company.id, code: company.code, name: company.name }))
+      : defaultCompanyOptions;
+    if (isHeadOfficeUser(user)) return base;
+    const allowed = companyOptionsForUser(user);
+    return base.filter((company) => allowed.some((item) => item.code === company.code || item.id === company.id));
+  }, [companyList, user]);
   // Assignable roles come from backend RoleAccess metadata (role.scopeType / isSystem),
   // NOT from hardcoded role arrays. GLOBAL -> all; HO -> HO+SITE; SITE -> SITE only.
   const allAvailableRoles = useMemo(() => {
@@ -294,9 +322,9 @@ export function RBACPage({
       password: "",
       role: target.role,
       status: target.status || "active",
-      companyCode: target.companyCode ?? "AAP",
-      companyName: target.companyName ?? "PT Andalan Artha Primanusa",
-      companyScope: target.companyScope ?? (target.companyCode ? [target.companyCode] : ["AAP"])
+      companyCode: target.companyCode ?? scopedCompanies[0]?.code ?? "AAP",
+      companyName: target.companyName ?? scopedCompanies[0]?.name ?? "PT Andalan Artha Primanusa",
+      companyScope: target.companyScope ?? (target.companyCode ? [target.companyCode] : [scopedCompanies[0]?.code ?? "AAP"])
     });
     setModalOpen(true);
   };
@@ -310,7 +338,7 @@ export function RBACPage({
 
     setSubmitting(true);
     try {
-      const selectedCompany = defaultCompanyOptions.find((company) => company.code === formData.companyCode);
+      const selectedCompany = scopedCompanies.find((company) => company.code === formData.companyCode);
       const payload = {
         ...formData,
         companyName: selectedCompany?.name ?? formData.companyName,
@@ -475,7 +503,7 @@ export function RBACPage({
   return (
     <section className="rbac-page p-6 max-w-7xl mx-auto space-y-6">
       <PageHeader
-        title="User & RBAC Management"
+        title={pageTitle}
         description="Kelola akun pengguna, penugasan role akses, izin operasional finance, dan matriks permission sistem."
         meta={
           <div className="flex items-center gap-2">
