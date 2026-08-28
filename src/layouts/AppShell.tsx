@@ -173,12 +173,14 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
       </aside>
       <main className="workspace">
         <header className="sticky top-0 z-20 topbar">
-          <button className="icon-btn mobile-only" onClick={() => setSidebarOpen(!sidebarOpen)}><Menu size={20} /></button>
-          <button className="icon-btn desktop-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? "Buka sidebar" : "Tutup sidebar"}><Menu size={20} /></button>
-          <div>
-            <p className="eyebrow">Finance Command Center</p>
-            <h2>{activeConfig.title}</h2>
-            <small className="header-meta">{activeConfig.menuCode}</small>
+          <div className="topbar-main">
+            <button className="icon-btn mobile-only" onClick={() => setSidebarOpen(!sidebarOpen)}><Menu size={20} /></button>
+            <button className="icon-btn desktop-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? "Buka sidebar" : "Tutup sidebar"}><Menu size={20} /></button>
+            <div className="topbar-title">
+              <p className="eyebrow">Finance Command Center</p>
+              <h2>{activeConfig.title}</h2>
+              <small className="header-meta">{activeConfig.menuCode}</small>
+            </div>
           </div>
           <div className="top-actions">
             <button className="icon-btn notification-button" onClick={async () => { setNotificationOpen(!notificationOpen); await refreshNotifications(); }}><Bell size={19} />{notifications.length > 0 && <b>{notifications.length}</b>}</button>
