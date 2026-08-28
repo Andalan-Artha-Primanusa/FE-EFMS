@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
-import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, User as UserType } from "../../lib/api";
+import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, User as UserType, generateJournalFromInvoice, generateJournalFromPayment } from "../../lib/api";
 import { authorized } from "../../lib/auth";
 
 import {
@@ -61,7 +61,7 @@ export function useFinanceController({
   // Modal Input & Edit State
   const [modalType, setModalType] = useState<"none" | "ba" | "invoice" | "payment" | "customer" | "pending_volume">("none");
   const [editItem, setEditItem] = useState<any>(null);
-  const [formData, setFormData] = useState<any>({ customerCode: "POS", workPeriod: "Juni 2026" });
+  const [formData, setFormData] = useState<any>({ customerCode: "", workPeriod: "Juni 2026" });
   const [showActivityGroupDropdown, setShowActivityGroupDropdown] = useState(false);
   const [showExportBADropdown, setShowExportBADropdown] = useState(false);
   const [showInputBADropdown, setShowInputBADropdown] = useState(false);
@@ -87,6 +87,7 @@ export function useFinanceController({
   const [mRate, setMRate] = useState(17923.30);
   const [fuelPriceUSD, setFuelPriceUSD] = useState(1.422);
   const [laborPriceIDR, setLaborPriceIDR] = useState(3721423);
+  const [raiseFallMaster, setRaiseFallMaster] = useState<any>(null);
 
   const [dynamicSowOptions, setDynamicSowOptions] = useState<any[]>([]);
   const [bankAccountOptions, setBankAccountOptions] = useState<any[]>([]);
@@ -96,6 +97,7 @@ export function useFinanceController({
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           const activeRf = data[0];
+          setRaiseFallMaster(activeRf);
           if (activeRf.actualMRateXn > 0) setMRate(activeRf.actualMRateXn);
           if (activeRf.actualFuelFn > 0) setFuelPriceUSD(activeRf.actualFuelFn);
           if (activeRf.actualLaborLn > 0) setLaborPriceIDR(activeRf.actualLaborLn);
@@ -114,8 +116,8 @@ export function useFinanceController({
               itemName: d.itemName,
               category: d.category,
               unit: d.unit,
-              customer: d.customer || d.customerCode || "POS",
-              customerCode: d.customerCode || d.customer || "POS",
+              customer: d.customer || d.customerCode || "",
+              customerCode: d.customerCode || d.customer || "",
               baseRateUSD: d.rateUSD || 0,
               rateUSD: d.rateUSD || 0,
               rateIDR: d.rateIDR || (d.rateUSD ? Math.round(d.rateUSD * 17923.30) : 0)
@@ -174,7 +176,7 @@ export function useFinanceController({
   const masterBankAccounts = useMemo(() => templateRows("bank_accounts"), [financeTemplates]);
 
   // RF Index dihitung lewat control rumus terpisah (calculations.tsx)
-  const rfIndexCalculated = calcRFIndex(fuelPriceUSD, laborPriceIDR, mRate);
+  const rfIndexCalculated = calcRFIndex(fuelPriceUSD, laborPriceIDR, mRate, raiseFallMaster);
 
   // Master Data Variable SOW Options (Dynamic from API with fallback)
   const defaultMasterVariableOptions = templateRows("variable_sow_defaults");
@@ -184,7 +186,7 @@ export function useFinanceController({
   // Dynamic Master SOW Catalog derived live from master data API (dynamicSowOptions) & MRate
   const activeSOWCatalog = useMemo(() => {
     if (dynamicSowOptions && dynamicSowOptions.length > 0) {
-      const custUpper = (formData.customerCode || "POS").toUpperCase();
+      const custUpper = (formData.customerCode || "").toUpperCase();
       const filtered = dynamicSowOptions.filter((s) => {
         const sCust = (s.customer || s.customerCode || "").toUpperCase();
         return !sCust || sCust === custUpper || (custUpper === "POS" && (!sCust || sCust === "POS"));
@@ -221,7 +223,7 @@ export function useFinanceController({
     items.map((it: any) => {
       if (!it || !it.lookup) return it;
       const fb = Number(it.baseRateUSD ?? it.unitRateIDR ?? 0);
-      const rate = getSowMasterRate(it.customer || "POS", it.lookup, fb, Boolean(it.lookupUSD));
+      const rate = getSowMasterRate(it.customer || "", it.lookup, fb, Boolean(it.lookupUSD));
       if (it.lookupUSD) {
         return it.unitRateUSD !== undefined ? { ...it, unitRateUSD: rate } : { ...it, baseRateUSD: rate };
       }
@@ -576,7 +578,13 @@ export function useFinanceController({
         body: JSON.stringify({ verifiedBy: "Hendra Wijaya (Finance Specialist)" })
       });
 
-      onNotice("Pembayaran cicilan berhasil diverifikasi.");
+      try {
+        await generateJournalFromPayment(paymentId);
+      } catch (e: any) {
+        console.error("Gagal generate journal from payment", e);
+      }
+
+      onNotice("Pembayaran cicilan berhasil diverifikasi. Jurnal dibuat.");
 
       // Reload invoices & payments
       const [invRes, payRes] = await Promise.all([
@@ -608,7 +616,7 @@ export function useFinanceController({
   }, [viewTitle]);
 
   const buildInvoiceItemsFromBA = (ba: any, custCode?: string, category: "Operation & Mining" | "MDO" = "Operation & Mining") => {
-    const code = custCode || ba?.customerCode || "POS";
+    const code = custCode || ba?.customerCode || "";
 
     // If POS and Category is MDO (Mine Development Operation)
     if (code === "POS" && category === "MDO") {
@@ -1036,7 +1044,7 @@ export function useFinanceController({
     const selectedBa = baRows.find((r) => r.baNumber === baNumber);
     if (selectedBa) {
       const cust = customerRows.find((c: any) => c.code === selectedBa.customerCode);
-      const code = selectedBa.customerCode || "POS";
+      const code = selectedBa.customerCode || "";
       const cInfo = customerContractMap[code];
       const projectSite = cust?.fullName ? `${cust.fullName} Site` : selectedBa.projectSite || cInfo?.project || `${code} PROJECT`;
       const contractNo = cust?.contractNo || selectedBa.contractNo || cInfo?.contract || `002/${code}-AAP/2025`;
@@ -1079,7 +1087,7 @@ export function useFinanceController({
       return;
     }
 
-    const code = ba.customerCode || "POS";
+    const code = ba.customerCode || "";
     const period = ba.workPeriod || "Jul-26";
     const cust = customerRows.find((c: any) => c.code === code);
     const cInfo = customerContractMap[code];
@@ -1313,7 +1321,7 @@ export function useFinanceController({
     const todayStr = new Date().toISOString().slice(0, 10);
     const curMonth = getCurrentMonthPeriod();
     if (type === "ba") {
-      const cust = initialData.customerCode || "BGG";
+      const cust = initialData.customerCode || "";
       const isBGG = cust === "BGG" || cust === "PT BGG";
       const defaultPeriod = initialData.workPeriod || curMonth;
       setIsInlineEditingBA(true);
@@ -1352,7 +1360,7 @@ export function useFinanceController({
         ...initialData,
       });
     } else if (type === "invoice") {
-      const defaultCompany = initialData?.customerCode || "POS";
+      const defaultCompany = initialData?.customerCode || "";
       const defaultPeriod = initialData?.workPeriod || "Juni 2026";
       const autoInvNo = generateInvoiceNumber(defaultCompany, defaultPeriod, invoiceRows.length);
       const cInfo = customerContractMap[defaultCompany];
@@ -1398,7 +1406,7 @@ export function useFinanceController({
     });
 
     if (type === "invoice") {
-      const code = (item.customerCode || "POS").toUpperCase();
+      const code = (item.customerCode || "").toUpperCase();
       const cat = item.invoiceCategory;
       const items = (item.items && Array.isArray(item.items) && item.items.length > 0)
         ? item.items
@@ -1468,7 +1476,7 @@ export function useFinanceController({
 
         payload = {
           ...formData,
-          customerCode: formData.customerCode || "POS",
+          customerCode: formData.customerCode || "",
           workPeriod: formData.workPeriod || "Juni 2026",
           picAAP: formData.picAAP || "Operations / Site Engineer",
           items: allItems,
@@ -1491,8 +1499,8 @@ export function useFinanceController({
       else if (modalType === "pending_volume") {
         endpoint = "/api/finance/ba-trackers";
         payload = {
-          baNumber: `053/BA-${formData.customerCode || "POS"}-PENDING-VOL/${(formData.workPeriod || "JUL-26").toUpperCase().replace(/\s+/g, '')}`,
-          customerCode: formData.customerCode || "POS",
+          baNumber: `053/BA-${formData.customerCode || ""}-PENDING-VOL/${(formData.workPeriod || "JUL-26").toUpperCase().replace(/\s+/g, '')}`,
+          customerCode: formData.customerCode || "",
           workPeriod: formData.workPeriod || "Juni 2026",
           workAmount: Number(formData.workAmount || 0),
           statusBA: "Submit",
@@ -1511,7 +1519,7 @@ export function useFinanceController({
           status: formData.status || "Draft",
           items: invLineItems,
           invoiceNo: formData.invoiceNo || "003/POS-AAP/RF/VI/2026",
-          customerCode: formData.customerCode || "POS",
+          customerCode: formData.customerCode || "",
           projectSite: formData.projectSite || "POS PROJECT",
           contractNo: formData.contractNo || "002/POS-AAP/2025",
           workPeriod: formData.workPeriod || "Juni 2026",
@@ -1659,7 +1667,14 @@ export function useFinanceController({
   const handleApproveInvoiceTier2 = async (id: number) => {
     try {
       const updated = await approveInvoiceTier2(id, "approve", "Persetujuan Eksekutif Tier 2 oleh Direktur");
-      onNotice("Approval Tier 2 (Direktur) Berhasil. Status Invoice: Issued.");
+      
+      try {
+        await generateJournalFromInvoice(id);
+      } catch (e: any) {
+        console.error("Gagal generate journal from invoice", e);
+      }
+      
+      onNotice("Approval Tier 2 (Direktur) Berhasil. Jurnal Ter-generate.");
       await loadData();
       if (detailViewItem && detailViewItem.type === "invoice" && detailViewItem.data.id === id) {
         setDetailViewItem({ type: "invoice", data: updated });

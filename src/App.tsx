@@ -8,7 +8,7 @@ import { MasterDataFormRoute } from "./pages/MasterDataFormRoute";
 import { TransactionFormPage } from "./pages/TransactionFormPage";
 import { ProtectedRoute } from "./router/ProtectedRoute";
 import { NotFoundPage } from "./pages/NotFoundPage";
-import { DashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute, CoalIndexRoute, RaiseFallRoute, FinanceDashboardRoute, FinanceBATrackerRoute, FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute, SiteSetupRoute, CompanyRoute } from "./router/RouteWrappers";
+import { DashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute, CoalIndexRoute, RaiseFallRoute, FinanceDashboardRoute, FinanceBATrackerRoute, FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute, SiteSetupRoute, CompanyRoute, BudgetManagementRoute, ClosingPeriodRoute, NotificationCenterRoute } from "./router/RouteWrappers";
 
 export function App() {
   const [user, setUser] = useState<User | null>(() => {
@@ -48,7 +48,23 @@ export function App() {
           <Route path="journal-posting" element={<ProtectedRoute requiredView="Journal Posting"><GeneralJournalRoute viewTitle="Journal Posting" /></ProtectedRoute>} />
           <Route path="general-ledger" element={<ProtectedRoute requiredView="General Ledger"><GeneralJournalRoute viewTitle="General Ledger" /></ProtectedRoute>} />
           <Route path="trial-balance" element={<ProtectedRoute requiredView="Trial Balance"><GeneralJournalRoute viewTitle="Trial Balance" /></ProtectedRoute>} />
-          <Route path="closing-period" element={<ProtectedRoute requiredView="Closing Period"><GeneralJournalRoute viewTitle="Closing Period" /></ProtectedRoute>} />
+          <Route path="closing-period" element={<ProtectedRoute requiredView="Closing Period"><ClosingPeriodRoute viewTitle="Closing Period" /></ProtectedRoute>} />
+
+          <Route path="annual-budget" element={<ProtectedRoute requiredView="Annual Budget"><BudgetManagementRoute viewTitle="Annual Budget" /></ProtectedRoute>} />
+          <Route path="monthly-budget" element={<ProtectedRoute requiredView="Monthly Budget"><BudgetManagementRoute viewTitle="Monthly Budget" /></ProtectedRoute>} />
+          <Route path="budget-submission" element={<ProtectedRoute requiredView="Budget Submission"><BudgetManagementRoute viewTitle="Budget Submission" /></ProtectedRoute>} />
+          <Route path="budget-approval" element={<ProtectedRoute requiredView="Budget Approval"><BudgetManagementRoute viewTitle="Budget Approval" /></ProtectedRoute>} />
+          <Route path="budget-revision" element={<ProtectedRoute requiredView="Budget Revision"><BudgetManagementRoute viewTitle="Budget Revision" /></ProtectedRoute>} />
+          <Route path="budget-transfer" element={<ProtectedRoute requiredView="Budget Transfer"><BudgetManagementRoute viewTitle="Budget Transfer" /></ProtectedRoute>} />
+          <Route path="budget-versus-actual" element={<ProtectedRoute requiredView="Budget versus Actual"><BudgetManagementRoute viewTitle="Budget versus Actual" /></ProtectedRoute>} />
+
+          <Route path="accrual-and-adjustment-journal" element={<ProtectedRoute requiredView="Accrual and Adjustment Journal"><ClosingPeriodRoute viewTitle="Accrual and Adjustment Journal" /></ProtectedRoute>} />
+          <Route path="depreciation-posting" element={<ProtectedRoute requiredView="Depreciation Posting"><ClosingPeriodRoute viewTitle="Depreciation Posting" /></ProtectedRoute>} />
+          <Route path="review-trial-balance" element={<ProtectedRoute requiredView="Review Trial Balance"><ClosingPeriodRoute viewTitle="Review Trial Balance" /></ProtectedRoute>} />
+          <Route path="financial-review-and-approval" element={<ProtectedRoute requiredView="Financial Review and Approval"><ClosingPeriodRoute viewTitle="Financial Review and Approval" /></ProtectedRoute>} />
+          <Route path="close-period-lock" element={<ProtectedRoute requiredView="Close Period Lock"><ClosingPeriodRoute viewTitle="Close Period Lock" /></ProtectedRoute>} />
+
+          <Route path="notification-center" element={<ProtectedRoute requiredView="Notification Center"><NotificationCenterRoute /></ProtectedRoute>} />
           
           <Route path="site-setup" element={<ProtectedRoute requiredView="Setup Parameter Site & Klien"><SiteSetupRoute /></ProtectedRoute>} />
           <Route path="setup-parameter-site-klien" element={<ProtectedRoute requiredView="Setup Parameter Site & Klien"><SiteSetupRoute /></ProtectedRoute>} />

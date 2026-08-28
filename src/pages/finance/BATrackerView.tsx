@@ -560,7 +560,7 @@ export function BATrackerView({ c }: { c: any }) {
                                     </div>
                                     <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
                                       <span className="px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-900 font-extrabold text-[10px]">
-                                        {row.customerCode || "POS"}
+                                        {row.customerCode || "—"}
                                       </span>
                                       <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-medium text-[10px]">
                                         {row.dataSource || "Joint Survey"}

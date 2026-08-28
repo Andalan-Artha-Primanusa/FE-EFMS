@@ -30,6 +30,8 @@ import {
 import { 
   api, 
   User, 
+  getCompanies, 
+  type Company,
   getJournals, 
   getCOAAccounts, 
   getSubLedgers, 
@@ -158,8 +160,6 @@ export const masterCOA = [
   { code: "6114.000", name: "Biaya Bunga Leasing", posSaldo: "Db", posLaporan: "LR" }
 ];
 
-export const projectList = ["HO", "BGG", "SBS", "POS", "DBK", "IBP"];
-
 interface SheetTab {
   id: string;
   name: string;
@@ -261,6 +261,7 @@ export function GeneralJournalPage({
   const [selectedGLAccount, setSelectedGLAccount] = useState<string>("1103.101");
   const [glData, setGLData] = useState<any>(null);
   const [tbData, setTbData] = useState<any[]>([]);
+  const [companyList, setCompanyList] = useState<Company[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const [confirmReset, setConfirmReset] = useState<boolean>(false);
 
@@ -298,6 +299,11 @@ export function GeneralJournalPage({
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // Load company list from backend API (/api/companies) for the project/company filter.
+  useEffect(() => {
+    getCompanies().then((c) => { if (Array.isArray(c)) setCompanyList(c); }).catch(() => {});
   }, []);
 
   // Track currently active edited row / cell
@@ -353,7 +359,7 @@ export function GeneralJournalPage({
               monthIndex: mIdx,
               sourceModule: j.sourceModule || "MANUAL",
               sourceReference: j.sourceReference || "-",
-              projectCode: line.projectCode || j.customerCode || "HO",
+              projectCode: line.projectCode || j.customerCode || "",
               customerCode: j.customerCode || "-",
               accountCode: line.accountCode,
               accountName: line.accountName || "-",
@@ -973,7 +979,7 @@ export function GeneralJournalPage({
                     className="bg-white border border-[#cbd5e1] rounded px-2 py-0.5 text-slate-800 text-xs font-mono font-medium"
                   >
                     <option value="ALL">Semua Site (Konsolidasi)</option>
-                    {projectList.map(p => <option key={p} value={p}>{p}</option>)}
+                    {companyList.map((c) => <option key={c.code} value={c.code}>{c.code} - {c.name}</option>)}
                   </select>
                 </div>
               </div>

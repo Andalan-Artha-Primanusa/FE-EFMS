@@ -4,7 +4,7 @@ import { Bell, ChevronDown, LogOut, Menu, UserCog, X } from "lucide-react";
 import { NotificationPanel } from "../components/NotificationPanel";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { ACCOUNT_SETTINGS_VIEW, menu, menuCodeFor, menuPermissionModuleFor, titleFromSlug, viewMap, viewPath } from "../data/navigation";
-import { api, type AuditLog, type Dashboard, type Permission, type RoleAccess, type TCode, type Transaction, type User } from "../lib/api";
+import { api, getUnreadNotificationCount, type AuditLog, type Dashboard, type Permission, type RoleAccess, type TCode, type Transaction, type User } from "../lib/api";
 import { AccountSettingsPage } from "../pages/AccountSettingsPage";
 import { DashboardPage } from "../pages/DashboardPage";
 
@@ -48,6 +48,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   const [roles, setRoles] = useState<RoleAccess[]>([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notice, setNotice] = useState("");
+  const [unreadCount, setUnreadCount] = useState(0);
 
   async function refresh() {
     try {
@@ -64,6 +65,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
 
   async function refreshNotifications() {
     try {
+      getUnreadNotificationCount().then((r) => setUnreadCount(Number(r?.count ?? 0))).catch(() => {});
       if (!canViewAuditTrail({ ...user, permissions, tcodes })) {
         setNotifications([]);
         return;
@@ -183,7 +185,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
             </div>
           </div>
           <div className="top-actions">
-            <button className="icon-btn notification-button" onClick={async () => { setNotificationOpen(!notificationOpen); await refreshNotifications(); }}><Bell size={19} />{notifications.length > 0 && <b>{notifications.length}</b>}</button>
+            <button className="icon-btn notification-button" onClick={async () => { setNotificationOpen(!notificationOpen); await refreshNotifications(); }}><Bell size={19} />{unreadCount > 0 && <b>{unreadCount}</b>}</button>
             <button className="user-pill" onClick={async () => { navigate("/account-settings"); setNotificationOpen(false); await refreshNotifications(); }}>
               <UserCog size={17} />
               <span>{user.name}</span>
@@ -223,7 +225,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
           )}
         </ErrorBoundary>
       </main>
-      <NotificationPanel items={notifications} open={notificationOpen} onClose={() => setNotificationOpen(false)} />
+      <NotificationPanel open={notificationOpen} onClose={() => setNotificationOpen(false)} />
       {notice && (
         <div
           className="fixed top-5 left-1/2 -translate-x-1/2 z-[99999] max-w-xl w-[92%] sm:w-auto flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-900 text-white shadow-2xl border border-slate-700/80 backdrop-blur-md transition-all duration-300 pointer-events-auto cursor-pointer"

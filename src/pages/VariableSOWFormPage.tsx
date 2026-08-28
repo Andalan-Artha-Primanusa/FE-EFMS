@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, FileSpreadsheet } from "lucide-react";
-import { api } from "../lib/api";
-import { defaultCompanyOptions, defaultBGGSOWTemplate, defaultSOWTemplate } from "./VariableSOWPage";
+import { api, getCompanies, type Company } from "../lib/api";
+import { defaultSOWTemplate } from "./VariableSOWPage";
 
 const formatIDR = (val: number) => {
   if (!val && val !== 0) return "Rp 0";
@@ -14,21 +14,41 @@ export function VariableSOWFormPage() {
   const location = useLocation();
   const contractGroup = location.state?.contractGroup;
   const mrateBi = location.state?.mrateBi || 17923.30;
-  
+
+  const [companyList, setCompanyList] = useState<Company[]>([]);
+
   const isEditing = !!contractGroup;
 
   const [headerForm, setHeaderForm] = useState<any>({
-    companyName: contractGroup?.companyName || "PT Budi Gema Gempita",
-    companyCode: contractGroup?.companyCode || "BGG",
-    contractNo: contractGroup?.contractNo || "09/BGG-AAP/VIII/2018",
-    type: contractGroup?.type || (contractGroup?.companyCode === "POS" ? "nickel" : "coal")
+    companyName: contractGroup?.companyName || "",
+    companyCode: contractGroup?.companyCode || "",
+    contractNo: contractGroup?.contractNo || "",
+    type: contractGroup?.type || "generic"
   });
 
   const [itemsGrid, setItemsGrid] = useState<any[]>(
-    contractGroup?.items 
+    contractGroup?.items
       ? contractGroup.items.map((i: any) => ({ ...i }))
-      : defaultBGGSOWTemplate.map((i: any) => ({ ...i }))
+      : defaultSOWTemplate.map((i: any) => ({ ...i }))
   );
+
+  useEffect(() => {
+    getCompanies().then((c) => { if (Array.isArray(c)) setCompanyList(c); }).catch(() => {});
+  }, []);
+
+  // If creating a new grid and no company is chosen yet, select the first API
+  // company so the header is never blank.
+  useEffect(() => {
+    if (isEditing || headerForm.companyCode) return;
+    if (companyList.length === 0) return;
+    const first = companyList[0];
+    setHeaderForm((prev: any) => ({
+      ...prev,
+      companyName: first.name,
+      companyCode: first.code,
+      contractNo: ""
+    }));
+  }, [companyList, isEditing, headerForm.companyCode]);
 
   const handleRateChange = (idx: number, field: string, val: string) => {
     const num = parseFloat(val);
@@ -70,7 +90,7 @@ export function VariableSOWFormPage() {
     }
   };
 
-  const isCoalClient = headerForm.companyCode === "BGG" || headerForm.companyCode === "SBS" || headerForm.companyCode === "DBK" || headerForm.type === "coal";
+  const isCoalClient = headerForm.type === "coal";
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-12 mt-6">
@@ -104,18 +124,17 @@ export function VariableSOWFormPage() {
               value={headerForm.companyCode}
               onChange={(e) => {
                 const code = e.target.value;
-                const opt = defaultCompanyOptions.find(o => o.code === code);
-                const newType = opt?.type || (code === "POS" ? "nickel" : "coal");
+                const opt = companyList.find((o) => o.code === code);
                 setHeaderForm({
                   companyName: opt?.name || code,
                   companyCode: code,
-                  contractNo: opt?.contract || "001/AAP-NEW/2026",
-                  type: newType
+                  contractNo: headerForm.contractNo,
+                  type: "generic"
                 });
-                setItemsGrid(code === "BGG" ? defaultBGGSOWTemplate.map(i => ({ ...i })) : defaultSOWTemplate.map(i => ({ ...i })));
+                setItemsGrid(defaultSOWTemplate.map(i => ({ ...i })));
               }}
             >
-              {defaultCompanyOptions.map((opt) => (
+              {companyList.map((opt) => (
                 <option key={opt.code} value={opt.code}>
                   {opt.name} ({opt.code})
                 </option>

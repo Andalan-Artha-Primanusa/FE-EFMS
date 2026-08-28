@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { KeyRound, X } from "lucide-react";
-import { forgotPassword, login, resetPassword, type User } from "../lib/api";
+import { KeyRound, ShieldCheck, X } from "lucide-react";
+import { forgotPassword, login, resetPassword, verifyTwoFactorLogin, type User } from "../lib/api";
 import feastLogo from "../assets/feast-logo.webp";
 import mockupFeast from "../assets/mockup-feast.webp";
 import andalanLogo from "../assets/andalan-logo.png";
@@ -10,6 +10,12 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
   const [password, setPassword] = useState("Admin@12345");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // 2FA challenge state
+  const [twoFactor, setTwoFactor] = useState<{ userId: number; email: string } | null>(null);
+  const [otp, setOtp] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
 
   // Forgot / reset password dialog state
   const [forgotOpen, setForgotOpen] = useState(false);
@@ -27,6 +33,12 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
     setError("");
     try {
       const result = await login(email, password);
+      if (result.requires2FA) {
+        setTwoFactor({ userId: result.userId, email: result.email });
+        setOtp("");
+        setOtpError("");
+        return;
+      }
       localStorage.setItem("financeerp.token", result.token);
       localStorage.setItem("financeerp.user", JSON.stringify(result.user));
       onLogin(result.user);
@@ -34,6 +46,27 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
       setError(err instanceof Error ? err.message : "Login gagal");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function submitOtp(event: React.FormEvent) {
+    event.preventDefault();
+    if (!twoFactor) return;
+    if (!otp.trim()) {
+      setOtpError("Kode verifikasi wajib diisi.");
+      return;
+    }
+    setOtpLoading(true);
+    setOtpError("");
+    try {
+      const result = await verifyTwoFactorLogin(twoFactor.userId, otp.trim());
+      localStorage.setItem("financeerp.token", result.token);
+      localStorage.setItem("financeerp.user", JSON.stringify(result.user));
+      onLogin(result.user);
+    } catch (err) {
+      setOtpError(err instanceof Error ? err.message : "Kode verifikasi salah.");
+    } finally {
+      setOtpLoading(false);
     }
   }
 
@@ -87,6 +120,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
         <div className="login-logo mx-auto">
           <img src={feastLogo} alt="FEAST - Financial Enterprise Andalan System" />
         </div>
+        {!twoFactor ? (
         <form onSubmit={submit} className="login-form">
           <label>Email<input value={email} onChange={(e) => setEmail(e.target.value)} type="email" /></label>
           <label>Password<input value={password} onChange={(e) => setPassword(e.target.value)} type="password" /></label>
@@ -96,6 +130,36 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
             <KeyRound size={13} /> Lupa password?
           </button>
         </form>
+        ) : (
+        <form onSubmit={submitOtp} className="login-form">
+          <div className="flex items-center justify-center gap-2 text-[#20a6b8]">
+            <ShieldCheck size={20} />
+            <span className="font-bold text-sm text-slate-800">Verifikasi Dua Langkah</span>
+          </div>
+          <p className="text-center text-xs text-slate-500 -mt-2">
+            Masukkan kode 6 digit dari aplikasi authenticator untuk <b>{twoFactor.email}</b>
+          </p>
+          <label>Kode Verifikasi
+            <input
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              inputMode="numeric"
+              autoFocus
+              placeholder="000000"
+              className="text-center tracking-[0.5em] font-mono text-lg"
+            />
+          </label>
+          {otpError && <div className="error">{otpError}</div>}
+          <button className="transition disabled:cursor-wait disabled:opacity-70 !bg-[#20a6b8] !text-white hover:!bg-[#1c92a2] !shadow-[0_16px_30px_rgba(32,166,184,.25)]" disabled={otpLoading}>{otpLoading ? "Memverifikasi..." : "Verifikasi & Masuk"}</button>
+          <button
+            type="button"
+            onClick={() => setTwoFactor(null)}
+            className="text-xs font-bold text-slate-500 hover:text-[#20a6b8] transition inline-flex items-center gap-1.5 justify-center"
+          >
+            <KeyRound size={13} /> Kembali ke login
+          </button>
+        </form>
+        )}
         <div className="powered-by justify-center !border-t-0">
           <span>Powered by</span>
           <img src={andalanLogo} alt="Andalan" className="!h-12 !w-auto !object-center" />

@@ -46,7 +46,7 @@ import {
   type User as UserType,
   type Company
 } from "../lib/api";
-import { authorized, defaultCompanyOptions, companyOptionsForUser, isHeadOfficeUser, roleScopeOf, rolesAssignableBy, userScopeType } from "../lib/auth";
+import { authorized, companyOptionsForUser, isHeadOfficeUser, loadCompanies as loadAuthCompanies, roleScopeOf, rolesAssignableBy, userScopeType } from "../lib/auth";
 
 export function isSuperAdminRole(role: string | undefined | null): boolean {
   const r = (role ?? "").trim().toLowerCase();
@@ -109,9 +109,9 @@ export function RBACPage({
     password: "",
     role: "Admin Finance Site",
     status: "active",
-    companyCode: "AAP",
-    companyName: "PT Andalan Artha Primanusa",
-    companyScope: ["AAP"] as string[] | "ALL"
+    companyCode: "",
+    companyName: "",
+    companyScope: [] as string[] | "ALL"
   });
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -251,7 +251,7 @@ export function RBACPage({
 
   const loadCompanies = async () => {
     try {
-      const data = await getCompanies();
+      const data = await loadAuthCompanies();
       setCompanyList(Array.isArray(data) ? data : []);
     } catch {
       setCompanyList([]);
@@ -283,7 +283,7 @@ export function RBACPage({
   const scopedCompanies = useMemo(() => {
     const base = companyList.length
       ? companyList.map((company) => ({ id: company.id, code: company.code, name: company.name }))
-      : defaultCompanyOptions;
+      : [];
     if (isHeadOfficeUser(user)) return base;
     const allowed = companyOptionsForUser(user);
     return base.filter((company) => allowed.some((item) => item.code === company.code || item.id === company.id));
@@ -299,16 +299,16 @@ export function RBACPage({
   const openCreateModal = () => {
     setModalMode("create");
     setSelectedUser(null);
-    const defaultCompany = scopedCompanies[0] ?? defaultCompanyOptions[0];
+    const defaultCompany = scopedCompanies[0];
     setFormData({
       name: "",
       email: "",
       password: "",
       role: allAvailableRoles[0] ?? "Admin Finance Site",
       status: "active",
-      companyCode: defaultCompany.code,
-      companyName: defaultCompany.name,
-      companyScope: defaultCompany.code === "HO" ? "ALL" : [defaultCompany.code]
+      companyCode: defaultCompany?.code ?? "",
+      companyName: defaultCompany?.name ?? "",
+      companyScope: defaultCompany?.code === "HO" ? "ALL" : (defaultCompany?.code ? [defaultCompany.code] : [])
     });
     setModalOpen(true);
   };
@@ -322,9 +322,9 @@ export function RBACPage({
       password: "",
       role: target.role,
       status: target.status || "active",
-      companyCode: target.companyCode ?? scopedCompanies[0]?.code ?? "AAP",
-      companyName: target.companyName ?? scopedCompanies[0]?.name ?? "PT Andalan Artha Primanusa",
-      companyScope: target.companyScope ?? (target.companyCode ? [target.companyCode] : [scopedCompanies[0]?.code ?? "AAP"])
+      companyCode: target.companyCode ?? scopedCompanies[0]?.code ?? "",
+      companyName: target.companyName ?? scopedCompanies[0]?.name ?? "",
+      companyScope: target.companyScope ?? (target.companyCode ? [target.companyCode] : (scopedCompanies[0]?.code ? [scopedCompanies[0].code] : []))
     });
     setModalOpen(true);
   };
