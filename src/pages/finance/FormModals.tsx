@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Search, Fuel } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
-import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, getAuditLogs, User as UserType } from "../../lib/api";
+import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, getAuditLogs, getCompanies, type Company, User as UserType } from "../../lib/api";
 
 import {
   resolveDocumentUrl, formatIDR, parseNumber, formatThousand, formatDateInput,
@@ -130,6 +130,12 @@ export function FormModals({ c }: { c: any }) {
 
   const [auditTab, setAuditTab] = useState<"flow" | "activity">("flow");
   const [baAuditLogs, setBaAuditLogs] = useState<any[]>([]);
+
+  const [companyList, setCompanyList] = useState<Company[]>([]);
+
+  useEffect(() => {
+    getCompanies().then((c) => { if (Array.isArray(c)) setCompanyList(c); }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (modalType === "ba") {
@@ -1233,11 +1239,10 @@ export function FormModals({ c }: { c: any }) {
                         onChange={(e) => setFormData({ ...formData, customerCode: e.target.value })}
                         required
                       >
-                        <option value="POS">POS - PT Position</option>
-                        <option value="BGG">BGG - PT Budi Gema Gempita (Rasio 3:1)</option>
-                        <option value="SBS">SBS - PT Satria Bahana Sarana (Rasio 3:1)</option>
-                        <option value="DBK">DBK - PT Daya Bumindo Karunia (Rasio 3.5:1)</option>
-                        <option value="ABN">ABN - PT Andalan Bhumi Nusantara (Rasio 3:1)</option>
+                        <option value="">— Pilih Customer —</option>
+                        {companyList.map((c) => (
+                          <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
+                        ))}
                       </select>
                     </div>
 
@@ -1463,10 +1468,10 @@ export function FormModals({ c }: { c: any }) {
                                   }
                                 }}
                               >
-                                <option value="POS">POS – PT Position / Paramitha</option>
-                                <option value="SBS">SBS – PT Sumber Bara Sejahtera</option>
-                                <option value="BGG">BGG – PT Budi Gema Gempita</option>
-                                <option value="DBK">DBK – PT Dayabumi Kencana</option>
+                                <option value="">— Pilih Customer —</option>
+                                {companyList.map((c) => (
+                                  <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
+                                ))}
                               </select>
                             </div>
                             <div>
@@ -2857,11 +2862,10 @@ export function FormModals({ c }: { c: any }) {
                       <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Customer Code <span className="text-rose-600">*</span></label>
                         <select className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold focus:border-cyan-700 focus:bg-white outline-none" value={formData.customerCode || ""} onChange={(e) => setFormData({ ...formData, customerCode: e.target.value })}>
-                          <option value="BGG">BGG</option>
-                          <option value="SBS">SBS</option>
-                          <option value="DBK">DBK</option>
-                          <option value="POS">POS</option>
-                          <option value="ABN">ABN</option>
+                          <option value="">— Pilih Customer —</option>
+                          {companyList.map((c) => (
+                            <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
+                          ))}
                         </select>
                       </div>
                     </div>

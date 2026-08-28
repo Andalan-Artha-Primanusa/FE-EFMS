@@ -5,7 +5,7 @@ import {
   CheckCircle2, AlertTriangle, ShieldCheck, ArrowRight, Info, Check
 } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
-import { api } from "../../lib/api";
+import { api, getCompanies, type Company } from "../../lib/api";
 import { formatIDR } from "./helpers";
 
 interface SOWItem {
@@ -51,8 +51,13 @@ export function CustomerView({ c }: { c: any }) {
 
   // Active top-level view: "cards" (Direktori Klien) or "setup" (Parameter, SOW & Formula)
   const [viewMode, setViewMode] = useState<"cards" | "setup">("cards");
-  const [selectedClientCode, setSelectedClientCode] = useState<string>("BGG");
+  const [selectedClientCode, setSelectedClientCode] = useState<string>("");
   const [setupSubTab, setSetupSubTab] = useState<"profile" | "sow" | "formula" | "simulation">("sow");
+  const [companyList, setCompanyList] = useState<Company[]>([]);
+
+  useEffect(() => {
+    getCompanies().then((c) => { if (Array.isArray(c)) setCompanyList(c); }).catch(() => {});
+  }, []);
 
   // Auxiliary data for SOW, Coal Index, Raise & Fall
   const [sowList, setSowList] = useState<SOWItem[]>([]);
@@ -323,13 +328,13 @@ export function CustomerView({ c }: { c: any }) {
         <div className="space-y-4">
           {/* Site Selector Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {["POS", "BGG", "DBK", "SBS"].map((code) => {
-              const isActive = selectedClientCode.toUpperCase() === code;
+            {companyList.map((c) => {
+              const isActive = selectedClientCode.toUpperCase() === c.code;
               return (
                 <button
-                  key={code}
+                  key={c.code}
                   type="button"
-                  onClick={() => setSelectedClientCode(code)}
+                  onClick={() => setSelectedClientCode(c.code)}
                   className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
                     isActive
                       ? "bg-cyan-900/10 border-cyan-600 ring-2 ring-cyan-600/30 shadow-xs"
@@ -337,11 +342,11 @@ export function CustomerView({ c }: { c: any }) {
                   }`}
                 >
                   <div className="flex justify-between items-center">
-                    <span className="font-black text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-900">{code}</span>
+                    <span className="font-black text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-900">{c.code}</span>
                     {isActive && <span className="text-[9px] font-black uppercase text-cyan-800 bg-cyan-100 px-1.5 py-0.5 rounded">Aktif</span>}
                   </div>
                   <div className="font-extrabold text-xs text-slate-900 mt-1.5">
-                    {code === "POS" ? "Site POS (Nikel)" : code === "BGG" ? "Site BGG (Batubara)" : code === "DBK" ? "Site DBK (Petrosea)" : "Site SBS"}
+                    {c.code === "POS" ? "Site POS (Nikel)" : c.code === "BGG" ? "Site BGG (Batubara)" : c.code === "DBK" ? "Site DBK (Petrosea)" : "Site SBS"}
                   </div>
                 </button>
               );
