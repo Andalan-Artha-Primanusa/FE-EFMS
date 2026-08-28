@@ -31,9 +31,9 @@ export function AccountSettingsRoute() {
   return <AccountSettingsPage user={user} auditLogs={notifications ?? []} onBack={() => navigate("/")} />;
 }
 
-export function RBACRoute() {
+export function RBACRoute({ initialTab = "users", pageTitle = "User & RBAC Management" }: { initialTab?: "users" | "matrix" | "simulate" | "tcodes"; pageTitle?: string } = {}) {
   const { user, roles, permissions, tcodes } = useOutletContext<any>();
-  return <RBACPage user={user} roles={roles} myPermissions={permissions} myTcodes={tcodes} />;
+  return <RBACPage user={user} roles={roles} myPermissions={permissions} myTcodes={tcodes} initialTab={initialTab} pageTitle={pageTitle} />;
 }
 
 export function GeneralJournalRoute({ viewTitle }: { viewTitle: string }) {
