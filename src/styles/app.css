@@ -19,6 +19,17 @@ html, body, #root, button, input, select, textarea {
 body { margin: 0; min-width: 320px; }
 button { cursor: pointer; }
 
+/* Hilangkan tanda panah spinner (spin buttons) pada semua input type="number" */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 .login-page {
   min-height: 100vh;
   min-height: 100dvh;

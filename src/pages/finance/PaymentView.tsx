@@ -35,7 +35,7 @@ export function PaymentView({ c }: { c: any }) {
             </div>
           </div>
 
-          <Panel title="ðŸ’µ Log Mutasi Pembayaran Masuk (Receiving Cash/Bank)">
+          <Panel title="Log Mutasi Pembayaran Masuk (Receiving Cash/Bank)">
             <div className="table-wrapper overflow-x-auto rounded-xl border border-slate-200 shadow-xs">
               <table className="data-table w-full text-xs text-left border-collapse font-sans">
                 <thead>

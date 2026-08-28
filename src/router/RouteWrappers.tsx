@@ -11,7 +11,13 @@ import { FinanceBATrackerPage } from "../pages/FinanceBATrackerPage";
 import { FinanceInvoicePage } from "../pages/FinanceInvoicePage";
 import { FinancePaymentPage } from "../pages/FinancePaymentPage";
 import { FinanceCustomerPage } from "../pages/FinanceCustomerPage";
+import { SiteSetupPage } from "../pages/SiteSetupPage";
 import { CompanyPage } from "../pages/CompanyPage";
+
+export function SiteSetupRoute({ viewTitle = "Setup Parameter Site & Klien" }: { viewTitle?: string }) {
+  const { query, setNotice, user } = useOutletContext<any>();
+  return <SiteSetupPage viewTitle={viewTitle} query={query} onNotice={setNotice} user={user} />;
+}
 
 export function DashboardRoute() {
   const { dashboard, transactions, query, refresh, setNotice } = useOutletContext<any>();
@@ -65,9 +71,9 @@ export function FinancePaymentRoute() {
   return <FinancePaymentPage viewTitle="Payment & Receipt Log" query={query} onNotice={setNotice} user={user} />;
 }
 
-export function FinanceCustomerRoute() {
+export function FinanceCustomerRoute({ viewTitle = "Client Setup" }: { viewTitle?: string } = {}) {
   const { query, setNotice, user } = useOutletContext<any>();
-  return <FinanceCustomerPage viewTitle="Customer Master & Credit Terms" query={query} onNotice={setNotice} user={user} />;
+  return <FinanceCustomerPage viewTitle={viewTitle} query={query} onNotice={setNotice} user={user} />;
 }
 
 export function CompanyRoute() {
