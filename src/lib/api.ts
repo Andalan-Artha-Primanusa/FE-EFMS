@@ -83,6 +83,29 @@ export type Company = {
   createdAt: string;
 };
 
+export type OrgUnit = {
+  id: number;
+  companyId: number;
+  type: string;
+  code: string;
+  name: string;
+  parentId?: number | null;
+  status: string;
+  companyCode?: string;
+  companyName?: string;
+};
+
+export const ORG_UNIT_TYPES = [
+  "business_unit",
+  "branch",
+  "site",
+  "department",
+  "division",
+  "cost_center",
+  "profit_center",
+  "project"
+] as const;
+
 export type Dashboard = {
   kpis: Array<{ label: string; value: number; delta: number; tone: string }>;
   monthlyFinance: Array<Record<string, number | string>>;
@@ -116,8 +139,12 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (res.status === 204) return undefined as T;
   return res.json();
 }
+export type LoginResult =
+  | { token: string; user: User; requires2FA?: false }
+  | { token?: undefined; user?: User; requires2FA: true; userId: number; email: string };
+
 export async function login(email: string, password: string) {
-  return api<{ token: string; user: User }>("/api/auth/login", {
+  return api<LoginResult>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password })
   });
@@ -172,6 +199,15 @@ export function updateMasterRecord(id: number, input: { type: string; code: stri
 
 export function deleteMasterRecord(id: number) {
   return api<{ status: string }>(`/api/master-data/${id}`, { method: "DELETE" });
+}
+
+export function getMasterData(params: { type: string; company?: string; q?: string }) {
+  const qs = new URLSearchParams();
+  if (params.type) qs.set("type", params.type);
+  if (params.company) qs.set("company", params.company);
+  if (params.q) qs.set("q", params.q);
+  const q = qs.toString();
+  return api<MasterRecord[]>(`/api/master-data${q ? `?${q}` : ""}`);
 }
 
 export function previewNumber(object: string, type = "*") {
@@ -427,5 +463,304 @@ export function updateCompany(id: number, input: { code: string; name: string; i
 
 export function deleteCompany(id: number) {
   return api<void>(`/api/companies/${id}`, { method: "DELETE" });
+}
+
+// Org Unit Endpoints
+export function getOrgUnits(params: { type?: string; companyId?: number; withCompany?: number } = {}) {
+  const qs = new URLSearchParams();
+  if (params.type) qs.set("type", params.type);
+  if (params.companyId) qs.set("companyId", String(params.companyId));
+  if (params.withCompany) qs.set("withCompany", String(params.withCompany));
+  const query = qs.toString();
+  return api<OrgUnit[]>(`/api/org-units${query ? `?${query}` : ""}`);
+}
+
+export function createOrgUnit(input: Partial<OrgUnit>) {
+  return api<OrgUnit>("/api/org-units", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export function updateOrgUnit(id: number, input: Partial<OrgUnit>) {
+  return api<OrgUnit>(`/api/org-units/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input)
+  });
+}
+
+export function deleteOrgUnit(id: number) {
+  return api<void>(`/api/org-units/${id}`, { method: "DELETE" });
+}
+
+// Missing API Integrations
+export function calculateMiningInvoice(input: any) {
+  return api<any>("/api/finance/invoices/calculate-mining", { method: "POST", body: JSON.stringify(input) });
+}
+
+export function generateJournalFromInvoice(id: number) {
+  return api<any>(`/api/accounting/generate-from-invoice/${id}`, { method: "POST" });
+}
+
+export function generateJournalFromPayment(id: number) {
+  return api<any>(`/api/accounting/generate-from-payment/${id}`, { method: "POST" });
+}
+
+export function getSystemSettings() {
+  return api<any[]>("/api/system-settings");
+}
+
+export function saveSystemSetting(setting: any) {
+  return api<any>("/api/system-settings", { method: "POST", body: JSON.stringify(setting) });
+}
+
+export function getAccountingRuns() {
+  return api<any[]>("/api/accounting/runs");
+}
+
+export function getManagementDashboard() {
+  return api<any[]>("/api/management-dashboard");
+}
+
+export function getFinanceFlow() {
+  return api<any>("/api/finance-flow");
+}
+
+export function getModules() {
+  return api<any[]>("/api/modules");
+}
+
+export function createAuditLog(input: any) {
+  return api<any>("/api/audit-logs", { method: "POST", body: JSON.stringify(input) });
+}
+
+// =========================== Budget Management ===========================
+export type Budget = {
+  id: number;
+  fiscalYear: number;
+  periodMonth: number;
+  companyId: number;
+  companyCode?: string;
+  companyName?: string;
+  departmentId?: number | null;
+  projectId?: number | null;
+  costCenterId?: number | null;
+  accountId: number;
+  accountCode?: string;
+  accountName?: string;
+  amount: number;
+  utilized: number;
+  reserved: number;
+  available: number;
+  status: string;
+  createdBy?: string;
+  createdAt: string;
+};
+
+export type BudgetInput = {
+  fiscalYear: number;
+  periodMonth: number;
+  companyId: number;
+  departmentId?: number | null;
+  projectId?: number | null;
+  costCenterId?: number | null;
+  accountId: number;
+  amount: number;
+};
+
+export type BudgetEvent = {
+  id: number;
+  budgetId: number;
+  eventType: string;
+  amount: number;
+  note: string;
+  createdBy: string;
+  createdAt: string;
+};
+
+export type BudgetStatusSummary = {
+  period: string;
+  budget: number;
+  actual: number;
+  used: number;
+  variance: number;
+};
+
+export function getBudgets(status?: string, company?: string, fiscalYear?: number) {
+  const qs = new URLSearchParams();
+  if (status) qs.set("status", status);
+  if (company) qs.set("company", company);
+  if (fiscalYear) qs.set("fiscalYear", String(fiscalYear));
+  const q = qs.toString();
+  return api<Budget[]>(`/api/budgets${q ? `?${q}` : ""}`);
+}
+
+export function createBudget(input: BudgetInput) {
+  return api<Budget>("/api/budgets", { method: "POST", body: JSON.stringify(input) });
+}
+
+export function updateBudget(id: number, input: BudgetInput) {
+  return api<Budget>(`/api/budgets/${id}`, { method: "PUT", body: JSON.stringify(input) });
+}
+
+export function deleteBudget(id: number) {
+  return api<void>(`/api/budgets/${id}`, { method: "DELETE" });
+}
+
+export function submitBudget(id: number, note = "") {
+  return api<Budget>(`/api/budgets/${id}/submit`, { method: "POST", body: JSON.stringify({ note }) });
+}
+
+export function approveBudget(id: number, note = "") {
+  return api<Budget>(`/api/budgets/${id}/approve`, { method: "POST", body: JSON.stringify({ note }) });
+}
+
+export function rejectBudget(id: number, note = "") {
+  return api<Budget>(`/api/budgets/${id}/reject`, { method: "POST", body: JSON.stringify({ note }) });
+}
+
+export function lockBudget(id: number, note = "") {
+  return api<Budget>(`/api/budgets/${id}/lock`, { method: "POST", body: JSON.stringify({ note }) });
+}
+
+export function reviseBudget(id: number, note = "") {
+  return api<Budget>(`/api/budgets/${id}/revise`, { method: "POST", body: JSON.stringify({ note }) });
+}
+
+export function getBudgetEvents(id: number) {
+  return api<BudgetEvent[]>(`/api/budgets/${id}/events`);
+}
+
+export function getBudgetVsActual(fiscalYear?: number) {
+  const q = fiscalYear ? `?fiscalYear=${fiscalYear}` : "";
+  return api<BudgetStatusSummary[]>(`/api/budgets/vs-actual${q}`);
+}
+
+export function validateBudget(input: { companyId: number; accountId: number; amount: number }) {
+  return api<{ status: string; budgetAmount: number; utilized: number; reserved: number; availableAmount: number; message: string }>("/api/budgets/validate", {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+// =========================== Period Closing (sub-process) ===========================
+export type ClosingStep = {
+  period: string;
+  step: string;
+  progress: number;
+  status: string;
+  lockedAt?: string | null;
+  createdAt?: string;
+};
+
+export function getClosingPeriods() {
+  return api<ClosingStep[]>("/api/closing-periods");
+}
+
+export function startClosing(period: string) {
+  return api<ClosingStep>("/api/closing-periods/start", { method: "POST", body: JSON.stringify({ period }) });
+}
+
+export function advanceClosingStep(period: string) {
+  return api<ClosingStep>("/api/closing-periods/advance", { method: "POST", body: JSON.stringify({ period }) });
+}
+
+export function resetClosing(period: string) {
+  return api<ClosingStep>("/api/closing-periods/reset", { method: "POST", body: JSON.stringify({ period }) });
+}
+
+export function lockClosingPeriod(period: string) {
+  return api<ClosingStep>("/api/closing-periods/close", { method: "POST", body: JSON.stringify({ period }) });
+}
+
+// =========================== Notification Center ===========================
+export type Notification = {
+  id: number;
+  userId: number;
+  title: string;
+  body: string;
+  module: string;
+  refType?: string;
+  refId?: string;
+  isRead: boolean;
+  createdAt: string;
+};
+
+export function getNotifications(unreadOnly = false) {
+  return api<Notification[]>(`/api/notifications${unreadOnly ? "?unread=true" : ""}`);
+}
+
+export function getUnreadNotificationCount() {
+  return api<{ count: number }>("/api/notifications/unread-count");
+}
+
+export function markNotificationRead(id: number) {
+  return api<Notification>(`/api/notifications/${id}/read`, { method: "POST" });
+}
+
+export function markAllNotificationsRead() {
+  return api<{ updated: number }>("/api/notifications/read-all", { method: "POST" });
+}
+
+// =========================== Profile ===========================
+export type Profile = {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  companyId?: number | null;
+  companyCode?: string;
+  companyName?: string;
+  department?: string;
+  position?: string;
+  phone?: string;
+  avatarUrl?: string;
+  twoFactorOn: boolean;
+  lastLoginAt?: string | null;
+};
+
+export function getProfile() {
+  return api<Profile>("/api/profile");
+}
+
+export function updateProfile(input: { name?: string; position?: string; phone?: string }) {
+  return api<Profile>("/api/profile", { method: "PUT", body: JSON.stringify(input) });
+}
+
+export function uploadAvatar(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return api<Profile>("/api/profile/avatar", { method: "POST", body: form });
+}
+
+// =========================== 2FA ===========================
+export type TwoFactorSetup = {
+  secret: string;
+  otpAuthUrl: string;
+  backupCodes?: string[];
+};
+
+export function generateTwoFactorSetup() {
+  return api<TwoFactorSetup>("/api/auth/2fa/setup", { method: "POST" });
+}
+
+export function enableTwoFactor(code: string) {
+  return api<TwoFactorSetup>("/api/auth/2fa/enable", { method: "POST", body: JSON.stringify({ code }) });
+}
+
+export function disableTwoFactor(code: string) {
+  return api<{ status: string }>("/api/auth/2fa/disable", { method: "POST", body: JSON.stringify({ code }) });
+}
+
+export function getTwoFactorStatus() {
+  return api<{ enabled: boolean }>("/api/auth/2fa/status");
+}
+
+export function verifyTwoFactorLogin(userId: number, code: string) {
+  return api<{ token: string; user: User }>("/api/auth/2fa/verify", {
+    method: "POST",
+    body: JSON.stringify({ userId, code })
+  });
 }
 

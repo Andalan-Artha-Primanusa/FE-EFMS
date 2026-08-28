@@ -23,21 +23,13 @@ import {
 } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
-import { api } from "../lib/api";
+import { api, getCompanies, type Company } from "../lib/api";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const formatIDR = (val: number) => {
   if (!val && val !== 0) return "Rp 0";
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 2 }).format(val);
 };
-
-export const defaultCompanyOptions = [
-  { name: "PT Budi Gema Gempita", code: "BGG", contract: "09/BGG-AAP/VIII/2018", type: "coal", badgeColor: "amber", desc: "Kontrak Batubara Multi-Tiering SOW (75% / 25% Split)" },
-  { name: "PT Position", code: "POS", contract: "002/POS-AAP/2025", type: "nickel", badgeColor: "cyan", desc: "Kontrak Nikel Presisi USD (3 Desimal + M-Rate BI)" },
-  { name: "PT Satria Bahana Sarana", code: "SBS", contract: "230/AAP-SBS/EXT/XII/24", type: "coal", badgeColor: "indigo", desc: "Kontrak Penambangan Batubara & Sewa Alat Berat" },
-  { name: "PT Daya Bumindo Karunia", code: "DBK", contract: "001/DBK-AAP/2024", type: "coal", badgeColor: "emerald", desc: "Kontrak Batubara Dual Currency (USD/IDR Overhaul)" },
-  { name: "PT Andalan Bhumi Nusantara", code: "ABN", contract: "001/AAP-ABN/IV/25", type: "heavy_equipment", badgeColor: "slate", desc: "Sewa Alat Berat Afiliasi Internal" }
-];
 
 export const defaultBGGSOWTemplate = [
   { category: "OB Removal", itemName: "OVER BURDEN REMOVAL 1 (75%)", tier1Rate: 27000, tier2Rate: 27250, tier3Rate: 29500, splitPercentage: 75, baseDistanceMeters: 1000, unit: "Bcm", rateIDR: 29500, rateUSD: 0 },
@@ -87,6 +79,7 @@ export function VariableSOWPage({
   const [mrateBi, setMrateBi] = useState<number>(17923.30);
   const [contractsList, setContractsList] = useState<any[]>([]);
   const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>("ALL");
+  const [companyList, setCompanyList] = useState<Company[]>([]);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -102,10 +95,14 @@ export function VariableSOWPage({
   async function loadData() {
     setLoading(true);
     try {
-      const [resSow, resMrate] = await Promise.all([
+      const [resSow, resMrate, resCompanies] = await Promise.all([
         api<any[]>("/api/master-data/variable-sow").catch(() => []),
-        api<any[]>("/api/master-data/daily-exchange-rates").catch(() => [])
+        api<any[]>("/api/master-data/daily-exchange-rates").catch(() => []),
+        getCompanies().catch(() => [] as Company[])
       ]);
+
+      const companies = Array.isArray(resCompanies) ? resCompanies : [];
+      setCompanyList(companies);
 
       const activeSows = Array.isArray(resSow) ? resSow : [];
       setSowRows(activeSows);
@@ -117,19 +114,20 @@ export function VariableSOWPage({
         if (val > 0) setMrateBi(val);
       }
 
-      // Group SOWs by Company & Contract for Main Table
+      // Group SOWs by Company & Contract for Main Table.
+      // Kept companies come from the backend API (/api/companies) — not hardcoded.
       const groupedMap: Record<string, any> = {};
 
-      // Seed default contracts
-      defaultCompanyOptions.forEach((opt) => {
-        const template = opt.code === "BGG" ? defaultBGGSOWTemplate : defaultSOWTemplate;
-        groupedMap[opt.code] = {
-          companyName: opt.name,
-          companyCode: opt.code,
-          contractNo: opt.contract,
-          type: opt.type,
-          badgeColor: opt.badgeColor,
-          desc: opt.desc,
+      companies.forEach((c) => {
+        const code = c.code || `C${c.id}`;
+        const template = defaultSOWTemplate;
+        groupedMap[code] = {
+          companyName: c.name,
+          companyCode: code,
+          contractNo: "",
+          type: "generic",
+          badgeColor: "slate",
+          desc: "",
           itemCount: template.length,
           items: template
         };
@@ -142,7 +140,7 @@ export function VariableSOWPage({
           return;
         }
 
-        const cCode = item.customerCode || item.customer || "BGG";
+        const cCode = item.customerCode || item.customer || "";
         if (groupedMap[cCode]) {
           const existingItems = [...groupedMap[cCode].items];
           const idx = existingItems.findIndex(i => i.itemName.trim().toLowerCase() === item.itemName.trim().toLowerCase());
@@ -249,7 +247,7 @@ export function VariableSOWPage({
           <div className="text-2xl font-black text-slate-900 font-mono tracking-tight pt-1">
             {contractsList.length} Kontrak Perusahaan
           </div>
-          <p className="text-[11px] text-slate-400">BGG, POS, SBS, DBK, ABN</p>
+          <p className="text-[11px] text-slate-400">{companyList.map((c) => c.code).join(", ") || "Perusahaan dari database"}</p>
         </div>
 
         <div className="p-5 rounded-3xl border border-slate-200 bg-white shadow-xs space-y-1">
@@ -276,7 +274,7 @@ export function VariableSOWPage({
         >
           Semua Kontrak ({contractsList.length})
         </button>
-        {defaultCompanyOptions.map((c) => (
+        {companyList.map((c) => (
           <button
             key={c.code}
             onClick={() => setSelectedCompanyFilter(c.code)}
@@ -335,7 +333,7 @@ export function VariableSOWPage({
                   </td>
                   <td className="p-4 font-mono font-bold text-slate-800 text-xs">{c.contractNo}</td>
                   <td className="p-4 text-center">
-                    {c.companyCode === "BGG" || c.type === "coal" ? (
+                    {c.type === "coal" ? (
                       <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300">
                         <Flame size={12} className="text-amber-600" />
                         Batubara (Multi-Tier)

@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { menuPermissionMap } from "../data/navigation";
-import type { Permission, RoleAccess, TCode, User } from "./api";
+import { getCompanies, type Company, type Permission, type RoleAccess, type TCode, type User } from "./api";
 
 export function isSuperAdminRole(role: string) {
   const normalized = role?.toLowerCase() ?? "";
@@ -126,23 +127,68 @@ export function companyScopeOf(user: User) {
   return { all: false, codes: codes.map((code) => code.toUpperCase()), ids, names };
 }
 
-export const defaultCompanyOptions = [
-  { id: 1, code: "HO", name: "Head Office" },
-  { id: 2, code: "AAP", name: "PT Andalan Artha Primanusa" },
-  { id: 3, code: "BGG", name: "PT Budi Gema Gempita" },
-  { id: 4, code: "POS", name: "PT Prima Orbit Sejahtera" },
-  { id: 5, code: "SBS", name: "PT Sumber Bara Sejahtera" },
-  { id: 6, code: "DBK", name: "PT Duta Bara Kaltim" }
-];
+let cachedCompanies: Company[] = [];
+let companyLoadPromise: Promise<Company[]> | null = null;
 
-export function companyOptionsForUser(user: User) {
+// Loads the company list from the backend (/api/companies) once and caches it.
+// All FE dropdowns consume this cache so nothing is hardcoded client-side.
+export function loadCompanies(): Promise<Company[]> {
+  if (!companyLoadPromise) {
+    companyLoadPromise = getCompanies()
+      .then((companies) => (Array.isArray(companies) ? companies : []))
+      .then((companies) => {
+        cachedCompanies = companies;
+        return companies;
+      })
+      .catch(() => {
+        cachedCompanies = [];
+        return [];
+      });
+  }
+  return companyLoadPromise;
+}
+
+export function getCachedCompanies(): Company[] {
+  return cachedCompanies;
+}
+
+export async function reloadCompanies(): Promise<Company[]> {
+  companyLoadPromise = null;
+  const companies = await loadCompanies();
+  return companies;
+}
+
+export function companyOptionsForUser(user: User): Company[] {
   const scope = companyScopeOf(user);
-  if (scope.all) return defaultCompanyOptions;
-  const byCode = defaultCompanyOptions.filter((company) => scope.codes.includes(company.code));
-  const byId = defaultCompanyOptions.filter((company) => scope.ids.includes(company.id));
-  const options = [...byCode, ...byId].filter((company, index, list) => list.findIndex((item) => item.id === company.id) === index);
+  const all = getCachedCompanies();
+  if (scope.all) return all;
+  const sanity = (c: Company) => (Number.isFinite(Number(c.id)) ? Number(c.id) : -1);
+  const byCode = all.filter((company) => scope.codes.includes(String(company.code ?? "").toUpperCase()));
+  const byId = all.filter((company) => scope.ids.includes(sanity(company)));
+  const options = [...byCode, ...byId].filter((company, index, list) => list.findIndex((item) => String(item.id) === String(company.id)) === index);
   if (options.length) return options;
-  return [{ id: user.companyId ?? 1, code: user.companyCode ?? "COMPANY", name: user.companyName ?? user.companyCode ?? "Company User" }];
+  const fallback = all.filter((company) => String(company.code ?? "").toUpperCase() === String(user.companyCode ?? "").toUpperCase());
+  if (fallback.length) return fallback;
+  if (user.companyId != null && Number.isFinite(Number(user.companyId))) {
+    const bySelfId = all.filter((company) => Number(company.id) === Number(user.companyId));
+    if (bySelfId.length) return bySelfId;
+  }
+  return all.length ? [all[0]] : [];
+}
+
+// React hook: loads the company list (API-backed) and returns the scoped options
+// for the given user, re-rendering once the data arrives.
+export function useCompanyOptions(user: User): { companies: Company[]; options: Company[]; loading: boolean } {
+  const [tick, setTick] = useState(0);
+  const [loading, setLoading] = useState(getCachedCompanies().length === 0);
+  useEffect(() => {
+    loadCompanies().finally(() => {
+      setLoading(false);
+      setTick((t) => t + 1);
+    });
+  }, []);
+  void tick;
+  return { companies: getCachedCompanies(), options: companyOptionsForUser(user), loading };
 }
 
 export function companyCodeOf(row: any) {

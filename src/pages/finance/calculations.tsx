@@ -5,21 +5,41 @@
 // agar terpisah dari UI dan state.
 // =============================================================
 
-/** Hitung Raise & Fall Index dari harga solar, upah, dan kurs. */
-export function calcRFIndex(fuelPriceUSD: number, laborPriceIDR: number, mRate: number): number {
-  const baseFuelPrice = 10699.97;
-  const baseLaborPrice = 3594536;
-  const baseForexRate = 15388.75;
-  const weightA = 0.34;
-  const weightB = 0.25;
-  const weightC = 0.41;
-  const obBaseRateUSD = 3.327;
-  const fuelTerm = (obBaseRateUSD * weightA * (fuelPriceUSD * mRate)) / baseFuelPrice;
-  const laborTerm = (obBaseRateUSD * weightB * (laborPriceIDR * mRate)) / (baseLaborPrice * baseForexRate);
-  const fixedTerm = obBaseRateUSD * weightC;
-  return (fuelTerm + laborTerm + fixedTerm) / obBaseRateUSD;
+import { calculateMiningInvoice } from "../../lib/api";
+
+export async function fetchServerCalculations(input: any) {
+  try {
+    const result = await calculateMiningInvoice(input);
+    return result;
+  } catch (error) {
+    console.error("Gagal mengambil kalkulasi server", error);
+    return null;
+  }
 }
 
+/** Hitung Raise & Fall Index dari harga solar, upah, dan kurs. */
+export function calcRFIndex(fuelPriceUSD: number, laborPriceIDR: number, mRate: number, rfMaster?: any): number {
+  if (!rfMaster) {
+    return 1.0; // fallback if no RF master is provided
+  }
+  
+  const baseFuelPrice = rfMaster.baseFuelFo || 1;
+  const baseLaborPrice = rfMaster.baseLaborLo || 1;
+  const baseForexRate = rfMaster.baseForexXo || 1;
+  const weightA = rfMaster.weightFuelA || 0;
+  const weightB = rfMaster.weightLaborB || 0;
+  const weightC = rfMaster.weightFixedC || 0;
+  
+  // We assume obBaseRateUSD is 1 for the purpose of the index multiplier calculation, 
+  // since the index is a multiplier applied to the base rate later.
+  const obBaseRateUSD = 1.0; 
+  
+  const fuelTerm = (obBaseRateUSD * weightA * (fuelPriceUSD * mRate)) / baseFuelPrice;
+  const laborTerm = weightB > 0 ? (obBaseRateUSD * weightB * (laborPriceIDR * mRate)) / (baseLaborPrice * baseForexRate) : 0;
+  const fixedTerm = obBaseRateUSD * weightC;
+  
+  return (fuelTerm + laborTerm + fixedTerm) / obBaseRateUSD;
+}
 /** Pabrik rumus item invoice: dependensi state disuntikkan lewat parameter. */
 export function createFinanceCalculations(deps: {
   formData: any;
@@ -31,7 +51,7 @@ export function createFinanceCalculations(deps: {
   const { formData, invLineItems, rfIndexCalculated, getSowMasterRate, mRate } = deps;
   const getItemEffectiveVolume = (item: any) => {
     if (!item) return 0;
-    const cust = formData.customerCode || "POS";
+    const cust = formData.customerCode || "";
 
     if (cust === "BGG") {
       if (item.section === "C") {
@@ -117,7 +137,7 @@ export function createFinanceCalculations(deps: {
   };
 
   const calculateItemRateAndAmount = (item: any, currentCust?: string) => {
-    const cust = currentCust || formData.customerCode || "POS";
+    const cust = currentCust || formData.customerCode || "";
     const rfFactor = rfIndexCalculated - 1;
     const vol = getItemEffectiveVolume(item);
     const mtr = getItemEffectiveOverhaulMtr(item);
@@ -239,7 +259,7 @@ export function createFinanceCalculations(deps: {
   };
 
   const getCustomerCalculations = (itemsList: any[], custCode?: string) => {
-    const cust = custCode || formData.customerCode || "POS";
+    const cust = custCode || formData.customerCode || "";
     const subA = itemsList.filter(i => i.section === "A").reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust).amount, 0);
     const subB = itemsList.filter(i => i.section === "B").reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust).amount, 0);
     const subC = itemsList.filter(i => i.section === "C").reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust).amount, 0);

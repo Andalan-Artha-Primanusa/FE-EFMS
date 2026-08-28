@@ -25,16 +25,7 @@ import {
 import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { api } from "../lib/api";
-
-const customerContractOptions = [
-  { code: "ALL", name: "Semua Customer / Kontrak", project: "All Projects", contract: "Semua Kontrak Active" },
-  { code: "POS", name: "PT Position (POS)", project: "POS PROJECT", contract: "002/POS-AAP/2025" },
-  { code: "SBS", name: "PT Satria Bahana Sarana (SBS)", project: "PT Satria Bahana Sarana Site", contract: "230/AAP-SBS/EXT/XII/24" },
-  { code: "BGG", name: "PT Budi Gema Gempita (BGG)", project: "PT Budi Gema Gempita Site", contract: "09/BGG-AAP/VIII/2018" },
-  { code: "DBK", name: "PT Daya Bumindo Karunia (DBK)", project: "PT Daya Bumindo Karunia Site", contract: "001/DBK-AAP/2024" },
-  { code: "ABN", name: "PT Andalan Bhumi Nusantara (ABN)", project: "PT Andalan Bhumi Nusantara Site", contract: "001/AAP-ABN/IV/25" }
-];
+import { api, getCompanies, type Company } from "../lib/api";
 
 export function MasterRaiseFallPage({
   viewTitle,
@@ -59,7 +50,19 @@ export function MasterRaiseFallPage({
   const [mrateRows, setMrateRows] = useState<any[]>([]);
   const [sowRows, setSowRows] = useState<any[]>([]);
   const [umkRows, setUmkRows] = useState<any[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState("POS");
+  const [selectedCustomer, setSelectedCustomer] = useState("ALL");
+  const [companyList, setCompanyList] = useState<Company[]>([]);
+
+  // Company options built from the backend API (/api/companies) — not hardcoded.
+  const customerContractOptions = [
+    { code: "ALL", name: "Semua Customer / Kontrak", project: "All Projects", contract: "Semua Kontrak Active" },
+    ...companyList.map((c) => ({
+      code: c.code,
+      name: `${c.name} (${c.code})`,
+      project: "",
+      contract: ""
+    }))
+  ];
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -96,9 +99,9 @@ export function MasterRaiseFallPage({
   // Form states
   const [rfForm, setRfForm] = useState<any>({
     period: "Juni 2026",
-    customerCode: "POS",
-    projectSite: "POS PROJECT",
-    contractNo: "002/POS-AAP/2025",
+    customerCode: "",
+    projectSite: "",
+    contractNo: "",
     formulaScheme: "TRIPLE_FACTOR_DLF",
     weightFuelA: 0.34,
     weightLaborB: 0.25,
@@ -152,6 +155,11 @@ export function MasterRaiseFallPage({
     loadData();
   }, []);
 
+  // Load company list from backend API (/api/companies) for the dropdown.
+  useEffect(() => {
+    getCompanies().then((c) => { if (Array.isArray(c)) setCompanyList(c); }).catch(() => {});
+  }, []);
+
   // Calculated current active RF Index
   const filteredRfRows = rfRows.filter((r) => {
     if (selectedCustomer !== "ALL" && r.customerCode !== selectedCustomer) return false;
@@ -160,9 +168,9 @@ export function MasterRaiseFallPage({
 
   const activeRf = filteredRfRows[0] || rfRows.find((r) => r.customerCode === selectedCustomer) || rfRows[0] || {
     period: "Juni 2026",
-    customerCode: "POS",
-    projectSite: "POS PROJECT",
-    contractNo: "002/POS-AAP/2025",
+    customerCode: selectedCustomer === "ALL" ? "" : selectedCustomer,
+    projectSite: customerContractOptions.find((c) => c.code === selectedCustomer)?.project || "",
+    contractNo: customerContractOptions.find((c) => c.code === selectedCustomer)?.contract || "",
     formulaScheme: "TRIPLE_FACTOR_DLF",
     weightFuelA: 0.34,
     weightLaborB: 0.25,
@@ -293,7 +301,7 @@ export function MasterRaiseFallPage({
 
     setRfForm({
       period: "Juli 2026",
-      customerCode: selectedCustomer === "ALL" ? "POS" : selectedCustomer,
+      customerCode: selectedCustomer === "ALL" ? "" : selectedCustomer,
       projectSite: isBGG ? "PT Budi Gema Gempita Site" : "POS PROJECT",
       contractNo: isBGG ? "09/BGG-AAP/VIII/2018" : "002/POS-AAP/2025",
       formulaScheme: isBGG ? "SINGLE_FACTOR_FUEL" : "TRIPLE_FACTOR_DLF",

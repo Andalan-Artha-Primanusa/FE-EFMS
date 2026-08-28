@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Search, Fuel } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
-import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, getAuditLogs, User as UserType } from "../../lib/api";
+import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, getAuditLogs, getCompanies, type Company, User as UserType } from "../../lib/api";
 
 import {
   resolveDocumentUrl, formatIDR, parseNumber, formatThousand, formatDateInput,
@@ -37,7 +37,7 @@ function SowSearchSelect({
   isDistanceOnly?: boolean;
 }) {
   const siteSowOptions = useMemo(() => {
-    const code = (customerCode || "POS").toUpperCase();
+    const code = (customerCode || "").toUpperCase();
 
     // 1. Get from activeSOWCatalog matching this customer
     const matchedFromCatalog = (activeSOWCatalog || []).filter(s => {
@@ -46,46 +46,6 @@ function SowSearchSelect({
       return !c || c === code || (code === "POS" && (!c || c === "POS"));
     });
 
-    // 2. Default standard SOW list per site
-    const siteDefaults: Record<string, Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean }>> = {
-      BGG: [
-        { name: "OVER BURDEN REMOVAL 1 (75%)", unit: "BCM", defaultRate: 29500, category: "Penambangan BGG", isDistanceVar: false },
-        { name: "OVER BURDEN REMOVAL 2 (25%)", unit: "BCM", defaultRate: 28750, category: "Penambangan BGG", isDistanceVar: false },
-        { name: "Coal Winning", unit: "Ton", defaultRate: 17500, category: "Penambangan BGG", isDistanceVar: false },
-        { name: "Over Distance For OB Removal", unit: "BCM", defaultRate: 1550, category: "Over Distance", isDistanceVar: true },
-        { name: "Over Distance For Coal Winning", unit: "Ton", defaultRate: 19700, category: "Over Distance", isDistanceVar: true },
-      ],
-      POS: [
-        { name: "Top Soil Removal", unit: "BCM", defaultRate: 60500, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Overburden / Waste Removal", unit: "BCM", defaultRate: 59500, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Limonite Ore Mining", unit: "WMT", defaultRate: 60200, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Saprolite Ore Mining", unit: "WMT", defaultRate: 62200, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Uncrushed Rock", unit: "BCM", defaultRate: 142275, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Cut & Fill / Earthwork", unit: "BCM", defaultRate: 38150, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Crushed Rock", unit: "BCM", defaultRate: 233900, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Land Clearing", unit: "m2", defaultRate: 6830, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Over/Underhaul For OB Removal", unit: "BCM", defaultRate: 9643, category: "Over Distance", isDistanceVar: true },
-        { name: "Over/Underhaul For Top Soil Removal", unit: "BCM", defaultRate: 9643, category: "Over Distance", isDistanceVar: true },
-        { name: "Over/Underhaul For Limonite", unit: "BCM", defaultRate: 9428, category: "Over Distance", isDistanceVar: true },
-        { name: "Over/Underhaul For Saprolite", unit: "BCM", defaultRate: 9428, category: "Over Distance", isDistanceVar: true },
-        { name: "Mine Development (MDO) - Clearing & Access Road", unit: "Ha", defaultRate: 15500000, category: "MDO", isDistanceVar: false },
-        { name: "Rocks for construction - under/overhaul", unit: "USD/1KM", defaultRate: 9450, category: "MDO", isDistanceVar: true },
-        { name: "Uncrushed rocks for construction (MDO)", unit: "BCM", defaultRate: 142275, category: "MDO", isDistanceVar: false },
-        { name: "Road Construction & Drainage", unit: "Mtr", defaultRate: 450000, category: "MDO", isDistanceVar: false },
-      ],
-      DBK: [
-        { name: "OB Removal (Pit Sapan)", unit: "BCM", defaultRate: 31500, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Coal Winning (Pit Sapan)", unit: "Ton", defaultRate: 36000, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Land Clearing & Grubbing", unit: "Ha", defaultRate: 12500000, category: "Operation & Mining", isDistanceVar: false },
-      ],
-      SBS: [
-        { name: "OB Removal Area Kerja", unit: "BCM", defaultRate: 28000, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Jasa Penunjang Produksi", unit: "Hours", defaultRate: 350000, category: "Penunjang", isDistanceVar: false },
-        { name: "Hauling & Water Management", unit: "Hours", defaultRate: 420000, category: "Penunjang", isDistanceVar: false },
-      ]
-    };
-
-    const defaults = siteDefaults[code] || siteDefaults["POS"];
     const merged: Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean }> = [];
     const seen = new Set<string>();
 
@@ -101,14 +61,6 @@ function SowSearchSelect({
           category: c.category,
           isDistanceVar: isDist
         });
-      }
-    });
-
-    defaults.forEach(d => {
-      const key = (d.name || "").toLowerCase().trim();
-      if (key && !seen.has(key)) {
-        seen.add(key);
-        merged.push(d);
       }
     });
 
@@ -178,6 +130,12 @@ export function FormModals({ c }: { c: any }) {
 
   const [auditTab, setAuditTab] = useState<"flow" | "activity">("flow");
   const [baAuditLogs, setBaAuditLogs] = useState<any[]>([]);
+
+  const [companyList, setCompanyList] = useState<Company[]>([]);
+
+  useEffect(() => {
+    getCompanies().then((c) => { if (Array.isArray(c)) setCompanyList(c); }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (modalType === "ba") {
@@ -447,7 +405,7 @@ export function FormModals({ c }: { c: any }) {
                             value={formData.workPeriod || ""}
                             onChange={(e) => {
                               const newPeriod = e.target.value;
-                              const newInvNo = generateInvoiceNumber(formData.customerCode || "POS", newPeriod, invoiceRows.length);
+                              const newInvNo = generateInvoiceNumber(formData.customerCode || "", newPeriod, invoiceRows.length);
                               setFormData({ ...formData, workPeriod: newPeriod, invoiceNo: newInvNo });
                             }}
                           />
@@ -561,7 +519,7 @@ export function FormModals({ c }: { c: any }) {
 
                   {/* DYNAMIC PAYMENT DETAIL TABLE PER CUSTOMER */}
                   {(() => {
-                    const currentCust = (formData.customerCode || "POS").toUpperCase();
+                    const currentCust = (formData.customerCode || "").toUpperCase();
                     const cCalc = getCustomerCalculations(invLineItems, currentCust);
 
                     return (
@@ -1253,7 +1211,7 @@ export function FormModals({ c }: { c: any }) {
                   {/* Info Box Rasio Kontrak Customer */}
                   <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] space-y-1.5">
                     <div className="font-extrabold text-slate-900 uppercase flex items-center gap-1.5">
-                      <Info size={13} className="text-indigo-700" /> Kesepakatan Rasio Kontrak ({formData.customerCode || "POS"}):
+                      <Info size={13} className="text-indigo-700" /> Kesepakatan Rasio Kontrak ({formData.customerCode || ""}):
                     </div>
                     <div className="text-slate-600 font-medium pl-4">
                       {formData.customerCode === "BGG" ? (
@@ -1277,15 +1235,14 @@ export function FormModals({ c }: { c: any }) {
                       </label>
                       <select
                         className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold focus:border-indigo-600 focus:bg-white outline-none text-xs"
-                        value={formData.customerCode || "POS"}
+                        value={formData.customerCode || ""}
                         onChange={(e) => setFormData({ ...formData, customerCode: e.target.value })}
                         required
                       >
-                        <option value="POS">POS - PT Position</option>
-                        <option value="BGG">BGG - PT Budi Gema Gempita (Rasio 3:1)</option>
-                        <option value="SBS">SBS - PT Satria Bahana Sarana (Rasio 3:1)</option>
-                        <option value="DBK">DBK - PT Daya Bumindo Karunia (Rasio 3.5:1)</option>
-                        <option value="ABN">ABN - PT Andalan Bhumi Nusantara (Rasio 3:1)</option>
+                        <option value="">— Pilih Customer —</option>
+                        {companyList.map((c) => (
+                          <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
+                        ))}
                       </select>
                     </div>
 
@@ -1490,7 +1447,7 @@ export function FormModals({ c }: { c: any }) {
                               </label>
                               <select
                                 className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 font-bold focus:border-cyan-700 outline-none"
-                                value={formData.customerCode || "POS"}
+                                value={formData.customerCode || ""}
                                 onChange={(e) => {
                                   const code = e.target.value;
                                   const isBGG = code === "BGG" || code === "PT BGG";
@@ -1511,10 +1468,10 @@ export function FormModals({ c }: { c: any }) {
                                   }
                                 }}
                               >
-                                <option value="POS">POS – PT Position / Paramitha</option>
-                                <option value="SBS">SBS – PT Sumber Bara Sejahtera</option>
-                                <option value="BGG">BGG – PT Budi Gema Gempita</option>
-                                <option value="DBK">DBK – PT Dayabumi Kencana</option>
+                                <option value="">— Pilih Customer —</option>
+                                {companyList.map((c) => (
+                                  <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
+                                ))}
                               </select>
                             </div>
                             <div>
@@ -1548,7 +1505,7 @@ export function FormModals({ c }: { c: any }) {
                           </div>
                         ) : (
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs text-slate-800">
-                            <div><span className="text-slate-500 block font-bold text-[10px] uppercase">Customer</span> <strong className="text-slate-900 font-bold">{formData.customerCode || "POS"}</strong></div>
+                            <div><span className="text-slate-500 block font-bold text-[10px] uppercase">Customer</span> <strong className="text-slate-900 font-bold">{formData.customerCode || ""}</strong></div>
                             <div><span className="text-slate-500 block font-bold text-[10px] uppercase">Periode</span> <strong className="text-slate-800">{formData.workPeriod || "-"}</strong></div>
                             <div><span className="text-slate-500 block font-bold text-[10px] uppercase">PIC Site</span> <strong className="text-slate-800">{formData.picAAP || "-"}</strong></div>
                           </div>
@@ -1771,7 +1728,7 @@ export function FormModals({ c }: { c: any }) {
                                                 id={`sow-op-${idx}`}
                                                 isDistanceOnly={false}
                                                 value={item.material || ""}
-                                                customerCode={formData.customerCode || "POS"}
+                                                customerCode={formData.customerCode || ""}
                                                 activeSOWCatalog={activeSOWCatalog}
                                                 mRate={mRate}
                                                 placeholder="Cari Master SOW (e.g. Volume OB)..."
@@ -1802,7 +1759,7 @@ export function FormModals({ c }: { c: any }) {
                                                     id={`sow-dist-${idx}`}
                                                     isDistanceOnly={true}
                                                     value={item.material || ""}
-                                                    customerCode={formData.customerCode || "POS"}
+                                                    customerCode={formData.customerCode || ""}
                                                     activeSOWCatalog={activeSOWCatalog}
                                                     mRate={mRate}
                                                     placeholder="Cari Variabel Distance / Overhaul..."
@@ -2670,7 +2627,7 @@ export function FormModals({ c }: { c: any }) {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-slate-500 font-bold">Customer:</span>
-                            <span className="font-bold text-slate-900">{formData.customerCode || "POS"}</span>
+                            <span className="font-bold text-slate-900">{formData.customerCode || ""}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-slate-500 font-bold">Periode:</span>
@@ -2904,12 +2861,11 @@ export function FormModals({ c }: { c: any }) {
                       </div>
                       <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Customer Code <span className="text-rose-600">*</span></label>
-                        <select className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold focus:border-cyan-700 focus:bg-white outline-none" value={formData.customerCode || "BGG"} onChange={(e) => setFormData({ ...formData, customerCode: e.target.value })}>
-                          <option value="BGG">BGG</option>
-                          <option value="SBS">SBS</option>
-                          <option value="DBK">DBK</option>
-                          <option value="POS">POS</option>
-                          <option value="ABN">ABN</option>
+                        <select className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold focus:border-cyan-700 focus:bg-white outline-none" value={formData.customerCode || ""} onChange={(e) => setFormData({ ...formData, customerCode: e.target.value })}>
+                          <option value="">— Pilih Customer —</option>
+                          {companyList.map((c) => (
+                            <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
+                          ))}
                         </select>
                       </div>
                     </div>

@@ -99,7 +99,7 @@ export function getRomanMonth(periodOrDateStr: string): string {
 
 export function generateBANumberPreview(lastSeqNumber: number, customerCode: string, monthStr: string, yearStr: string): string {
   const nextSeq = String(lastSeqNumber + 1).padStart(2, "0");
-  const code = (customerCode || "POS").toUpperCase();
+  const code = (customerCode || "").toUpperCase();
   const romanMonthMap: Record<string, string> = {
     "01": "I", "02": "II", "03": "III", "04": "IV", "05": "V", "06": "VI",
     "07": "VII", "08": "VIII", "09": "IX", "10": "X", "11": "XI", "12": "XII"
@@ -110,7 +110,7 @@ export function generateBANumberPreview(lastSeqNumber: number, customerCode: str
 
 export function generateInvoiceNumberPreview(lastSeqNumber: number, customerCode: string, monthStr: string, yearStr: string): string {
   const nextSeq = String(lastSeqNumber + 1).padStart(3, "0");
-  const code = (customerCode || "POS").toUpperCase();
+  const code = (customerCode || "").toUpperCase();
   const romanMonthMap: Record<string, string> = {
     "01": "I", "02": "II", "03": "III", "04": "IV", "05": "V", "06": "VI",
     "07": "VII", "08": "VIII", "09": "IX", "10": "X", "11": "XI", "12": "XII"
@@ -129,7 +129,7 @@ export function getYearFromPeriod(periodOrDateStr: string): string {
 }
 
 export function generateInvoiceNumber(customerCode: string, workPeriod: string, existingRowsCount: number): string {
-  const code = (customerCode || "POS").toUpperCase();
+  const code = (customerCode || "").toUpperCase();
   const nextSeq = String(existingRowsCount + 1).padStart(3, "0");
   const romanMonth = getRomanMonth(workPeriod);
   const yearStr = getYearFromPeriod(workPeriod);
@@ -151,7 +151,7 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
   const baNum = (ba.baNumber || "").trim().toLowerCase();
   const linkedNo = (ba.invoiceNoLinked || "").trim().toLowerCase();
 
-  const custCode = (ba.customerCode || "POS").trim().toUpperCase();
+  const custCode = (ba.customerCode || "").trim().toUpperCase();
 
   // Find all invoices that reference this BA or whose invoiceNo matches linkedNo AND customer
   const matchedInvoices = (allInvoices || []).filter((inv) => {
@@ -325,7 +325,7 @@ export function renderBAStatusBadge(status: string, invoiceNoLinked?: string, is
 export function getBAStatusForExport(ba: any, allInvoices: any[]) {
   const invStatus = getBAInvoiceStatus(ba, allInvoices);
   const s = (ba?.statusBA || "Submit").trim();
-  const isPOS = (ba?.customerCode || "POS") === "POS";
+  const isPOS = (ba?.customerCode || "") === "POS";
 
   if (isPOS) {
     if (invStatus.isFullyInvoiced) {

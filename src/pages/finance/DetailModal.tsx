@@ -219,7 +219,7 @@ export function DetailModal({ c }: { c: any }) {
 
                 {/* Invoice Detail Summary — Official INVOICE Document Sheet (Dynamic Layout per Customer) */}
                 {detailViewItem.type === "invoice" && (() => {
-                  const viewCustCode = (detailViewItem.data.customerCode || "POS").toUpperCase();
+                  const viewCustCode = (detailViewItem.data.customerCode || "").toUpperCase();
                   const activeItems = (detailViewItem.data.items && Array.isArray(detailViewItem.data.items) && detailViewItem.data.items.length > 0)
                     ? detailViewItem.data.items
                     : (invLineItems && invLineItems.length > 0 && formData?.invoiceNo === detailViewItem.data.invoiceNo
@@ -246,7 +246,7 @@ export function DetailModal({ c }: { c: any }) {
                           <div className="flex">
                             <span className="w-24 font-bold text-slate-500">Company</span>
                             <span className="font-extrabold text-slate-900">
-                              : {viewCustCode === "POS" ? "PT. POSITION" : viewCustCode === "BGG" ? "PT. BUDI GEMA GEMPITA" : viewCustCode === "DBK" ? "PT. PETROSEA TBK" : viewCustCode === "SBS" ? "PT SATRIA BAHANA SARANA" : (detailViewItem.data.customerCode || "PT. ANDALAN")}
+                              : {viewCustCode === "POS" ? "PT. POSITION" : viewCustCode === "BGG" ? "PT. BUDI GEMA GEMPITA" : viewCustCode === "DBK" ? "PT. PETROSEA TBK" : viewCustCode === "SBS" ? "PT SATRIA BAHANA SARANA" : (detailViewItem.data.customerCode || "—")}
                             </span>
                           </div>
                           <div className="flex">

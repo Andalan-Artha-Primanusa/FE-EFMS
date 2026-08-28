@@ -1,23 +1,38 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { createTransaction, updateTransaction, type Transaction } from "../lib/api";
-import { companyOptionsForUser, isHeadOfficeUser } from "../lib/auth";
+import { isHeadOfficeUser, useCompanyOptions } from "../lib/auth";
 
 export function TransactionFormPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useOutletContext<any>();
   const transaction = location.state?.transaction as Transaction | undefined;
-  const companyOptions = companyOptionsForUser(user);
+  const { options: companyOptions } = useCompanyOptions(user);
   const canChooseCompany = isHeadOfficeUser(user);
 
   const [form, setForm] = useState({
     type: transaction?.type ?? "Payment Request",
-    companyId: transaction?.company ? companyOptions.find((company) => company.code === transaction.company || company.name === transaction.company)?.id ?? companyOptions[0]?.id ?? 1 : companyOptions[0]?.id ?? 1,
+    companyId: transaction?.company ? companyOptions.find((company) => company.code === transaction.company || company.name === transaction.company)?.id ?? companyOptions[0]?.id : companyOptions[0]?.id,
     description: transaction?.description ?? "",
     amount: transaction?.amount ?? 0
   });
+
+  // When the scoped company options finish loading (API), pick the first allowed
+  // company if one hasn't been resolved yet. No hardcoded fallback.
+  useEffect(() => {
+    if (companyOptions.length === 0) return;
+    setForm((prev) => {
+      const exists = companyOptions.some((c) => Number(c.id) === Number(prev.companyId));
+      if (exists || prev.companyId != null) return prev;
+      if (transaction?.company) {
+        const matched = companyOptions.find((c) => c.code === transaction.company || c.name === transaction.company);
+        if (matched) return { ...prev, companyId: Number(matched.id) };
+      }
+      return { ...prev, companyId: Number(companyOptions[0].id) };
+    });
+  }, [companyOptions, transaction?.company]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();

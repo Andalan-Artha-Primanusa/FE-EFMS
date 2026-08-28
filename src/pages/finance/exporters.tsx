@@ -14,7 +14,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
     const printWin = window.open("", "_blank", "width=1000,height=800");
     if (!printWin) return;
 
-    const custCode = (itemData?.customerCode || formData?.customerCode || "POS").toUpperCase();
+    const custCode = (itemData?.customerCode || formData?.customerCode || "").toUpperCase();
     const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
     const logoUrl = `${window.location.origin}/andalan-logo.png`;
 
@@ -594,7 +594,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         <table class="info-table">
           <tr>
             <td width="13%"><strong>Company</strong></td>
-            <td width="37%">: <strong>${itemData?.customerCode === "POS" ? "PT. POSITION" : itemData?.customerCode === "BGG" ? "PT. BUDI GEMA GEMPITA" : itemData?.customerCode === "DBK" ? "PT. PETROSEA TBK" : itemData?.customerCode === "SBS" ? "PT SATRIA BAHANA SARANA" : (itemData?.customerCode || "PT. ANDALAN")}</strong></td>
+            <td width="37%">: <strong>${itemData?.customerCode === "POS" ? "PT. POSITION" : itemData?.customerCode === "BGG" ? "PT. BUDI GEMA GEMPITA" : itemData?.customerCode === "DBK" ? "PT. PETROSEA TBK" : itemData?.customerCode === "SBS" ? "PT SATRIA BAHANA SARANA" : (itemData?.customerCode || "—")}</strong></td>
             <td width="16%"><strong>Invoice No.</strong></td>
             <td width="34%">: <strong>${itemData?.invoiceNo || "001/INV/2026"}</strong></td>
           </tr>
