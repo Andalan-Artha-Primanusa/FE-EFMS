@@ -39,13 +39,13 @@ export function PageHeader({
             ))}
           </nav>
         ) : (
-          <p className="eyebrow text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">FEAST Finance Enterprise</p>
+          <p className="eyebrow text-[11px] font-bold text-aap-700 uppercase tracking-[0.14em] mb-1">FEAST · FATB Division</p>
         )}
         
         <div className="flex items-start justify-between w-full">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{title}</h1>
-            {description && <p className="text-sm text-slate-500 mt-1">{description}</p>}
+            <h1 className="text-2xl font-bold text-ink-900 tracking-tight">{title}</h1>
+            {description && <p className="text-sm text-ink-500 mt-1">{description}</p>}
           </div>
           <div className="page-header-side flex items-center gap-3">
             {meta}

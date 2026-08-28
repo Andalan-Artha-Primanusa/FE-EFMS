@@ -13,9 +13,7 @@ import { FinancePaymentPage } from "../pages/FinancePaymentPage";
 import { FinanceCustomerPage } from "../pages/FinanceCustomerPage";
 import { SiteSetupPage } from "../pages/SiteSetupPage";
 import { CompanyPage } from "../pages/CompanyPage";
-import { BudgetManagementPage } from "../pages/BudgetManagementPage";
-import { ClosingPeriodPage } from "../pages/ClosingPeriodPage";
-import { NotificationCenterPage } from "../pages/NotificationCenterPage";
+import { TreasuryPage } from "../pages/TreasuryPage";
 
 export function SiteSetupRoute({ viewTitle = "Setup Parameter Site & Klien" }: { viewTitle?: string }) {
   const { query, setNotice, user } = useOutletContext<any>();
@@ -84,16 +82,8 @@ export function CompanyRoute() {
   return <CompanyPage viewTitle="Company" query={query} onNotice={setNotice} user={user} />;
 }
 
-export function BudgetManagementRoute({ viewTitle }: { viewTitle: string }) {
-  const { setNotice } = useOutletContext<any>();
-  return <BudgetManagementPage viewTitle={viewTitle} onNotice={setNotice} />;
+export function TreasuryManagementRoute() {
+  const { query, setNotice, user } = useOutletContext<any>();
+  return <TreasuryPage viewTitle="Treasury Management" query={query} onNotice={setNotice} user={user} />;
 }
 
-export function ClosingPeriodRoute({ viewTitle = "Period Closing" }: { viewTitle?: string }) {
-  return <ClosingPeriodPage viewTitle={viewTitle} />;
-}
-
-export function NotificationCenterRoute() {
-  const { setNotice } = useOutletContext<any>();
-  return <NotificationCenterPage onNotice={setNotice} />;
-}

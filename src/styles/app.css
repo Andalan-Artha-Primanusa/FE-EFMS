@@ -6,8 +6,8 @@
 @tailwind utilities;
 
 :root {
-  color: #16203b;
-  background: #f8fafc;
+  color: #1A1612;
+  background: #FAF8F4;
   font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.4;
 }
@@ -533,19 +533,19 @@ details button.active {
 .desktop-toggle { display: inline-flex; }
 
 .page-header {
-  @apply mb-5 flex items-end justify-between gap-5 rounded-enterprise border border-slate-200 bg-white px-5 py-4 shadow-sm shadow-slate-200/70;
+  @apply mb-5 flex items-end justify-between gap-5 rounded-enterprise border border-ink-200 bg-white px-5 py-4 shadow-sm shadow-ink-900/5;
 }
 .page-header h1 {
-  @apply text-[28px] font-extrabold leading-tight text-finance-navy;
+  @apply text-[26px] font-bold leading-tight text-ink-900;
 }
 .page-header p:not(.eyebrow) {
-  @apply mt-2 max-w-3xl text-sm leading-6 text-slate-500;
+  @apply mt-1.5 max-w-3xl text-sm leading-6 text-ink-500;
 }
 .page-header-side {
   @apply flex shrink-0 flex-col items-end gap-3;
 }
 .header-meta {
-  @apply inline-flex min-h-7 w-fit items-center rounded-full bg-slate-100 px-3 text-[11px] font-black text-slate-600;
+  @apply inline-flex min-h-7 w-fit items-center rounded-full bg-aap-50 border border-aap-200 px-3 text-xs font-bold text-aap-700 tracking-wider;
   max-width: min(520px, 55vw);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -558,19 +558,19 @@ details button.active {
   margin-bottom: 16px;
 }
 .kpi-card, .panel {
-  @apply rounded-enterprise border border-finance-line bg-white shadow-sm shadow-slate-200/60;
+  @apply rounded-enterprise border border-ink-200 bg-white shadow-sm shadow-ink-900/5;
 }
-.kpi-card { @apply grid gap-2 p-5 transition duration-150 hover:-translate-y-0.5 hover:shadow-md; }
+.kpi-card { @apply grid gap-2 p-5 transition duration-150; }
 .kpi-empty {
-  @apply col-span-full min-h-28 place-items-center text-center font-bold text-slate-500;
+  @apply col-span-full min-h-28 place-items-center text-center font-bold text-ink-500;
 }
-.kpi-card span { color: #64748b; font-size: 13px; font-weight: 750; }
-.kpi-card strong { font-size: 24px; line-height: 1.05; }
-.kpi-card small { font-weight: 800; }
-.good, .ok { color: #a57c50; }
-.warning, .wait { color: #b45309; }
-.bad { color: #b91c1c; }
-.info, .neutral { color: #1e2b4d; }
+.kpi-card span { color: #6B6055; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.kpi-card strong { font-size: 24px; line-height: 1.05; font-variant-numeric: tabular-nums; color: #1A1612; }
+.kpi-card small { font-weight: 700; font-variant-numeric: tabular-nums; }
+.good, .ok, .go { color: #2E7D53; }
+.warning, .wait, .caution { color: #C98A12; }
+.bad, .stop { color: #B3352B; }
+.info, .neutral { color: #2C5F80; }
 
 .main-grid, .data-grid {
   display: grid;
@@ -586,27 +586,29 @@ details button.active {
   gap: 12px;
   margin-bottom: 14px;
 }
-.panel-head span { color: #607080; }
+.panel-head span { color: #6B6055; }
 
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; min-width: 760px; }
-th, td { padding: 13px 10px; text-align: left; border-bottom: 1px solid #edf1f5; font-size: 13px; }
-th { color: #607080; font-size: 12px; text-transform: uppercase; }
+th, td { padding: 11px 10px; text-align: left; border-bottom: 1px solid #E6E1D9; font-size: 13px; }
+th { color: #5A5046; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; background: #FAF8F4; }
 .badge {
   display: inline-flex;
-  min-height: 26px;
+  min-height: 22px;
   align-items: center;
   border-radius: 999px;
   padding: 0 10px;
-  background: #eef2f7;
-  font-size: 12px;
-  font-weight: 850;
+  background: #F2EEE8;
+  color: #3A322A;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
-.badge.ok { background: #e4f5ee; color: #067647; }
-.badge.wait { background: #fff3d4; color: #93540b; }
-.badge.bad { background: #fee2e2; color: #b42318; }
-.badge.info { background: #e0ecff; color: #1d4ed8; }
+.badge.ok, .badge.go { background: #E4F1E9; color: #2E7D53; }
+.badge.wait, .badge.caution { background: #FBF0D9; color: #C98A12; }
+.badge.bad, .badge.stop { background: #F8E6E3; color: #B3352B; }
+.badge.info { background: #E3EDF3; color: #2C5F80; }
 
 /* ===== Form primitives ===== */
 .form-section { margin-bottom: 24px; }

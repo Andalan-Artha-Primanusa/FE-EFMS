@@ -21,6 +21,7 @@ export const routes = {
     invoiceManagement: "/invoice-management",
     paymentReceiptLog: "/payment-receipt-log",
     customerCreditTerms: "/customer-master-credit-terms",
+    treasury: "/treasury-management",
   },
 
   accounting: {

@@ -4,45 +4,74 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["'Plus Jakarta Sans'", "ui-sans-serif", "system-ui", "sans-serif"]
+        sans: ["'Plus Jakarta Sans'", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["'Plus Jakarta Sans'", "ui-monospace", "Menlo", "monospace"]
       },
       colors: {
+        aap: {
+          50: "#FBF6F0",
+          100: "#F4E9DC",
+          200: "#E7D3BC",
+          300: "#D5B694",
+          400: "#BE9770",
+          500: "#A57C50",
+          600: "#8C6740",
+          700: "#6E5033",
+          800: "#4F3A26",
+          900: "#32251A"
+        },
+        ink: {
+          50: "#FAF8F4",
+          100: "#F2EEE8",
+          200: "#E6E1D9",
+          300: "#C9C2B8",
+          400: "#9A9187",
+          500: "#6B6055",
+          600: "#5A5046",
+          700: "#3A322A",
+          800: "#241F19",
+          900: "#1A1612"
+        },
         finance: {
-          ink: "#16203b",
-          navy: "#1e2b4d",
-          muted: "#64748b",
-          line: "#e2e8f0",
-          canvas: "#f8fafc",
-          gold: "#a57c50",
-          goldDark: "#77542e",
-          goldLight: "#faf6f0",
-          bronze: "#ab8456",
-          teal: "#a57c50",
-          cyan: "#ab8456",
-          green: "#1e2b4d",
-          blue: "#1e2b4d",
-          amber: "#a57c50",
-          red: "#b91c1c"
+          ink: "#1A1612",
+          navy: "#241F19",
+          muted: "#6B6055",
+          line: "#E6E1D9",
+          canvas: "#FAF8F4",
+          gold: "#A57C50",
+          goldDark: "#6E5033",
+          goldLight: "#FBF6F0",
+          bronze: "#8C6740",
+          teal: "#A57C50",
+          cyan: "#8C6740",
+          green: "#2E7D53",
+          blue: "#2C5F80",
+          amber: "#C98A12",
+          red: "#B3352B"
         },
         cyan: {
-          50: "#faf6f0",
-          100: "#f4efe6",
-          200: "#e5d7c2",
-          300: "#d5c0a4",
-          400: "#bea17c",
-          500: "#a57c50",
-          600: "#8e683e",
-          700: "#77542e",
-          800: "#5f4123",
-          900: "#48311b",
-          950: "#2d1e10"
+          50: "#FBF6F0",
+          100: "#F4E9DC",
+          200: "#E7D3BC",
+          300: "#D5B694",
+          400: "#BE9770",
+          500: "#A57C50",
+          600: "#8C6740",
+          700: "#6E5033",
+          800: "#4F3A26",
+          900: "#32251A",
+          950: "#1A1612"
         }
       },
       borderRadius: {
-        enterprise: "8px"
+        control: "3px",
+        card: "4px",
+        enterprise: "4px",
+        dialog: "6px"
       },
       boxShadow: {
-        enterprise: "0 24px 70px rgba(15,23,42,.22)"
+        enterprise: "0 4px 16px rgba(26,22,18,.06)",
+        card: "0 1px 3px rgba(26,22,18,.05), 0 1px 2px rgba(26,22,18,.03)"
       }
     }
   },

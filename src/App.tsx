@@ -8,7 +8,7 @@ import { MasterDataFormRoute } from "./pages/MasterDataFormRoute";
 import { TransactionFormPage } from "./pages/TransactionFormPage";
 import { ProtectedRoute } from "./router/ProtectedRoute";
 import { NotFoundPage } from "./pages/NotFoundPage";
-import { DashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute, CoalIndexRoute, RaiseFallRoute, FinanceDashboardRoute, FinanceBATrackerRoute, FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute, SiteSetupRoute, CompanyRoute, BudgetManagementRoute, ClosingPeriodRoute, NotificationCenterRoute } from "./router/RouteWrappers";
+import { DashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute, CoalIndexRoute, RaiseFallRoute, FinanceDashboardRoute, FinanceBATrackerRoute, FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute, SiteSetupRoute, CompanyRoute, TreasuryManagementRoute } from "./router/RouteWrappers";
 
 export function App() {
   const [user, setUser] = useState<User | null>(() => {
@@ -83,6 +83,7 @@ export function App() {
           <Route path="invoice-management" element={<ProtectedRoute requiredView="Invoice Management"><FinanceInvoiceRoute /></ProtectedRoute>} />
           
           <Route path="payment-receipt-log" element={<ProtectedRoute requiredView="Payment & Receipt Log"><FinancePaymentRoute /></ProtectedRoute>} />
+          <Route path="treasury-management" element={<ProtectedRoute requiredView="Treasury Management"><TreasuryManagementRoute /></ProtectedRoute>} />
           <Route path="client-setup" element={<ProtectedRoute requiredView="Client Setup"><FinanceCustomerRoute viewTitle="Client Setup" /></ProtectedRoute>} />
           <Route path="customer-master-credit-terms" element={<ProtectedRoute requiredView="Client Setup"><FinanceCustomerRoute viewTitle="Client Setup" /></ProtectedRoute>} />
           
@@ -90,7 +91,6 @@ export function App() {
           <Route path="variable-sow/:id/edit" element={<ProtectedRoute requiredView="Variable SOW"><VariableSOWFormPage /></ProtectedRoute>} />
           <Route path=":slug/new" element={<MasterDataFormRoute />} />
           <Route path=":slug/:id/edit" element={<MasterDataFormRoute />} />
-          <Route path=":slug" element={null} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
