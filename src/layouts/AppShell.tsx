@@ -148,8 +148,10 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
     ...group,
     items: group.items.filter((item) => canAccessMenu(item, user.role, permissions, tcodes))
   })).filter((group) => group.items.length > 0);
-  const isUnknownModuleRoute = !outlet && Boolean(requestedSlug) && !resolvedView;
-  const cannotAccessModuleRoute = !outlet && !isUnknownModuleRoute && activeView in viewMap && !canAccessMenu(activeView, user.role, permissions, tcodes);
+  const isGenericModuleRoute = !location.pathname.slice(1).includes("/") && Boolean(requestedSlug) && Boolean(resolvedView);
+  const shouldRenderOutlet = Boolean(outlet) && !isGenericModuleRoute;
+  const isUnknownModuleRoute = !shouldRenderOutlet && Boolean(requestedSlug) && !resolvedView;
+  const cannotAccessModuleRoute = !shouldRenderOutlet && !isUnknownModuleRoute && activeView in viewMap && !canAccessMenu(activeView, user.role, permissions, tcodes);
 
   return (
     <div className={`app-shell bg-finance-canvas text-finance-ink ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
@@ -190,7 +192,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
         </header>
 
         <ErrorBoundary key={location.pathname} fallbackTitle={`Gagal memuat modul "${activeView}"`}>
-          {outlet ? (
+          {shouldRenderOutlet ? (
             <Outlet context={{ 
               user: { ...user, permissions, tcodes }, permissions, tcodes, roles, notice, setNotice,
               dashboard, transactions, query, refresh, notifications
