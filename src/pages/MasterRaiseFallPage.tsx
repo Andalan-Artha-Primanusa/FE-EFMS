@@ -26,6 +26,16 @@ import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { api, getCompanies, type Company } from "../lib/api";
+import { MonthPickerInput } from "./finance/helpers";
+
+const customerContractOptions = [
+  { code: "ALL", name: "Semua Customer / Kontrak", project: "All Projects", contract: "Semua Kontrak Active" },
+  { code: "POS", name: "PT Position (POS)", project: "POS PROJECT", contract: "002/POS-AAP/2025" },
+  { code: "SBS", name: "PT Satria Bahana Sarana (SBS)", project: "PT Satria Bahana Sarana Site", contract: "230/AAP-SBS/EXT/XII/24" },
+  { code: "BGG", name: "PT Budi Gema Gempita (BGG)", project: "PT Budi Gema Gempita Site", contract: "09/BGG-AAP/VIII/2018" },
+  { code: "DBK", name: "PT Daya Bumindo Karunia (DBK)", project: "PT Daya Bumindo Karunia Site", contract: "001/DBK-AAP/2024" },
+  { code: "ABN", name: "PT Andalan Bhumi Nusantara (ABN)", project: "PT Andalan Bhumi Nusantara Site", contract: "001/AAP-ABN/IV/25" }
+];
 
 export function MasterRaiseFallPage({
   viewTitle,
@@ -951,15 +961,14 @@ export function MasterRaiseFallPage({
               {modalType === "rf" && (
                 <form onSubmit={handleSaveRf} className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Periode Tagihan</label>
-                      <input
-                        className="w-full bg-slate-50 border border-slate-300 font-extrabold text-xs p-2 rounded-lg outline-none focus:border-cyan-600"
-                        value={rfForm.period}
-                        onChange={(e) => setRfForm({ ...rfForm, period: e.target.value })}
-                        required
-                      />
-                    </div>
+                    <MonthPickerInput
+                      label="Periode Tagihan"
+                      value={rfForm.period}
+                      onChange={(val) => setRfForm({ ...rfForm, period: val })}
+                      format="long"
+                      className="w-full bg-slate-50 border border-slate-300 font-extrabold text-xs p-2 rounded-lg outline-none focus:border-cyan-600"
+                      required
+                    />
                     <div>
                       <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Skema Formula</label>
                       <select

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, useRef, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Search, Fuel } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Search, Fuel, Loader2 } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, getAuditLogs, getCompanies, type Company, User as UserType } from "../../lib/api";
@@ -11,7 +11,7 @@ import {
   generateBANumberPreview, generateInvoiceNumberPreview, getYearFromPeriod,
   generateInvoiceNumber, getBAInvoiceStatus, renderBAStatusBadge,
   getBAStatusForExport, renderInvoiceStatusBadge, parsePeriodToMonthIndex,
-  RupiahInput, generateAuditTimeline
+  RupiahInput, VolumeInput, MonthPickerInput, generateAuditTimeline
 } from "./helpers";
 
 // Search Select Component for SOW Master Catalog per Site
@@ -46,6 +46,54 @@ function SowSearchSelect({
       return !c || c === code || (code === "POS" && (!c || c === "POS"));
     });
 
+    // 2. Default standard SOW list per site
+    const siteDefaults: Record<string, Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean }>> = {
+      BGG: [
+        { name: "OVER BURDEN REMOVAL 1 (75%)", unit: "BCM", defaultRate: 29500, category: "Penambangan BGG", isDistanceVar: false },
+        { name: "OVER BURDEN REMOVAL 2 (25%)", unit: "BCM", defaultRate: 28750, category: "Penambangan BGG", isDistanceVar: false },
+        { name: "Coal Winning", unit: "Ton", defaultRate: 17500, category: "Penambangan BGG", isDistanceVar: false },
+        { name: "Over Distance For OB Removal", unit: "BCM", defaultRate: 1550, category: "Over Distance", isDistanceVar: true },
+        { name: "Over Distance For Coal Winning", unit: "Ton", defaultRate: 19700, category: "Over Distance", isDistanceVar: true },
+      ],
+      POS: [
+        { name: "Top Soil Removal", unit: "BCM", defaultRate: 60500, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Overburden / Waste Removal", unit: "BCM", defaultRate: 59500, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Limonite Ore Mining", unit: "WMT", defaultRate: 60200, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Saprolite Ore Mining", unit: "WMT", defaultRate: 62200, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Uncrushed Rock", unit: "BCM", defaultRate: 142275, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Cut & Fill / Earthwork", unit: "BCM", defaultRate: 38150, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Crushed Rock", unit: "BCM", defaultRate: 233900, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Land Clearing", unit: "m2", defaultRate: 6830, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Over/Underhaul For OB Removal", unit: "BCM", defaultRate: 9643, category: "Over Distance", isDistanceVar: true },
+        { name: "Over/Underhaul For Top Soil Removal", unit: "BCM", defaultRate: 9643, category: "Over Distance", isDistanceVar: true },
+        { name: "Over/Underhaul For Limonite", unit: "BCM", defaultRate: 9428, category: "Over Distance", isDistanceVar: true },
+        { name: "Over/Underhaul For Saprolite", unit: "BCM", defaultRate: 9428, category: "Over Distance", isDistanceVar: true },
+        { name: "Mine Development (MDO) - Clearing & Access Road", unit: "Ha", defaultRate: 15500000, category: "MDO", isDistanceVar: false },
+        { name: "Rocks for construction - under/overhaul", unit: "USD/1KM", defaultRate: 9450, category: "MDO", isDistanceVar: true },
+        { name: "Uncrushed rocks for construction (MDO)", unit: "BCM", defaultRate: 142275, category: "MDO", isDistanceVar: false },
+        { name: "Road Construction & Drainage", unit: "Mtr", defaultRate: 450000, category: "MDO", isDistanceVar: false },
+      ],
+      DBK: [
+        { name: "OB Removal (Pit Sapan)", unit: "BCM", defaultRate: 31500, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Coal Winning (Pit Sapan)", unit: "Ton", defaultRate: 36000, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Land Clearing & Grubbing", unit: "Ha", defaultRate: 12500000, category: "Operation & Mining", isDistanceVar: false },
+      ],
+      SBS: [
+        { name: "PIT E - DISPOSAL SEKATAN", unit: "BCM", defaultRate: 22654, category: "Operation & Mining", isDistanceVar: false },
+        { name: "PIT E - RENCANA JALAN", unit: "BCM", defaultRate: 12638, category: "Operation & Mining", isDistanceVar: false },
+        { name: "PIT E - RENCANA CSA", unit: "BCM", defaultRate: 8346, category: "Operation & Mining", isDistanceVar: false },
+        { name: "PIT E - JALAN BARITO", unit: "BCM", defaultRate: 15500, category: "Operation & Mining", isDistanceVar: false },
+        { name: "PIT E - SEKATAN", unit: "BCM", defaultRate: 16931, category: "Operation & Mining", isDistanceVar: false },
+        { name: "PIT E - TS MAHONI", unit: "BCM", defaultRate: 22654, category: "Operation & Mining", isDistanceVar: false },
+        { name: "PIT E - IPD WARWEFILL", unit: "BCM", defaultRate: 8346, category: "Operation & Mining", isDistanceVar: false },
+        { name: "Dozer CAT D10 - BDCT 1001", unit: "Hours", defaultRate: 1980000, category: "Penunjang", isDistanceVar: false },
+        { name: "Dozer CAT D10 - BDCT 1002", unit: "Hours", defaultRate: 1980000, category: "Penunjang", isDistanceVar: false },
+        { name: "Excavator CAT 395 - EXCT 3901", unit: "Hours", defaultRate: 1425000, category: "Penunjang", isDistanceVar: false },
+        { name: "Excavator CAT 395 - EXCT 3902", unit: "Hours", defaultRate: 1425000, category: "Penunjang", isDistanceVar: false },
+      ]
+    };
+
+    const defaults = siteDefaults[code] || siteDefaults["POS"];
     const merged: Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean }> = [];
     const seen = new Set<string>();
 
@@ -111,10 +159,10 @@ function SowSearchSelect({
 export function FormModals({ c }: { c: any }) {
   const {
     baRows: rawBaRows, isFinanceSpecialist, isManager, invoiceRows: rawInvoiceRows, customerRows: rawCustomerRows,
-    modalType, setModalType, editItem, formData, setFormData,
+    modalType, setModalType, editItem, isSaving, formData, setFormData,
     setDetailViewItem, isInlineEditingBA, setIsInlineEditingBA, mRate, setMRate,
     fuelPriceUSD, setFuelPriceUSD, laborPriceIDR, setLaborPriceIDR, masterBankAccounts,
-    rfIndexCalculated, activeSOWCatalog, defaultPOSBAOperatingItems, defaultPOSBAMDOItems, defaultBGGBAItems,
+    rfIndexCalculated, activeSOWCatalog, defaultPOSBAOperatingItems, defaultPOSBAMDOItems, defaultBGGBAItems, defaultDBKBAItems, defaultSBSBAOperatingItems, latestKursBI,
     baOperatingItems, setBaOperatingItems, baMDOItems, setBaMDOItems, activeBAStep,
     setActiveBAStep, showAddRowDropdown, setShowAddRowDropdown, invLineItems, handleCompanySelect,
     loadDemoPOSData, loadDemoBGGData, loadDemoDBKData, loadDemoSBSData, removeInvLineItem,
@@ -178,6 +226,14 @@ export function FormModals({ c }: { c: any }) {
                     : `${editItem ? "Edit Data" : "Tambah Data Baru"} — ${modalType === "pending_volume" ? "Pending Volume (Joint Survey)" : modalType === "invoice" ? "Invoice" : modalType === "payment" ? "Payment Receipt" : "Customer Master"}`
                   }
                 </h3>
+                {modalType === "ba" && editItem && Boolean(formData.invoiceNoLinked || editItem?.invoiceNoLinked) && (
+                  <div className="mt-2 p-2.5 bg-purple-50 border border-purple-200 rounded-xl flex items-center gap-2 text-xs text-purple-950 font-medium">
+                    <Lock size={14} className="text-purple-700 shrink-0" />
+                    <span>
+                      <strong>Status Terkunci:</strong> Berita Acara ini telah terbit menjadi Invoice <strong>#{formData.invoiceNoLinked || editItem?.invoiceNoLinked}</strong>. Nilai klaim & volume dilindungi dari perubahan.
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
@@ -399,16 +455,17 @@ export function FormModals({ c }: { c: any }) {
 
                         <div className="flex items-center gap-3">
                           <span className="w-28 text-slate-500 font-bold shrink-0">Period Covered:</span>
-                          <input
-                            className="bg-white border border-slate-300 font-extrabold text-slate-900 text-xs px-2.5 py-1.5 rounded-lg focus:border-cyan-600 outline-none flex-1 w-full"
-                            placeholder="Juni 2026 / Jul-26"
-                            value={formData.workPeriod || ""}
-                            onChange={(e) => {
-                              const newPeriod = e.target.value;
-                              const newInvNo = generateInvoiceNumber(formData.customerCode || "", newPeriod, invoiceRows.length);
-                              setFormData({ ...formData, workPeriod: newPeriod, invoiceNo: newInvNo });
-                            }}
-                          />
+                          <div className="flex-1 w-full">
+                            <MonthPickerInput
+                              value={formData.workPeriod || ""}
+                              onChange={(newPeriod) => {
+                                const newInvNo = generateInvoiceNumber(formData.customerCode || "POS", newPeriod, invoiceRows.length);
+                                setFormData({ ...formData, workPeriod: newPeriod, invoiceNo: newInvNo });
+                              }}
+                              format="short"
+                              className="bg-white border border-slate-300 font-extrabold text-slate-900 text-xs px-2.5 py-1.5 rounded-lg focus:border-cyan-600 outline-none w-full"
+                            />
+                          </div>
                         </div>
                       </div>
 
@@ -1221,69 +1278,129 @@ export function FormModals({ c }: { c: any }) {
                       ) : formData.customerCode === "POS" ? (
                         <span>Kontrak POS: Perbandingan Waste/OB & Top Soil maksimal <strong>4.0 BCM / 1 Ton Ore</strong>. Selisih kuota masuk ke Pending Volume.</span>
                       ) : formData.customerCode === "SBS" ? (
-                        <span>Kontrak SBS: Perbandingan OB maksimal <strong>3.0 BCM / 1 Ton Coal</strong>. Volume over-contract dicatat sebagai pending volume.</span>
+                        <span>Kontrak SBS: Penagihan berbasis 8 titik Overburden per Disposal & Jasa Alat Berat Jam-Mesin (tanpa rasio batubara).</span>
                       ) : (
                         <span>Kontrak Standar: Rasio Top Soil & OB maksimal <strong>3.0 BCM / 1 Ton Coal (3 : 1)</strong>.</span>
                       )}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                         Customer Code <span className="text-rose-600">*</span>
                       </label>
                       <select
-                        className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold focus:border-indigo-600 focus:bg-white outline-none text-xs"
-                        value={formData.customerCode || ""}
-                        onChange={(e) => setFormData({ ...formData, customerCode: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold focus:border-cyan-700 focus:bg-white outline-none text-xs"
+                        value={formData.customerCode || "BGG"}
+                        onChange={(e) => {
+                          const code = e.target.value;
+                          const r1 = code === "SBS" ? 27250 : 7467;
+                          const r2 = code === "SBS" ? 26500 : 7261;
+                          const v = Number(formData.originalOBVolume || 0);
+                          setFormData({
+                            ...formData,
+                            customerCode: code,
+                            ob1Rate: r1,
+                            ob2Rate: r2,
+                            workAmount: Math.round(v * (r1 * 0.75 + r2 * 0.25))
+                          });
+                        }}
                         required
                       >
-                        <option value="">— Pilih Customer —</option>
-                        {companyList.map((c) => (
-                          <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
-                        ))}
+                        <option value="BGG">BGG - PT Budi Gema Gempita (Quota SR 3:1)</option>
+                        <option value="SBS">SBS - PT Satria Bahana Sarana</option>
+                        <option value="DBK">DBK - PT Daya Bumindo Karunia</option>
                       </select>
                     </div>
 
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                        Periode Pekerjaan <span className="text-rose-600">*</span>
+                        Periode Asal <span className="text-rose-600">*</span>
                       </label>
                       <input
                         type="month"
-                        className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold focus:border-indigo-600 focus:bg-white outline-none text-xs"
-                        value={formatMonthInput(formData.workPeriod || "Juni 2026")}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold focus:border-cyan-700 focus:bg-white outline-none text-xs"
+                        value={formatMonthInput(formData.workPeriod || formData.sourcePeriod || "Agustus 2026")}
                         onChange={(e) => {
                           const mVal = e.target.value;
                           const formattedLabel = formatMonthLabel(mVal);
-                          setFormData({ ...formData, workPeriod: formattedLabel });
+                          setFormData({ ...formData, workPeriod: formattedLabel, sourcePeriod: formattedLabel });
                         }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <RupiahInput
-                        label="Estimasi Nominal Pending Volume (Rp)"
-                        value={formData.workAmount || 0}
-                        onChange={(val) => setFormData({ ...formData, workAmount: val })}
                         required
                       />
                     </div>
 
                     <div>
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-                        PIC / Tim Joint Survey
+                        Ref. Nomor BA (Opsional)
                       </label>
                       <input
-                        className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-indigo-600 focus:bg-white outline-none text-xs"
-                        placeholder="Surveyor Site / Mine Engineer"
-                        value={formData.picAAP || ""}
-                        onChange={(e) => setFormData({ ...formData, picAAP: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none text-xs font-mono"
+                        placeholder="Contoh: 20/BAP-AAP-KKLII/26"
+                        value={formData.sourceBARef || ""}
+                        onChange={(e) => setFormData({ ...formData, sourceBARef: e.target.value })}
                       />
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <VolumeInput
+                        label="Volume Saldo Pending"
+                        unit="BCM"
+                        required
+                        value={formData.originalOBVolume || 0}
+                        onChange={(v) => {
+                          const r1 = Number(formData.ob1Rate || (formData.customerCode === "SBS" ? 27250 : 7467));
+                          const r2 = Number(formData.ob2Rate || (formData.customerCode === "SBS" ? 26500 : 7261));
+                          setFormData({
+                            ...formData,
+                            originalOBVolume: v,
+                            remainingVolume: v,
+                            workAmount: Math.round(v * (r1 * 0.75 + r2 * 0.25))
+                          });
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <RupiahInput
+                        label="Tarif OB1 75% (Rp)"
+                        value={formData.ob1Rate || (formData.customerCode === "SBS" ? 27250 : 7467)}
+                        onChange={(r1) => {
+                          const r2 = Number(formData.ob2Rate || 7261);
+                          const v = Number(formData.originalOBVolume || 0);
+                          setFormData({ ...formData, ob1Rate: r1, workAmount: Math.round(v * (r1 * 0.75 + r2 * 0.25)) });
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <RupiahInput
+                        label="Tarif OB2 25% (Rp)"
+                        value={formData.ob2Rate || (formData.customerCode === "SBS" ? 26500 : 7261)}
+                        onChange={(r2) => {
+                          const r1 = Number(formData.ob1Rate || 7467);
+                          const v = Number(formData.originalOBVolume || 0);
+                          setFormData({ ...formData, ob2Rate: r2, workAmount: Math.round(v * (r1 * 0.75 + r2 * 0.25)) });
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-900 block">
+                        Estimasi Nilai Nominal Tertunda (Auto-calculated):
+                      </span>
+                      <strong className="text-sm font-mono font-black text-emerald-800">
+                        {formatIDR(formData.workAmount || Math.round((Number(formData.originalOBVolume) || 0) * ((Number(formData.ob1Rate) || 7467) * 0.75 + (Number(formData.ob2Rate) || 7261) * 0.25)))}
+                      </strong>
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      Formula: Vol × (75% × OB1 + 25% × OB2)
+                    </span>
                   </div>
 
                   <div>
@@ -1291,7 +1408,7 @@ export function FormModals({ c }: { c: any }) {
                       Catatan / Keterangan Pending Volume (Selisih Stripping Ratio)
                     </label>
                     <textarea
-                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 text-xs focus:border-indigo-600 focus:bg-white outline-none"
+                      className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 text-xs focus:border-cyan-700 focus:bg-white outline-none"
                       rows={2}
                       placeholder="Contoh: Pending volume selisih Top Soil & Overburden over-contract ratio (3:1) untuk carry-over ke invoice berikutnya..."
                       value={formData.notes || ""}
@@ -1304,6 +1421,9 @@ export function FormModals({ c }: { c: any }) {
               {/* ================= MODAL BA TRACKER (UNIFIED WIDESCREEN DUAL-MODE WORKFLOW) ================= */}
               {modalType === "ba" && (() => {
                 const isCustomerBGG = (formData.customerCode === "BGG" || formData.customerCode === "PT BGG");
+                const isCustomerPOS = (formData.customerCode === "POS" || !formData.customerCode);
+                const isCustomerSBS = formData.customerCode === "SBS";
+                const isCustomerDBK = formData.customerCode === "DBK";
 
                 const allBAItems = [...baOperatingItems, ...baMDOItems];
 
@@ -1451,6 +1571,8 @@ export function FormModals({ c }: { c: any }) {
                                 onChange={(e) => {
                                   const code = e.target.value;
                                   const isBGG = code === "BGG" || code === "PT BGG";
+                                  const isDBK = code === "DBK";
+                                  const isSBS = code === "SBS";
                                   const currentPeriod = formData.workPeriod || "Agustus 2026";
                                   setFormData({ ...formData, customerCode: code });
                                   if (isBGG) {
@@ -1462,32 +1584,37 @@ export function FormModals({ c }: { c: any }) {
                                       { id: `bgg_od_cw_${Date.now() + 4}`, category: "Over Distance", area: "", material: "Over Distance For Coal Winning", period: currentPeriod, notes: "", unit: "Ton", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 19700, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
                                     ]);
                                     setBaMDOItems([]);
+                                  } else if (isDBK) {
+                                    setBaOperatingItems((defaultDBKBAItems || []).map((it: any) => ({ ...it, period: currentPeriod })));
+                                    setBaMDOItems([]);
+                                  } else if (isSBS) {
+                                    setBaOperatingItems((defaultSBSBAOperatingItems || []).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, period: currentPeriod })));
+                                    setBaMDOItems([]);
                                   } else {
                                     setBaOperatingItems(defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", period: currentPeriod })));
                                     setBaMDOItems(defaultPOSBAMDOItems.map(it => ({ ...it, area: "", period: currentPeriod })));
                                   }
                                 }}
                               >
-                                <option value="">— Pilih Customer —</option>
-                                {companyList.map((c) => (
-                                  <option key={c.code} value={c.code}>{c.code} - {c.name}</option>
-                                ))}
+                                <option value="POS">POS – PT Position / Paramitha</option>
+                                <option value="SBS">SBS – PT Satria Bahana Sarana</option>
+                                <option value="BGG">BGG – PT Budi Gema Gempita</option>
+                                <option value="DBK">DBK – PT Dayabumi Kencana</option>
                               </select>
                             </div>
                             <div>
                               <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">
                                 Periode Pekerjaan <span className="text-rose-600">*</span>
                               </label>
-                              <input
-                                className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 text-xs focus:border-cyan-700 outline-none"
-                                placeholder="e.g. Agustus 2026"
+                              <MonthPickerInput
                                 value={formData.workPeriod || ""}
-                                onChange={(e) => {
-                                  const val = e.target.value;
+                                onChange={(val) => {
                                   setFormData({ ...formData, workPeriod: val });
                                   setBaOperatingItems(prev => prev.map(it => ({ ...it, period: val, keterangan: val })));
                                   setBaMDOItems(prev => prev.map(it => ({ ...it, period: val, keterangan: val })));
                                 }}
+                                format="long"
+                                className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 text-xs focus:border-cyan-700 outline-none"
                                 required
                               />
                             </div>
@@ -1535,6 +1662,9 @@ export function FormModals({ c }: { c: any }) {
                                             { id: `bgg_od_ob_${Date.now() + 3}`, category: "Over Distance", area: "", material: "Over Distance For OB Removal", period: curPer, notes: "", unit: "BCM", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 1550, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
                                             { id: `bgg_od_cw_${Date.now() + 4}`, category: "Over Distance", area: "", material: "Over Distance For Coal Winning", period: curPer, notes: "", unit: "Ton", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 19700, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
                                           ]);
+                                          setBaMDOItems([]);
+                                        } else if (formData.customerCode === "DBK") {
+                                          setBaOperatingItems((defaultDBKBAItems || []).map((it: any) => ({ ...it, period: curPer })));
                                           setBaMDOItems([]);
                                         } else {
                                           setBaOperatingItems(defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", period: curPer })));
@@ -1955,8 +2085,8 @@ export function FormModals({ c }: { c: any }) {
                             </div>
                           </div>
 
-                          {/* Tabel 2: MDO (Hanya jika Customer bukan BGG / untuk POS) */}
-                          {!isCustomerBGG && (
+                          {/* Tabel 2: MDO (Hanya untuk Customer POS) */}
+                          {isCustomerPOS && (
                             <div className="space-y-2 pt-2">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-black uppercase text-indigo-900 flex items-center gap-1.5">
@@ -2127,6 +2257,12 @@ export function FormModals({ c }: { c: any }) {
                                                 if (isCustomerBGG) {
                                                   setBaOperatingItems(defaultBGGBAItems);
                                                   setBaMDOItems([]);
+                                                } else if (isCustomerSBS) {
+                                                  setBaOperatingItems(defaultSBSBAOperatingItems);
+                                                  setBaMDOItems([]);
+                                                } else if (isCustomerDBK) {
+                                                  setBaOperatingItems(defaultDBKBAItems);
+                                                  setBaMDOItems([]);
                                                 } else {
                                                   setBaOperatingItems(defaultPOSBAOperatingItems);
                                                   setBaMDOItems(defaultPOSBAMDOItems);
@@ -2135,7 +2271,7 @@ export function FormModals({ c }: { c: any }) {
                                               className="px-3.5 py-1.5 bg-cyan-800 hover:bg-cyan-900 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-xs cursor-pointer"
                                             >
                                               <RefreshCw size={13} />
-                                              <span>Muat Template SOW {isCustomerBGG ? "BGG (8 Item Kontrak Sesuai Invoice 091)" : "POS"}</span>
+                                              <span>Muat Template SOW {isCustomerBGG ? "BGG (8 Item Kontrak Sesuai Invoice 091)" : isCustomerSBS ? "SBS (8 OB Disposal & 4 Alat)" : isCustomerDBK ? "DBK (Pit Sapan)" : "POS"}</span>
                                             </button>
                                           </div>
                                         </td>
@@ -3014,10 +3150,20 @@ export function FormModals({ c }: { c: any }) {
                   {(modalType !== "ba" || isInlineEditingBA) && (
                     <button
                       type="submit"
-                      className="primary px-6 py-2.5 rounded-xl bg-cyan-700 hover:bg-cyan-800 text-white font-black shadow-md transition text-xs flex items-center gap-1.5 cursor-pointer"
+                      disabled={isSaving}
+                      className="primary px-6 py-2.5 rounded-xl bg-cyan-700 hover:bg-cyan-800 disabled:bg-slate-400 text-white font-black shadow-md transition text-xs flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
                     >
-                      <CheckCircle2 size={15} />
-                      <span>{modalType === "ba" ? "Simpan Perubahan Berita Acara" : "Simpan Data"}</span>
+                      {isSaving ? (
+                        <>
+                          <Loader2 size={15} className="animate-spin" />
+                          <span>Menyimpan...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 size={15} />
+                          <span>{modalType === "ba" ? "Simpan Perubahan Berita Acara" : "Simpan Data"}</span>
+                        </>
+                      )}
                     </button>
                   )}
                 </div>

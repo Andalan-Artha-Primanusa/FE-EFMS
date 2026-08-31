@@ -8,6 +8,21 @@ export default {
         mono: ["'Plus Jakarta Sans'", "ui-monospace", "Menlo", "monospace"]
       },
       colors: {
+        andalan: {
+          50: "#FBF6F0",
+          100: "#F4E9DC",
+          200: "#E7D3BC",
+          300: "#D5B694",
+          400: "#BE9770",
+          500: "#A57C50",
+          600: "#8C6740",
+          700: "#6E5033",
+          800: "#4F3A26",
+          900: "#32251A",
+          ink: "#1A1612",
+          surface: "#FBF6F0",
+          paper: "#FFFFFF"
+        },
         aap: {
           50: "#FBF6F0",
           100: "#F4E9DC",

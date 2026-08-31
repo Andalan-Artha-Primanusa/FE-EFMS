@@ -755,20 +755,23 @@ export function SiteSetupPage({
                   </h4>
                   <p className="text-slate-700 text-[11px]">
                     Volume pengupasan OB yang dapat ditagihkan langsung dibatasi sebesar <strong>3x Volume Batubara (Ton)</strong>.
-                    Jika volume survei OB melebihi rasio 3:1, kelebihan volume otomatis dialokasikan ke <strong>Pending Volume Ledger (Carry-Forward)</strong> dan diserap saat periode berikutnya memiliki surplus kuota.
+                    Jika volume survei OB melebihi rasio 3:1, kelebihan volume dicatat ke <strong>Pending Volume Ledger (Carry-Forward)</strong> dan dialokasikan secara manual oleh Finance Site saat periode penagihan berikutnya mencukupi.
                   </p>
                 </div>
 
                 {/* 3. Raise & Fall Formula Settings */}
                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 text-xs">
                   <h4 className="font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                    <Calculator size={16} className="text-cyan-700" /> Parameter Rumus Eskalasi Raise & Fall (RF Factor)
+                    <Calculator size={16} className="text-cyan-700" /> Formula Eskalasi Raise & Fall: 1-Faktor BBM Murni (BGG)
                   </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-[11px]">
-                    <div><span className="text-slate-500 block font-bold">Bobot BBM (A):</span> <strong className="font-mono font-black text-cyan-900">{currentRF.weightFuelA * 100}%</strong></div>
-                    <div><span className="text-slate-500 block font-bold">Bobot Tenaga Kerja (B):</span> <strong className="font-mono font-black text-cyan-900">{currentRF.weightLaborB * 100}%</strong></div>
-                    <div><span className="text-slate-500 block font-bold">Bobot Tetap (C):</span> <strong className="font-mono font-black text-cyan-900">{currentRF.weightFixedC * 100}%</strong></div>
-                    <div><span className="text-slate-500 block font-bold">RF Index Multiplier:</span> <strong className="font-mono font-black text-emerald-800 text-sm">{currentRF.rfIndexResult.toFixed(3)}x</strong></div>
+                  <div className="p-2.5 bg-white border border-slate-200 rounded-xl font-mono text-[11px] text-slate-800">
+                    <code>Index = 0,60 + 0,40 × (Fn / Fo)</code>
+                    <span className="text-slate-500 font-sans ml-2 text-[10px]">(Tanpa komponen Upah/Labor & tanpa faktor kurs)</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] pt-1">
+                    <div><span className="text-slate-500 font-bold">Base Fuel (Fo):</span> <strong className="font-mono">Rp 9.000 / Liter</strong></div>
+                    <div><span className="text-slate-500 font-bold">Aktual Fuel (Fn):</span> <strong className="font-mono">Rp 21.601,53</strong></div>
+                    <div><span className="text-slate-500 font-bold">Faktor Pengali RF:</span> <strong className="font-mono text-emerald-800">1.560x</strong></div>
                   </div>
                 </div>
               </div>

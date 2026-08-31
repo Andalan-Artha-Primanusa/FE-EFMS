@@ -2,8 +2,7 @@ import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
-import { Panel } from "../../components/Panel";
-import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, User as UserType, generateJournalFromInvoice, generateJournalFromPayment } from "../../lib/api";
+import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, getSBSPenalties, saveSBSPenalty, deleteSBSPenalty, SBSPenaltyItem, User as UserType, generateJournalFromInvoice, generateJournalFromPayment } from "../../lib/api";
 import { authorized } from "../../lib/auth";
 
 import {
@@ -51,6 +50,9 @@ export function useFinanceController({
   const [paymentRows, setPaymentRows] = useState<any[]>([]);
   const [customerRows, setCustomerRows] = useState<any[]>([]);
   const [pendingVolumeLedgers, setPendingVolumeLedgers] = useState<any[]>([]);
+  const [sbsPenalties, setSbsPenalties] = useState<SBSPenaltyItem[]>([]);
+  const [sbsPenaltyModalOpen, setSbsPenaltyModalOpen] = useState<boolean>(false);
+  const [sbsPenaltyEditItem, setSbsPenaltyEditItem] = useState<SBSPenaltyItem | null>(null);
   const [showPendingVolumeDrawer, setShowPendingVolumeDrawer] = useState<boolean>(false);
   const [baFilter, setBaFilter] = useState("All");
   const [periodFilter, setPeriodFilter] = useState("All");
@@ -61,7 +63,8 @@ export function useFinanceController({
   // Modal Input & Edit State
   const [modalType, setModalType] = useState<"none" | "ba" | "invoice" | "payment" | "customer" | "pending_volume">("none");
   const [editItem, setEditItem] = useState<any>(null);
-  const [formData, setFormData] = useState<any>({ customerCode: "", workPeriod: "Juni 2026" });
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [formData, setFormData] = useState<any>({ customerCode: "POS", workPeriod: "Juni 2026" });
   const [showActivityGroupDropdown, setShowActivityGroupDropdown] = useState(false);
   const [showExportBADropdown, setShowExportBADropdown] = useState(false);
   const [showInputBADropdown, setShowInputBADropdown] = useState(false);
@@ -91,6 +94,7 @@ export function useFinanceController({
 
   const [dynamicSowOptions, setDynamicSowOptions] = useState<any[]>([]);
   const [bankAccountOptions, setBankAccountOptions] = useState<any[]>([]);
+  const [latestKursBI, setLatestKursBI] = useState(17923.30);
 
   useEffect(() => {
     api<any[]>("/api/master-data/raise-fall")
@@ -130,6 +134,18 @@ export function useFinanceController({
     api<any[]>("/api/master-data/bank-accounts")
       .then((data) => {
         if (Array.isArray(data)) setBankAccountOptions(data);
+      })
+      .catch(() => {});
+
+    api<any[]>("/api/master-data/daily-exchange-rates")
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const sorted = [...data].sort((a, b) =>
+            new Date(b.date || b.tanggal || 0).getTime() - new Date(a.date || a.tanggal || 0).getTime()
+          );
+          const tengah = sorted[0].tengah || sorted[0].midRate || sorted[0].kurs_tengah || 0;
+          if (tengah > 0) setLatestKursBI(tengah);
+        }
       })
       .catch(() => {});
   }, []);
@@ -281,6 +297,38 @@ export function useFinanceController({
     return rows.length > 0 ? rows : FALLBACK_BGG_BA_ITEMS;
   }, [financeTemplates, templateRows]);
 
+  const FALLBACK_DBK_BA_ITEMS = [
+    { id: "dbk_ob",    category: "Operating & Mining", area: "Pit Sapan", material: "OVER BURDEN REMOVAL", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true,  distanceBasis: 0,    isDistanceVar: false, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: "dbk_coal",  category: "Operating & Mining", area: "Pit Sapan", material: "COAL GETTING",        unit: "MT",  initialVolume: 0, adjustedVolume: 0, isUSD: true,  distanceBasis: 0,    isDistanceVar: false, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: "dbk_od_ob", category: "Over Distance",      area: "Pit Sapan", material: "Overhaul OB",         unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true,  distanceBasis: 1000, isDistanceVar: true,  distanceWeightAvg: 1000, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: "dbk_od_cg", category: "Over Distance",      area: "Pit Sapan", material: "Overhaul Coal Getting",unit: "TON", initialVolume: 0, adjustedVolume: 0, isUSD: false, distanceBasis: 3000, isDistanceVar: true,  distanceWeightAvg: 3000, subtotalInitial: 0, subtotalAdjusted: 0 },
+  ];
+
+  const defaultDBKBAItems = useMemo(() => {
+    const rows = templateRows("ba_items_DBK");
+    return rows.length > 0 ? rows : FALLBACK_DBK_BA_ITEMS;
+  }, [financeTemplates, templateRows]);
+
+  const FALLBACK_SBS_BA_ITEMS = [
+    { id: "sbs_ba_a1", category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL SEKATAN", unit: "BCM", initialVolume: 80114.79, adjustedVolume: 80114.79, rate: 22654, subtotalInitial: 1814920453, subtotalAdjusted: 1814920453 },
+    { id: "sbs_ba_a2", category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA JALAN", unit: "BCM", initialVolume: 23741.16, adjustedVolume: 23741.16, rate: 12638, subtotalInitial: 300040780, subtotalAdjusted: 300040780 },
+    { id: "sbs_ba_a3", category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA CSA", unit: "BCM", initialVolume: 442.24, adjustedVolume: 442.24, rate: 8346, subtotalInitial: 3690935, subtotalAdjusted: 3690935 },
+    { id: "sbs_ba_a4", category: "Operating & Mining", area: "Pit E", material: "PIT E - JALAN BARITO", unit: "BCM", initialVolume: 33726.42, adjustedVolume: 33726.42, rate: 15500, subtotalInitial: 522759510, subtotalAdjusted: 522759510 },
+    { id: "sbs_ba_a5", category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", unit: "BCM", initialVolume: 110582.62, adjustedVolume: 110582.62, rate: 16931, subtotalInitial: 1872274339, subtotalAdjusted: 1872274339 },
+    { id: "sbs_ba_a6", category: "Operating & Mining", area: "Pit E", material: "PIT E - TS MAHONI", unit: "BCM", initialVolume: 1536.19, adjustedVolume: 1536.19, rate: 22654, subtotalInitial: 34800848, subtotalAdjusted: 34800848 },
+    { id: "sbs_ba_a7", category: "Operating & Mining", area: "Pit E", material: "PIT E - IPD WARWEFILL", unit: "BCM", initialVolume: 3840.48, adjustedVolume: 3840.48, rate: 8346, subtotalInitial: 32052646, subtotalAdjusted: 32052646 },
+    { id: "sbs_ba_a8", category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", unit: "BCM", initialVolume: 1154.75, adjustedVolume: 1154.75, rate: 19375, subtotalInitial: 22373281, subtotalAdjusted: 22373281 },
+    { id: "sbs_ba_b1", category: "Operating & Mining", area: "Pit E", material: "Dozer CAT D10 - BDCT 1001", unit: "Hours", initialVolume: 250.70, adjustedVolume: 250.70, rate: 1980000, subtotalInitial: 496386000, subtotalAdjusted: 496386000 },
+    { id: "sbs_ba_b2", category: "Operating & Mining", area: "Pit E", material: "Dozer CAT D10 - BDCT 1002", unit: "Hours", initialVolume: 298.40, adjustedVolume: 298.40, rate: 1980000, subtotalInitial: 590832000, subtotalAdjusted: 590832000 },
+    { id: "sbs_ba_b3", category: "Operating & Mining", area: "Pit E", material: "Excavator CAT 395 - EXCT 3901", unit: "Hours", initialVolume: 386.30, adjustedVolume: 386.30, rate: 1425000, subtotalInitial: 550477500, subtotalAdjusted: 550477500 },
+    { id: "sbs_ba_b4", category: "Operating & Mining", area: "Pit E", material: "Excavator CAT 395 - EXCT 3902", unit: "Hours", initialVolume: 400.60, adjustedVolume: 400.60, rate: 1425000, subtotalInitial: 570855000, subtotalAdjusted: 570855000 }
+  ];
+
+  const defaultSBSBAOperatingItems = useMemo(() => {
+    const rows = templateRows("ba_operating_SBS");
+    return rows.length > 0 ? rows : FALLBACK_SBS_BA_ITEMS;
+  }, [financeTemplates, templateRows]);
+
   const [baOperatingItems, setBaOperatingItems] = useState<any[]>(FALLBACK_POS_OPERATING_ITEMS);
   const [baMDOItems, setBaMDOItems] = useState<any[]>(FALLBACK_POS_MDO_ITEMS);
   const [activeBAStep, setActiveBAStep] = useState<number>(1);
@@ -334,11 +382,24 @@ export function useFinanceController({
 
   const customerContractMap: Record<string, { project: string; contract: string; noPO?: string; bankName?: string; bankAccountNo?: string; bankBranch?: string; directorName?: string; directorTitle?: string }> = useMemo(() => {
     const map: Record<string, any> = {};
+    (customerRows || []).forEach((c: any) => {
+      if (c && c.code) {
+        map[String(c.code).toUpperCase()] = {
+          project: c.projectSite || `${c.fullName} Site`,
+          contract: c.contractNo || `001/${c.code}-AAP/2026`,
+          bankName: c.bankName || "Bank BNI",
+          bankAccountNo: c.bankAccountNo || "8188788882",
+          bankBranch: c.bankBranch || "Harmoni, Jakarta",
+          directorName: "GAHARI CHRISTINE",
+          directorTitle: "DIRECTOR"
+        };
+      }
+    });
     templateRows("customer_contracts").forEach((c: any) => {
-      if (c && c.customerCode) map[String(c.customerCode).toUpperCase()] = c;
+      if (c && c.customerCode) map[String(c.customerCode).toUpperCase()] = { ...map[String(c.customerCode).toUpperCase()], ...c };
     });
     return map;
-  }, [financeTemplates]);
+  }, [financeTemplates, customerRows]);
 
   const handleCompanySelect = (code: string) => {
     const mapMatch = customerContractMap[code];
@@ -406,18 +467,32 @@ export function useFinanceController({
   const loadDemoDBKData = () => {
     setFormData({
       customerCode: "DBK",
-      invoiceNo: "011/AAP-PTRO/IV/2026",
-      workPeriod: "01 - 30 APRIL 26",
+      invoiceNo: "013/AAP-PTRO/VI/2026",
+      workPeriod: "01 - 30 JUNI 2026",
       projectSite: "DBK MINING PROJECT",
-      contractNo: "011/AAP-PTRO/IV/2026",
+      contractNo: "001/DBK-AAP/2024",
       bankName: "Bank BRI",
       bankAccountNo: "0417-01-880088-30-8",
       bankBranch: "S. Parman - Slipi Jakarta",
-      directorName: "CHRISTIANTO CITRA",
+      directorName: "GAHARI CHRISTINE",
       directorTitle: "DIRECTOR"
     });
-    setInvLineItems(demoDBKItems);
-    onNotice("Template preset DBK Petrosea Mining berhasil dimuat.");
+    if (demoDBKItems.length > 0) {
+      setInvLineItems(demoDBKItems);
+    } else {
+      const kurs = latestKursBI;
+      const obRate   = getSowMasterRate("DBK", "OVER BURDEN REMOVAL",   1.49,  true);
+      const cgRate   = getSowMasterRate("DBK", "COAL GETTING",           0.84,  true);
+      const odObRate = getSowMasterRate("DBK", "Overhaul OB",            0.028, true);
+      const odCgRate = getSowMasterRate("DBK", "Overhaul Coal Getting",  230,   false);
+      setInvLineItems([
+        { id: "dbk_inv_a1", section: "A", description: "OVER BURDEN REMOVAL", unit: "Bcm", volume: 259165.259, unitRateUSD: obRate,   kursBI: kurs },
+        { id: "dbk_inv_b1", section: "B", description: "COAL GETTING",        unit: "Ton", volume: 19456.32,   unitRateUSD: cgRate,   kursBI: kurs },
+        { id: "dbk_inv_c1", section: "C", subSection: "C1. Over Distance For OB Removal",   unit: "Bcm", volume: 259165.259, overhaulMtr: 1012.92, baseMtr: 1000, unitRateUSD: odObRate, kursBI: kurs },
+        { id: "dbk_inv_c2", section: "C", subSection: "C2. Over Distance For Coal Winning", unit: "Ton", volume: 34025.212,   overhaulMtr: 3174.88, baseMtr: 3000, unitRateIDR: odCgRate },
+      ]);
+    }
+    onNotice("Template preset DBK Petrosea (Juni 2026) berhasil dimuat — rate & kurs dari master data.");
   };
 
   const loadDemoSBSData = () => {
@@ -492,7 +567,7 @@ export function useFinanceController({
   async function loadData() {
     setLoading(true);
     try {
-      const [dashRes, baRes, invRes, payRes, custRes, pVolRes] = await Promise.all([
+      const [dashRes, baRes, invRes, payRes, custRes, pVolRes, sbsPenRes] = await Promise.all([
         (viewTitle === "Finance & AR Dashboard" || viewTitle === "Finance AR Dashboard" || viewTitle.includes("AR Dashboard"))
           ? api<any>("/api/finance/dashboard").catch(() => null)
           : Promise.resolve(null),
@@ -500,7 +575,8 @@ export function useFinanceController({
         api<any[]>("/api/finance/invoices").catch(() => []),
         api<any[]>("/api/finance/payments").catch(() => []),
         api<any[]>("/api/finance/customers").catch(() => []),
-        api<any[]>("/api/finance/pending-volumes").catch(() => [])
+        api<any[]>("/api/finance/pending-volumes").catch(() => []),
+        getSBSPenalties().catch(() => [])
       ]);
 
       if (dashRes) setDashboardData(dashRes);
@@ -509,6 +585,7 @@ export function useFinanceController({
       if (Array.isArray(payRes)) setPaymentRows(payRes);
       if (Array.isArray(custRes)) setCustomerRows(custRes);
       if (Array.isArray(pVolRes)) setPendingVolumeLedgers(pVolRes);
+      if (Array.isArray(sbsPenRes)) setSbsPenalties(sbsPenRes);
     } catch (err: any) {
       onNotice(err?.message || "Gagal memuat data finance");
     } finally {
@@ -1005,15 +1082,34 @@ export function useFinanceController({
       return demoDBKItems.map(i => ({ ...i }));
     } else if (code === "SBS") {
       if (ba?.items && Array.isArray(ba.items) && ba.items.length > 0) {
-        return ba.items.map((bi: any, idx: number) => ({
-          id: bi.id || `sbs_inv_${idx}`,
-          sowDescription: bi.material || bi.sowDescription || "Pekerjaan Penambangan SBS",
-          unit: bi.unit || "BCM",
-          volume: Number(bi.adjustedVolume ?? bi.initialVolume ?? 0),
-          unitRateIDR: Number(bi.rate || 0),
-          amountIDR: Number(bi.subtotalAdjusted ?? bi.subtotalInitial ?? (Number(bi.rate || 0) * Number(bi.adjustedVolume ?? bi.initialVolume ?? 0))),
-          notes: bi.notes || bi.period || "-",
-        }));
+        const invItems: any[] = [];
+        ba.items.forEach((bi: any, idx: number) => {
+          const unit = (bi.unit || "BCM").trim();
+          const isHours = unit.toLowerCase().includes("hour") || unit.toLowerCase() === "jam" || (bi.material || "").toLowerCase().includes("dozer") || (bi.material || "").toLowerCase().includes("excavator");
+          const section = isHours ? "B" : "A";
+          const vol = Number(bi.adjustedVolume ?? bi.initialVolume ?? 0);
+          const rate = Number(bi.rate || 0);
+          invItems.push({
+            id: bi.id || `sbs_inv_${section.toLowerCase()}_${idx}`,
+            section,
+            description: bi.material || bi.sowDescription || `Pekerjaan SBS ${idx + 1}`,
+            sowDescription: bi.material || bi.sowDescription || `Pekerjaan SBS ${idx + 1}`,
+            unit: isHours ? "Hours" : "BCM",
+            volume: vol,
+            unitRateIDR: rate,
+            amount: Math.round(vol * rate),
+            amountIDR: Math.round(vol * rate),
+            notes: bi.notes || bi.period || ba.workPeriod || "-"
+          });
+        });
+
+        // Sertakan 4 baris Section P pengurang pembayaran SBS
+        const sbsDeductions = (blankSBSItems.length > 0 ? blankSBSItems : demoSBSItems).filter((it: any) => it.section === "P");
+        sbsDeductions.forEach((d: any) => {
+          invItems.push({ ...d });
+        });
+
+        return invItems;
       }
       return demoSBSItems.map(i => ({ ...i }));
     }
@@ -1259,8 +1355,10 @@ export function useFinanceController({
     }
 
     if (cust === "BGG" || cust === "PT BGG") return defaultBGGBAItems;
+    if (cust === "DBK") return defaultDBKBAItems;
+    if (cust === "SBS") return defaultSBSBAOperatingItems;
     return defaultPOSBAOperatingItems;
-  }, [defaultBGGBAItems, defaultPOSBAOperatingItems, FALLBACK_BGG_BA_ITEMS]);
+  }, [defaultBGGBAItems, defaultDBKBAItems, defaultSBSBAOperatingItems, defaultPOSBAOperatingItems, FALLBACK_BGG_BA_ITEMS]);
 
   const openBAModal = (item: any, isEditMode: boolean = false) => {
     setEditItem(item);
@@ -1316,6 +1414,21 @@ export function useFinanceController({
     { id: `bgg_od_cw_${Date.now() + 4}`, category: "Over Distance", area: "", material: "Over Distance For Coal Winning", period: period, notes: "", unit: "Ton", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 19700, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
   ], []);
 
+  const createBlankSBSBAItems = useCallback((period = getCurrentMonthPeriod()) => [
+    { id: `sbs_ba_a1_${Date.now()}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL SEKATAN", period, unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 22654, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_a2_${Date.now() + 1}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA JALAN", period, unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 12638, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_a3_${Date.now() + 2}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA CSA", period, unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 8346, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_a4_${Date.now() + 3}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - JALAN BARITO", period, unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 15500, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_a5_${Date.now() + 4}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", period, unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 16931, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_a6_${Date.now() + 5}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - TS MAHONI", period, unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 22654, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_a7_${Date.now() + 6}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - IPD WARWEFILL", period, unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 8346, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_a8_${Date.now() + 7}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", period, unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 19375, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_b1_${Date.now() + 8}`, category: "Operating & Mining", area: "Pit E", material: "Dozer CAT D10 - BDCT 1001", period, unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1980000, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_b2_${Date.now() + 9}`, category: "Operating & Mining", area: "Pit E", material: "Dozer CAT D10 - BDCT 1002", period, unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1980000, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_b3_${Date.now() + 10}`, category: "Operating & Mining", area: "Pit E", material: "Excavator CAT 395 - EXCT 3901", period, unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1425000, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_b4_${Date.now() + 11}`, category: "Operating & Mining", area: "Pit E", material: "Excavator CAT 395 - EXCT 3902", period, unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1425000, subtotalInitial: 0, subtotalAdjusted: 0 }
+  ], []);
+
   const openCreateModal = (type: "ba" | "invoice" | "payment" | "customer" | "pending_volume", initialData: any = {}) => {
     setEditItem(null);
     const todayStr = new Date().toISOString().slice(0, 10);
@@ -1323,6 +1436,8 @@ export function useFinanceController({
     if (type === "ba") {
       const cust = initialData.customerCode || "";
       const isBGG = cust === "BGG" || cust === "PT BGG";
+      const isDBK = cust === "DBK";
+      const isSBS = cust === "SBS";
       const defaultPeriod = initialData.workPeriod || curMonth;
       setIsInlineEditingBA(true);
       setFormData({
@@ -1347,16 +1462,31 @@ export function useFinanceController({
         bggNettOB: 0,
         ...initialData,
       });
-      setBaOperatingItems(isBGG ? createBlankBGGBAItems(defaultPeriod) : defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", period: defaultPeriod })));
-      setBaMDOItems(isBGG ? [] : defaultPOSBAMDOItems.map(it => ({ ...it, area: "", period: defaultPeriod })));
+      setBaOperatingItems(
+        isBGG ? createBlankBGGBAItems(defaultPeriod)
+        : isDBK ? (defaultDBKBAItems || []).map((it: any) => ({ ...it, period: defaultPeriod }))
+        : isSBS ? createBlankSBSBAItems(defaultPeriod)
+        : defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", period: defaultPeriod }))
+      );
+      setBaMDOItems(isBGG || isDBK || isSBS ? [] : defaultPOSBAMDOItems.map(it => ({ ...it, area: "", period: defaultPeriod })));
       setActiveBAStep(1);
     } else if (type === "pending_volume") {
+      const defaultCust = initialData?.customerCode || "BGG";
+      const r1 = defaultCust === "SBS" ? 27250 : 7467;
+      const r2 = defaultCust === "SBS" ? 26500 : 7261;
       setFormData({
-        customerCode: "POS",
-        workPeriod: curMonth,
+        customerCode: defaultCust,
+        workPeriod: initialData?.workPeriod || curMonth,
+        sourcePeriod: initialData?.sourcePeriod || curMonth,
+        sourceBARef: initialData?.sourceBARef || "-",
+        originalOBVolume: 0,
+        absorbedVolume: 0,
+        remainingVolume: 0,
+        ob1Rate: r1,
+        ob2Rate: r2,
         workAmount: 0,
         picAAP: "Surveyor Site",
-        notes: "Pending Volume Hasil Joint Survey",
+        notes: "",
         ...initialData,
       });
     } else if (type === "invoice") {
@@ -1386,9 +1516,33 @@ export function useFinanceController({
     setModalType(type);
   };
 
-  const openEditModal = (type: "ba" | "invoice" | "payment" | "customer", item: any) => {
+  const openEditModal = (type: "ba" | "invoice" | "payment" | "customer" | "pending_volume", item: any) => {
     if (type === "ba") {
       openBAModal(item, true);
+      return;
+    }
+    if (type === "pending_volume") {
+      setEditItem(item);
+      const r1 = item.ob1Rate ?? (item.customerCode === "SBS" ? 27250 : 7467);
+      const r2 = item.ob2Rate ?? (item.customerCode === "SBS" ? 26500 : 7261);
+      const vol = item.originalOBVolume ?? 0;
+      setFormData({
+        ...item,
+        customerCode: item.customerCode || "BGG",
+        workPeriod: item.sourcePeriod || "Agustus 2026",
+        sourcePeriod: item.sourcePeriod || "Agustus 2026",
+        sourceBARef: item.sourceBaRef || item.sourceBARef || "-",
+        originalOBVolume: vol,
+        absorbedVolume: item.absorbedVolume ?? 0,
+        remainingVolume: item.remainingVolume ?? vol,
+        ob1Rate: r1,
+        ob2Rate: r2,
+        workAmount: Math.round(vol * (r1 * 0.75 + r2 * 0.25)),
+        status: item.status || "Active",
+        notes: item.notes || ""
+      });
+      setShowPendingVolumeDrawer(false);
+      setModalType("pending_volume");
       return;
     }
     setEditItem(item);
@@ -1437,6 +1591,8 @@ export function useFinanceController({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
+    setIsSaving(true);
     try {
       let endpoint = "";
       let payload: any = { ...formData };
@@ -1497,17 +1653,27 @@ export function useFinanceController({
         };
       }
       else if (modalType === "pending_volume") {
-        endpoint = "/api/finance/ba-trackers";
+        endpoint = "/api/finance/pending-volumes";
+        const vol = Number(formData.originalOBVolume || 0);
+        if (vol <= 0) {
+          onNotice("Volume Saldo Pending (BCM) wajib diisi lebih besar dari 0");
+          setIsSaving(false);
+          return;
+        }
+        const r1 = Number(formData.ob1Rate || (formData.customerCode === "SBS" ? 27250 : 7467));
+        const r2 = Number(formData.ob2Rate || (formData.customerCode === "SBS" ? 26500 : 7261));
+        const rem = formData.remainingVolume !== undefined ? Number(formData.remainingVolume) : vol;
         payload = {
-          baNumber: `053/BA-${formData.customerCode || ""}-PENDING-VOL/${(formData.workPeriod || "JUL-26").toUpperCase().replace(/\s+/g, '')}`,
-          customerCode: formData.customerCode || "",
-          workPeriod: formData.workPeriod || "Juni 2026",
-          workAmount: Number(formData.workAmount || 0),
-          statusBA: "Submit",
-          picAAP: formData.picAAP || "Surveyor Site",
-          notesBottleneck: "Pending: Joint Survey Tambahan",
-          notes: formData.notes || "Pending Volume Hasil Joint Survey Tambahan",
-          baSubmittedDate: new Date().toISOString()
+          customerCode: formData.customerCode || "BGG",
+          sourcePeriod: formData.sourcePeriod || formData.workPeriod || "Agustus 2026",
+          sourceBARef: formData.sourceBARef || "-",
+          originalOBVolume: vol,
+          absorbedVolume: Number(formData.absorbedVolume || 0),
+          remainingVolume: rem,
+          ob1Rate: r1,
+          ob2Rate: r2,
+          status: rem <= 0 ? "Settled" : (Number(formData.absorbedVolume || 0) > 0 ? "Partially Settled" : "Active"),
+          notes: formData.notes || ""
         };
       }
       else if (modalType === "invoice") endpoint = "/api/finance/invoices";
@@ -1575,17 +1741,24 @@ export function useFinanceController({
         }
       }
 
+      const savedModalType = modalType;
       setModalType("none");
+      setEditItem(null);
       await loadData();
+      if (savedModalType === "pending_volume") {
+        setShowPendingVolumeDrawer(true);
+      }
     } catch (err: any) {
       onNotice(err?.message || "Gagal menyimpan data");
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleVerifyBA = async (id: number) => {
     try {
-      const updated = await verifyBATracker(id, "verify", "Verifikasi Berita Acara oleh SPV Site");
-      onNotice("Berita Acara berhasil diverifikasi oleh SPV Site.");
+      const updated = await verifyBATracker(id, "verify", "Verifikasi Berita Acara oleh Finance Specialist");
+      onNotice("Berita Acara berhasil diverifikasi oleh Finance Specialist.");
       await loadData();
       if (detailViewItem && detailViewItem.type === "ba" && detailViewItem.data.id === id) {
         setDetailViewItem({ type: "ba", data: updated });
@@ -1640,8 +1813,8 @@ export function useFinanceController({
 
   const handleVerifyInvoice = async (id: number) => {
     try {
-      const updated = await verifyInvoice(id, "verify", "Verifikasi rincian Invoice oleh SPV Site");
-      onNotice("Invoice berhasil diverifikasi oleh SPV. Menunggu Approval Tier 1 (Manager).");
+      const updated = await verifyInvoice(id, "verify", "Verifikasi rincian Invoice oleh Finance Specialist");
+      onNotice("Invoice berhasil diverifikasi oleh Finance Specialist. Menunggu Approval Manager FATB.");
       await loadData();
       if (detailViewItem && detailViewItem.type === "invoice" && detailViewItem.data.id === id) {
         setDetailViewItem({ type: "invoice", data: updated });
@@ -1651,40 +1824,28 @@ export function useFinanceController({
     }
   };
 
-  const handleApproveInvoiceTier1 = async (id: number) => {
+  const handleApproveInvoice = async (id: number) => {
     try {
-      const updated = await approveInvoiceTier1(id, "approve", "Persetujuan Tier 1 oleh Finance Manager");
-      onNotice("Approval Tier 1 (Manager) Berhasil. Menunggu Approval Tier 2 (Direktur).");
+      const updated = await approveInvoice(id, "approve", "Persetujuan Invoice oleh Manager FATB");
+      onNotice("Invoice berhasil disetujui oleh Manager FATB. Status: Disetujui & Jurnal Piutang AR Terbit.");
       await loadData();
       if (detailViewItem && detailViewItem.type === "invoice" && detailViewItem.data.id === id) {
         setDetailViewItem({ type: "invoice", data: updated });
       }
     } catch (err: any) {
-      onNotice(err?.message || "Gagal menyetujui Approval Tier 1 Invoice");
+      onNotice(err?.message || "Gagal menyetujui Invoice");
     }
+  };
+
+  const handleApproveInvoiceTier1 = async (id: number) => {
+    return handleApproveInvoice(id);
   };
 
   const handleApproveInvoiceTier2 = async (id: number) => {
-    try {
-      const updated = await approveInvoiceTier2(id, "approve", "Persetujuan Eksekutif Tier 2 oleh Direktur");
-      
-      try {
-        await generateJournalFromInvoice(id);
-      } catch (e: any) {
-        console.error("Gagal generate journal from invoice", e);
-      }
-      
-      onNotice("Approval Tier 2 (Direktur) Berhasil. Jurnal Ter-generate.");
-      await loadData();
-      if (detailViewItem && detailViewItem.type === "invoice" && detailViewItem.data.id === id) {
-        setDetailViewItem({ type: "invoice", data: updated });
-      }
-    } catch (err: any) {
-      onNotice(err?.message || "Gagal menyetujui Approval Tier 2 Invoice");
-    }
+    return handleApproveInvoice(id);
   };
 
-  const handleDelete = async (type: "ba" | "invoice" | "payment" | "customer", id: number) => {
+  const handleDelete = async (type: "ba" | "invoice" | "payment" | "customer" | "pending_volume", id: number) => {
     if (!confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
     try {
       let endpoint = "";
@@ -1692,6 +1853,7 @@ export function useFinanceController({
       else if (type === "invoice") endpoint = `/api/finance/invoices/${id}`;
       else if (type === "payment") endpoint = `/api/finance/payments/${id}`;
       else if (type === "customer") endpoint = `/api/finance/customers/${id}`;
+      else if (type === "pending_volume") endpoint = `/api/finance/pending-volumes/${id}`;
 
       await api(endpoint, { method: "DELETE" });
       onNotice("Data berhasil dihapus!");
@@ -1699,6 +1861,39 @@ export function useFinanceController({
     } catch (err: any) {
       onNotice(err?.message || "Gagal menghapus data");
     }
+  };
+
+  const handleSaveSBSPenalty = async (item: Partial<SBSPenaltyItem>) => {
+    try {
+      await saveSBSPenalty(item);
+      onNotice("Catatan Klaim Penalti SBS berhasil disimpan.");
+      setSbsPenaltyModalOpen(false);
+      setSbsPenaltyEditItem(null);
+      await loadData();
+    } catch (err: any) {
+      onNotice(err?.message || "Gagal menyimpan klaim penalti SBS");
+    }
+  };
+
+  const handleDeleteSBSPenalty = async (id: number) => {
+    if (!window.confirm("Apakah Anda yakin ingin menghapus catatan klaim penalti SBS ini?")) return;
+    try {
+      await deleteSBSPenalty(id);
+      onNotice("Catatan Klaim Penalti SBS berhasil dihapus.");
+      await loadData();
+    } catch (err: any) {
+      onNotice(err?.message || "Gagal menghapus klaim penalti SBS");
+    }
+  };
+
+  const openSBSPenaltyModal = (item?: SBSPenaltyItem) => {
+    setSbsPenaltyEditItem(item || null);
+    setSbsPenaltyModalOpen(true);
+  };
+
+  const closeSBSPenaltyModal = () => {
+    setSbsPenaltyEditItem(null);
+    setSbsPenaltyModalOpen(false);
   };
 
   if (loading) {
@@ -1740,10 +1935,12 @@ export function useFinanceController({
     setBaRows, userRole, isSuper, isFinanceSpecialist, isSPV,
     isManager, isDirector, invoiceRows, setInvoiceRows, paymentRows,
     setPaymentRows, customerRows, setCustomerRows, pendingVolumeLedgers, setPendingVolumeLedgers,
+    sbsPenalties, setSbsPenalties, sbsPenaltyModalOpen, setSbsPenaltyModalOpen, sbsPenaltyEditItem, setSbsPenaltyEditItem,
+    handleSaveSBSPenalty, handleDeleteSBSPenalty, openSBSPenaltyModal, closeSBSPenaltyModal,
     showPendingVolumeDrawer, setShowPendingVolumeDrawer, baFilter, setBaFilter, periodFilter,
     setPeriodFilter, invStatusFilter, setInvStatusFilter, invCardTab, setInvCardTab,
     invPeriodFilter, setInvPeriodFilter, modalType, setModalType, editItem,
-    setEditItem, formData, setFormData, showActivityGroupDropdown, setShowActivityGroupDropdown,
+    setEditItem, isSaving, formData, setFormData, showActivityGroupDropdown, setShowActivityGroupDropdown,
     showExportBADropdown, setShowExportBADropdown, showInputBADropdown, setShowInputBADropdown, showExportARDropdown,
     setShowExportARDropdown, showInputARDropdown, setShowInputARDropdown, baRowActionDropdownId, setBaRowActionDropdownId,
     detailViewItem, setDetailViewItem, isInlineEditingBA, setIsInlineEditingBA, showAddPartialPayment,
@@ -1755,7 +1952,7 @@ export function useFinanceController({
     rfIndexCalculated, defaultMasterVariableOptions, masterVariableOptions, activeSOWCatalog, applyRateLookup,
     blankPOSItems, demoPOSItems, blankBGGItems, demoBGGItems, blankDBKItems,
     demoDBKItems, blankSBSItems, demoSBSItems, defaultPOSBAOperatingItems, defaultPOSBAMDOItems,
-    defaultBGGBAItems, baOperatingItems, setBaOperatingItems, baMDOItems, setBaMDOItems,
+    defaultBGGBAItems, defaultDBKBAItems, defaultSBSBAOperatingItems, latestKursBI, baOperatingItems, setBaOperatingItems, baMDOItems, setBaMDOItems,
     activeBAStep, setActiveBAStep, showAddRowDropdown, setShowAddRowDropdown, posInvoiceCategory,
     setPosInvoiceCategory, invLineItems, setInvLineItems, selectedVarA, setSelectedVarA,
     selectedVarB, setSelectedVarB, selectedVarC, setSelectedVarC, selectedVarD,
@@ -1771,7 +1968,7 @@ export function useFinanceController({
     exportAROnlyPDF, loadData, handleSavePartialPayment, handleVerifyPartialPayment, buildInvoiceItemsFromBA,
     handleBASelect, createInvoiceFromBA, openBAModal, openCreateModal, openEditModal,
     handleFileUpload, handleSave, handleVerifyBA, handleApproveBA, handleSaveBGGBA,
-    handleGenerateInvoiceFromBA, handleVerifyInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, handleDelete,
+    handleGenerateInvoiceFromBA, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, handleDelete,
     volPreview, ratePreview, grossPreview, solarPreview, subtotalDPPPreview,
     ppn11Preview, pph23Preview, totalNetInvoicePreview, totalAgingMatrix, viewTitle,
     query, onNotice, user

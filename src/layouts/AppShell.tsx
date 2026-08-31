@@ -177,9 +177,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
             <button className="icon-btn mobile-only" onClick={() => setSidebarOpen(!sidebarOpen)}><Menu size={20} /></button>
             <button className="icon-btn desktop-toggle" onClick={() => setSidebarCollapsed(!sidebarCollapsed)} title={sidebarCollapsed ? "Buka sidebar" : "Tutup sidebar"}><Menu size={20} /></button>
             <div className="topbar-title">
-              <p className="eyebrow">Finance Command Center</p>
               <h2>{activeConfig.title}</h2>
-              <small className="header-meta">{activeConfig.menuCode}</small>
             </div>
           </div>
           <div className="top-actions">

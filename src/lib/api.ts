@@ -254,12 +254,16 @@ export function verifyInvoice(id: number, action: "verify" | "reject", note: str
   return api(`/api/finance/invoices/${id}/verify`, { method: "POST", body: JSON.stringify({ action, note }) });
 }
 
+export function approveInvoice(id: number, action: "approve" | "reject", note: string) {
+  return api(`/api/finance/invoices/${id}/approve`, { method: "POST", body: JSON.stringify({ action, note }) });
+}
+
 export function approveInvoiceTier1(id: number, action: "approve" | "reject", note: string) {
-  return api(`/api/finance/invoices/${id}/approve-tier1`, { method: "POST", body: JSON.stringify({ action, note }) });
+  return approveInvoice(id, action, note);
 }
 
 export function approveInvoiceTier2(id: number, action: "approve" | "reject", note: string) {
-  return api(`/api/finance/invoices/${id}/approve-tier2`, { method: "POST", body: JSON.stringify({ action, note }) });
+  return approveInvoice(id, action, note);
 }
 
 export function getUsers() {
@@ -762,5 +766,36 @@ export function verifyTwoFactorLogin(userId: number, code: string) {
     method: "POST",
     body: JSON.stringify({ userId, code })
   });
+}
+
+// SBS Penalty Ledger API
+export interface SBSPenaltyItem {
+  id: number;
+  customerCode: string;
+  workPeriod: string;
+  claimRefNo: string;
+  description: string;
+  claimAmount: number;
+  deductedAmount: number;
+  outstandingAmount: number;
+  status: "Pending Cut" | "Deducted";
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export function getSBSPenalties(period?: string) {
+  const query = period && period !== "All" ? `?period=${encodeURIComponent(period)}` : "";
+  return api<SBSPenaltyItem[]>(`/api/finance/sbs-penalties${query}`);
+}
+
+export function saveSBSPenalty(data: Partial<SBSPenaltyItem>) {
+  const method = data.id ? "PUT" : "POST";
+  const url = data.id ? `/api/finance/sbs-penalties/${data.id}` : "/api/finance/sbs-penalties";
+  return api<SBSPenaltyItem>(url, { method, body: JSON.stringify(data) });
+}
+
+export function deleteSBSPenalty(id: number) {
+  return api<{ message: string }>(`/api/finance/sbs-penalties/${id}`, { method: "DELETE" });
 }
 

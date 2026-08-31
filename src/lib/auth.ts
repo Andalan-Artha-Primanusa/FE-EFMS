@@ -90,8 +90,10 @@ export function canAccessMenu(item: string, role: string, permissions: Permissio
     });
   }
 
-  const required = menuPermissionMap[item] ?? [];
-  if (!required.length) return true;
+  // Fail-closed RBAC: unmapped menu item => access denied by default
+  const required = menuPermissionMap[item] ?? null;
+  if (required === null) return false;
+  if (!required.length) return true; // explicitly-empty = intentionally open
   return required.some((grant) => {
     const [module, action] = grant.split(":");
     return permissions.some((permission) => permission.module === module && (permission.action === action || permission.action === "*"));

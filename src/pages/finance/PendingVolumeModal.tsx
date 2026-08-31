@@ -17,8 +17,9 @@ import {
 export function PendingVolumeModal({ c }: { c: any }) {
   const {
     pendingVolumeLedgers, showPendingVolumeDrawer, setShowPendingVolumeDrawer, openCreateModal,
-    onNotice = () => {}, refreshData
+    openEditModal, handleDelete, onNotice = () => {}, loadData, refreshData
   } = c as Record<string, any>;
+  const doRefresh = loadData || refreshData;
 
   const [allocatingItem, setAllocatingItem] = useState<any>(null);
   const [allocTargetInvoice, setAllocTargetInvoice] = useState("");
@@ -63,7 +64,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
       });
       onNotice(`Berhasil mengalokasikan ${allocVolume.toLocaleString("id-ID")} BCM ke invoice ${allocTargetInvoice}!`);
       setAllocatingItem(null);
-      if (typeof refreshData === "function") await refreshData();
+      if (typeof doRefresh === "function") await doRefresh();
     } catch (err: any) {
       onNotice(err?.message || "Gagal melakukan alokasi pending volume");
     } finally {
@@ -75,34 +76,38 @@ export function PendingVolumeModal({ c }: { c: any }) {
     <>
       {/* ================= MODAL KARTU KONTROL PENDING VOLUME ================= */}
       {showPendingVolumeDrawer && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white border border-slate-200 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-6">
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-6">
             
-            {/* Modal Header */}
-            <div className="p-5 bg-indigo-900 text-white flex items-center justify-between">
+            {/* Modal Header - AAP Brand Ink Header with Bronze Accent */}
+            <div className="p-4 sm:p-5 bg-[#1A1612] text-white flex items-center justify-between border-b border-amber-900/30">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
-                  <Scale size={22} />
+                <div className="w-10 h-10 rounded-xl bg-[#A57C50]/20 border border-[#A57C50]/40 flex items-center justify-center text-[#A57C50]">
+                  <Scale size={20} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black tracking-tight">
-                    Kartu Kontrol Saldo Pending Volume (Carry-Forward OB)
+                  <h3 className="text-sm sm:text-base font-black tracking-tight text-white flex items-center gap-2">
+                    <span>Kartu Kontrol Saldo Pending Volume</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#A57C50]/25 text-amber-200 border border-[#A57C50]/40 font-mono uppercase tracking-wider">
+                      Carry-Forward OB
+                    </span>
                   </h3>
-                  <p className="text-xs text-indigo-200 font-medium">
-                    Monitoring kuota rasio kontrak SOW (Maks. 3:1 OB/Coal) & alokasi manual volume ke invoice tujuan
+                  <p className="text-[11px] text-amber-100/70 font-medium">
+                    Monitoring kuota rasio kontrak SOW (Maks. 3:1 OB/Coal) & alokasi memo volume penagihan
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowPendingVolumeDrawer(false)}
-                className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
+                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
+                title="Tutup Modal"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
-            <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto text-xs">
+            <div className="p-5 sm:p-6 space-y-5 max-h-[80vh] overflow-y-auto text-xs bg-slate-50/50">
               {/* Top 4 KPI Metrics */}
               {(() => {
                 const activeLedgers = eligibleLedgers.filter((l: any) => l.remainingVolume > 0 || l.status === "Active" || l.status === "Partially Settled");
@@ -112,54 +117,54 @@ export function PendingVolumeModal({ c }: { c: any }) {
 
                 return (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-200/80 shadow-2xs space-y-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-900 flex items-center gap-1">
-                        <Layers size={13} className="text-indigo-700" /> Saldo Pending Aktif
+                    <div className="p-3.5 rounded-xl bg-white border border-amber-300/80 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-[#A57C50] flex items-center gap-1.5">
+                        <Layers size={13} className="text-[#A57C50]" /> Saldo Pending Aktif
                       </span>
-                      <div className="text-xl font-black font-mono text-indigo-950">
-                        {totalRemainingVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })} <span className="text-xs font-sans font-bold text-indigo-700">BCM</span>
+                      <div className="text-lg sm:text-xl font-black font-mono text-[#1A1612]">
+                        {totalRemainingVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })} <span className="text-xs font-sans font-bold text-[#A57C50]">BCM</span>
                       </div>
-                      <p className="text-[10px] text-indigo-700">Sisa volume OB belum tertagih</p>
+                      <p className="text-[10px] text-slate-500">Sisa volume OB belum tertagih</p>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200/80 shadow-2xs space-y-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-900 flex items-center gap-1">
+                    <div className="p-3.5 rounded-xl bg-white border border-emerald-200/90 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
                         <DollarSign size={13} className="text-emerald-700" /> Estimasi Nilai Tertunda
                       </span>
-                      <div className="text-xl font-black font-mono text-emerald-950 truncate">
+                      <div className="text-lg sm:text-xl font-black font-mono text-emerald-950 truncate">
                         {formatIDR(totalNominalEst)}
                       </div>
                       <p className="text-[10px] text-emerald-700">Proyeksi klaim saat kuota tersedia</p>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-cyan-50 border border-cyan-200/80 shadow-2xs space-y-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-cyan-900 flex items-center gap-1">
+                    <div className="p-3.5 rounded-xl bg-white border border-cyan-200/90 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-cyan-900 flex items-center gap-1.5">
                         <CheckCircle2 size={13} className="text-cyan-700" /> Berhasil Dialokasikan
                       </span>
-                      <div className="text-xl font-black font-mono text-cyan-950">
+                      <div className="text-lg sm:text-xl font-black font-mono text-cyan-950">
                         {totalAbsorbedVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })} <span className="text-xs font-sans font-bold text-cyan-700">BCM</span>
                       </div>
                       <p className="text-[10px] text-cyan-700">Volume telah dicairkan ke invoice</p>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-slate-100 border border-slate-200 shadow-2xs space-y-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1">
+                    <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                         <Clock size={13} className="text-slate-600" /> Status Alokasi
                       </span>
-                      <div className="text-xl font-black font-mono text-slate-900">
+                      <div className="text-lg sm:text-xl font-black font-mono text-slate-900">
                         {activeLedgers.length} <span className="text-xs font-sans font-bold text-slate-600">Periode</span>
                       </div>
-                      <p className="text-[10px] text-slate-500">Tersedia untuk dialokasikan manual</p>
+                      <p className="text-[10px] text-slate-500">Tersedia untuk dialokasikan</p>
                     </div>
                   </div>
                 );
               })()}
 
               {/* SOW Contract Rules Box */}
-              <div className="p-4 bg-indigo-50 border border-indigo-200/70 rounded-2xl flex items-start gap-3">
-                <Info size={18} className="text-indigo-700 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <div className="font-extrabold text-indigo-950 uppercase tracking-wide text-[11px]">
+              <div className="p-3.5 bg-amber-50/70 border border-amber-200/80 rounded-xl flex items-start gap-2.5">
+                <Info size={16} className="text-[#A57C50] shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <div className="font-extrabold text-[#1A1612] uppercase tracking-wide text-[10.5px]">
                     Aturan Rasio Kontrak SOW (Stripping Ratio Rule & Alokasi Manual):
                   </div>
                   <p className="text-slate-700 leading-relaxed text-[11px]">
@@ -169,10 +174,10 @@ export function PendingVolumeModal({ c }: { c: any }) {
               </div>
 
               {/* Ledger Table */}
-              <div className="space-y-3">
+              <div className="space-y-2.5 bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
-                    <FileText size={15} className="text-indigo-700" /> Rincian Buku Besar Pending Volume (Carry-Forward OB)
+                  <h4 className="text-xs font-black uppercase tracking-wider text-[#1A1612] flex items-center gap-1.5">
+                    <FileText size={14} className="text-[#A57C50]" /> Rincian Buku Besar Pending Volume (Carry-Forward OB)
                   </h4>
                   <button
                     type="button"
@@ -180,26 +185,26 @@ export function PendingVolumeModal({ c }: { c: any }) {
                       setShowPendingVolumeDrawer(false);
                       openCreateModal("pending_volume");
                     }}
-                    className="px-3.5 py-1.5 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg bg-[#A57C50] hover:bg-[#8C6740] text-white font-bold text-xs flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
                   >
                     <Plus size={13} /> + Catat Pending Volume Baru
                   </button>
                 </div>
 
-                <div className="overflow-x-auto rounded-2xl border border-slate-200 shadow-xs">
-                  <table className="w-full text-xs text-left min-w-[850px]">
-                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-[#FBF6F0] text-[#1A1612] font-extrabold uppercase text-[10px] border-b border-slate-200">
                       <tr>
-                        <th className="p-3">Customer / Project</th>
-                        <th className="p-3 text-center">Periode Asal</th>
-                        <th className="p-3">Ref. No BA</th>
-                        <th className="p-3 text-right">Volume Awal</th>
-                        <th className="p-3 text-right">Terserap</th>
-                        <th className="p-3 text-right">Sisa Saldo</th>
-                        <th className="p-3 text-right">Tarif Asal SOW</th>
-                        <th className="p-3 text-right">Estimasi Nominal (Rp)</th>
-                        <th className="p-3 text-center">Status</th>
-                        <th className="p-3 text-center">Aksi Alokasi</th>
+                        <th className="p-2.5 px-3 whitespace-nowrap">Customer / Project</th>
+                        <th className="p-2.5 px-3 text-center whitespace-nowrap">Periode Asal</th>
+                        <th className="p-2.5 px-3 whitespace-nowrap">Ref. No BA</th>
+                        <th className="p-2.5 px-3 text-right whitespace-nowrap">Volume Awal</th>
+                        <th className="p-2.5 px-3 text-right whitespace-nowrap">Terserap</th>
+                        <th className="p-2.5 px-3 text-right whitespace-nowrap">Sisa Saldo</th>
+                        <th className="p-2.5 px-3 text-right whitespace-nowrap">Tarif Asal SOW</th>
+                        <th className="p-2.5 px-3 text-right whitespace-nowrap">Estimasi Nominal (Rp)</th>
+                        <th className="p-2.5 px-3 text-center whitespace-nowrap">Status</th>
+                        <th className="p-2.5 px-3 text-center whitespace-nowrap">Aksi</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium">
@@ -216,65 +221,86 @@ export function PendingVolumeModal({ c }: { c: any }) {
                           const isPartially = item.absorbedVolume > 0 && item.remainingVolume > 0;
 
                           return (
-                            <tr key={item.id || idx} className={`hover:bg-indigo-50/30 transition ${isSettled ? "bg-slate-50/50 opacity-70" : ""}`}>
-                              <td className="p-3 font-bold text-slate-900">
+                            <tr key={item.id || idx} className={`hover:bg-amber-50/30 transition ${isSettled ? "bg-slate-50/50 opacity-70" : ""}`}>
+                              <td className="p-2.5 px-3 font-bold text-slate-900 whitespace-nowrap">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-900 font-mono font-black text-[10px]">
+                                  <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-950 font-mono font-black text-[10px]">
                                     {item.customerCode}
                                   </span>
                                   <span>{item.customerCode === "BGG" ? "PT Budi Gema Gempita" : item.customerCode === "SBS" ? "PT Satria Bahana Sarana" : item.customerCode}</span>
                                 </div>
                               </td>
-                              <td className="p-3 text-center font-mono font-bold text-slate-800">
-                                <span className="px-2.5 py-1 bg-slate-100 rounded-lg border border-slate-200">
+                              <td className="p-2.5 px-3 text-center font-mono font-bold text-slate-800 whitespace-nowrap">
+                                <span className="px-2 py-0.5 bg-slate-100 rounded-md border border-slate-200 text-[11px]">
                                   {item.sourcePeriod}
                                 </span>
                               </td>
-                              <td className="p-3 font-mono text-slate-600 text-[11px]">
-                                {item.sourceBARef || "-"}
+                              <td className="p-2.5 px-3 font-mono text-slate-600 text-[11px] whitespace-nowrap">
+                                {item.sourceBaRef || item.sourceBARef || "-"}
                               </td>
-                              <td className="p-3 text-right font-mono text-slate-700">
-                                {(item.originalOBVolume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} BCM
+                              <td className="p-2.5 px-3 text-right font-mono text-slate-700 whitespace-nowrap">
+                                {(item.originalOBVolume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} <span className="text-[10px] text-slate-500 font-sans">BCM</span>
                               </td>
-                              <td className="p-3 text-right font-mono font-bold text-cyan-800">
-                                {(item.absorbedVolume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} BCM
+                              <td className="p-2.5 px-3 text-right font-mono font-bold text-cyan-800 whitespace-nowrap">
+                                {(item.absorbedVolume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} <span className="text-[10px] text-cyan-700 font-sans font-normal">BCM</span>
                               </td>
-                              <td className="p-3 text-right font-mono font-black text-indigo-950">
-                                <span className={item.remainingVolume > 0 ? "px-2 py-0.5 rounded bg-indigo-50 border border-indigo-200" : ""}>
-                                  {(item.remainingVolume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} BCM
+                              <td className="p-2.5 px-3 text-right font-mono font-black text-[#1A1612] whitespace-nowrap">
+                                <span className={item.remainingVolume > 0 ? "px-2 py-0.5 rounded bg-amber-50 border border-amber-300/80 inline-block" : ""}>
+                                  {(item.remainingVolume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} <span className="text-[10px] text-amber-800 font-sans font-bold">BCM</span>
                                 </span>
                               </td>
-                              <td className="p-3 text-right font-mono text-[11px] text-slate-600">
+                              <td className="p-2.5 px-3 text-right font-mono text-[11px] text-slate-600 whitespace-nowrap">
                                 <div>75%: Rp {(item.ob1Rate || 7467).toLocaleString("id-ID")}</div>
                                 <div className="text-[10px] text-slate-400">25%: Rp {(item.ob2Rate || 7261).toLocaleString("id-ID")}</div>
                               </td>
-                              <td className="p-3 text-right font-mono font-black text-emerald-800">
+                              <td className="p-2.5 px-3 text-right font-mono font-black text-emerald-800 whitespace-nowrap">
                                 {formatIDR(estAmount)}
                               </td>
-                              <td className="p-3 text-center">
-                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                              <td className="p-2.5 px-3 text-center whitespace-nowrap">
+                                <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9.5px] font-black uppercase tracking-wider border whitespace-nowrap ${
                                   isSettled
                                     ? "bg-slate-100 text-slate-700 border-slate-300"
                                     : isPartially
                                     ? "bg-amber-100 text-amber-900 border-amber-300"
-                                    : "bg-indigo-100 text-indigo-900 border-indigo-300"
+                                    : "bg-emerald-50 text-emerald-800 border-emerald-300"
                                 }`}>
                                   {item.status || (isSettled ? "Settled" : "Active")}
                                 </span>
                               </td>
-                              <td className="p-3 text-center">
-                                {!isSettled ? (
+                              <td className="p-2.5 px-3 text-center whitespace-nowrap">
+                                <div className="inline-flex items-center justify-center gap-1 shrink-0">
                                   <button
                                     type="button"
-                                    onClick={() => openAllocationModal(item)}
-                                    className="px-2.5 py-1 bg-cyan-700 hover:bg-cyan-800 text-white font-bold rounded-lg text-[11px] transition shadow-xs cursor-pointer flex items-center gap-1 mx-auto"
-                                    title="Alokasikan ke Invoice"
+                                    onClick={() => {
+                                      setShowPendingVolumeDrawer(false);
+                                      if (typeof openEditModal === "function") openEditModal("pending_volume", item);
+                                    }}
+                                    className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-md text-[11px] transition cursor-pointer"
+                                    title="Edit Catatan Pending Volume"
                                   >
-                                    <Send size={11} /> Alokasikan
+                                    <Edit2 size={13} />
                                   </button>
-                                ) : (
-                                  <span className="text-[10px] text-slate-400 font-bold">Tuntas</span>
-                                )}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (typeof handleDelete === "function") handleDelete("pending_volume", item.id);
+                                    }}
+                                    className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-md text-[11px] transition cursor-pointer"
+                                    title="Hapus Catatan Pending Volume"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                  {!isSettled && (
+                                    <button
+                                      type="button"
+                                      onClick={() => openAllocationModal(item)}
+                                      className="p-1.5 bg-[#A57C50] hover:bg-[#8C6740] text-white font-bold rounded-md text-[11px] transition shadow-2xs cursor-pointer flex items-center justify-center"
+                                      title="Alokasikan ke Invoice"
+                                    >
+                                      <Send size={13} />
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           );
@@ -286,26 +312,26 @@ export function PendingVolumeModal({ c }: { c: any }) {
               </div>
 
               {/* Settlement History Invoices */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+              <div className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-2">
                 <div className="font-extrabold uppercase tracking-wider text-slate-700 text-[10px] flex items-center gap-1.5">
                   <CheckCircle size={13} className="text-emerald-700" /> Log Alokasi & Riwayat Pencairan Carry-Forward:
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 font-mono text-[11px]">
-                  <div className="p-2.5 bg-white rounded-xl border border-slate-200 flex justify-between items-center">
+                  <div className="p-2.5 bg-slate-50/70 rounded-lg border border-slate-200 flex justify-between items-center">
                     <div>
                       <span className="text-[10px] text-slate-500 font-bold block">Invoice #088/BGG-AAP/II/2026</span>
                       <strong className="text-slate-800">Menyerap Pending Nov & Des 25</strong>
                     </div>
                     <span className="text-[10px] px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-full">Dicairkan</span>
                   </div>
-                  <div className="p-2.5 bg-white rounded-xl border border-slate-200 flex justify-between items-center">
+                  <div className="p-2.5 bg-slate-50/70 rounded-lg border border-slate-200 flex justify-between items-center">
                     <div>
                       <span className="text-[10px] text-slate-500 font-bold block">Invoice #089/BGG-AAP/IV/2026</span>
                       <strong className="text-slate-800">Menyerap Pending Des 25 & Jan 26</strong>
                     </div>
                     <span className="text-[10px] px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-full">Dicairkan</span>
                   </div>
-                  <div className="p-2.5 bg-white rounded-xl border border-slate-200 flex justify-between items-center">
+                  <div className="p-2.5 bg-slate-50/70 rounded-lg border border-slate-200 flex justify-between items-center">
                     <div>
                       <span className="text-[10px] text-slate-500 font-bold block">Invoice #090/BGG-AAP/V/2026</span>
                       <strong className="text-slate-800">Menyerap Pending Feb 26 (48.224 BCM)</strong>
@@ -318,11 +344,11 @@ export function PendingVolumeModal({ c }: { c: any }) {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+            <div className="p-3.5 bg-white border-t border-slate-200 flex justify-end">
               <button
                 type="button"
                 onClick={() => setShowPendingVolumeDrawer(false)}
-                className="px-6 py-2.5 bg-indigo-900 hover:bg-indigo-950 text-white font-bold rounded-xl transition text-xs shadow-xs cursor-pointer"
+                className="px-5 py-2 bg-[#1A1612] hover:bg-black text-white font-bold rounded-lg transition text-xs shadow-xs cursor-pointer"
               >
                 Tutup Kartu Kontrol
               </button>
@@ -335,48 +361,50 @@ export function PendingVolumeModal({ c }: { c: any }) {
       {/* ================= SUB-MODAL ALOKASI KE INVOICE ================= */}
       {allocatingItem && (
         <div className="fixed inset-0 z-60 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="p-5 bg-cyan-900 text-white flex items-center justify-between">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-4 bg-[#1A1612] text-white flex items-center justify-between border-b border-amber-900/30">
               <div className="flex items-center gap-2.5">
-                <Send size={18} className="text-cyan-300" />
+                <div className="w-8 h-8 rounded-lg bg-[#A57C50]/20 border border-[#A57C50]/40 flex items-center justify-center text-[#A57C50]">
+                  <Send size={15} />
+                </div>
                 <div>
-                  <h4 className="font-extrabold text-sm">Alokasikan Saldo Pending ke Invoice</h4>
-                  <p className="text-[11px] text-cyan-200">Klien: {allocatingItem.customerCode} | Periode Asal: {allocatingItem.sourcePeriod}</p>
+                  <h4 className="font-extrabold text-sm text-white">Alokasikan Saldo Pending ke Invoice</h4>
+                  <p className="text-[11px] text-amber-100/70">Klien: {allocatingItem.customerCode} | Periode Asal: {allocatingItem.sourcePeriod}</p>
                 </div>
               </div>
-              <button onClick={() => setAllocatingItem(null)} className="text-cyan-200 hover:text-white">
-                <X size={18} />
+              <button onClick={() => setAllocatingItem(null)} className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition">
+                <X size={15} />
               </button>
             </div>
 
             <form onSubmit={handleExecuteAllocation} className="p-5 space-y-4 text-xs">
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                <div className="flex justify-between text-slate-600">
-                  <span>Sisa Saldo Tersedia:</span>
-                  <strong className="font-mono text-indigo-950">{allocatingItem.remainingVolume?.toLocaleString("id-ID", { minimumFractionDigits: 2 })} BCM</strong>
+              <div className="p-3 bg-amber-50/60 border border-amber-200/80 rounded-xl space-y-1">
+                <div className="flex justify-between text-slate-700">
+                  <span className="font-medium">Sisa Saldo Tersedia:</span>
+                  <strong className="font-mono text-[#1A1612]">{allocatingItem.remainingVolume?.toLocaleString("id-ID", { minimumFractionDigits: 2 })} BCM</strong>
                 </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>Referensi BA Asal:</span>
-                  <span className="font-mono text-slate-800">{allocatingItem.sourceBARef || "-"}</span>
+                <div className="flex justify-between text-slate-700">
+                  <span className="font-medium">Referensi BA Asal:</span>
+                  <span className="font-mono font-bold text-slate-800">{allocatingItem.sourceBARef || "-"}</span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                <label className="block text-[11px] font-extrabold uppercase text-[#1A1612] mb-1">
                   Nomor Invoice Tujuan <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. 091/BGG-AAP/VII/2026"
-                  className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-xs p-2.5 rounded-xl outline-none focus:border-cyan-600"
+                  className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-xs p-2.5 rounded-lg outline-none focus:border-[#A57C50] focus:bg-white transition"
                   value={allocTargetInvoice}
                   onChange={(e) => setAllocTargetInvoice(e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                <label className="block text-[11px] font-extrabold uppercase text-[#1A1612] mb-1">
                   Volume yang Dialokasikan (BCM) <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -385,7 +413,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
                   max={allocatingItem.remainingVolume}
                   min={0.01}
                   required
-                  className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-xs p-2.5 rounded-xl outline-none focus:border-cyan-600"
+                  className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-xs p-2.5 rounded-lg outline-none focus:border-[#A57C50] focus:bg-white transition"
                   value={allocVolume}
                   onChange={(e) => setAllocVolume(parseFloat(e.target.value) || 0)}
                 />
@@ -393,31 +421,31 @@ export function PendingVolumeModal({ c }: { c: any }) {
               </div>
 
               <div>
-                <label className="block text-[11px] font-extrabold uppercase text-slate-700 mb-1">
+                <label className="block text-[11px] font-extrabold uppercase text-[#1A1612] mb-1">
                   Catatan / Alasan Alokasi <span className="text-rose-500">*</span>
                 </label>
                 <textarea
                   rows={2}
                   required
                   placeholder="e.g. Alokasi pencairan kuota surplus periode Juli 2026"
-                  className="w-full bg-slate-50 border border-slate-300 text-xs p-2.5 rounded-xl outline-none focus:border-cyan-600"
+                  className="w-full bg-slate-50 border border-slate-300 text-xs p-2.5 rounded-lg outline-none focus:border-[#A57C50] focus:bg-white transition"
                   value={allocNote}
                   onChange={(e) => setAllocNote(e.target.value)}
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setAllocatingItem(null)}
-                  className="px-4 py-2 bg-slate-100 font-bold text-slate-700 rounded-xl"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold text-slate-700 rounded-lg transition"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={submittingAlloc}
-                  className="px-5 py-2 bg-cyan-900 hover:bg-cyan-950 text-white font-extrabold rounded-xl shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-5 py-2 bg-[#A57C50] hover:bg-[#8C6740] text-white font-extrabold rounded-lg shadow-2xs disabled:opacity-50 flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <Check size={14} /> {submittingAlloc ? "Memproses..." : "Konfirmasi Alokasi"}
                 </button>
