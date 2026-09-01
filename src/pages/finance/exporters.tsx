@@ -281,20 +281,28 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           <td class="text-right font-mono font-black">${c.subtotalC.toLocaleString("id-ID")}</td>
         </tr>
         ${secCItems.map((i: any) => {
-          const baseM = i.baseMtr || ((i.subSection || i.description || "").toLowerCase().includes("coal") ? 3000 : 1000);
+          const isCoal = (i.subSection || i.description || "").toLowerCase().includes("coal") || (i.subSection || i.description || "").toLowerCase().includes("batubara");
+          const baseM = i.baseMtr || (isCoal ? 3000 : 1000);
           const diff = Math.max(0, (i.overhaulMtr || baseM) - baseM);
+          const usdRate = i.unitRateUSD || 0.028;
+          const idrRate = i.unitRateIDR || 230;
+          const kurs = i.kursBI || 17923.30;
+          const amount = !isCoal
+            ? Math.round((i.volume || 0) * (diff / 100) * usdRate * kurs)
+            : Math.round((i.volume || 0) * (diff / 100) * idrRate);
+
           return `
             <tr>
               <td style="padding-left: 20px;">
-                <strong>${i.subSection || ""}</strong><br/>
+                <strong>${i.subSection || i.description || ""}</strong><br/>
                 PIT SAPAN<br/>
                 <span style="font-size: 8.5px; color: #475569;">${(i.overhaulMtr || baseM).toLocaleString("id-ID", { minimumFractionDigits: 2 })} mtr - ${baseM} mtr = ${diff.toFixed(2)} mtr</span>
               </td>
-              <td class="text-center font-mono">${i.volume ? i.volume.toLocaleString("id-ID", { minimumFractionDigits: 3 }) : ""}</td>
-              <td class="text-center">${i.volume ? (i.unit || "") : ""}</td>
-              <td></td>
-              <td class="text-right font-mono">${i.unitRateIDR ? i.unitRateIDR.toFixed(2) : ""}</td>
-              <td class="text-right font-mono">${i.volume && i.unitRateIDR ? Math.round(i.volume * i.unitRateIDR).toLocaleString("id-ID") : "-"}</td>
+              <td class="text-center font-mono">${i.volume ? i.volume.toLocaleString("id-ID", { minimumFractionDigits: 3 }) : "0.000"}</td>
+              <td class="text-center">${i.unit || (isCoal ? "Ton" : "Bcm")}</td>
+              <td class="text-right font-mono">${!isCoal ? usdRate.toFixed(3) : "-"}</td>
+              <td class="text-right font-mono">${!isCoal ? kurs.toLocaleString("id-ID", { minimumFractionDigits: 2 }) : idrRate.toLocaleString("id-ID")}</td>
+              <td class="text-right font-mono font-bold">${amount.toLocaleString("id-ID")}</td>
             </tr>
           `;
         }).join("")}

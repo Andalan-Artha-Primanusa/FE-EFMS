@@ -1242,29 +1242,73 @@ export function useFinanceController({
       return demoBGGItems.map(i => ({ ...i }));
     } else if (code === "DBK") {
       if (ba?.items && Array.isArray(ba.items) && ba.items.length > 0) {
-        const invoiceEligibleItems = ba.items.filter((bi: any) => {
-          const isDist = bi.isDistanceVar || bi.category === "Over Distance" || (bi.material && ((bi.material || "").toLowerCase().includes("overhaul") || (bi.material || "").toLowerCase().includes("distance")));
-          if (isDist) {
-            const mLow = (bi.material || "").toLowerCase();
-            const isCoal = mLow.includes("coal") || mLow.includes("batubara");
-            const baseMtr = bi.distanceBasis ? Number(bi.distanceBasis) : (isCoal ? 3000 : 1000);
-            const dist = Number(bi.distanceWeightAvg ?? baseMtr);
-            if (dist <= baseMtr) {
-              return false;
-            }
-          }
-          return true;
-        });
+        const invItems: any[] = [];
+        const kurs = latestKursBI || 17923.30;
+        ba.items.forEach((bi: any, idx: number) => {
+          const mLow = (bi.material || bi.sowDescription || "").toLowerCase();
+          const isDist = bi.isDistanceVar || bi.category === "Over Distance" || mLow.includes("overhaul") || mLow.includes("distance");
+          const isCoal = mLow.includes("coal") || mLow.includes("batubara");
+          const vol = Number(bi.adjustedVolume ?? bi.initialVolume ?? 0);
 
-        return invoiceEligibleItems.map((bi: any, idx: number) => ({
-          id: bi.id || `dbk_inv_${idx}`,
-          sowDescription: bi.material || bi.sowDescription || "Pekerjaan Penambangan DBK",
-          unit: bi.unit || "BCM",
-          volume: Number(bi.adjustedVolume ?? bi.initialVolume ?? 0),
-          unitRateIDR: Number(bi.rate || 0),
-          amountIDR: Number(bi.subtotalAdjusted ?? bi.subtotalInitial ?? (Number(bi.rate || 0) * Number(bi.adjustedVolume ?? bi.initialVolume ?? 0))),
-          notes: bi.notes || bi.keterangan || "",
-        }));
+          if (isDist) {
+            const baseM = isCoal ? 3000 : 1000;
+            const curMtr = Number(bi.distanceWeightAvg ?? baseM);
+            const diff = Math.max(0, curMtr - baseM);
+            const usdRate = bi.rateUSD || 0.028;
+            const idrRate = bi.rateIDR || bi.rate || 230;
+            const amt = !isCoal 
+              ? Math.round(vol * (diff / 100) * usdRate * kurs)
+              : Math.round(vol * (diff / 100) * idrRate);
+
+            invItems.push({
+              id: bi.id || `dbk_inv_c_${idx}`,
+              section: "C",
+              subSection: !isCoal ? "C1. Over Distance For OB Removal" : "C2. Over Distance For Coal Winning",
+              description: bi.material || (isCoal ? "Overhaul Coal Getting (>3000m)" : "Overhaul OB (>1000m)"),
+              unit: isCoal ? "Ton" : "Bcm",
+              volume: vol,
+              overhaulMtr: curMtr,
+              baseMtr: baseM,
+              unitRateUSD: !isCoal ? usdRate : undefined,
+              unitRateIDR: isCoal ? idrRate : undefined,
+              kursBI: !isCoal ? kurs : undefined,
+              amount: amt,
+              amountIDR: amt,
+              notes: bi.notes || bi.keterangan || ""
+            });
+          } else if (isCoal) {
+            const usdRate = bi.rateUSD || 0.840;
+            invItems.push({
+              id: bi.id || `dbk_inv_b_${idx}`,
+              section: "B",
+              description: bi.material || "COAL GETTING",
+              sowDescription: "COAL GETTING",
+              unit: "Ton",
+              volume: vol,
+              unitRateUSD: usdRate,
+              kursBI: kurs,
+              amount: Math.round(vol * usdRate * kurs),
+              amountIDR: Math.round(vol * usdRate * kurs),
+              notes: bi.notes || bi.keterangan || ""
+            });
+          } else {
+            const usdRate = bi.rateUSD || 1.490;
+            invItems.push({
+              id: bi.id || `dbk_inv_a_${idx}`,
+              section: "A",
+              description: bi.material || "OVER BURDEN REMOVAL",
+              sowDescription: "OVER BURDEN REMOVAL",
+              unit: "Bcm",
+              volume: vol,
+              unitRateUSD: usdRate,
+              kursBI: kurs,
+              amount: Math.round(vol * usdRate * kurs),
+              amountIDR: Math.round(vol * usdRate * kurs),
+              notes: bi.notes || bi.keterangan || ""
+            });
+          }
+        });
+        return invItems;
       }
       return demoDBKItems.map(i => ({ ...i }));
     } else if (code === "SBS") {
