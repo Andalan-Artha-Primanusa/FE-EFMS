@@ -215,12 +215,15 @@ export const menuPermissionMap: Record<string, string[]> = {
   "Tax Report": ["financial_report:read"],
   "Project Profitability Report": ["financial_report:read"],
   "Management Reports": ["management_dashboard:read"],
+  "Treasury Management": ["treasury:read", "payment:read"],
+  "Customer & Credit Terms": ["master_data:read"],
   "Approval Center": ["approval:act"],
   "Notification Center": ["audit_trail:read"],
   "Audit Trail": ["audit_trail:read"],
   "RBAC Management": ["user_management:manage"],
   "Role and Permission": ["user_management:manage"],
-  "System Settings": ["user_management:manage"]
+  "System Settings": ["user_management:manage"],
+  "Account Settings": []
 };
 
 export const ACCOUNT_SETTINGS_VIEW = "Account Settings";

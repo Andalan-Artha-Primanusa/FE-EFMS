@@ -24,6 +24,7 @@ import {
 import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
 import { api } from "../lib/api";
+import { MonthPickerInput } from "./finance/helpers";
 
 export interface CoalIndexWeekly {
   id?: number;
@@ -588,19 +589,14 @@ export function CoalIndexPage({
 
             <form onSubmit={handleSave} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Nama Periode (Bulan & Tahun)
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.period}
-                    onChange={(e) => setFormData({ ...formData, period: e.target.value })}
-                    placeholder="e.g. Juli 2026"
-                    className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold outline-none focus:border-amber-500 focus:bg-white transition"
-                  />
-                </div>
+                <MonthPickerInput
+                  label="Nama Periode (Bulan & Tahun)"
+                  value={formData.period}
+                  onChange={(val) => setFormData({ ...formData, period: val })}
+                  format="long"
+                  className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold outline-none focus:border-amber-500 focus:bg-white transition"
+                  required
+                />
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Status Validasi

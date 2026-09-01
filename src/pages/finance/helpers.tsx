@@ -14,9 +14,11 @@ export const resolveDocumentUrl = (path: string | undefined | null) => {
   return `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
 };
 
-export const formatIDR = (val: number) => {
-  if (!val && val !== 0) return "Rp 0";
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val);
+export const formatIDR = (val: any) => {
+  if (val === undefined || val === null || val === "") return "Rp 0";
+  const num = typeof val === "number" ? val : Number(val);
+  if (isNaN(num)) return "Rp 0";
+  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(num);
 };
 
 export const parseNumber = (str: any): number => {
@@ -45,6 +47,95 @@ export const indonesianMonths = [
   "Juli", "Agustus", "September", "Oktober", "November", "Desember"
 ];
 
+const shortMonthsEN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const shortMonthsID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+
+export function parsePeriodToYYYYMM(periodStr: string): string {
+  if (!periodStr) return "";
+  const trimmed = periodStr.trim();
+  if (/^\d{4}-\d{2}$/.test(trimmed)) return trimmed;
+
+  const parts = trimmed.split(/[\s-]+/);
+  if (parts.length >= 2) {
+    const monthPart = parts[0].toLowerCase();
+    let yearPart = parts[1];
+    if (yearPart.length === 2) yearPart = `20${yearPart}`;
+
+    let mIdx = indonesianMonths.findIndex(m => m.toLowerCase().startsWith(monthPart));
+    if (mIdx === -1) {
+      mIdx = shortMonthsEN.findIndex(m => m.toLowerCase().startsWith(monthPart));
+    }
+    if (mIdx === -1) {
+      mIdx = shortMonthsID.findIndex(m => m.toLowerCase().startsWith(monthPart));
+    }
+    if (mIdx !== -1) {
+      return `${yearPart}-${String(mIdx + 1).padStart(2, "0")}`;
+    }
+  }
+  return "";
+}
+
+export function formatYYYYMMToPeriod(yyyyMm: string, format: "short" | "long" = "short"): string {
+  if (!yyyyMm || !yyyyMm.includes("-")) return yyyyMm;
+  const [year, monthStr] = yyyyMm.split("-");
+  const monthIndex = parseInt(monthStr, 10) - 1;
+  if (monthIndex < 0 || monthIndex > 11) return yyyyMm;
+
+  if (format === "long") {
+    return `${indonesianMonths[monthIndex]} ${year}`;
+  }
+  const shortM = shortMonthsID[monthIndex] || shortMonthsEN[monthIndex];
+  const shortY = year.length === 4 ? year.substring(2) : year;
+  return `${shortM}-${shortY}`;
+}
+
+export function MonthPickerInput({
+  label,
+  value,
+  onChange,
+  required,
+  format = "short",
+  className,
+  placeholder,
+  helperText
+}: {
+  label?: string;
+  value: string;
+  onChange: (val: string) => void;
+  required?: boolean;
+  format?: "short" | "long";
+  className?: string;
+  placeholder?: string;
+  helperText?: string;
+}) {
+  const yyyyMm = parsePeriodToYYYYMM(value);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (!val) {
+      onChange("");
+      return;
+    }
+    const formatted = formatYYYYMMToPeriod(val, format);
+    onChange(formatted);
+  };
+
+  return (
+    <div className="space-y-1">
+      {label && <label className="block text-xs font-bold text-slate-700">{label}</label>}
+      <input
+        type="month"
+        value={yyyyMm}
+        onChange={handleChange}
+        required={required}
+        placeholder={placeholder}
+        className={className || "w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-medium text-slate-900 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none text-xs"}
+      />
+      {helperText && <p className="text-[10px] text-slate-400 font-normal">{helperText}</p>}
+    </div>
+  );
+}
+
 export function formatMonthLabel(yyyyMm: string): string {
   if (!yyyyMm || !yyyyMm.includes("-")) return yyyyMm;
   const [year, monthStr] = yyyyMm.split("-");
@@ -56,20 +147,7 @@ export function formatMonthLabel(yyyyMm: string): string {
 }
 
 export function formatMonthInput(label: string): string {
-  if (!label) return "";
-  if (/^\d{4}-\d{2}$/.test(label)) return label;
-  const parts = label.trim().split(/[\s-]+/);
-  if (parts.length >= 2) {
-    let monthName = parts[0].toLowerCase();
-    let year = parts[1];
-    if (year.length === 2) year = `20${year}`;
-    const mIdx = indonesianMonths.findIndex(m => m.toLowerCase().startsWith(monthName));
-    if (mIdx !== -1) {
-      const monthNum = String(mIdx + 1).padStart(2, '0');
-      return `${year}-${monthNum}`;
-    }
-  }
-  return label;
+  return parsePeriodToYYYYMM(label);
 }
 
 export function getRomanMonth(periodOrDateStr: string): string {
@@ -372,14 +450,13 @@ export function renderInvoiceStatusBadge(status: string) {
   if (s === "Paid") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-block whitespace-nowrap">Paid (Lunas)</span>;
   if (s === "Tax_Reported") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-300 font-extrabold inline-block whitespace-nowrap">Tax Reported (SPT)</span>;
   if (s === "Overdue") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-block whitespace-nowrap">Overdue</span>;
-  if (s === "Verified") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-100 text-cyan-800 border border-cyan-300 inline-block whitespace-nowrap">Verified SPV</span>;
-  if (s === "Approved_Tier1") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-300 inline-block whitespace-nowrap">Approved Mgr (Tier 1)</span>;
-  if (s === "Issued" || s === "Approved_Tier2" || s === "Approved") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300 font-extrabold inline-block whitespace-nowrap">Issued (Approved Dir)</span>;
+  if (s === "Verified") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-100 text-cyan-800 border border-cyan-300 inline-block whitespace-nowrap">Verified Finance</span>;
+  if (s === "Approved" || s === "Issued" || s === "Approved_Tier1" || s === "Approved_Tier2") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300 font-extrabold inline-block whitespace-nowrap">Disetujui Manager FATB</span>;
   if (s === "Rejected") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-block whitespace-nowrap">Rejected</span>;
   if (s === "Draft" || s === "Draft Invoice" || !s || s === "Pending" || s === "Submitted") {
-    return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-block whitespace-nowrap">Draft (Menunggu Mgr)</span>;
+    return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-block whitespace-nowrap">Draft (Menunggu Approval FATB)</span>;
   }
-  return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-block whitespace-nowrap">{status}</span>;
+  return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-800 border border-slate-300 inline-block whitespace-nowrap">{status}</span>;
 }
 
 export function parsePeriodToMonthIndex(periodStr: string): number {
@@ -453,6 +530,88 @@ export function RupiahInput({
   );
 }
 
+// Component helper input Volume dengan Auto Thousand Separator (.) & Desimal (,)
+export function VolumeInput({
+  label,
+  value,
+  onChange,
+  unit = "BCM",
+  required,
+  placeholder,
+  helperText
+}: {
+  label: string;
+  value: number | string;
+  onChange: (val: number) => void;
+  unit?: string;
+  required?: boolean;
+  placeholder?: string;
+  helperText?: string;
+}) {
+  const [localStr, setLocalStr] = React.useState<string>(() => {
+    if (value === 0 || value === "0" || !value) return "";
+    const n = typeof value === "number" ? value : parseFloat(String(value));
+    if (isNaN(n)) return "";
+    return n.toLocaleString("id-ID", { maximumFractionDigits: 2 });
+  });
+
+  React.useEffect(() => {
+    if (value === 0 || value === "0" || !value) {
+      if (localStr === "" || localStr === "0") return;
+    }
+    const currentNum = parseFloat(localStr.replace(/\./g, "").replace(",", "."));
+    const propNum = typeof value === "number" ? value : parseFloat(String(value));
+    if (currentNum !== propNum && !isNaN(propNum)) {
+      setLocalStr(propNum.toLocaleString("id-ID", { maximumFractionDigits: 2 }));
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    // Allow digits, dots and comma
+    const clean = raw.replace(/[^0-9.,]/g, "");
+    setLocalStr(clean);
+    const normalized = clean.replace(/\./g, "").replace(",", ".");
+    const num = parseFloat(normalized);
+    onChange(isNaN(num) ? 0 : num);
+  };
+
+  const handleBlur = () => {
+    const normalized = localStr.replace(/\./g, "").replace(",", ".");
+    const num = parseFloat(normalized);
+    if (!isNaN(num) && num > 0) {
+      setLocalStr(num.toLocaleString("id-ID", { maximumFractionDigits: 2 }));
+    } else if (isNaN(num) || num === 0) {
+      setLocalStr("");
+    }
+  };
+
+  return (
+    <div>
+      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+        {label} {required && <span className="text-rose-600">*</span>}
+      </label>
+      <div className="relative">
+        <input
+          type="text"
+          className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 pr-14 text-slate-900 font-mono font-bold focus:border-cyan-700 focus:bg-white outline-none text-xs"
+          placeholder={placeholder || "0,00"}
+          value={localStr}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          required={required}
+        />
+        {unit && (
+          <span className="absolute right-3 top-2.5 text-[11px] font-bold text-slate-400 pointer-events-none font-mono">
+            {unit}
+          </span>
+        )}
+      </div>
+      {helperText && <p className="text-[10px] text-slate-400 mt-0.5 font-medium">{helperText}</p>}
+    </div>
+  );
+}
+
 export const generateAuditTimeline = (type: string, item: any) => {
   const formatDateDisplay = (val: any) => {
     if (!val) return "";
@@ -501,9 +660,8 @@ export const generateAuditTimeline = (type: string, item: any) => {
   }
 
   if (type === "invoice") {
-    const isVerified = Boolean(item.verifiedBy || ["Verified", "Approved_Tier1", "Issued", "Paid"].includes(item.status));
-    const isTier1 = Boolean(item.approvedManagerBy || ["Approved_Tier1", "Issued", "Paid"].includes(item.status));
-    const isTier2 = Boolean(item.approvedDirectorBy || ["Issued", "Paid"].includes(item.status));
+    const isApproved = Boolean(item.approvedManagerBy || ["Approved", "Approved_Tier1", "Approved_Tier2", "Issued", "Paid"].includes(item.status));
+    const isPaid = item.status === "Paid" || (item.totalPaid && item.totalPaid >= item.totalInvoice);
     const isRejected = item.status === "Rejected";
 
     return [
@@ -511,43 +669,32 @@ export const generateAuditTimeline = (type: string, item: any) => {
         step: 1,
         title: "Invoice Diterbitkan (Draft)",
         user: item.createdBy || "Admin Finance Site / HO",
-        role: "Admin Finance",
+        role: "Admin Finance Site / HO",
         time: item.createdAt ? formatDateDisplay(item.createdAt) : formatDateDisplay(item.invoiceDate),
         status: "completed",
         desc: `Master Invoice ${item.invoiceNo} dibuat berdasarkan BA Ref: ${item.baNoReference || "-"}.`
       },
       {
         step: 2,
-        title: "Verifikasi SPV Site",
-        user: item.verifiedBy ? item.verifiedBy : (isVerified ? "SPV Verifikator (Verified)" : "Belum Diverifikasi"),
-        role: "SPV Verifikator",
-        time: item.verifiedAt ? formatDateDisplay(item.verifiedAt) : (isVerified ? "Terverifikasi" : "Menunggu SPV"),
-        status: isVerified ? "completed" : (isRejected ? "rejected" : "pending"),
-        desc: item.verifiedBy
-          ? `Rincian Invoice & kesesuaian BA diverifikasi oleh akun: ${item.verifiedBy}.`
-          : (isVerified ? "Verifikasi rincian volume & nilai invoice disetujui SPV." : "Menunggu verifikasi rincian invoice oleh SPV Site.")
+        title: "Persetujuan Manager FATB",
+        user: item.approvedManagerBy ? item.approvedManagerBy : (isApproved ? "Manager FATB (Approved)" : "Belum Disetujui"),
+        role: "Manager FATB",
+        time: item.approvedManagerAt ? formatDateDisplay(item.approvedManagerAt) : (isApproved ? "Disetujui" : "Menunggu Manager FATB"),
+        status: isApproved ? "completed" : (isRejected ? "rejected" : "pending"),
+        desc: item.approvedManagerBy
+          ? `Invoice disetujui sah oleh ${item.approvedManagerBy}. Jurnal piutang AR diposting ke buku besar.`
+          : (isApproved ? "Persetujuan Manager FATB selesai. Invoice resmi terbit." : "Menunggu pengesahan dan persetujuan tunggal Manager FATB.")
       },
       {
         step: 3,
-        title: "Approval Tier 1 (Manager)",
-        user: item.approvedManagerBy ? item.approvedManagerBy : (isTier1 ? "Finance Manager (Approved T1)" : "Belum Disetujui"),
-        role: "Manager",
-        time: item.approvedManagerAt ? formatDateDisplay(item.approvedManagerAt) : (isTier1 ? "Disetujui T1" : "Menunggu Manager"),
-        status: isTier1 ? "completed" : (isRejected ? "rejected" : "pending"),
-        desc: item.approvedManagerBy
-          ? `Persetujuan Tier 1 diberikan oleh akun: ${item.approvedManagerBy}.`
-          : (isTier1 ? "Approval Tier 1 Manager selesai, siap lanjut ke Direktur." : "Menunggu persetujuan utama (Tier 1) Finance Manager.")
-      },
-      {
-        step: 4,
-        title: "Approval Tier 2 (Direktur)",
-        user: item.approvedDirectorBy ? item.approvedDirectorBy : (isTier2 ? "Direktur Utama (Approved T2)" : "Belum Disetujui"),
-        role: "Direktur",
-        time: item.approvedDirectorAt ? formatDateDisplay(item.approvedDirectorAt) : (isTier2 ? "Disetujui T2" : "Menunggu Direktur"),
-        status: isTier2 ? "completed" : (isRejected ? "rejected" : "pending"),
-        desc: item.approvedDirectorBy
-          ? `Persetujuan Tier 2 (Eksekutif) disahkan oleh akun: ${item.approvedDirectorBy}. Status resmi: Issued.`
-          : (isTier2 ? "Approval Tier 2 Direktur selesai. Invoice terbit resmi (Issued)." : "Menunggu persetujuan eksekutif (Tier 2) Direktur.")
+        title: "Penerimaan & Pelunasan AR",
+        user: isPaid ? "Treasury Dept (Lunas)" : "AR Treasury",
+        role: "Treasury Dept",
+        time: isPaid ? formatDateDisplay(new Date()) : "Menunggu Pelunasan",
+        status: isPaid ? "completed" : (isApproved ? "active" : "pending"),
+        desc: isPaid
+          ? `Pembayaran piutang lunas terverifikasi di mutasi rekening koran.`
+          : `Saldo tagihan berjalan: ${formatIDR(item.outstanding || item.totalInvoice)}.`
       }
     ];
   }

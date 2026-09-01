@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Truck } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, User as UserType } from "../../lib/api";
@@ -181,48 +181,56 @@ export function BATrackerView({ c }: { c: any }) {
                     {showInputBADropdown && (
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setShowInputBADropdown(false)} />
-                        <div className="absolute right-0 mt-1.5 w-56 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-20 text-xs font-bold divide-y divide-slate-100">
+                        <div className="absolute right-0 mt-1.5 w-60 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-20 text-xs font-bold divide-y divide-slate-100">
                           <button
-                            className="w-full px-3.5 py-2.5 text-left text-amber-950 bg-amber-50/50 hover:bg-amber-100 flex items-center gap-2 transition cursor-pointer"
+                            className="w-full px-3.5 py-2.5 text-left text-slate-800 hover:bg-amber-50 hover:text-amber-950 flex items-center gap-2.5 transition cursor-pointer"
                             onClick={() => {
                               openCreateModal("ba", { customerCode: "BGG" });
                               setShowInputBADropdown(false);
                             }}
                           >
                             <Scale size={15} className="text-amber-600 shrink-0" />
-                            <div>
-                              <div className="font-bold text-amber-950 flex items-center gap-1.5">
-                                + Input BA PT BGG (Joint Survey)
-                                <span className="bg-amber-200 text-amber-900 text-[9px] px-1.5 py-0.2 rounded font-mono font-bold">Site</span>
-                              </div>
-                              <div className="text-[10px] text-amber-700 font-normal">Input Volume Terbongkar & Batubara (1 Inv)</div>
-                            </div>
+                            <span>+ Buat BA Project BGG</span>
                           </button>
                           <button
-                            className="w-full px-3.5 py-2.5 text-left text-slate-700 hover:bg-cyan-50 hover:text-cyan-800 flex items-center gap-2 transition cursor-pointer"
+                            className="w-full px-3.5 py-2.5 text-left text-slate-800 hover:bg-cyan-50 hover:text-cyan-900 flex items-center gap-2.5 transition cursor-pointer"
                             onClick={() => {
                               openCreateModal("ba", { customerCode: "POS" });
                               setShowInputBADropdown(false);
                             }}
                           >
                             <Plus size={15} className="text-cyan-700 shrink-0" />
-                            <div>
-                              <div className="font-bold text-slate-900">+ Buat BA PT POS (Operating & MDO)</div>
-                              <div className="text-[10px] text-slate-500 font-normal">Entri 2 Kategori: Mining & MDO (2 Inv)</div>
-                            </div>
+                            <span>+ Buat BA Project POS</span>
                           </button>
                           <button
-                            className="w-full px-3.5 py-2.5 text-left text-slate-700 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-2 transition cursor-pointer"
+                            className="w-full px-3.5 py-2.5 text-left text-slate-800 hover:bg-emerald-50 hover:text-emerald-900 flex items-center gap-2.5 transition cursor-pointer"
+                            onClick={() => {
+                              openCreateModal("ba", { customerCode: "DBK" });
+                              setShowInputBADropdown(false);
+                            }}
+                          >
+                            <Pickaxe size={15} className="text-emerald-600 shrink-0" />
+                            <span>+ Buat BA Project DBK</span>
+                          </button>
+                          <button
+                            className="w-full px-3.5 py-2.5 text-left text-slate-800 hover:bg-orange-50 hover:text-orange-950 flex items-center gap-2.5 transition cursor-pointer"
+                            onClick={() => {
+                              openCreateModal("ba", { customerCode: "SBS" });
+                              setShowInputBADropdown(false);
+                            }}
+                          >
+                            <Truck size={15} className="text-orange-600 shrink-0" />
+                            <span>+ Buat BA Project SBS</span>
+                          </button>
+                          <button
+                            className="w-full px-3.5 py-2.5 text-left text-slate-800 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-2.5 transition cursor-pointer"
                             onClick={() => {
                               openCreateModal("pending_volume");
                               setShowInputBADropdown(false);
                             }}
                           >
                             <Layers size={15} className="text-indigo-600 shrink-0" />
-                            <div>
-                              <div className="font-bold text-slate-900">+ Input Pending Volume</div>
-                              <div className="text-[10px] text-slate-500 font-normal">Kelebihan rasio Top Soil & OB kontrak</div>
-                            </div>
+                            <span>+ Input Pending Volume</span>
                           </button>
                         </div>
                       </>
@@ -390,7 +398,7 @@ export function BATrackerView({ c }: { c: any }) {
                       <div className="flex items-center justify-between gap-1">
                         <span className="text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 whitespace-nowrap">
                           <ShieldCheck size={14} className={baFilter === "Pending Berita Acara" ? "text-amber-200" : "text-amber-600"} />
-                          2. Verifikasi SPV
+                          2. Verifikasi Finance Specialist
                         </span>
                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-full whitespace-nowrap ${
                           baFilter === "Pending Berita Acara" ? "bg-amber-800 text-amber-100 border border-amber-500" : "bg-amber-100 text-amber-900 border border-amber-300"
@@ -593,11 +601,23 @@ export function BATrackerView({ c }: { c: any }) {
                                   <div className="font-mono font-black text-emerald-700 text-sm">
                                     {formatIDR(row.workAmount || 0)}
                                   </div>
-                                  {row.initialWorkAmount && row.adjustedWorkAmount && row.initialWorkAmount !== row.adjustedWorkAmount && (
-                                    <div className={`text-[10px] font-mono font-bold ${row.adjustedWorkAmount >= row.initialWorkAmount ? "text-emerald-600" : "text-rose-600"}`}>
-                                      {row.adjustedWorkAmount >= row.initialWorkAmount ? `+${formatIDR(row.adjustedWorkAmount - row.initialWorkAmount)} (Survey)` : `-${formatIDR(row.initialWorkAmount - row.adjustedWorkAmount)} (Survey)`}
-                                    </div>
-                                  )}
+                                  {row.initialWorkAmount && row.adjustedWorkAmount && row.initialWorkAmount !== row.adjustedWorkAmount && (() => {
+                                    const diffVal = row.adjustedWorkAmount - row.initialWorkAmount;
+                                    const devPct = row.initialWorkAmount > 0 ? (Math.abs(diffVal) / row.initialWorkAmount) * 100 : 0;
+                                    const isExcess = devPct > 3.0;
+                                    return (
+                                      <div className="space-y-0.5 pt-0.5">
+                                        <div className={`text-[10px] font-mono font-bold ${diffVal >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                                          {diffVal >= 0 ? `+${formatIDR(diffVal)} (Survey)` : `-${formatIDR(Math.abs(diffVal))} (Survey)`}
+                                        </div>
+                                        {isExcess && (
+                                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300" title="Deviasi hasil joint survey melebihi batas toleransi 3%">
+                                            ⚠️ Deviasi {devPct.toFixed(1)}%
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })()}
                                 </td>
 
                                 {/* Kolom 4: Alur Tanggal & Lead Time */}

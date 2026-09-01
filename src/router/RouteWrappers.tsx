@@ -14,6 +14,10 @@ import { FinanceCustomerPage } from "../pages/FinanceCustomerPage";
 import { SiteSetupPage } from "../pages/SiteSetupPage";
 import { CompanyPage } from "../pages/CompanyPage";
 import { TreasuryPage } from "../pages/TreasuryPage";
+import { BudgetManagementPage } from "../pages/BudgetManagementPage";
+import { ClosingPeriodPage } from "../pages/ClosingPeriodPage";
+import { NotificationCenterPage } from "../pages/NotificationCenterPage";
+import { OrgUnitsPage } from "../pages/OrgUnitsPage";
 
 export function SiteSetupRoute({ viewTitle = "Setup Parameter Site & Klien" }: { viewTitle?: string }) {
   const { query, setNotice, user } = useOutletContext<any>();
@@ -85,5 +89,24 @@ export function CompanyRoute() {
 export function TreasuryManagementRoute() {
   const { query, setNotice, user } = useOutletContext<any>();
   return <TreasuryPage viewTitle="Treasury Management" query={query} onNotice={setNotice} user={user} />;
+}
+
+export function BudgetManagementRoute({ viewTitle }: { viewTitle: string }) {
+  const { setNotice } = useOutletContext<any>();
+  return <BudgetManagementPage viewTitle={viewTitle} onNotice={setNotice} />;
+}
+
+export function ClosingPeriodRoute({ viewTitle }: { viewTitle: string }) {
+  return <ClosingPeriodPage viewTitle={viewTitle} />;
+}
+
+export function NotificationCenterRoute() {
+  const { setNotice } = useOutletContext<any>();
+  return <NotificationCenterPage onNotice={setNotice} />;
+}
+
+export function OrgUnitsRoute() {
+  const { query, setNotice, user } = useOutletContext<any>();
+  return <OrgUnitsPage viewTitle="Unit Kerja & Departemen" query={query} onNotice={setNotice} user={user} />;
 }
 

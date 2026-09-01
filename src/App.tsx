@@ -8,7 +8,7 @@ import { MasterDataFormRoute } from "./pages/MasterDataFormRoute";
 import { TransactionFormPage } from "./pages/TransactionFormPage";
 import { ProtectedRoute } from "./router/ProtectedRoute";
 import { NotFoundPage } from "./pages/NotFoundPage";
-import { DashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute, CoalIndexRoute, RaiseFallRoute, FinanceDashboardRoute, FinanceBATrackerRoute, FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute, SiteSetupRoute, CompanyRoute, TreasuryManagementRoute } from "./router/RouteWrappers";
+import { DashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute, CoalIndexRoute, RaiseFallRoute, FinanceDashboardRoute, FinanceBATrackerRoute, FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute, SiteSetupRoute, CompanyRoute, TreasuryManagementRoute, BudgetManagementRoute, ClosingPeriodRoute, NotificationCenterRoute, OrgUnitsRoute } from "./router/RouteWrappers";
 
 export function App() {
   const [user, setUser] = useState<User | null>(() => {

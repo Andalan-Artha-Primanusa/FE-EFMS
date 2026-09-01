@@ -214,6 +214,22 @@ export function createFinanceCalculations(deps: {
 
     // Customer: DBK (Dual Currency USD to IDR)
     if (cust === "DBK") {
+      if (item.section === "C") {
+        // C1 — Over Distance OB (USD-based, basis 1.000m)
+        // C2 — Over Distance Coal (IDR-based, basis 3.000m)
+        const basis = item.baseMtr || (item.unitRateUSD ? 1000 : 3000);
+        const diff = (mtr || basis) - basis;
+        if (item.unitRateUSD && item.kursBI) {
+          // OB: vol × (diff/100) × rateUSD × kursBI
+          amount = Math.round(vol * (diff / 100) * item.unitRateUSD * item.kursBI);
+          unitRate = vol > 0 ? Math.round(amount / vol) : 0;
+        } else if (item.unitRateIDR) {
+          // Coal: vol × (diff/100) × rateIDR
+          amount = Math.round(vol * (diff / 100) * item.unitRateIDR);
+          unitRate = vol > 0 ? Math.round(amount / vol) : 0;
+        }
+        return { unitRate, amount };
+      }
       if (item.unitRateUSD && item.kursBI) {
         unitRate = Math.round(item.unitRateUSD * item.kursBI);
         amount = Math.round(vol * item.unitRateUSD * item.kursBI);
@@ -305,7 +321,7 @@ export function createFinanceCalculations(deps: {
       dpp11_12 = Math.round(totalGross * 11 / 12);
       vat12 = Math.round(dpp11_12 * 0.12);
       pph23 = Math.round(totalGross * 0.02);
-      totalInvoice = dpp11_12 + vat12 - pph23;
+      totalInvoice = totalGross + vat12 - pph23;
       totalDibayar = totalInvoice;
     }
 

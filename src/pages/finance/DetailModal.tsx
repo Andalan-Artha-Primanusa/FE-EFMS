@@ -16,13 +16,13 @@ import {
 
 export function DetailModal({ c }: { c: any }) {
   const {
-    isSPV, isManager, isDirector, invoiceRows: rawInvoiceRows, paymentRows: rawPaymentRows, baRows: rawBaRows,
+    isSuper, isFinanceSpecialist, isSPV, isManager, isDirector, invoiceRows: rawInvoiceRows, paymentRows: rawPaymentRows, baRows: rawBaRows,
     detailViewItem, setDetailViewItem, showAddPartialPayment, setShowAddPartialPayment, partialPaymentForm,
     setPartialPaymentForm, rfIndexCalculated, invLineItems, formData, buildInvoiceItemsFromBA, customerContractMap, getItemEffectiveVolume,
     getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations, subtotalA, subtotalB,
     subtotalC, subtotalD, subtotalE, subtotalF, exportPaymentDetailPDF,
     handleSavePartialPayment, handleVerifyPartialPayment, createInvoiceFromBA, handleVerifyBA, handleApproveBA,
-    handleVerifyInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, openEditModal, user
+    handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, openEditModal, user
   } = (c || {}) as Record<string, any>;
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
   const paymentRows: any[] = Array.isArray(rawPaymentRows) ? rawPaymentRows : [];
@@ -131,8 +131,19 @@ export function DetailModal({ c }: { c: any }) {
                         <div><span className="text-slate-500 block font-bold">Tgl TTD BA:</span> <strong>{detailViewItem.data.baSignedDate ? new Date(detailViewItem.data.baSignedDate).toLocaleDateString("id-ID") : "-"}</strong></div>
                       </div>
                       <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-                        <span className="text-xs text-emerald-800 font-bold block uppercase font-bold tracking-wider">Nominal Pekerjaan (Nilai Klaim BA)</span>
-                        <span className="text-xl font-black text-emerald-900 font-mono">{formatIDR(detailViewItem.data.workAmount || 0)}</span>
+                        <span className="text-xs text-emerald-800 font-bold block uppercase tracking-wider">Nominal Pekerjaan (Nilai Klaim BA)</span>
+                        <div className="flex flex-wrap items-baseline gap-2">
+                          <span className="text-xl font-black text-emerald-900 font-mono">{formatIDR(detailViewItem.data.workAmount || 0)}</span>
+                          {detailViewItem.data.initialWorkAmount && detailViewItem.data.adjustedWorkAmount && detailViewItem.data.initialWorkAmount !== detailViewItem.data.adjustedWorkAmount && (() => {
+                            const diffVal = detailViewItem.data.adjustedWorkAmount - detailViewItem.data.initialWorkAmount;
+                            const devPct = detailViewItem.data.initialWorkAmount > 0 ? (Math.abs(diffVal) / detailViewItem.data.initialWorkAmount) * 100 : 0;
+                            return (
+                              <span className={`text-xs font-mono font-bold ${diffVal >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                                ({diffVal >= 0 ? `+${formatIDR(diffVal)}` : `-${formatIDR(Math.abs(diffVal))}`} Survey {devPct > 3.0 ? `| ⚠️ Deviasi ${devPct.toFixed(1)}%` : ""})
+                              </span>
+                            );
+                          })()}
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3 pb-2">
@@ -752,23 +763,25 @@ export function DetailModal({ c }: { c: any }) {
                         </div>
                       )}
 
-                      {/* Notes Footer */}
-                      {(() => {
-                        if (isMDO) return null;
-                        return (
-                          <div className="pt-2 text-[10px] font-mono text-slate-600 space-y-0.5">
-                            <p className="font-bold text-slate-800">Note:</p>
-                            {viewCustCode === "BGG" ? (
-                              <>
-                                <p>1. Raise & Fall's Factor Feb 26: <strong className="text-slate-900">1,274</strong></p>
-                                <p>2. Raise & Fall's Factor Juni 26: <strong className="text-slate-900">1,560</strong></p>
-                              </>
-                            ) : (
-                              <p>1. Raise & Fall's Factor: <strong className="text-slate-900">{rfIndexCalculated.toFixed(3)}</strong></p>
-                            )}
+                      {/* Notes & Calculation Explainer Snapshot Footer */}
+                      <div className="pt-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px]">
+                        <div className="font-mono text-slate-600 space-y-0.5">
+                          <span className="font-bold text-slate-800 flex items-center gap-1">
+                            <Calculator size={12} className="text-cyan-700" /> Parameter Acuan & Jejak Snapshot:
+                          </span>
+                          {viewCustCode === "BGG" ? (
+                            <p className="text-[10px] text-slate-600">Formula RF 1-Faktor BBM: <code className="bg-white px-1 py-0.5 rounded border border-slate-200 text-cyan-900">0,60 + 0,40 × (Fn/Fo)</code> | Index: <strong>1,560x</strong></p>
+                          ) : (
+                            <p className="text-[10px] text-slate-600">Raise & Fall Factor: <strong>{rfIndexCalculated.toFixed(3)}x</strong> | Basis Overhaul: <strong>{cInfo?.overhaulBasis || "1.000m"}</strong></p>
+                          )}
+                        </div>
+                        {detailViewItem.data.rfSnapshot && (
+                          <div className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 px-2 py-1 rounded-lg">
+                            <ShieldCheck size={13} className="text-emerald-600" />
+                            <span>Snapshot Terkunci (Audit Ready)</span>
                           </div>
-                        );
-                      })()}
+                        )}
+                      </div>
 
                       {/* Bottom Info Grid: Bank Account from Master Data & Blank Signature Area */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t-2 border-slate-900 text-[11px]">
@@ -1067,17 +1080,17 @@ export function DetailModal({ c }: { c: any }) {
               <div className="flex items-center gap-2">
                 {detailViewItem.type === "ba" && (
                   <>
-                    {isSPV && (["Submit", "Pending Berita Acara", "Draft", "Revisi", "Rejected"].includes(detailViewItem.data.statusBA) || !detailViewItem.data.statusBA) && (
+                    {(isFinanceSpecialist || isSuper || isSPV) && (["Submit", "Pending Berita Acara", "Draft", "Revisi", "Rejected"].includes(detailViewItem.data.statusBA) || !detailViewItem.data.statusBA) && (
                       <button
-                        className="px-4 py-2 bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1.5 transition cursor-pointer"
+                        className="px-4 py-2 bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-xs rounded-lg shadow-xs flex items-center gap-1.5 transition cursor-pointer"
                         onClick={() => handleVerifyBA(detailViewItem.data.id)}
                       >
-                        <ShieldCheck size={14} /> Verifikasi SPV Site
+                        <ShieldCheck size={14} /> Verifikasi Finance Specialist
                       </button>
                     )}
-                    {isManager && (["Pending Berita Acara", "Verified", "Submit", "Draft", "Revisi"].includes(detailViewItem.data.statusBA)) && (
+                    {(isManager || isDirector || isSuper) && (["Pending Berita Acara", "Verified", "Submit", "Draft", "Revisi"].includes(detailViewItem.data.statusBA)) && (
                       <button
-                        className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1.5 transition cursor-pointer"
+                        className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-lg shadow-xs flex items-center gap-1.5 transition cursor-pointer"
                         onClick={() => handleApproveBA(detailViewItem.data.id)}
                       >
                         <CheckCircle2 size={14} /> Approve Manager
@@ -1088,28 +1101,12 @@ export function DetailModal({ c }: { c: any }) {
 
                 {detailViewItem.type === "invoice" && (
                   <>
-                    {isSPV && (detailViewItem.data.status === "Draft" || !detailViewItem.data.status || detailViewItem.data.status === "Pending") && (
+                    {(isManager || isDirector || isSuper) && (detailViewItem.data.status === "Draft" || !detailViewItem.data.status || detailViewItem.data.status === "Pending" || detailViewItem.data.status === "Submitted" || detailViewItem.data.status === "Verified") && (
                       <button
-                        className="px-4 py-2 bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1.5 transition cursor-pointer"
-                        onClick={() => handleVerifyInvoice(detailViewItem.data.id)}
+                        className="px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs rounded-lg shadow-xs flex items-center gap-1.5 transition cursor-pointer"
+                        onClick={() => handleApproveInvoice(detailViewItem.data.id)}
                       >
-                        <ShieldCheck size={14} /> Verifikasi SPV
-                      </button>
-                    )}
-                    {isManager && (detailViewItem.data.status === "Verified" || detailViewItem.data.status === "Draft" || detailViewItem.data.status === "Pending") && (
-                      <button
-                        className="px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1.5 transition cursor-pointer"
-                        onClick={() => handleApproveInvoiceTier1(detailViewItem.data.id)}
-                      >
-                        <UserCheck size={14} /> Approve Mgr (Tier 1)
-                      </button>
-                    )}
-                    {isDirector && (detailViewItem.data.status === "Approved_Tier1" || detailViewItem.data.status === "Verified") && (
-                      <button
-                        className="px-4 py-2 bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs rounded-lg shadow-sm flex items-center gap-1.5 transition cursor-pointer"
-                        onClick={() => handleApproveInvoiceTier2(detailViewItem.data.id)}
-                      >
-                        <FileCheck size={14} /> Approve Dir (Tier 2)
+                        <UserCheck size={14} /> Setujui Invoice (Manager FATB)
                       </button>
                     )}
                   </>

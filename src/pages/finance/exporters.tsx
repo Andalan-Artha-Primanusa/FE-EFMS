@@ -1159,16 +1159,16 @@ export function exportBAOnlyExcelImpl(ctx: any) {
       <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
         <style>
-          table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 11px; }
-          th { background-color: #0f172a; color: #ffffff; padding: 8px; border: 1px solid #0f172a; text-align: center; }
-          td { border: 1px solid #cbd5e1; padding: 6px; }
-          .title { font-size: 16px; font-weight: bold; color: #0f172a; margin-bottom: 5px; }
-          .subtitle { font-size: 12px; color: #475569; margin-bottom: 15px; }
-          .grand-total { background-color: #0f172a; color: #ffffff; font-weight: bold; font-size: 12px; }
+          table { border-collapse: collapse; width: 100%; font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-size: 11px; }
+          th { background-color: #A57C50; color: #ffffff; padding: 8px; border: 1px solid #8C6740; text-align: center; font-weight: bold; }
+          td { border: 1px solid #D6CFC7; padding: 6px; }
+          .title { font-size: 15px; font-weight: 900; color: #1A1612; margin-bottom: 3px; }
+          .subtitle { font-size: 11px; color: #6B6055; margin-bottom: 12px; }
+          .grand-total { background-color: #1A1612; color: #ffffff; font-weight: bold; font-size: 11.5px; }
         </style>
       </head>
       <body>
-        <div class="title">PT ANDALAN ARTHA PRIMANUSA</div>
+        <div class="title">PT ANDALAN ARTHA PRIMANUSA — FATB DIVISION</div>
         <div class="title">BERITA ACARA INVOICE (BAI) MONITORING REPORT</div>
         <div class="subtitle">Periode: ${periodFilter === "All" ? "Semua Periode" : periodFilter} | As of Date: ${formattedDate}</div>
 
@@ -1185,9 +1185,9 @@ export function exportBAOnlyExcelImpl(ctx: any) {
           <tbody>
             ${excelRows}
             <tr class="grand-total">
-              <td colspan="2" style="text-align: right; padding: 8px; border: 1px solid #0f172a;">TOTAL PROYEKSI PENDAPATAN BA:</td>
-              <td style="text-align: right; padding: 8px; border: 1px solid #0f172a; color: #38bdf8;">${formatIDR(totalBAMoney)}</td>
-              <td colspan="2" style="border: 1px solid #0f172a;"></td>
+              <td colspan="2" style="text-align: right; padding: 8px; border: 1px solid #1A1612;">TOTAL PROYEKSI PENDAPATAN BA:</td>
+              <td style="text-align: right; padding: 8px; border: 1px solid #1A1612; color: #FBF6F0; font-weight: 900;">${formatIDR(totalBAMoney)}</td>
+              <td colspan="2" style="border: 1px solid #1A1612;"></td>
             </tr>
           </tbody>
         </table>
@@ -1439,16 +1439,16 @@ export function exportAROnlyExcelImpl(ctx: any) {
       <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
         <style>
-          table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 11px; }
-          th { background-color: #0f172a; color: #ffffff; padding: 8px; border: 1px solid #0f172a; text-align: center; }
-          td { border: 1px solid #cbd5e1; padding: 6px; }
-          .title { font-size: 16px; font-weight: bold; color: #0f172a; margin-bottom: 5px; }
-          .subtitle { font-size: 12px; color: #475569; margin-bottom: 15px; }
-          .grand-total { background-color: #0f172a; color: #ffffff; font-weight: bold; font-size: 13px; }
+          table { border-collapse: collapse; width: 100%; font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-size: 11px; }
+          th { background-color: #A57C50; color: #ffffff; padding: 8px; border: 1px solid #8C6740; text-align: center; font-weight: bold; }
+          td { border: 1px solid #D6CFC7; padding: 6px; }
+          .title { font-size: 15px; font-weight: 900; color: #1A1612; margin-bottom: 3px; }
+          .subtitle { font-size: 11px; color: #6B6055; margin-bottom: 12px; }
+          .grand-total { background-color: #1A1612; color: #ffffff; font-weight: bold; font-size: 12px; }
         </style>
       </head>
       <body>
-        <div class="title">PT ANDALAN ARTHA PRIMANUSA</div>
+        <div class="title">PT ANDALAN ARTHA PRIMANUSA — FATB DIVISION</div>
         <div class="title">AR OUTSTANDING MONITORING REPORT</div>
         <div class="subtitle">As of Date: ${formattedDate}</div>
 
@@ -1469,8 +1469,8 @@ export function exportAROnlyExcelImpl(ctx: any) {
           <tbody>
             ${excelRowsAR}
             <tr class="grand-total">
-              <td colspan="8" style="text-align: right; padding: 8px; border: 1px solid #0f172a;">GRAND TOTAL AR OUTSTANDING ANDALAN:</td>
-              <td style="text-align: right; padding: 8px; border: 1px solid #0f172a; color: #38bdf8;">${formatIDR(totalARAndalan)}</td>
+              <td colspan="8" style="text-align: right; padding: 8px; border: 1px solid #1A1612;">GRAND TOTAL AR OUTSTANDING ANDALAN:</td>
+              <td style="text-align: right; padding: 8px; border: 1px solid #1A1612; color: #FBF6F0; font-weight: 900;">${formatIDR(totalARAndalan)}</td>
             </tr>
           </tbody>
         </table>
