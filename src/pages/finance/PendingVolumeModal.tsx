@@ -11,7 +11,7 @@ import {
   generateBANumberPreview, generateInvoiceNumberPreview, getYearFromPeriod,
   generateInvoiceNumber, getBAInvoiceStatus, renderBAStatusBadge,
   getBAStatusForExport, renderInvoiceStatusBadge, parsePeriodToMonthIndex,
-  RupiahInput, generateAuditTimeline
+  RupiahInput, FormattedNumberInput, generateAuditTimeline
 } from "./helpers";
 
 export function PendingVolumeModal({ c }: { c: any }) {
@@ -407,15 +407,12 @@ export function PendingVolumeModal({ c }: { c: any }) {
                 <label className="block text-[11px] font-extrabold uppercase text-[#1A1612] mb-1">
                   Volume yang Dialokasikan (BCM) <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  max={allocatingItem.remainingVolume}
-                  min={0.01}
-                  required
+                <FormattedNumberInput
+                  allowDecimals
+                  maxDecimals={2}
                   className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-xs p-2.5 rounded-lg outline-none focus:border-[#A57C50] focus:bg-white transition"
                   value={allocVolume}
-                  onChange={(e) => setAllocVolume(parseFloat(e.target.value) || 0)}
+                  onChange={(val) => setAllocVolume(val)}
                 />
                 <span className="text-[10px] text-slate-500 mt-1 block">Maksimal alokasi: {allocatingItem.remainingVolume?.toLocaleString("id-ID")} BCM</span>
               </div>

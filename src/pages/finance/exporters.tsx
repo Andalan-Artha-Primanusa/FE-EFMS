@@ -221,7 +221,11 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
       // DBK Table Layout (Gambar 3 - Dual Currency USD & IDR)
       const secAItems = activeItems.filter((i: any) => i.section === "A");
       const secBItems = activeItems.filter((i: any) => i.section === "B");
-      const secCItems = activeItems.filter((i: any) => i.section === "C");
+      const secCItems = activeItems.filter((i: any) => {
+        if (i.section !== "C") return false;
+        const baseM = i.baseMtr || ((i.subSection || i.description || "").toLowerCase().includes("coal") ? 3000 : 1000);
+        return (i.overhaulMtr ?? baseM) > baseM;
+      });
 
       const volA = secAItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
       const volB = secBItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
@@ -267,6 +271,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           </tr>
         `).join("")}
 
+        ${secCItems.length > 0 ? `
         <tr class="sec-hdr">
           <td>C. OVER DISTANCE</td>
           <td></td>
@@ -276,14 +281,14 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           <td class="text-right font-mono font-black">${c.subtotalC.toLocaleString("id-ID")}</td>
         </tr>
         ${secCItems.map((i: any) => {
-          const baseM = i.baseMtr || 1000;
-          const diff = (i.overhaulMtr || baseM) - baseM;
+          const baseM = i.baseMtr || ((i.subSection || i.description || "").toLowerCase().includes("coal") ? 3000 : 1000);
+          const diff = Math.max(0, (i.overhaulMtr || baseM) - baseM);
           return `
             <tr>
               <td style="padding-left: 20px;">
                 <strong>${i.subSection || ""}</strong><br/>
                 PIT SAPAN<br/>
-                <span style="font-size: 8.5px; color: #475569;">${(i.overhaulMtr || baseM).toLocaleString("id-ID", { minimumFractionDigits: 2 })} mtr - ${baseM} mtr = ${diff < 0 ? `(${Math.abs(diff).toFixed(2)})` : diff.toFixed(2)} mtr</span>
+                <span style="font-size: 8.5px; color: #475569;">${(i.overhaulMtr || baseM).toLocaleString("id-ID", { minimumFractionDigits: 2 })} mtr - ${baseM} mtr = ${diff.toFixed(2)} mtr</span>
               </td>
               <td class="text-center font-mono">${i.volume ? i.volume.toLocaleString("id-ID", { minimumFractionDigits: 3 }) : ""}</td>
               <td class="text-center">${i.volume ? (i.unit || "") : ""}</td>
@@ -293,6 +298,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
             </tr>
           `;
         }).join("")}
+        ` : ""}
       `;
 
       totalsFooterHTML = `

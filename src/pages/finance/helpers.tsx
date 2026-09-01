@@ -612,6 +612,87 @@ export function VolumeInput({
   );
 }
 
+// Minimalist Table & Form Number Input dengan Auto Thousand Separator (.) & Desimal (,)
+export function FormattedNumberInput({
+  value,
+  onChange,
+  placeholder = "0",
+  allowDecimals = false,
+  maxDecimals = 3,
+  className = "",
+  onFocus,
+  onBlur,
+}: {
+  value: number | string | undefined | null;
+  onChange: (val: number) => void;
+  placeholder?: string;
+  allowDecimals?: boolean;
+  maxDecimals?: number;
+  className?: string;
+  onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
+}) {
+  const formatVal = (v: any): string => {
+    if (v === undefined || v === null || v === "") return "";
+    const n = typeof v === "number" ? v : parseFloat(String(v).replace(/\./g, "").replace(",", "."));
+    if (isNaN(n) || n === 0) return "";
+    if (allowDecimals) {
+      return n.toLocaleString("id-ID", { maximumFractionDigits: maxDecimals });
+    }
+    return Math.round(n).toLocaleString("id-ID");
+  };
+
+  const [localStr, setLocalStr] = React.useState<string>(() => formatVal(value));
+  const [isFocused, setIsFocused] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isFocused) {
+      setLocalStr(formatVal(value));
+    }
+  }, [value, isFocused]);
+
+  const parseVal = (str: string): number => {
+    if (!str || !str.trim()) return 0;
+    const clean = str.replace(/[^0-9.,-]/g, "");
+    const normalized = clean.replace(/\./g, "").replace(",", ".");
+    const num = parseFloat(normalized);
+    return isNaN(num) ? 0 : num;
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    const clean = allowDecimals ? raw.replace(/[^0-9.,-]/g, "") : raw.replace(/[^0-9.-]/g, "");
+    setLocalStr(clean);
+    onChange(parseVal(clean));
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    setIsFocused(false);
+    const parsed = parseVal(localStr);
+    onChange(parsed);
+    setLocalStr(formatVal(parsed));
+    onBlur?.(e);
+  };
+
+  return (
+    <input
+      type="text"
+      className={className}
+      value={isFocused ? localStr : formatVal(value)}
+      placeholder={placeholder}
+      onFocus={(e) => {
+        setIsFocused(true);
+        const curNum = typeof value === "number" ? value : parseVal(String(value || ""));
+        setLocalStr(curNum && curNum !== 0 ? (allowDecimals ? String(curNum).replace(".", ",") : String(Math.round(curNum))) : "");
+        e.target.select();
+        onFocus?.(e);
+      }}
+      onChange={handleChange}
+      onBlur={handleBlur}
+    />
+  );
+}
+
 export const generateAuditTimeline = (type: string, item: any) => {
   const formatDateDisplay = (val: any) => {
     if (!val) return "";

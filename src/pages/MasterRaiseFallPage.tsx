@@ -382,7 +382,7 @@ export function MasterRaiseFallPage({
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3 py-2 rounded-lg text-xs flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
               >
                 <Upload size={14} /> {uploading ? "Mengimpor..." : "Import Excel BI"}
               </button>
@@ -395,7 +395,7 @@ export function MasterRaiseFallPage({
               />
               <button
                 onClick={openCreateMRateModal}
-                className="bg-cyan-800 hover:bg-slate-900 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                className="bg-cyan-800 hover:bg-cyan-900 text-white font-bold px-3.5 py-2 rounded-lg text-xs flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
               >
                 <Plus size={15} /> + Kurs M-Rate Manual
               </button>
@@ -403,7 +403,7 @@ export function MasterRaiseFallPage({
           ) : (
             <button
               onClick={openCreateRfModal}
-              className="bg-cyan-800 hover:bg-slate-900 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+              className="bg-cyan-800 hover:bg-cyan-900 text-white font-bold px-3.5 py-2 rounded-lg text-xs flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
             >
               <Plus size={15} /> Hitung Periode RF Baru
             </button>
@@ -413,16 +413,16 @@ export function MasterRaiseFallPage({
 
       {/* Customer & Contract Selection Bar (Only for Raise & Fall) */}
       {!isCurrencyPage && (
-        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-cyan-50 text-cyan-800 rounded-xl border border-cyan-100">
-              <Building2 size={20} />
+        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-slate-100 text-slate-700 rounded-lg border border-slate-200">
+              <Building2 size={16} />
             </div>
             <div>
-              <span className="text-[10px] font-extrabold uppercase text-slate-500 tracking-wider block">KLIEN & KONTRAK AKTIF</span>
-              <span className="text-xs font-black text-slate-900 flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block">Klien & Kontrak Aktif</span>
+              <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 {customerContractOptions.find((c) => c.code === selectedCustomer)?.name || "Semua Customer"}
-                <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-mono text-[11px] font-bold">
+                <span className="bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded font-mono text-[11px]">
                   {customerContractOptions.find((c) => c.code === selectedCustomer)?.contract || "All"}
                 </span>
               </span>
@@ -430,7 +430,7 @@ export function MasterRaiseFallPage({
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-extrabold text-slate-700">Pilih Klien / Kontrak:</span>
+            <span className="text-xs font-bold text-slate-700">Pilih Klien / Kontrak:</span>
             <select
               value={selectedCustomer}
               onChange={(e) => {
@@ -446,7 +446,7 @@ export function MasterRaiseFallPage({
                   }));
                 }
               }}
-              className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-600 shadow-xs"
+              className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-cyan-700 shadow-2xs"
             >
               {customerContractOptions.map((opt) => (
                 <option key={opt.code} value={opt.code}>
@@ -460,89 +460,89 @@ export function MasterRaiseFallPage({
 
       {/* Top Metric Cards Summary */}
       {isCurrencyPage ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-1">
             <div className="flex justify-between items-center text-slate-500">
-              <span className="text-[11px] font-bold uppercase tracking-wider">M-RATE AVERAGE (Xn)</span>
-              <TrendingUp size={16} className="text-cyan-600" />
+              <span className="text-[11px] font-bold uppercase tracking-wider">M-Rate Average (Xn)</span>
+              <TrendingUp size={14} className="text-cyan-700" />
             </div>
-            <div className="text-2xl font-black text-cyan-900 font-mono">
+            <div className="text-2xl font-black text-slate-900 font-mono">
               Rp {avgMRateCalc.toLocaleString("id-ID", { minimumFractionDigits: 2 })}
             </div>
-            <div className="text-[11px] font-medium text-slate-600 flex justify-between pt-1 border-t border-slate-100">
-              <span>Sumber Data: <strong className="text-cyan-800">Bank Indonesia (Excel Import)</strong></span>
-              <span className="text-emerald-700 font-bold">Official Rate ✅</span>
+            <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
+              <span>Sumber: Bank Indonesia (Excel/Manual)</span>
+              <span className="text-emerald-700 font-bold">Kurs Resmi</span>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-1">
             <div className="flex justify-between items-center text-slate-500">
-              <span className="text-[11px] font-bold uppercase tracking-wider">TOTAL LOG KURS HARIAN BI</span>
-              <Calendar size={16} className="text-emerald-600" />
+              <span className="text-[11px] font-bold uppercase tracking-wider">Total Log Kurs Harian BI</span>
+              <Calendar size={14} className="text-slate-600" />
             </div>
             <div className="text-2xl font-black text-slate-900 font-mono">
               {mrateRows.length} Hari
             </div>
-            <div className="text-[11px] font-medium text-slate-600 flex justify-between pt-1 border-t border-slate-100">
-              <span>Status Impor BI: <strong className="text-slate-900">Terbuka untuk Upload Excel</strong></span>
+            <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
+              <span>Status: Data siap digunakan</span>
             </div>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-1">
             <div className="flex justify-between items-center text-slate-500">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">INDEX RAISE & FALL (RF)</span>
-              <Calculator size={16} className="text-cyan-800" />
+              <span className="text-[11px] font-bold uppercase tracking-wider">Index Raise & Fall (RF)</span>
+              <Calculator size={14} className="text-cyan-800" />
             </div>
             <div className="text-2xl font-black text-slate-900 tracking-tight font-mono">
               {activeRf.rfIndexResult ? activeRf.rfIndexResult.toFixed(3) : "1.521"}
             </div>
-            <div className="text-[11px] font-medium text-slate-600 flex justify-between pt-1 border-t border-slate-100">
+            <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
               <span>Periode: <strong>{activeRf.period || "Juni 2026"}</strong></span>
-              <span className="text-emerald-700 font-bold">Verified ✅</span>
+              <span className="text-emerald-700 font-bold">Terverifikasi</span>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-1">
             <div className="flex justify-between items-center text-slate-500">
-              <span className="text-[11px] font-bold uppercase tracking-wider">BASE FUEL (Fo)</span>
-              <Flame size={16} className="text-amber-500" />
+              <span className="text-[11px] font-bold uppercase tracking-wider">Base Fuel (Fo)</span>
+              <Flame size={14} className="text-amber-600" />
             </div>
-            <div className="text-xl font-extrabold text-slate-900 font-mono">
+            <div className="text-xl font-bold text-slate-900 font-mono">
               Rp {(activeRf.baseFuelFo || 10699.97).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
             </div>
-            <div className="text-[11px] font-medium text-slate-600 flex justify-between pt-1 border-t border-slate-100">
-              <span>Bobot Fuel (a): <strong className="text-slate-900">34.0%</strong></span>
-              <span>Fn: <strong>USD {(activeRf.actualFuelFn || 1.422).toFixed(3)}</strong></span>
+            <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
+              <span>Bobot Fuel (a): 34.0%</span>
+              <span>Fn: USD {(activeRf.actualFuelFn || 1.422).toFixed(3)}</span>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-1">
             <div className="flex justify-between items-center text-slate-500">
-              <span className="text-[11px] font-bold uppercase tracking-wider">BASE LABOR (Lo)</span>
-              <Percent size={16} className="text-teal-600" />
+              <span className="text-[11px] font-bold uppercase tracking-wider">Base Labor (Lo)</span>
+              <Percent size={14} className="text-slate-600" />
             </div>
-            <div className="text-xl font-extrabold text-slate-900 font-mono">
+            <div className="text-xl font-bold text-slate-900 font-mono">
               Rp {(activeRf.baseLaborLo || 3594536).toLocaleString("id-ID")}
             </div>
-            <div className="text-[11px] font-medium text-slate-600 flex justify-between pt-1 border-t border-slate-100">
-              <span>Bobot Labor (b): <strong className="text-slate-900">25.0%</strong></span>
-              <span>Fixed (c): <strong className="text-slate-900">41.0%</strong></span>
+            <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
+              <span>Bobot (b): 25.0%</span>
+              <span>Fixed (c): 41.0%</span>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-1">
             <div className="flex justify-between items-center text-slate-500">
-              <span className="text-[11px] font-bold uppercase tracking-wider">M-RATE AVERAGE (Xn)</span>
-              <TrendingUp size={16} className="text-cyan-600" />
+              <span className="text-[11px] font-bold uppercase tracking-wider">M-Rate Average (Xn)</span>
+              <TrendingUp size={14} className="text-cyan-700" />
             </div>
-            <div className="text-xl font-extrabold text-cyan-900 font-mono">
+            <div className="text-xl font-bold text-slate-900 font-mono">
               Rp {avgMRateCalc.toLocaleString("id-ID", { minimumFractionDigits: 2 })}
             </div>
-            <div className="text-[11px] font-medium text-slate-600 flex justify-between pt-1 border-t border-slate-100">
-              <span>Base Forex (Xo): <strong>Rp 15.388,75</strong></span>
-              <span>Total Log BI: <strong>{mrateRows.length} Hari</strong></span>
+            <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
+              <span>Base Forex (Xo): Rp 15.388,75</span>
+              <span>Total Log: {mrateRows.length} Hari</span>
             </div>
           </div>
         </div>
@@ -550,38 +550,38 @@ export function MasterRaiseFallPage({
 
       {/* Tabs Navigation */}
       {!isCurrencyPage && (
-        <div className="bg-white p-1.5 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap gap-1">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
           <button
             onClick={() => setActiveTab("monthly")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
               activeTab === "monthly"
-                ? "bg-cyan-900 text-white shadow-md shadow-cyan-900/20"
-                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
+                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
             }`}
           >
-            <Calculator size={15} /> Log Kalkulasi Periode RF ({rfRows.length})
+            <Calculator size={13} /> Log Kalkulasi RF ({rfRows.length})
           </button>
 
           <button
             onClick={() => setActiveTab("base")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
               activeTab === "base"
-                ? "bg-cyan-900 text-white shadow-md shadow-cyan-900/20"
-                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
+                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
             }`}
           >
-            <Sliders size={15} /> Formulasi & Indeks Dasar Kontrak
+            <Sliders size={13} /> Formulasi & Indeks Dasar
           </button>
 
           <button
             onClick={() => setActiveTab("umk")}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
               activeTab === "umk"
-                ? "bg-cyan-900 text-white shadow-md shadow-cyan-900/20"
-                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
+                : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
             }`}
           >
-            <Building2 size={15} /> Referensi UMK Site ({umkRows.length})
+            <Building2 size={13} /> Referensi UMK Site ({umkRows.length})
           </button>
         </div>
       )}

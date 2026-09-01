@@ -505,33 +505,45 @@ export function DetailModal({ c }: { c: any }) {
                                   </tr>
                                 ))}
 
-                                <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
-                                  <td className="p-2 underline border-r border-slate-200">C. OVER DISTANCE</td>
-                                  <td className="p-2 border-r border-slate-200"></td>
-                                  <td className="p-2 border-r border-slate-200"></td>
-                                  <td className="p-2 border-r border-slate-200"></td>
-                                  <td className="p-2 border-r border-slate-200"></td>
-                                  <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalC)}</td>
-                                </tr>
-                                {activeItems.filter((i: any) => i.section === "C").map((i: any) => {
-                                  const baseM = i.baseMtr || 1000;
-                                  const diff = (i.overhaulMtr || baseM) - baseM;
-                                  return (
-                                    <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
-                                      <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">
-                                        <div>{i.subSection}</div>
-                                        <div className="text-[10px] text-slate-500 font-mono font-normal">
-                                          PIT SAPAN {(i.overhaulMtr || baseM).toLocaleString("id-ID", { minimumFractionDigits: 2 })} mtr - {baseM} mtr = {diff < 0 ? `(${Math.abs(diff).toFixed(2)})` : diff.toFixed(2)} mtr
-                                        </div>
-                                      </td>
-                                      <td className="p-2 text-center font-mono border-r border-slate-200">{i.volume ? i.volume.toLocaleString("id-ID", { minimumFractionDigits: 3 }) : ""}</td>
-                                      <td className="p-2 text-center border-r border-slate-200">{i.volume ? (i.unit || "") : ""}</td>
+                                {activeItems.some((i: any) => {
+                                  if (i.section !== "C") return false;
+                                  const baseM = i.baseMtr || ((i.subSection || i.description || "").toLowerCase().includes("coal") ? 3000 : 1000);
+                                  return (i.overhaulMtr ?? baseM) > baseM;
+                                }) && (
+                                  <>
+                                    <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
+                                      <td className="p-2 underline border-r border-slate-200">C. OVER DISTANCE</td>
                                       <td className="p-2 border-r border-slate-200"></td>
-                                      <td className="p-2 text-right font-mono border-r border-slate-200">{i.unitRateIDR ? i.unitRateIDR.toFixed(2) : ""}</td>
-                                      <td className="p-2 text-right font-mono font-extrabold">{i.volume && i.unitRateIDR ? formatIDR(Math.round(i.volume * i.unitRateIDR)) : "-"}</td>
+                                      <td className="p-2 border-r border-slate-200"></td>
+                                      <td className="p-2 border-r border-slate-200"></td>
+                                      <td className="p-2 border-r border-slate-200"></td>
+                                      <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalC)}</td>
                                     </tr>
-                                  );
-                                })}
+                                    {activeItems.filter((i: any) => {
+                                      if (i.section !== "C") return false;
+                                      const baseM = i.baseMtr || ((i.subSection || i.description || "").toLowerCase().includes("coal") ? 3000 : 1000);
+                                      return (i.overhaulMtr ?? baseM) > baseM;
+                                    }).map((i: any) => {
+                                      const baseM = i.baseMtr || ((i.subSection || i.description || "").toLowerCase().includes("coal") ? 3000 : 1000);
+                                      const diff = Math.max(0, (i.overhaulMtr || baseM) - baseM);
+                                      return (
+                                        <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
+                                          <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">
+                                            <div>{i.subSection}</div>
+                                            <div className="text-[10px] text-slate-500 font-mono font-normal">
+                                              PIT SAPAN {(i.overhaulMtr || baseM).toLocaleString("id-ID", { minimumFractionDigits: 2 })} mtr - {baseM} mtr = {diff.toFixed(2)} mtr
+                                            </div>
+                                          </td>
+                                          <td className="p-2 text-center font-mono border-r border-slate-200">{i.volume ? i.volume.toLocaleString("id-ID", { minimumFractionDigits: 3 }) : ""}</td>
+                                          <td className="p-2 text-center border-r border-slate-200">{i.volume ? (i.unit || "") : ""}</td>
+                                          <td className="p-2 border-r border-slate-200"></td>
+                                          <td className="p-2 text-right font-mono border-r border-slate-200">{i.unitRateIDR ? i.unitRateIDR.toFixed(2) : ""}</td>
+                                          <td className="p-2 text-right font-mono font-extrabold">{i.volume && i.unitRateIDR ? formatIDR(Math.round(i.volume * i.unitRateIDR)) : "-"}</td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </>
+                                )}
                               </>
                             )}
 

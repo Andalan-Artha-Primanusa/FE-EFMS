@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, useRef, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Search, Fuel, Loader2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, TrendingDown, Archive, Scale, Search, Fuel, Loader2 } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, getAuditLogs, getCompanies, type Company, User as UserType } from "../../lib/api";
@@ -11,148 +11,188 @@ import {
   generateBANumberPreview, generateInvoiceNumberPreview, getYearFromPeriod,
   generateInvoiceNumber, getBAInvoiceStatus, renderBAStatusBadge,
   getBAStatusForExport, renderInvoiceStatusBadge, parsePeriodToMonthIndex,
-  RupiahInput, VolumeInput, MonthPickerInput, generateAuditTimeline
+  RupiahInput, VolumeInput, FormattedNumberInput, MonthPickerInput, generateAuditTimeline
 } from "./helpers";
 
-// Search Select Component for SOW Master Catalog per Site
-function SowSearchSelect({
+export const SITE_SOW_DEFAULTS: Record<string, Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean }>> = {
+  BGG: [
+    { name: "OVER BURDEN REMOVAL 1 (75%)", unit: "BCM", defaultRate: 29500, category: "Operating & Mining", isDistanceVar: false },
+    { name: "OVER BURDEN REMOVAL 2 (25%)", unit: "BCM", defaultRate: 28750, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Coal Winning", unit: "Ton", defaultRate: 17500, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Over Distance For OB Removal", unit: "BCM", defaultRate: 1550, category: "Over Distance", isDistanceVar: true },
+    { name: "Over Distance For Coal Winning", unit: "Ton", defaultRate: 19700, category: "Over Distance", isDistanceVar: true },
+  ],
+  POS: [
+    { name: "Top Soil Removal", unit: "BCM", defaultRate: 60500, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Overburden / Waste Removal", unit: "BCM", defaultRate: 59500, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Limonite Ore Mining", unit: "WMT", defaultRate: 60200, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Saprolite Ore Mining", unit: "WMT", defaultRate: 62200, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Uncrushed Rock", unit: "BCM", defaultRate: 142275, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Cut & Fill / Earthwork", unit: "BCM", defaultRate: 38150, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Crushed Rock", unit: "BCM", defaultRate: 233900, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Land Clearing", unit: "m2", defaultRate: 6830, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Over/Underhaul For OB Removal", unit: "BCM", defaultRate: 9643, category: "Over Distance", isDistanceVar: true },
+    { name: "Over/Underhaul For Top Soil Removal", unit: "BCM", defaultRate: 9643, category: "Over Distance", isDistanceVar: true },
+    { name: "Over/Underhaul For Limonite", unit: "BCM", defaultRate: 9428, category: "Over Distance", isDistanceVar: true },
+    { name: "Over/Underhaul For Saprolite", unit: "BCM", defaultRate: 9428, category: "Over Distance", isDistanceVar: true },
+    { name: "Mine Development (MDO) - Clearing & Access Road", unit: "Ha", defaultRate: 15500000, category: "MDO", isDistanceVar: false },
+    { name: "Rocks for construction - under/overhaul", unit: "USD/1KM", defaultRate: 9450, category: "MDO", isDistanceVar: true },
+    { name: "Uncrushed rocks for construction (MDO)", unit: "BCM", defaultRate: 142275, category: "MDO", isDistanceVar: false },
+    { name: "Road Construction & Drainage", unit: "Mtr", defaultRate: 450000, category: "MDO", isDistanceVar: false },
+  ],
+  DBK: [
+    { name: "OB Removal (Pit Sapan)", unit: "BCM", defaultRate: 31500, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Coal Winning (Pit Sapan)", unit: "Ton", defaultRate: 36000, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Land Clearing & Grubbing", unit: "Ha", defaultRate: 12500000, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Overhaul OB (>1000m)", unit: "BCM", defaultRate: 1550, category: "Over Distance", isDistanceVar: true },
+    { name: "Overhaul Coal (>3000m)", unit: "Ton", defaultRate: 19700, category: "Over Distance", isDistanceVar: true },
+  ],
+  SBS: [
+    { name: "PIT E - DISPOSAL SEKATAN", unit: "BCM", defaultRate: 22654, category: "Operating & Mining", isDistanceVar: false },
+    { name: "PIT E - RENCANA JALAN", unit: "BCM", defaultRate: 12638, category: "Operating & Mining", isDistanceVar: false },
+    { name: "PIT E - RENCANA CSA", unit: "BCM", defaultRate: 8346, category: "Operating & Mining", isDistanceVar: false },
+    { name: "PIT E - JALAN BARITO", unit: "BCM", defaultRate: 15500, category: "Operating & Mining", isDistanceVar: false },
+    { name: "PIT E - SEKATAN", unit: "BCM", defaultRate: 16931, category: "Operating & Mining", isDistanceVar: false },
+    { name: "PIT E - TS MAHONI", unit: "BCM", defaultRate: 22654, category: "Operating & Mining", isDistanceVar: false },
+    { name: "PIT E - IPD WARWEFILL", unit: "BCM", defaultRate: 8346, category: "Operating & Mining", isDistanceVar: false },
+    { name: "PIT E - SEKATAN (High Rate)", unit: "BCM", defaultRate: 19375, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Bulldozer DZ709", unit: "Hours", defaultRate: 1980000, category: "Penunjang", isDistanceVar: false },
+    { name: "Bulldozer DZ716", unit: "Hours", defaultRate: 1980000, category: "Penunjang", isDistanceVar: false },
+    { name: "Excavator EX815", unit: "Hours", defaultRate: 1425000, category: "Penunjang", isDistanceVar: false },
+    { name: "Excavator EX816", unit: "Hours", defaultRate: 1425000, category: "Penunjang", isDistanceVar: false },
+    { name: "Excavator EX817", unit: "Hours", defaultRate: 1425000, category: "Penunjang", isDistanceVar: false },
+    { name: "Motor Grader MG607", unit: "Hours", defaultRate: 1250000, category: "Penunjang", isDistanceVar: false },
+    { name: "Motor Grader MG608", unit: "Hours", defaultRate: 1250000, category: "Penunjang", isDistanceVar: false },
+    { name: "Dozer CAT D10 - BDCT 1001", unit: "Hours", defaultRate: 1980000, category: "Penunjang", isDistanceVar: false },
+    { name: "Dozer CAT D10 - BDCT 1002", unit: "Hours", defaultRate: 1980000, category: "Penunjang", isDistanceVar: false },
+    { name: "Excavator CAT 395 - EXCT 3901", unit: "Hours", defaultRate: 1425000, category: "Penunjang", isDistanceVar: false },
+    { name: "Excavator CAT 395 - EXCT 3902", unit: "Hours", defaultRate: 1425000, category: "Penunjang", isDistanceVar: false },
+    { name: "Denda ketidaktercapaian MA", unit: "Lot", defaultRate: 0, category: "Pengurang Biaya", isDistanceVar: false },
+    { name: "Kelebihan Pemakaian BBM Loader", unit: "Lot", defaultRate: 0, category: "Pengurang Biaya", isDistanceVar: false },
+    { name: "Kelebihan Pemakaian BBM Hauler", unit: "Lot", defaultRate: 0, category: "Pengurang Biaya", isDistanceVar: false },
+    { name: "Denda ketidakcapaian Volume", unit: "Lot", defaultRate: 0, category: "Pengurang Biaya", isDistanceVar: false },
+  ]
+};
+
+export function getSiteSOWList(
+  customerCode: string,
+  activeSOWCatalog: any[] = [],
+  mRate?: number,
+  categoryFilter?: "Operating & Mining" | "Penunjang" | "MDO" | "Pengurang Biaya" | "Over Distance" | "All",
+  isDistanceOnly: boolean = false
+) {
+  const code = (customerCode || "POS").toUpperCase();
+  const defs = SITE_SOW_DEFAULTS[code] || SITE_SOW_DEFAULTS["POS"] || [];
+  
+  const matchedFromCatalog = (activeSOWCatalog || []).filter(s => {
+    if (!s) return false;
+    const c = (s.customer || s.customerCode || "").toUpperCase();
+    return !c || c === code || (code === "POS" && (!c || c === "POS"));
+  });
+
+  const merged: Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean; isDeduction?: boolean }> = [];
+  const seen = new Set<string>();
+
+  defs.forEach(d => {
+    const key = (d.name || "").toLowerCase().trim();
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      const isDed = (d.category || "").toLowerCase().includes("pengurang") || (d.name || "").toLowerCase().includes("denda") || (d.name || "").toLowerCase().includes("kelebihan");
+      merged.push({ ...d, isDeduction: isDed });
+    }
+  });
+
+  matchedFromCatalog.forEach(c => {
+    const name = c.name || c.itemName;
+    const key = (name || "").toLowerCase().trim();
+    if (code === "SBS" && (key === "dozer cat d10" || key === "excavator cat 395")) {
+      return;
+    }
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      const isDist = key.includes("overhaul") || key.includes("distance") || (c.category || "").toLowerCase().includes("distance");
+      const isDed = (c.category || "").toLowerCase().includes("pengurang") || (name || "").toLowerCase().includes("denda") || (name || "").toLowerCase().includes("kelebihan") || Boolean(c.isDeduction);
+      merged.push({
+        name: name,
+        unit: c.unit || "BCM",
+        defaultRate: c.defaultRate || c.rateIDR || (c.rateUSD ? Math.round(c.rateUSD * (mRate || 17923.30)) : 0),
+        category: c.category || (isDed ? "Pengurang Biaya" : isDist ? "Over Distance" : "Operating & Mining"),
+        isDistanceVar: isDist,
+        isDeduction: isDed
+      });
+    }
+  });
+
+  return merged.filter(item => {
+    if (isDistanceOnly) return Boolean(item.isDistanceVar);
+    if (categoryFilter === "Pengurang Biaya") {
+      return item.isDeduction || (item.category || "").toLowerCase().includes("pengurang") || (item.name || "").toLowerCase().includes("denda") || (item.name || "").toLowerCase().includes("kelebihan");
+    }
+    if (categoryFilter === "Penunjang") {
+      return (item.category || "").toLowerCase().includes("penunjang") || item.unit === "Hours";
+    }
+    if (categoryFilter === "MDO") {
+      return (item.category || "").toLowerCase().includes("mdo");
+    }
+    if (categoryFilter === "Operating & Mining") {
+      return !item.isDistanceVar && !item.isDeduction && !(item.category || "").toLowerCase().includes("pengurang") && !(item.category || "").toLowerCase().includes("mdo") && !(item.category || "").toLowerCase().includes("penunjang") && item.unit !== "Hours";
+    }
+    if (categoryFilter === "Over Distance") {
+      return Boolean(item.isDistanceVar);
+    }
+    return !item.isDistanceVar && !item.isDeduction;
+  });
+}
+
+export function SOWSelectDropdown({
   value,
   onChange,
   onSelectSow,
   customerCode,
   activeSOWCatalog = [],
   mRate,
-  placeholder = "Ketik / cari Master SOW...",
-  id = "sow-select",
-  isDistanceOnly = false
+  categoryFilter,
+  isDistanceOnly = false,
+  className = ""
 }: {
   value: string;
   onChange: (val: string) => void;
-  onSelectSow: (sow: { name: string; unit: string; defaultRate: number; isDistanceVar?: boolean }) => void;
+  onSelectSow: (sow: { name: string; unit: string; defaultRate: number; isDistanceVar?: boolean; category?: string; isDeduction?: boolean }) => void;
   customerCode: string;
   activeSOWCatalog?: any[];
   mRate?: number;
-  placeholder?: string;
-  id?: string;
+  categoryFilter?: "Operating & Mining" | "Penunjang" | "MDO" | "Pengurang Biaya" | "Over Distance" | "All";
   isDistanceOnly?: boolean;
+  className?: string;
 }) {
-  const siteSowOptions = useMemo(() => {
-    const code = (customerCode || "").toUpperCase();
+  const options = useMemo(() => {
+    return getSiteSOWList(customerCode, activeSOWCatalog, mRate, categoryFilter, isDistanceOnly);
+  }, [customerCode, activeSOWCatalog, mRate, categoryFilter, isDistanceOnly]);
 
-    // 1. Get from activeSOWCatalog matching this customer
-    const matchedFromCatalog = (activeSOWCatalog || []).filter(s => {
-      if (!s) return false;
-      const c = (s.customer || s.customerCode || "").toUpperCase();
-      return !c || c === code || (code === "POS" && (!c || c === "POS"));
-    });
-
-    // 2. Default standard SOW list per site
-    const siteDefaults: Record<string, Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean }>> = {
-      BGG: [
-        { name: "OVER BURDEN REMOVAL 1 (75%)", unit: "BCM", defaultRate: 29500, category: "Penambangan BGG", isDistanceVar: false },
-        { name: "OVER BURDEN REMOVAL 2 (25%)", unit: "BCM", defaultRate: 28750, category: "Penambangan BGG", isDistanceVar: false },
-        { name: "Coal Winning", unit: "Ton", defaultRate: 17500, category: "Penambangan BGG", isDistanceVar: false },
-        { name: "Over Distance For OB Removal", unit: "BCM", defaultRate: 1550, category: "Over Distance", isDistanceVar: true },
-        { name: "Over Distance For Coal Winning", unit: "Ton", defaultRate: 19700, category: "Over Distance", isDistanceVar: true },
-      ],
-      POS: [
-        { name: "Top Soil Removal", unit: "BCM", defaultRate: 60500, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Overburden / Waste Removal", unit: "BCM", defaultRate: 59500, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Limonite Ore Mining", unit: "WMT", defaultRate: 60200, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Saprolite Ore Mining", unit: "WMT", defaultRate: 62200, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Uncrushed Rock", unit: "BCM", defaultRate: 142275, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Cut & Fill / Earthwork", unit: "BCM", defaultRate: 38150, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Crushed Rock", unit: "BCM", defaultRate: 233900, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Land Clearing", unit: "m2", defaultRate: 6830, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Over/Underhaul For OB Removal", unit: "BCM", defaultRate: 9643, category: "Over Distance", isDistanceVar: true },
-        { name: "Over/Underhaul For Top Soil Removal", unit: "BCM", defaultRate: 9643, category: "Over Distance", isDistanceVar: true },
-        { name: "Over/Underhaul For Limonite", unit: "BCM", defaultRate: 9428, category: "Over Distance", isDistanceVar: true },
-        { name: "Over/Underhaul For Saprolite", unit: "BCM", defaultRate: 9428, category: "Over Distance", isDistanceVar: true },
-        { name: "Mine Development (MDO) - Clearing & Access Road", unit: "Ha", defaultRate: 15500000, category: "MDO", isDistanceVar: false },
-        { name: "Rocks for construction - under/overhaul", unit: "USD/1KM", defaultRate: 9450, category: "MDO", isDistanceVar: true },
-        { name: "Uncrushed rocks for construction (MDO)", unit: "BCM", defaultRate: 142275, category: "MDO", isDistanceVar: false },
-        { name: "Road Construction & Drainage", unit: "Mtr", defaultRate: 450000, category: "MDO", isDistanceVar: false },
-      ],
-      DBK: [
-        { name: "OB Removal (Pit Sapan)", unit: "BCM", defaultRate: 31500, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Coal Winning (Pit Sapan)", unit: "Ton", defaultRate: 36000, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Land Clearing & Grubbing", unit: "Ha", defaultRate: 12500000, category: "Operation & Mining", isDistanceVar: false },
-      ],
-      SBS: [
-        { name: "PIT E - DISPOSAL SEKATAN", unit: "BCM", defaultRate: 22654, category: "Operation & Mining", isDistanceVar: false },
-        { name: "PIT E - RENCANA JALAN", unit: "BCM", defaultRate: 12638, category: "Operation & Mining", isDistanceVar: false },
-        { name: "PIT E - RENCANA CSA", unit: "BCM", defaultRate: 8346, category: "Operation & Mining", isDistanceVar: false },
-        { name: "PIT E - JALAN BARITO", unit: "BCM", defaultRate: 15500, category: "Operation & Mining", isDistanceVar: false },
-        { name: "PIT E - SEKATAN", unit: "BCM", defaultRate: 16931, category: "Operation & Mining", isDistanceVar: false },
-        { name: "PIT E - TS MAHONI", unit: "BCM", defaultRate: 22654, category: "Operation & Mining", isDistanceVar: false },
-        { name: "PIT E - IPD WARWEFILL", unit: "BCM", defaultRate: 8346, category: "Operation & Mining", isDistanceVar: false },
-        { name: "Dozer CAT D10 - BDCT 1001", unit: "Hours", defaultRate: 1980000, category: "Penunjang", isDistanceVar: false },
-        { name: "Dozer CAT D10 - BDCT 1002", unit: "Hours", defaultRate: 1980000, category: "Penunjang", isDistanceVar: false },
-        { name: "Excavator CAT 395 - EXCT 3901", unit: "Hours", defaultRate: 1425000, category: "Penunjang", isDistanceVar: false },
-        { name: "Excavator CAT 395 - EXCT 3902", unit: "Hours", defaultRate: 1425000, category: "Penunjang", isDistanceVar: false },
-      ]
-    };
-
-    const defaults = siteDefaults[code] || siteDefaults["POS"];
-    const merged: Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean }> = [];
-    const seen = new Set<string>();
-
-    matchedFromCatalog.forEach(c => {
-      const key = (c.name || "").toLowerCase().trim();
-      if (key && !seen.has(key)) {
-        seen.add(key);
-        const isDist = key.includes("overhaul") || key.includes("distance") || (c.category || "").toLowerCase().includes("distance");
-        merged.push({
-          name: c.name,
-          unit: c.unit || "BCM",
-          defaultRate: c.defaultRate || c.rateIDR || (c.rateUSD ? Math.round(c.rateUSD * (mRate || 17923.30)) : 0),
-          category: c.category,
-          isDistanceVar: isDist
-        });
-      }
-    });
-
-    // Filter strictly based on isDistanceOnly:
-    // If isDistanceOnly is true, only return distance/overhaul items.
-    // If isDistanceOnly is false, only return material/production items.
-    return merged.filter(item => isDistanceOnly ? Boolean(item.isDistanceVar) : !item.isDistanceVar);
-  }, [customerCode, activeSOWCatalog, mRate, isDistanceOnly]);
-
-  const handleLookupAndSelect = (inputName: string) => {
-    onChange(inputName);
-    const norm = inputName.toLowerCase().replace(/[^a-z0-9]/g, "");
-    if (!norm) return;
-
-    // Find exact or closest match within the filtered list
-    const matched = siteSowOptions.find(o => o.name.toLowerCase().trim() === inputName.toLowerCase().trim()) ||
-      siteSowOptions.find(o => {
-        const itemNorm = o.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-        return itemNorm.includes(norm) || norm.includes(itemNorm);
-      });
-
-    if (matched) {
-      onSelectSow(matched);
+  const handleChange = (selectedName: string) => {
+    onChange(selectedName);
+    const found = options.find(o => o.name === selectedName);
+    if (found) {
+      onSelectSow(found);
     }
   };
 
-  const datalistId = `sow-datalist-${id}`;
-
   return (
-    <div className="relative w-full">
-      <input
-        list={datalistId}
-        type="text"
-        className="w-full bg-cyan-50/60 hover:bg-cyan-50 focus:bg-white border border-cyan-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:border-cyan-700 outline-none transition"
-        value={value || ""}
-        placeholder={placeholder}
-        onChange={(e) => handleLookupAndSelect(e.target.value)}
-      />
-      <datalist id={datalistId}>
-        {siteSowOptions.map((sow, idx) => (
-          <option key={idx} value={sow.name} />
-        ))}
-      </datalist>
-    </div>
+    <select
+      className={className || "w-full bg-cyan-50/60 hover:bg-cyan-50 focus:bg-white border border-cyan-300 focus:border-cyan-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 outline-none transition cursor-pointer shadow-2xs"}
+      value={value || ""}
+      onChange={(e) => handleChange(e.target.value)}
+    >
+      <option value="" disabled>-- Pilih {isDistanceOnly ? "Variabel Jarak / Overhaul" : categoryFilter === "Penunjang" ? "Alat Berat / Unit" : categoryFilter === "Pengurang Biaya" ? "Pengurang Biaya / Denda" : "Master SOW"} --</option>
+      {options.map((opt, idx) => (
+        <option key={idx} value={opt.name}>
+          {opt.name}
+        </option>
+      ))}
+      {value && !options.some(o => o.name === value) && (
+        <option value={value}>{value}</option>
+      )}
+    </select>
   );
 }
 
@@ -162,8 +202,8 @@ export function FormModals({ c }: { c: any }) {
     modalType, setModalType, editItem, isSaving, formData, setFormData,
     setDetailViewItem, isInlineEditingBA, setIsInlineEditingBA, mRate, setMRate,
     fuelPriceUSD, setFuelPriceUSD, laborPriceIDR, setLaborPriceIDR, masterBankAccounts,
-    rfIndexCalculated, activeSOWCatalog, defaultPOSBAOperatingItems, defaultPOSBAMDOItems, defaultBGGBAItems, defaultDBKBAItems, defaultSBSBAOperatingItems, latestKursBI,
-    baOperatingItems, setBaOperatingItems, baMDOItems, setBaMDOItems, activeBAStep,
+    rfIndexCalculated, activeSOWCatalog, defaultPOSBAOperatingItems, defaultPOSBAMDOItems, defaultBGGBAItems, defaultDBKBAItems, defaultSBSBAOperatingItems, defaultSBSBAMDOItems, defaultSBSBADeductionItems, latestKursBI,
+    coalIndexMaster, getBGGActiveCoalTier, baOperatingItems, setBaOperatingItems, baMDOItems, setBaMDOItems, baDeductionItems, setBaDeductionItems, activeBAStep,
     setActiveBAStep, showAddRowDropdown, setShowAddRowDropdown, invLineItems, handleCompanySelect,
     loadDemoPOSData, loadDemoBGGData, loadDemoDBKData, loadDemoSBSData, removeInvLineItem,
     updateInvItemVolume, updateInvItemOverhaul, updateInvItemRateIDR, updateInvItemRateUSD, updateInvItemKurs,
@@ -208,24 +248,37 @@ export function FormModals({ c }: { c: any }) {
 
   return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-2 sm:p-4">
-          <div className={`bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 w-full ${modalType === "ba" || modalType === "pending_volume" || modalType === "invoice" ? "max-w-[98vw] 2xl:max-w-[1680px]" : "max-w-3xl"} shadow-2xl space-y-6 max-h-[96vh] overflow-y-auto transition-all`}>
+          <div className={`bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 w-full ${modalType === "ba" || modalType === "pending_volume" ? "max-w-7xl" : modalType === "invoice" ? "max-w-5xl lg:max-w-6xl" : "max-w-3xl"} shadow-2xl space-y-6 max-h-[96vh] overflow-y-auto transition-all`}>
             {/* Modal Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-slate-200 pb-4">
               <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-cyan-800 bg-cyan-50 px-2.5 py-1 rounded-md border border-cyan-200">
-                    <FileText size={14} /> {modalType === "ba" ? "Berita Acara & Audit Intelligence Hub" : "Form Entri Keuangan"}
-                  </span>
-                  {modalType === "ba" && editItem && (
-                    renderBAStatusBadge(formData.statusBA || editItem.statusBA, formData.invoiceNoLinked || editItem.invoiceNoLinked, undefined, editItem || formData, invoiceRows)
+                {modalType === "ba" && editItem && (
+                  <div className="mb-1">
+                    {renderBAStatusBadge(formData.statusBA || editItem.statusBA, formData.invoiceNoLinked || editItem.invoiceNoLinked, undefined, editItem || formData, invoiceRows)}
+                  </div>
+                )}
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900">
+                    {modalType === "ba"
+                      ? (editItem ? `Berita Acara: ${formData.baNumber || formData.signedBANumber || formData.draftBARefNo || "Draft BA"}` : "Input Berita Acara Baru")
+                      : modalType === "invoice"
+                      ? (editItem ? "Edit Invoice" : "Create Invoice")
+                      : `${editItem ? "Edit Data" : "Tambah Data Baru"} — ${modalType === "pending_volume" ? "Pending Volume (Joint Survey)" : modalType === "payment" ? "Payment Receipt" : "Customer Master"}`
+                    }
+                  </h3>
+                  {modalType === "invoice" && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200">
+                        Site: <strong className="text-cyan-900 font-black">{(formData.customerCode || "POS").toUpperCase()}</strong>
+                      </span>
+                      {(formData.customerCode || "").toUpperCase() === "POS" && (
+                        <span className="text-xs font-bold text-slate-700 bg-amber-50 px-2.5 py-0.5 rounded-lg border border-amber-200">
+                          RF Index: <strong className="text-amber-800 font-mono font-black">{rfIndexCalculated.toFixed(3)}</strong>
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
-                  {modalType === "ba"
-                    ? (editItem ? `Berita Acara: ${formData.baNumber || formData.signedBANumber || formData.draftBARefNo || "Draft BA"}` : "Input Berita Acara Baru")
-                    : `${editItem ? "Edit Data" : "Tambah Data Baru"} — ${modalType === "pending_volume" ? "Pending Volume (Joint Survey)" : modalType === "invoice" ? "Invoice" : modalType === "payment" ? "Payment Receipt" : "Customer Master"}`
-                  }
-                </h3>
                 {modalType === "ba" && editItem && Boolean(formData.invoiceNoLinked || editItem?.invoiceNoLinked) && (
                   <div className="mt-2 p-2.5 bg-purple-50 border border-purple-200 rounded-xl flex items-center gap-2 text-xs text-purple-950 font-medium">
                     <Lock size={14} className="text-purple-700 shrink-0" />
@@ -351,63 +404,19 @@ export function FormModals({ c }: { c: any }) {
 
               {/* ================= MODAL INVOICE MASTER (PAYMENT DETAIL GENERATOR) ================= */}
               {modalType === "invoice" && (
-                <div className="space-y-5 text-xs">
-                  {/* Header Info Card */}
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 pb-2">
-                      <h4 className="text-sm font-black text-slate-900 tracking-wider uppercase flex items-center gap-1.5">
-                        <FileText size={16} className="text-cyan-800" /> INVOICE GENERATOR
-                      </h4>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={loadDemoPOSData}
-                          className="px-2 py-1 text-[11px] font-extrabold text-cyan-900 bg-cyan-100 hover:bg-cyan-200 border border-cyan-300 rounded transition flex items-center gap-1 cursor-pointer"
-                          title="Isi otomatis dengan template data POS Mining"
-                        >
-                          <Pickaxe size={12} /> Template POS
-                        </button>
-                        <button
-                          type="button"
-                          onClick={loadDemoBGGData}
-                          className="px-2 py-1 text-[11px] font-extrabold text-emerald-900 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 rounded transition flex items-center gap-1 cursor-pointer"
-                          title="Isi otomatis dengan template data BGG Mining"
-                        >
-                          <Pickaxe size={12} /> Template BGG
-                        </button>
-                        <button
-                          type="button"
-                          onClick={loadDemoDBKData}
-                          className="px-2 py-1 text-[11px] font-extrabold text-blue-900 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded transition flex items-center gap-1 cursor-pointer"
-                          title="Isi otomatis dengan template data DBK Petrosea"
-                        >
-                          <Pickaxe size={12} /> Template DBK
-                        </button>
-                        <button
-                          type="button"
-                          onClick={loadDemoSBSData}
-                          className="px-2 py-1 text-[11px] font-extrabold text-purple-900 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded transition flex items-center gap-1 cursor-pointer"
-                          title="Isi otomatis dengan template data SBS Mining"
-                        >
-                          <Pickaxe size={12} /> Template SBS
-                        </button>
-                        <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded border border-slate-300">
-                          RF Index: <strong className="text-amber-700 font-mono font-black">{rfIndexCalculated.toFixed(3)}</strong>
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Prominent BA Reference Bar */}
-                    <div className="bg-cyan-50/80 border border-cyan-200 rounded-lg p-2.5 flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                      <label className="text-xs font-extrabold text-cyan-950 uppercase tracking-wider shrink-0 flex items-center gap-1.5">
-                        <FileCheck size={15} className="text-cyan-800" /> Pilih No. BA (Auto-Fill):
+                <div className="space-y-4 text-xs">
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3.5">
+                    {/* ZONA 1: PROMINENT BA REFERENCE BAR */}
+                    <div className="bg-cyan-50/70 border border-cyan-200 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                      <label className="text-xs font-black text-cyan-950 uppercase tracking-wider shrink-0 flex items-center gap-1.5">
+                        <FileCheck size={16} className="text-cyan-800" /> Referensi Berita Acara (BA):
                       </label>
                       <select
-                        className="bg-white border border-cyan-300 font-bold text-cyan-950 text-xs px-3 py-1.5 rounded-lg focus:border-cyan-600 outline-none flex-1 w-full shadow-xs"
+                        className="bg-white border border-cyan-300 font-bold text-slate-900 text-xs px-3 py-2 rounded-lg focus:border-cyan-700 outline-none flex-1 w-full shadow-2xs cursor-pointer"
                         value={formData.baNoReference || ""}
                         onChange={(e) => handleBASelect(e.target.value)}
                       >
-                        <option value="">-- Tanpa BA Reference (Input Manual) --</option>
+                        <option value="">-- Tanpa Referensi BA (Input Manual) --</option>
                         {baRows.map((ba: any) => (
                           <option key={ba.id} value={ba.baNumber}>
                             {ba.baNumber} — Client: {ba.customerCode} — Periode: {ba.workPeriod || "-"} ({formatIDR(ba.workAmount || 0)}) [{ba.statusBA || "Submit"}]
@@ -416,37 +425,35 @@ export function FormModals({ c }: { c: any }) {
                       </select>
                     </div>
 
-                    {/* 2-Column Info Grid with Equal Label Spacing */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5 text-xs">
+                    {/* ZONA 2: 2-Column Info Grid with Equal Label Spacing */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-xs bg-white p-3.5 rounded-xl border border-slate-200">
                       {/* Left Column */}
                       <div className="space-y-2.5">
                         <div className="flex items-center gap-3">
-                          <span className="w-28 text-slate-500 font-bold shrink-0">Company:</span>
+                          <span className="w-28 text-slate-600 font-bold shrink-0">Site / Customer:</span>
                           <select
-                            className="bg-white border border-slate-300 font-extrabold text-slate-900 text-xs px-2.5 py-1.5 rounded-lg focus:border-cyan-600 outline-none flex-1 w-full"
-                            value={formData.customerCode || ""}
+                            className="bg-slate-50 hover:bg-white border border-slate-300 font-black text-slate-900 text-xs px-2.5 py-1.5 rounded-lg focus:border-cyan-700 outline-none flex-1 w-full transition cursor-pointer"
+                            value={formData.customerCode || "POS"}
                             onChange={(e) => handleCompanySelect(e.target.value)}
                           >
-                            <option value="">-- Pilih Customer --</option>
-                            {customerRows.map((c: any) => (
-                              <option key={c.id || c.code} value={c.code}>
-                                {c.code} — {c.fullName}
-                              </option>
-                            ))}
+                            <option value="BGG">BGG — PT Budi Gema Gempita</option>
+                            <option value="POS">POS — PT Prima Orbit Sejahtera</option>
+                            <option value="SBS">SBS — PT Sumber Bara Sejahtera</option>
+                            <option value="DBK">DBK — PT Duta Bara Kaltim</option>
                           </select>
                         </div>
 
                         <div className="flex items-center gap-3">
-                          <span className="w-28 text-slate-500 font-bold shrink-0">Contractor:</span>
-                          <span className="font-extrabold text-slate-800 px-2 py-1 bg-slate-100/70 rounded border border-slate-200 flex-1">
+                          <span className="w-28 text-slate-600 font-bold shrink-0">Kontraktor:</span>
+                          <span className="font-extrabold text-slate-800 px-2.5 py-1 bg-slate-100/80 rounded-lg border border-slate-200 flex-1">
                             PT. ANDALAN ARTHA PRIMANUSA
                           </span>
                         </div>
 
                         <div className="flex items-center gap-3">
-                          <span className="w-28 text-slate-500 font-bold shrink-0">Project:</span>
+                          <span className="w-28 text-slate-600 font-bold shrink-0">Project Site:</span>
                           <input
-                            className="bg-white border border-slate-300 font-extrabold text-slate-800 text-xs px-2.5 py-1.5 rounded-lg outline-none flex-1 w-full"
+                            className="bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 font-bold text-slate-800 text-xs px-2.5 py-1.5 rounded-lg outline-none flex-1 w-full transition"
                             value={formData.projectSite || ""}
                             onChange={(e) => setFormData({ ...formData, projectSite: e.target.value })}
                             placeholder="Otomatis terisi dari Master Customer / BA"
@@ -454,7 +461,7 @@ export function FormModals({ c }: { c: any }) {
                         </div>
 
                         <div className="flex items-center gap-3">
-                          <span className="w-28 text-slate-500 font-bold shrink-0">Period Covered:</span>
+                          <span className="w-28 text-slate-600 font-bold shrink-0">Period Covered:</span>
                           <div className="flex-1 w-full">
                             <MonthPickerInput
                               value={formData.workPeriod || ""}
@@ -463,7 +470,7 @@ export function FormModals({ c }: { c: any }) {
                                 setFormData({ ...formData, workPeriod: newPeriod, invoiceNo: newInvNo });
                               }}
                               format="short"
-                              className="bg-white border border-slate-300 font-extrabold text-slate-900 text-xs px-2.5 py-1.5 rounded-lg focus:border-cyan-600 outline-none w-full"
+                              className="bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 font-bold text-slate-900 text-xs px-2.5 py-1.5 rounded-lg focus:border-cyan-700 outline-none w-full transition"
                             />
                           </div>
                         </div>
@@ -472,9 +479,9 @@ export function FormModals({ c }: { c: any }) {
                       {/* Right Column */}
                       <div className="space-y-2.5">
                         <div className="flex items-center gap-3">
-                          <span className="w-28 text-slate-500 font-bold shrink-0">Invoice No.:</span>
+                          <span className="w-28 text-slate-600 font-bold shrink-0">Invoice No.:</span>
                           <input
-                            className="bg-white border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2.5 py-1.5 rounded-lg focus:border-cyan-600 outline-none flex-1 w-full"
+                            className="bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 font-mono font-black text-slate-900 text-xs px-2.5 py-1.5 rounded-lg focus:border-cyan-700 outline-none flex-1 w-full transition"
                             placeholder="003/POS-AAP/RF/VI/2026"
                             value={formData.invoiceNo || ""}
                             onChange={(e) => setFormData({ ...formData, invoiceNo: e.target.value })}
@@ -483,9 +490,9 @@ export function FormModals({ c }: { c: any }) {
                         </div>
 
                         <div className="flex items-center gap-3">
-                          <span className="w-28 text-slate-500 font-bold shrink-0">Activity Group:</span>
+                          <span className="w-28 text-slate-600 font-bold shrink-0">Activity Group:</span>
                           <input
-                            className="bg-white border border-slate-300 font-extrabold text-slate-900 text-xs px-2.5 py-1.5 rounded-lg focus:border-cyan-600 outline-none flex-1 w-full"
+                            className="bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 font-bold text-slate-900 text-xs px-2.5 py-1.5 rounded-lg focus:border-cyan-700 outline-none flex-1 w-full transition"
                             value={formData.activityGroup || "OPERATION & MINING"}
                             onChange={(e) => setFormData({ ...formData, activityGroup: e.target.value })}
                             placeholder="OPERATION & MINING"
@@ -493,9 +500,9 @@ export function FormModals({ c }: { c: any }) {
                         </div>
 
                         <div className="flex items-center gap-3">
-                          <span className="w-28 text-slate-500 font-bold shrink-0">PO Number:</span>
+                          <span className="w-28 text-slate-600 font-bold shrink-0">PO Number:</span>
                           <input
-                            className="bg-white border border-slate-300 font-extrabold text-slate-900 text-xs px-2.5 py-1.5 rounded-lg focus:border-cyan-600 outline-none flex-1 w-full"
+                            className="bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 font-bold text-slate-900 text-xs px-2.5 py-1.5 rounded-lg focus:border-cyan-700 outline-none flex-1 w-full transition font-mono"
                             placeholder="PO-POS-2026-001"
                             value={formData.noPO || formData.poNumber || ""}
                             onChange={(e) => setFormData({ ...formData, noPO: e.target.value, poNumber: e.target.value })}
@@ -503,72 +510,13 @@ export function FormModals({ c }: { c: any }) {
                         </div>
 
                         <div className="flex items-center gap-3">
-                          <span className="w-28 text-slate-500 font-bold shrink-0">Contract Number:</span>
+                          <span className="w-28 text-slate-600 font-bold shrink-0">Contract No:</span>
                           <input
-                            className="bg-white border border-slate-300 font-extrabold text-slate-800 text-xs px-2.5 py-1.5 rounded-lg outline-none flex-1 w-full"
+                            className="bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 font-bold text-slate-800 text-xs px-2.5 py-1.5 rounded-lg outline-none flex-1 w-full transition font-mono"
                             placeholder="Otomatis terisi dari Master Customer / BA"
                             value={formData.contractNo || ""}
                             onChange={(e) => setFormData({ ...formData, contractNo: e.target.value })}
                           />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Master Bank Account Selector */}
-                    <div className="bg-slate-50 border border-slate-300 rounded-xl p-3 space-y-2">
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                        <label className="text-xs font-black uppercase text-cyan-900 tracking-wider flex items-center gap-1.5 shrink-0">
-                          <Receipt size={15} className="text-cyan-800" /> Rekening Pembayaran (Master Bank Account):
-                        </label>
-                        <select
-                          className="bg-white border border-slate-300 font-extrabold text-slate-900 text-xs px-3 py-1.5 rounded-lg focus:border-cyan-600 outline-none shadow-xs"
-                          value={formData.bankName || "Bank BNI"}
-                          onChange={(e) => {
-                            const selectedBank = masterBankAccounts.find(b => b.bankName === e.target.value) || masterBankAccounts[0];
-                            setFormData({
-                              ...formData,
-                              bankName: selectedBank.bankName,
-                              bankAccountName: selectedBank.bankAccountName,
-                              bankAccountNo: selectedBank.bankAccountNo,
-                              bankBranch: selectedBank.bankBranch,
-                            });
-                          }}
-                        >
-                          {masterBankAccounts.map((b) => (
-                            <option key={b.id} value={b.bankName}>
-                              {b.bankName} — A/C {b.bankAccountNo} ({b.bankBranch})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-sans text-slate-800 bg-white p-2.5 rounded-lg border border-slate-200">
-                        <div><span className="text-slate-500 block font-sans text-[10px] font-bold">Bank Name:</span> <strong>{formData.bankName || "Bank BNI"}</strong></div>
-                        <div><span className="text-slate-500 block font-sans text-[10px] font-bold">A/C Name:</span> <strong>{formData.bankAccountName || "PT Andalan Artha Primanusa"}</strong></div>
-                        <div><span className="text-slate-500 block font-sans text-[10px] font-bold">A/C No:</span> <strong className="text-cyan-900 font-black">{formData.bankAccountNo || "8188788882"}</strong></div>
-                        <div><span className="text-slate-500 block font-sans text-[10px] font-bold">Branch:</span> <strong>{formData.bankBranch || "Harmoni, Jakarta"}</strong></div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-200">
-                      <div>
-                        <label className="block text-[10px] font-extrabold uppercase text-slate-500">M-Rate (Kurs Tengah BI)</label>
-                        <div className="relative mt-0.5">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">Rp</span>
-                          <input type="number" step="0.01" className="w-full bg-slate-50 border border-slate-300 rounded pl-7 pr-2 py-1 text-xs font-extrabold text-slate-900 focus:bg-white focus:border-cyan-600 outline-none" placeholder="0" value={mRate === 0 ? "" : mRate} onFocus={(e) => e.target.select()} onChange={(e) => setMRate(e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-extrabold uppercase text-slate-500">Fuel Price ($F_n$ USD/L)</label>
-                        <div className="relative mt-0.5">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">$</span>
-                          <input type="number" step="0.001" className="w-full bg-slate-50 border border-slate-300 rounded pl-6 pr-2 py-1 text-xs font-extrabold text-slate-900 focus:bg-white focus:border-cyan-600 outline-none" placeholder="0.000" value={fuelPriceUSD === 0 ? "" : fuelPriceUSD} onFocus={(e) => e.target.select()} onChange={(e) => setFuelPriceUSD(e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-extrabold uppercase text-slate-500">Labor Price ($L_n$ IDR)</label>
-                        <div className="relative mt-0.5">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500">Rp</span>
-                          <input type="number" className="w-full bg-slate-50 border border-slate-300 rounded pl-7 pr-2 py-1 text-xs font-extrabold text-slate-900 focus:bg-white focus:border-cyan-600 outline-none" placeholder="0" value={laborPriceIDR === 0 ? "" : laborPriceIDR} onFocus={(e) => e.target.select()} onChange={(e) => setLaborPriceIDR(e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
                         </div>
                       </div>
                     </div>
@@ -623,12 +571,24 @@ export function FormModals({ c }: { c: any }) {
                                     </td>
                                     <td className="p-2 text-center">
                                       <div className="flex items-center justify-center gap-1">
-                                        <input type="number" step="0.01" className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="0" value={item.volume === 0 ? "" : (item.volume ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemVolume(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
+                                        <FormattedNumberInput
+                                          allowDecimals
+                                          maxDecimals={2}
+                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                          placeholder="0"
+                                          value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                          onChange={(val) => updateInvItemVolume(item.id, val)}
+                                        />
                                         <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Bcm"}</span>
                                       </div>
                                     </td>
                                     <td className="p-2 text-right">
-                                      <input type="number" className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="0" value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemRateIDR(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
+                                      <FormattedNumberInput
+                                        className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                        placeholder="0"
+                                        value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
+                                        onChange={(val) => updateInvItemRateIDR(item.id, val)}
+                                      />
                                     </td>
                                     <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateIDR || 0)))}</td>
                                   </tr>
@@ -652,12 +612,24 @@ export function FormModals({ c }: { c: any }) {
                                     <td className="p-2 font-bold text-slate-800">{item.description}</td>
                                     <td className="p-2 text-center">
                                       <div className="flex items-center justify-center gap-1">
-                                        <input type="number" step="0.01" className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="0" value={item.volume === 0 ? "" : (item.volume ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemVolume(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
+                                        <FormattedNumberInput
+                                          allowDecimals
+                                          maxDecimals={2}
+                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                          placeholder="0"
+                                          value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                          onChange={(val) => updateInvItemVolume(item.id, val)}
+                                        />
                                         <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Ton"}</span>
                                       </div>
                                     </td>
                                     <td className="p-2 text-right">
-                                      <input type="number" className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="0" value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemRateIDR(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
+                                      <FormattedNumberInput
+                                        className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                        placeholder="0"
+                                        value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
+                                        onChange={(val) => updateInvItemRateIDR(item.id, val)}
+                                      />
                                     </td>
                                     <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateIDR || 0)))}</td>
                                   </tr>
@@ -684,39 +656,34 @@ export function FormModals({ c }: { c: any }) {
                                       <td className="p-2 font-bold text-slate-800">
                                         <div>{item.subSection || item.description}</div>
                                         <div className="flex items-center gap-1.5 mt-1">
-                                          <input
-                                            type="number"
+                                          <FormattedNumberInput
                                             className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                             placeholder="1000"
                                             value={item.overhaulMtr === 0 ? "" : (item.overhaulMtr ?? "")}
-                                            onFocus={(e) => e.target.select()}
-                                            onChange={(e) => updateInvItemOverhaul(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
+                                            onChange={(val) => updateInvItemOverhaul(item.id, val)}
                                           />
                                           <span className="text-[10px] text-slate-600 font-mono font-bold">mtr - 1000 mtr = ({diffMtr > 0 ? `+${diffMtr}` : diffMtr}) mtr</span>
                                         </div>
                                       </td>
                                       <td className="p-2 text-center">
                                         <div className="flex items-center justify-center gap-1">
-                                          <input
-                                            type="number"
-                                            step="0.01"
+                                          <FormattedNumberInput
+                                            allowDecimals
+                                            maxDecimals={2}
                                             className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                             placeholder={String(effVol)}
                                             value={item.volume === 0 ? "" : (item.volume ?? "")}
-                                            onFocus={(e) => e.target.select()}
-                                            onChange={(e) => updateInvItemVolume(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
+                                            onChange={(val) => updateInvItemVolume(item.id, val)}
                                           />
                                           <span className="text-[11px] text-slate-600 font-bold">{item.unit || (item.subSection?.includes("Coal") ? "Ton" : "Bcm")}</span>
                                         </div>
                                       </td>
                                       <td className="p-2 text-right">
-                                        <input
-                                          type="number"
+                                        <FormattedNumberInput
                                           className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                           placeholder={String(unitRate)}
                                           value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
-                                          onFocus={(e) => e.target.select()}
-                                          onChange={(e) => updateInvItemRateIDR(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
+                                          onChange={(val) => updateInvItemRateIDR(item.id, val)}
                                         />
                                       </td>
                                       <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
@@ -745,26 +712,23 @@ export function FormModals({ c }: { c: any }) {
                                       </td>
                                       <td className="p-2 text-center">
                                         <div className="flex items-center justify-center gap-1">
-                                          <input
-                                            type="number"
-                                            step="0.01"
+                                          <FormattedNumberInput
+                                            allowDecimals
+                                            maxDecimals={2}
                                             className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                             placeholder={String(effVol)}
                                             value={item.volume === 0 ? "" : (item.volume ?? "")}
-                                            onFocus={(e) => e.target.select()}
-                                            onChange={(e) => updateInvItemVolume(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
+                                            onChange={(val) => updateInvItemVolume(item.id, val)}
                                           />
                                           <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Bcm"}</span>
                                         </div>
                                       </td>
                                       <td className="p-2 text-right">
-                                        <input
-                                          type="number"
+                                        <FormattedNumberInput
                                           className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                           placeholder={String(unitRate)}
                                           value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
-                                          onFocus={(e) => e.target.select()}
-                                          onChange={(e) => updateInvItemRateIDR(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
+                                          onChange={(val) => updateInvItemRateIDR(item.id, val)}
                                         />
                                       </td>
                                       <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
@@ -804,7 +768,12 @@ export function FormModals({ c }: { c: any }) {
                                     </td>
                                     <td colSpan={3} className="p-2 font-medium text-slate-700">{item.description}</td>
                                     <td className="p-2 text-right font-mono">
-                                      <input type="number" className="w-36 bg-slate-50 border border-rose-300 font-mono font-extrabold text-rose-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white outline-none" placeholder="0" value={item.amount === 0 ? "" : Math.abs(item.amount)} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemAmount(item.id, -(e.target.value === "" ? 0 : Math.abs(parseFloat(e.target.value)) || 0))} />
+                                      <FormattedNumberInput
+                                        className="w-36 bg-slate-50 border border-rose-300 font-mono font-extrabold text-rose-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white outline-none"
+                                        placeholder="0"
+                                        value={item.amount === 0 ? "" : Math.abs(item.amount)}
+                                        onChange={(val) => updateInvItemAmount(item.id, -Math.abs(val))}
+                                      />
                                     </td>
                                   </tr>
                                 ))}
@@ -833,15 +802,36 @@ export function FormModals({ c }: { c: any }) {
                                     <td className="p-2 font-bold text-slate-800">{item.description}</td>
                                     <td className="p-2 text-center">
                                       <div className="flex items-center justify-center gap-1">
-                                        <input type="number" step="0.001" className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="0.000" value={item.volume === 0 ? "" : (item.volume ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemVolume(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
+                                        <FormattedNumberInput
+                                          allowDecimals
+                                          maxDecimals={3}
+                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                          placeholder="0.000"
+                                          value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                          onChange={(val) => updateInvItemVolume(item.id, val)}
+                                        />
                                         <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Bcm"}</span>
                                       </div>
                                     </td>
                                     <td className="p-2 text-right">
-                                      <input type="number" step="0.001" className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="0.000" value={item.unitRateUSD === 0 ? "" : (item.unitRateUSD ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemRateUSD(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
+                                      <FormattedNumberInput
+                                        allowDecimals
+                                        maxDecimals={3}
+                                        className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                        placeholder="0.000"
+                                        value={item.unitRateUSD === 0 ? "" : (item.unitRateUSD ?? "")}
+                                        onChange={(val) => updateInvItemRateUSD(item.id, val)}
+                                      />
                                     </td>
                                     <td className="p-2 text-right">
-                                      <input type="number" step="0.01" className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="17140.76" value={item.kursBI === 0 ? "" : (item.kursBI ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemKurs(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
+                                      <FormattedNumberInput
+                                        allowDecimals
+                                        maxDecimals={2}
+                                        className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                        placeholder="17.923,30"
+                                        value={item.kursBI === 0 ? "" : (item.kursBI ?? "")}
+                                        onChange={(val) => updateInvItemKurs(item.id, val)}
+                                      />
                                     </td>
                                     <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateUSD || 0) * (item.kursBI || 17140.76)))}</td>
                                   </tr>
@@ -866,15 +856,36 @@ export function FormModals({ c }: { c: any }) {
                                     <td className="p-2 font-bold text-slate-800">{item.description}</td>
                                     <td className="p-2 text-center">
                                       <div className="flex items-center justify-center gap-1">
-                                        <input type="number" step="0.001" className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="0.000" value={item.volume === 0 ? "" : (item.volume ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemVolume(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
+                                        <FormattedNumberInput
+                                          allowDecimals
+                                          maxDecimals={3}
+                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                          placeholder="0.000"
+                                          value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                          onChange={(val) => updateInvItemVolume(item.id, val)}
+                                        />
                                         <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Ton"}</span>
                                       </div>
                                     </td>
                                     <td className="p-2 text-right">
-                                      <input type="number" step="0.001" className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="0.000" value={item.unitRateUSD === 0 ? "" : (item.unitRateUSD ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemRateUSD(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
+                                      <FormattedNumberInput
+                                        allowDecimals
+                                        maxDecimals={3}
+                                        className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                        placeholder="0.000"
+                                        value={item.unitRateUSD === 0 ? "" : (item.unitRateUSD ?? "")}
+                                        onChange={(val) => updateInvItemRateUSD(item.id, val)}
+                                      />
                                     </td>
                                     <td className="p-2 text-right">
-                                      <input type="number" step="0.01" className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="17140.76" value={item.kursBI === 0 ? "" : (item.kursBI ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemKurs(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
+                                      <FormattedNumberInput
+                                        allowDecimals
+                                        maxDecimals={2}
+                                        className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                        placeholder="17.923,30"
+                                        value={item.kursBI === 0 ? "" : (item.kursBI ?? "")}
+                                        onChange={(val) => updateInvItemKurs(item.id, val)}
+                                      />
                                     </td>
                                     <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateUSD || 0) * (item.kursBI || 17140.76)))}</td>
                                   </tr>
@@ -890,32 +901,86 @@ export function FormModals({ c }: { c: any }) {
                                   <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalC)}</td>
                                 </tr>
                                 {invLineItems.filter(i => i.section === "C").map(item => {
-                                  const baseM = item.baseMtr || 1000;
-                                  const diff = (item.overhaulMtr || baseM) - baseM;
+                                  const isCoal = (item.subSection || item.description || "").toLowerCase().includes("coal") || (item.subSection || item.description || "").toLowerCase().includes("batubara");
+                                  const baseM = item.baseMtr || (isCoal ? 3000 : 1000);
+                                  const curMtr = item.overhaulMtr !== undefined && item.overhaulMtr !== null ? item.overhaulMtr : baseM;
+                                  const diff = Math.max(0, curMtr - baseM);
+                                  const calculated = calculateItemRateAndAmount(item, "DBK");
+
                                   return (
                                     <tr key={item.id} className="hover:bg-slate-50 transition">
                                       <td className="p-2 text-center">
                                         <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
                                       </td>
                                       <td className="p-2 font-bold text-slate-800">
-                                        <div>{item.subSection}</div>
+                                        <div>{item.subSection || item.description}</div>
                                         <div className="flex items-center gap-1 text-[10px] text-slate-500 font-mono mt-0.5">
                                           <span>Dist:</span>
-                                          <input type="number" className="w-16 bg-slate-50 border border-slate-300 font-mono text-[10px] px-1 py-0.5 rounded text-right" placeholder={String(baseM)} value={item.overhaulMtr === 0 ? "" : (item.overhaulMtr ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemOverhaul(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
-                                          <span>m - {baseM}m = {diff}m</span>
+                                          <FormattedNumberInput
+                                            allowDecimals
+                                            maxDecimals={2}
+                                            className="w-18 bg-slate-50 border border-slate-300 font-mono text-[10px] px-1.5 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                            placeholder={formatThousand(baseM)}
+                                            value={item.overhaulMtr === 0 ? "" : (item.overhaulMtr ?? "")}
+                                            onChange={(val) => updateInvItemOverhaul(item.id, val)}
+                                          />
+                                          <span>m - {formatThousand(baseM)}m = {formatThousand(diff)}m</span>
                                         </div>
                                       </td>
                                       <td className="p-2 text-center">
                                         <div className="flex items-center justify-center gap-1">
-                                          <input type="number" step="0.001" className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="0.000" value={item.volume === 0 ? "" : (item.volume ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemVolume(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
-                                          <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Bcm"}</span>
+                                          <FormattedNumberInput
+                                            allowDecimals
+                                            maxDecimals={3}
+                                            className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                            placeholder="0.000"
+                                            value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                            onChange={(val) => updateInvItemVolume(item.id, val)}
+                                          />
+                                          <span className="text-[11px] text-slate-600 font-bold">{item.unit || (isCoal ? "Ton" : "Bcm")}</span>
                                         </div>
                                       </td>
-                                      <td className="p-2 text-right font-mono text-slate-400">-</td>
                                       <td className="p-2 text-right">
-                                        <input type="number" step="0.01" className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white outline-none" placeholder="0" value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemRateIDR(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
+                                        {!isCoal ? (
+                                          <FormattedNumberInput
+                                            allowDecimals
+                                            maxDecimals={3}
+                                            className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                            placeholder="0.028"
+                                            value={item.unitRateUSD === 0 ? "" : (item.unitRateUSD ?? 0.028)}
+                                            onChange={(val) => updateInvItemRateUSD(item.id, val)}
+                                          />
+                                        ) : (
+                                          <div className="flex items-center justify-end gap-1">
+                                            <span className="text-[10px] text-slate-500 font-bold">Rp</span>
+                                            <FormattedNumberInput
+                                              allowDecimals
+                                              maxDecimals={2}
+                                              className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                              placeholder="230"
+                                              value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? 230)}
+                                              onChange={(val) => updateInvItemRateIDR(item.id, val)}
+                                            />
+                                          </div>
+                                        )}
                                       </td>
-                                      <td className="p-2 text-right font-mono font-extrabold text-slate-900">{item.volume && item.unitRateIDR ? formatIDR(Math.round(item.volume * item.unitRateIDR)) : "-"}</td>
+                                      <td className="p-2 text-right">
+                                        {!isCoal ? (
+                                          <FormattedNumberInput
+                                            allowDecimals
+                                            maxDecimals={2}
+                                            className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                            placeholder="17.923,30"
+                                            value={item.kursBI === 0 ? "" : (item.kursBI ?? "")}
+                                            onChange={(val) => updateInvItemKurs(item.id, val)}
+                                          />
+                                        ) : (
+                                          <span className="text-slate-400 font-mono text-center block">-</span>
+                                        )}
+                                      </td>
+                                      <td className="p-2 text-right font-mono font-extrabold text-slate-900">
+                                        {formatIDR(calculated.amount)}
+                                      </td>
                                     </tr>
                                   );
                                 })}
@@ -943,12 +1008,24 @@ export function FormModals({ c }: { c: any }) {
                                     <td className="p-2 font-bold text-slate-800">{item.description}</td>
                                     <td className="p-2 text-center">
                                       <div className="flex items-center justify-center gap-1">
-                                        <input type="number" step="0.01" className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="0" value={item.volume === 0 ? "" : (item.volume ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemVolume(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
+                                        <FormattedNumberInput
+                                          allowDecimals
+                                          maxDecimals={2}
+                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                          placeholder="0"
+                                          value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                          onChange={(val) => updateInvItemVolume(item.id, val)}
+                                        />
                                         <span className="text-[11px] text-slate-600 font-bold">{item.unit || "BCM"}</span>
                                       </div>
                                     </td>
                                     <td className="p-2 text-right">
-                                      <input type="number" className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="0" value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemRateIDR(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
+                                      <FormattedNumberInput
+                                        className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                        placeholder="0"
+                                        value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
+                                        onChange={(val) => updateInvItemRateIDR(item.id, val)}
+                                      />
                                     </td>
                                     <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateIDR || 0)))}</td>
                                   </tr>
@@ -972,12 +1049,24 @@ export function FormModals({ c }: { c: any }) {
                                     <td className="p-2 font-bold text-slate-800">{item.description}</td>
                                     <td className="p-2 text-center">
                                       <div className="flex items-center justify-center gap-1">
-                                        <input type="number" step="0.01" className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="0" value={item.volume === 0 ? "" : (item.volume ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemVolume(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
+                                        <FormattedNumberInput
+                                          allowDecimals
+                                          maxDecimals={2}
+                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                          placeholder="0"
+                                          value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                          onChange={(val) => updateInvItemVolume(item.id, val)}
+                                        />
                                         <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Hours"}</span>
                                       </div>
                                     </td>
                                     <td className="p-2 text-right">
-                                      <input type="number" className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none" placeholder="0" value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemRateIDR(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)} />
+                                      <FormattedNumberInput
+                                        className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                        placeholder="0"
+                                        value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
+                                        onChange={(val) => updateInvItemRateIDR(item.id, val)}
+                                      />
                                     </td>
                                     <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateIDR || 0)))}</td>
                                   </tr>
@@ -996,7 +1085,12 @@ export function FormModals({ c }: { c: any }) {
                                     </td>
                                     <td colSpan={3} className="p-2 font-medium text-slate-700">{item.description}</td>
                                     <td className="p-2 text-right font-mono">
-                                      <input type="number" className="w-36 bg-slate-50 border border-rose-300 font-mono font-extrabold text-rose-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white outline-none" placeholder="0" value={item.amount === 0 ? "" : Math.abs(item.amount)} onFocus={(e) => e.target.select()} onChange={(e) => updateInvItemAmount(item.id, -(e.target.value === "" ? 0 : Math.abs(parseFloat(e.target.value)) || 0))} />
+                                      <FormattedNumberInput
+                                        className="w-36 bg-slate-50 border border-rose-300 font-mono font-extrabold text-rose-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white outline-none"
+                                        placeholder="0"
+                                        value={item.amount === 0 ? "" : Math.abs(item.amount)}
+                                        onChange={(val) => updateInvItemAmount(item.id, -Math.abs(val))}
+                                      />
                                     </td>
                                   </tr>
                                 ))}
@@ -1041,14 +1135,13 @@ export function FormModals({ c }: { c: any }) {
                                           </td>
                                           <td className="p-2 text-center">
                                             <div className="flex items-center justify-center gap-1">
-                                              <input
-                                                type="number"
-                                                step="0.01"
+                                              <FormattedNumberInput
+                                                allowDecimals
+                                                maxDecimals={2}
                                                 className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                                 placeholder="0"
                                                 value={item.volume === 0 ? "" : (item.volume ?? "")}
-                                                onFocus={(e) => e.target.select()}
-                                                onChange={(e) => updateInvItemVolume(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
+                                                onChange={(val) => updateInvItemVolume(item.id, val)}
                                               />
                                               <span className="text-[11px] text-slate-600 font-bold">{item.unit}</span>
                                             </div>
@@ -1091,15 +1184,13 @@ export function FormModals({ c }: { c: any }) {
                                               <span>{cleanDesc}</span>
                                             </div>
                                             <div className="flex items-center gap-1.5 mt-1">
-                                              <input
-                                                type="number"
+                                              <FormattedNumberInput
                                                 className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                                placeholder="1000"
+                                                placeholder="1.000"
                                                 value={item.overhaulMtr === 0 ? "" : (item.overhaulMtr ?? "")}
-                                                onFocus={(e) => e.target.select()}
-                                                onChange={(e) => updateInvItemOverhaul(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
+                                                onChange={(val) => updateInvItemOverhaul(item.id, val)}
                                               />
-                                              <span className="text-[11px] text-slate-600 font-bold">mtr - 1000 mtr = ({diffMtr}) mtr</span>
+                                              <span className="text-[11px] text-slate-600 font-bold">mtr - 1.000 mtr = ({diffMtr > 0 ? `+${formatThousand(diffMtr)}` : formatThousand(diffMtr)}) mtr</span>
                                             </div>
                                           </td>
                                           <td className="p-2 text-center">
@@ -1142,14 +1233,13 @@ export function FormModals({ c }: { c: any }) {
                                           </td>
                                           <td className="p-2 text-center">
                                             <div className="flex items-center justify-center gap-1">
-                                              <input
-                                                type="number"
-                                                step="0.01"
+                                              <FormattedNumberInput
+                                                allowDecimals
+                                                maxDecimals={2}
                                                 className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                                 placeholder="0"
                                                 value={item.volume === 0 ? "" : (item.volume ?? "")}
-                                                onFocus={(e) => e.target.select()}
-                                                onChange={(e) => updateInvItemVolume(item.id, e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
+                                                onChange={(val) => updateInvItemVolume(item.id, val)}
                                               />
                                               <span className="text-[11px] text-slate-600 font-bold">{item.unit}</span>
                                             </div>
@@ -1205,32 +1295,32 @@ export function FormModals({ c }: { c: any }) {
                             )}
                           </tbody>
 
-                          {/* SUMMARY TOTALS & TAX BREAKDOWN */}
-                          <tfoot className="border-t-2 border-slate-800 bg-slate-50 font-bold text-xs">
+                          {/* ZONA 5: SUMMARY TOTALS & TAX BREAKDOWN */}
+                          <tfoot className="border-t-2 border-slate-900 bg-slate-50 font-bold text-xs">
                             <tr>
-                              <td colSpan={currentCust === "DBK" ? 4 : 3} className="p-2.5 text-right font-extrabold uppercase text-slate-800">TOTAL (REVENUE GROSS):</td>
-                              <td colSpan={2} className="p-2.5 text-right font-mono text-base font-black text-slate-900">{formatIDR(cCalc.totalGross)}</td>
+                              <td colSpan={currentCust === "DBK" ? 4 : 3} className="p-2.5 text-right font-black uppercase text-slate-700">SUBTOTAL REVENUE (GROSS):</td>
+                              <td colSpan={2} className="p-2.5 text-right font-mono text-sm font-black text-slate-900">{formatIDR(cCalc.totalGross)}</td>
                             </tr>
                             <tr>
-                              <td colSpan={currentCust === "DBK" ? 4 : 3} className="p-2.5 text-right uppercase text-slate-700">DPP PPN 11/12:</td>
-                              <td colSpan={2} className="p-2.5 text-right font-mono font-extrabold text-slate-900">{formatIDR(cCalc.dpp11_12)}</td>
+                              <td colSpan={currentCust === "DBK" ? 4 : 3} className="p-2.5 text-right uppercase text-slate-600 font-bold">DPP (Dasar Pengenaan Pajak):</td>
+                              <td colSpan={2} className="p-2.5 text-right font-mono font-bold text-slate-800">{formatIDR(cCalc.dpp11_12 || cCalc.totalGross)}</td>
                             </tr>
                             <tr>
-                              <td colSpan={currentCust === "DBK" ? 4 : 3} className="p-2.5 text-right uppercase text-emerald-800">VAT ( 12% ) (+):</td>
-                              <td colSpan={2} className="p-2.5 text-right font-mono font-extrabold text-emerald-700">{formatIDR(cCalc.vat12)}</td>
+                              <td colSpan={currentCust === "DBK" ? 4 : 3} className="p-2.5 text-right uppercase text-emerald-800 font-extrabold">PPN 11% (+):</td>
+                              <td colSpan={2} className="p-2.5 text-right font-mono font-extrabold text-emerald-700">{formatIDR(cCalc.vat12 || Math.round((cCalc.dpp11_12 || cCalc.totalGross) * 0.11))}</td>
                             </tr>
                             <tr>
-                              <td colSpan={currentCust === "DBK" ? 4 : 3} className="p-2.5 text-right uppercase text-rose-800">WITH HOLDING TAX ART 23 (-):</td>
-                              <td colSpan={2} className="p-2.5 text-right font-mono font-extrabold text-rose-700">({formatIDR(cCalc.pph23)})</td>
+                              <td colSpan={currentCust === "DBK" ? 4 : 3} className="p-2.5 text-right uppercase text-rose-800 font-extrabold">PPh Pasal 23 (2%) (-):</td>
+                              <td colSpan={2} className="p-2.5 text-right font-mono font-extrabold text-rose-700">({formatIDR(cCalc.pph23 || Math.round((cCalc.dpp11_12 || cCalc.totalGross) * 0.02))})</td>
                             </tr>
                             <tr className="bg-slate-900 text-white font-black text-sm border-t-2 border-slate-900">
-                              <td colSpan={currentCust === "DBK" ? 4 : 3} className="p-3 text-right uppercase tracking-wider text-cyan-300">TOTAL INVOICE (NET):</td>
-                              <td colSpan={2} className="p-3 text-right font-mono text-lg text-emerald-400">{formatIDR(cCalc.totalInvoice)}</td>
+                              <td colSpan={currentCust === "DBK" ? 4 : 3} className="p-3 text-right uppercase tracking-wider text-cyan-300">TOTAL INVOICE (NETTO):</td>
+                              <td colSpan={2} className="p-3 text-right font-mono text-base font-black text-emerald-400">{formatIDR(cCalc.totalInvoice)}</td>
                             </tr>
                             {currentCust === "SBS" && (
-                              <tr className="bg-emerald-800 text-white font-black text-base border-t-2 border-emerald-950">
-                                <td colSpan={3} className="p-3 text-right uppercase tracking-wider text-emerald-200">TOTAL DIBAYAR (NET AFTER DEDUCTIONS):</td>
-                                <td colSpan={2} className="p-3 text-right font-mono text-xl text-white underline">{formatIDR(cCalc.totalDibayar)}</td>
+                              <tr className="bg-emerald-800 text-white font-black text-sm border-t-2 border-emerald-950">
+                                <td colSpan={3} className="p-3 text-right uppercase tracking-wider text-emerald-200">TOTAL DIBAYAR (NETTO SETELAH POTONGAN):</td>
+                                <td colSpan={2} className="p-3 text-right font-mono text-lg text-white underline">{formatIDR(cCalc.totalDibayar)}</td>
                               </tr>
                             )}
                           </tfoot>
@@ -1425,7 +1515,7 @@ export function FormModals({ c }: { c: any }) {
                 const isCustomerSBS = formData.customerCode === "SBS";
                 const isCustomerDBK = formData.customerCode === "DBK";
 
-                const allBAItems = [...baOperatingItems, ...baMDOItems];
+                const allBAItems = [...baOperatingItems, ...baMDOItems, ...(baDeductionItems || [])];
 
                 const isDistanceItem = (item: any) => {
                   if (!item) return false;
@@ -1438,6 +1528,17 @@ export function FormModals({ c }: { c: any }) {
                       item.material.toLowerCase().includes("distance")
                     ))
                   );
+                };
+
+                const getBaseDistance = (item: any) => {
+                  if (item?.distanceBasis !== undefined && item?.distanceBasis !== null && Number(item.distanceBasis) > 0) {
+                    return Number(item.distanceBasis);
+                  }
+                  const mLow = (item?.material || item?.description || item?.sowDescription || "").toLowerCase();
+                  if (mLow.includes("coal") || mLow.includes("batubara")) {
+                    return 3000;
+                  }
+                  return 1000;
                 };
 
                 const getBAEffectiveVolume = (item: any, allItems: any[], isSurvey: boolean = false) => {
@@ -1509,10 +1610,11 @@ export function FormModals({ c }: { c: any }) {
                     return -Math.abs(vol === 1 ? amt : vol * amt);
                   }
                   if (isDistanceItem(item)) {
-                    const dist = Number(item.distanceWeightAvg ?? 1000);
-                    // Jarak dasar adalah 1.000 meter. Jarak lebih/kurang dibagi 1.000 (Km)
-                    // Kurang dari 1.000 mtr menghasilkan nilai negatif (mengurangi pendapatan)
-                    const diffKm = (dist - 1000) / 1000;
+                    const baseDist = getBaseDistance(item);
+                    const dist = Number(item.distanceWeightAvg ?? baseDist);
+                    // Untuk overhaul jika di bawah base (1.000m OB / 3.000m Coal) dianggap 0
+                    const diffMtr = Math.max(0, dist - baseDist);
+                    const diffKm = diffMtr / 1000;
                     return Math.round(volume * diffKm * r);
                   }
                   return Math.round(volume * r);
@@ -1577,22 +1679,26 @@ export function FormModals({ c }: { c: any }) {
                                   setFormData({ ...formData, customerCode: code });
                                   if (isBGG) {
                                     setBaOperatingItems([
-                                      { id: `bgg_ob1_${Date.now()}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 1 (75%)", period: currentPeriod, notes: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 29500, subtotalInitial: 0, subtotalAdjusted: 0 },
-                                      { id: `bgg_ob2_${Date.now() + 1}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 2 (25%)", period: currentPeriod, notes: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 28750, subtotalInitial: 0, subtotalAdjusted: 0 },
-                                      { id: `bgg_cw_${Date.now() + 2}`, category: "Operating & Mining", area: "", material: "Coal Winning", period: currentPeriod, notes: "", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: 17500, subtotalInitial: 0, subtotalAdjusted: 0 },
-                                      { id: `bgg_od_ob_${Date.now() + 3}`, category: "Over Distance", area: "", material: "Over Distance For OB Removal", period: currentPeriod, notes: "", unit: "BCM", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 1550, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
-                                      { id: `bgg_od_cw_${Date.now() + 4}`, category: "Over Distance", area: "", material: "Over Distance For Coal Winning", period: currentPeriod, notes: "", unit: "Ton", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 19700, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
+                                      { id: `bgg_ob1_${Date.now()}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 1 (75%)", period: currentPeriod, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 29500, subtotalInitial: 0, subtotalAdjusted: 0 },
+                                      { id: `bgg_ob2_${Date.now() + 1}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 2 (25%)", period: currentPeriod, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 28750, subtotalInitial: 0, subtotalAdjusted: 0 },
+                                      { id: `bgg_cw_${Date.now() + 2}`, category: "Operating & Mining", area: "", material: "Coal Winning", period: currentPeriod, notes: "", keterangan: "", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: 17500, subtotalInitial: 0, subtotalAdjusted: 0 },
+                                      { id: `bgg_od_ob_${Date.now() + 3}`, category: "Over Distance", area: "", material: "Over Distance For OB Removal", period: currentPeriod, notes: "", keterangan: "", unit: "BCM", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 1550, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+                                      { id: `bgg_od_cw_${Date.now() + 4}`, category: "Over Distance", area: "", material: "Over Distance For Coal Winning", period: currentPeriod, notes: "", keterangan: "", unit: "Ton", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 19700, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
                                     ]);
                                     setBaMDOItems([]);
+                                    setBaDeductionItems([]);
                                   } else if (isDBK) {
-                                    setBaOperatingItems((defaultDBKBAItems || []).map((it: any) => ({ ...it, period: currentPeriod })));
+                                    setBaOperatingItems((defaultDBKBAItems || []).map((it: any) => ({ ...it, period: currentPeriod, notes: "", keterangan: "" })));
                                     setBaMDOItems([]);
+                                    setBaDeductionItems([]);
                                   } else if (isSBS) {
-                                    setBaOperatingItems((defaultSBSBAOperatingItems || []).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, period: currentPeriod })));
-                                    setBaMDOItems([]);
+                                    setBaOperatingItems((defaultSBSBAOperatingItems || []).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, period: currentPeriod, notes: "", keterangan: "" })));
+                                    setBaMDOItems((defaultSBSBAMDOItems || []).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, period: currentPeriod, notes: "", keterangan: "" })));
+                                    setBaDeductionItems((defaultSBSBADeductionItems || []).map((it: any) => ({ ...it, initialVolume: 1, adjustedVolume: 1, rate: 0, period: currentPeriod, notes: "", keterangan: "", material: it.material === "Denda ketidakcapaian Volume" ? `Denda ketidakcapaian Volume ${currentPeriod}` : it.material })));
                                   } else {
-                                    setBaOperatingItems(defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", period: currentPeriod })));
-                                    setBaMDOItems(defaultPOSBAMDOItems.map(it => ({ ...it, area: "", period: currentPeriod })));
+                                    setBaOperatingItems(defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", period: currentPeriod, notes: "", keterangan: "" })));
+                                    setBaMDOItems(defaultPOSBAMDOItems.map(it => ({ ...it, area: "", period: currentPeriod, notes: "", keterangan: "" })));
+                                    setBaDeductionItems([]);
                                   }
                                 }}
                               >
@@ -1610,8 +1716,9 @@ export function FormModals({ c }: { c: any }) {
                                 value={formData.workPeriod || ""}
                                 onChange={(val) => {
                                   setFormData({ ...formData, workPeriod: val });
-                                  setBaOperatingItems(prev => prev.map(it => ({ ...it, period: val, keterangan: val })));
-                                  setBaMDOItems(prev => prev.map(it => ({ ...it, period: val, keterangan: val })));
+                                  setBaOperatingItems(prev => prev.map(it => ({ ...it, period: val })));
+                                  setBaMDOItems(prev => prev.map(it => ({ ...it, period: val })));
+                                  setBaDeductionItems(prev => (prev || []).map(it => ({ ...it, period: val, material: (it.material || "").startsWith("Denda ketidakcapaian Volume") ? `Denda ketidakcapaian Volume ${val}` : it.material })));
                                 }}
                                 format="long"
                                 className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 text-xs focus:border-cyan-700 outline-none"
@@ -1639,6 +1746,28 @@ export function FormModals({ c }: { c: any }) {
                         )}
                       </div>
 
+                      {/* Commercial Engine Status Badge */}
+                      <div className="flex items-center gap-2 flex-wrap text-xs">
+                        {isCustomerBGG && (
+                          <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-300 rounded-xl text-amber-950 font-bold">
+                            <Sparkles size={13} className="text-amber-600" />
+                            <span>Coal Index Status: <strong>{getBGGActiveCoalTier?.(formData.workPeriod) || "Tier 3"}</strong> (Sinkronisasi Otomatis Tarif OB 1, OB 2 & Coal Winning)</span>
+                          </div>
+                        )}
+                        {(formData.customerCode === "POS" || !formData.customerCode || isCustomerDBK) && (
+                          <div className="flex items-center gap-1.5 px-3 py-1 bg-cyan-50 border border-cyan-300 rounded-xl text-cyan-950 font-bold">
+                            <DollarSign size={13} className="text-cyan-700" />
+                            <span>Kurs BI M-Rate: <strong>Rp {formatThousand(latestKursBI || 17923.30)} / USD</strong> (Live Pricing Engine Sync)</span>
+                          </div>
+                        )}
+                        {isCustomerSBS && (
+                          <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-950 font-bold">
+                            <CheckCircle2 size={13} className="text-emerald-700" />
+                            <span>Komersial SBS: <strong>8 OB Disposal + 7 Rental Alat + 4 Pengurang Biaya (IDR Tetap)</strong></span>
+                          </div>
+                        )}
+                      </div>
+
                       {/* STEP 1: SOW Operasional & MDO */}
                       {activeBAStep === 1 && (
                         <div className="space-y-4">
@@ -1646,7 +1775,7 @@ export function FormModals({ c }: { c: any }) {
                           <div className="space-y-2">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-black uppercase text-cyan-900 flex items-center gap-1.5">
-                                  <Pickaxe size={14} className="text-cyan-700" /> {isCustomerBGG ? "Kategori: Penambangan Batubara & OB Removal (BGG)" : "Kategori 1: Operating & Mining"}
+                                  <Pickaxe size={14} className="text-cyan-700" /> {isCustomerBGG ? "Kategori: Penambangan Batubara & OB Removal (BGG)" : isCustomerSBS ? "Kategori 1: Operating & Mining (OB Removal)" : "Kategori 1: Operating & Mining"}
                                 </span>
                                 <div className="flex items-center gap-2">
                                   {isInlineEditingBA && (
@@ -1656,19 +1785,26 @@ export function FormModals({ c }: { c: any }) {
                                         const curPer = formData.workPeriod || "Agustus 2026";
                                         if (isCustomerBGG) {
                                           setBaOperatingItems([
-                                            { id: `bgg_ob1_${Date.now()}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 1 (75%)", period: curPer, notes: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 29500, subtotalInitial: 0, subtotalAdjusted: 0 },
-                                            { id: `bgg_ob2_${Date.now() + 1}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 2 (25%)", period: curPer, notes: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 28750, subtotalInitial: 0, subtotalAdjusted: 0 },
-                                            { id: `bgg_cw_${Date.now() + 2}`, category: "Operating & Mining", area: "", material: "Coal Winning", period: curPer, notes: "", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: 17500, subtotalInitial: 0, subtotalAdjusted: 0 },
-                                            { id: `bgg_od_ob_${Date.now() + 3}`, category: "Over Distance", area: "", material: "Over Distance For OB Removal", period: curPer, notes: "", unit: "BCM", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 1550, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
-                                            { id: `bgg_od_cw_${Date.now() + 4}`, category: "Over Distance", area: "", material: "Over Distance For Coal Winning", period: curPer, notes: "", unit: "Ton", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 19700, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
+                                            { id: `bgg_ob1_${Date.now()}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 1 (75%)", period: curPer, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 29500, subtotalInitial: 0, subtotalAdjusted: 0 },
+                                            { id: `bgg_ob2_${Date.now() + 1}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 2 (25%)", period: curPer, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 28750, subtotalInitial: 0, subtotalAdjusted: 0 },
+                                            { id: `bgg_cw_${Date.now() + 2}`, category: "Operating & Mining", area: "", material: "Coal Winning", period: curPer, notes: "", keterangan: "", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: 17500, subtotalInitial: 0, subtotalAdjusted: 0 },
+                                            { id: `bgg_od_ob_${Date.now() + 3}`, category: "Over Distance", area: "", material: "Over Distance For OB Removal", period: curPer, notes: "", keterangan: "", unit: "BCM", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 1550, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+                                            { id: `bgg_od_cw_${Date.now() + 4}`, category: "Over Distance", area: "", material: "Over Distance For Coal Winning", period: curPer, notes: "", keterangan: "", unit: "Ton", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 19700, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
                                           ]);
                                           setBaMDOItems([]);
-                                        } else if (formData.customerCode === "DBK") {
-                                          setBaOperatingItems((defaultDBKBAItems || []).map((it: any) => ({ ...it, period: curPer })));
+                                          setBaDeductionItems([]);
+                                        } else if (isCustomerSBS) {
+                                          setBaOperatingItems((defaultSBSBAOperatingItems || []).map((it: any) => ({ ...it, period: curPer, notes: "", keterangan: "" })));
+                                          setBaMDOItems((defaultSBSBAMDOItems || []).map((it: any) => ({ ...it, period: curPer, notes: "", keterangan: "" })));
+                                          setBaDeductionItems((defaultSBSBADeductionItems || []).map((it: any) => ({ ...it, period: curPer, notes: "", keterangan: "", material: it.material === "Denda ketidakcapaian Volume" ? `Denda ketidakcapaian Volume ${curPer}` : it.material })));
+                                        } else if (isCustomerDBK) {
+                                          setBaOperatingItems((defaultDBKBAItems || []).map((it: any) => ({ ...it, period: curPer, notes: "", keterangan: "" })));
                                           setBaMDOItems([]);
+                                          setBaDeductionItems([]);
                                         } else {
-                                          setBaOperatingItems(defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", period: curPer })));
-                                          setBaMDOItems(defaultPOSBAMDOItems.map(it => ({ ...it, area: "", period: curPer })));
+                                          setBaOperatingItems(defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", period: curPer, notes: "", keterangan: "" })));
+                                          setBaMDOItems(defaultPOSBAMDOItems.map(it => ({ ...it, area: "", period: curPer, notes: "", keterangan: "" })));
+                                          setBaDeductionItems([]);
                                         }
                                       }}
                                       className="text-[11px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer border border-slate-300 shadow-2xs"
@@ -1854,14 +1990,13 @@ export function FormModals({ c }: { c: any }) {
                                             !isInlineEditingBA ? (
                                               <span className="font-bold text-slate-900 pt-1 block">{item.material || "-"}</span>
                                             ) : (
-                                              <SowSearchSelect
-                                                id={`sow-op-${idx}`}
-                                                isDistanceOnly={false}
+                                              <SOWSelectDropdown
                                                 value={item.material || ""}
                                                 customerCode={formData.customerCode || ""}
                                                 activeSOWCatalog={activeSOWCatalog}
                                                 mRate={mRate}
-                                                placeholder="Cari Master SOW (e.g. Volume OB)..."
+                                                categoryFilter="Operating & Mining"
+                                                isDistanceOnly={false}
                                                 onChange={(val) => {
                                                   const updated = [...baOperatingItems];
                                                   updated[idx].material = val;
@@ -1885,14 +2020,13 @@ export function FormModals({ c }: { c: any }) {
                                                 <div className="font-bold text-slate-900 pt-0.5">{item.material || "Distance / Overhaul"}</div>
                                               ) : (
                                                 <div className="mb-1">
-                                                  <SowSearchSelect
-                                                    id={`sow-dist-${idx}`}
-                                                    isDistanceOnly={true}
+                                                  <SOWSelectDropdown
                                                     value={item.material || ""}
                                                     customerCode={formData.customerCode || ""}
                                                     activeSOWCatalog={activeSOWCatalog}
                                                     mRate={mRate}
-                                                    placeholder="Cari Variabel Distance / Overhaul..."
+                                                    categoryFilter="Over Distance"
+                                                    isDistanceOnly={true}
                                                     onChange={(val) => {
                                                       const updated = [...baOperatingItems];
                                                       updated[idx].material = val;
@@ -1909,50 +2043,57 @@ export function FormModals({ c }: { c: any }) {
                                                   />
                                                 </div>
                                               )}
-                                               <div className="flex items-center gap-1.5 mt-1 text-[11px] font-mono text-slate-700 whitespace-nowrap bg-amber-50/80 border border-amber-200 px-2.5 py-1 rounded-md w-fit">
-                                                 <span className="font-bold text-amber-900">Jarak (Meter):</span>
-                                                 {!isInlineEditingBA ? (
-                                                   <span className="font-bold text-slate-900 bg-white border border-amber-300 px-1.5 py-0.5 rounded font-mono">
-                                                     {item.distanceWeightAvg || 0}
-                                                   </span>
-                                                 ) : (
-                                                   <input
-                                                     type="number"
-                                                     className="w-20 bg-white border border-amber-400 rounded px-2 py-0.5 text-right font-mono font-bold text-amber-950 text-xs focus:border-amber-600 outline-none"
-                                                     value={item.distanceWeightAvg === 0 ? "" : (item.distanceWeightAvg ?? "")}
-                                                     placeholder="1000"
-                                                     onFocus={(e) => e.target.select()}
-                                                     onChange={(e) => {
-                                                       const updated = [...baOperatingItems];
-                                                       updated[idx].distanceWeightAvg = parseFloat(e.target.value) || 0;
-                                                       setBaOperatingItems(updated);
-                                                     }}
-                                                   />
-                                                 )}
-                                                 <span className="text-slate-500 font-sans text-[10px]">
-                                                   mtr - 1000 mtr = <strong className={Number(item.distanceWeightAvg ?? 1000) >= 1000 ? "text-emerald-700" : "text-rose-600"}>{Number(item.distanceWeightAvg ?? 1000) - 1000} mtr</strong>
-                                                   {" "}(<span className="font-semibold">{((Number(item.distanceWeightAvg ?? 1000) - 1000) / 1000).toLocaleString('id-ID', {minimumFractionDigits: 3, maximumFractionDigits: 3})} Km</span>)
-                                                 </span>
-                                               </div>
+                                                {(() => {
+                                                  const baseDist = getBaseDistance(item);
+                                                  const distVal = Number(item.distanceWeightAvg ?? baseDist);
+                                                  const diffMtr = Math.max(0, distVal - baseDist);
+                                                  const diffKm = diffMtr / 1000;
+                                                  return (
+                                                    <div className="flex items-center gap-1.5 mt-1 text-[11px] font-mono text-slate-700 whitespace-nowrap bg-amber-50/80 border border-amber-200 px-2.5 py-1 rounded-md w-fit">
+                                                      <span className="font-bold text-amber-900">Jarak (Meter):</span>
+                                                      {!isInlineEditingBA ? (
+                                                        <span className="font-bold text-slate-900 bg-white border border-amber-300 px-1.5 py-0.5 rounded font-mono">
+                                                          {item.distanceWeightAvg ?? baseDist}
+                                                        </span>
+                                                      ) : (
+                                                        <FormattedNumberInput
+                                                          className="w-20 bg-white border border-amber-400 rounded px-2 py-0.5 text-right font-mono font-bold text-amber-950 text-xs focus:border-amber-600 outline-none"
+                                                          value={item.distanceWeightAvg === 0 ? "" : (item.distanceWeightAvg ?? "")}
+                                                          placeholder={formatThousand(baseDist)}
+                                                          onChange={(val) => {
+                                                            const updated = [...baOperatingItems];
+                                                            updated[idx].distanceWeightAvg = val;
+                                                            setBaOperatingItems(updated);
+                                                          }}
+                                                        />
+                                                      )}
+                                                      <span className="text-slate-500 font-sans text-[10px]">
+                                                        mtr - {formatThousand(baseDist)} mtr = <strong className={diffMtr > 0 ? "text-emerald-700" : "text-slate-500"}>{formatThousand(diffMtr)} mtr</strong>
+                                                        {" "}(<span className="font-semibold">{diffKm.toLocaleString('id-ID', {minimumFractionDigits: 3, maximumFractionDigits: 3})} Km</span>)
+                                                      </span>
+                                                    </div>
+                                                  );
+                                                })()}
                                             </div>
                                           )}
                                         </td>
                                         <td className="p-2.5 font-medium text-slate-800 align-top text-center">
                                           {!isInlineEditingBA ? (
-                                            <span className="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs font-bold text-slate-700 inline-block text-center min-w-[55px] mt-0.5">
-                                              {item.period || item.notes || item.keterangan || "-"}
-                                            </span>
+                                            (item.keterangan || item.notes) ? (
+                                              <span className="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs font-bold text-slate-700 inline-block text-center min-w-[55px] mt-0.5">
+                                                {item.keterangan || item.notes}
+                                              </span>
+                                            ) : null
                                           ) : (
                                             <input
                                               type="text"
                                               className="w-24 bg-slate-50 hover:bg-white border border-slate-300 rounded px-2 py-1 text-xs font-bold text-slate-900 text-center focus:border-cyan-700 outline-none"
-                                              value={item.period ?? item.notes ?? item.keterangan ?? ""}
-                                              placeholder="e.g. Jun-26"
+                                              value={item.keterangan ?? item.notes ?? ""}
+                                              placeholder=""
                                               onChange={(e) => {
                                                 const updated = [...baOperatingItems];
-                                                updated[idx].period = e.target.value;
-                                                updated[idx].notes = e.target.value;
                                                 updated[idx].keterangan = e.target.value;
+                                                updated[idx].notes = e.target.value;
                                                 setBaOperatingItems(updated);
                                               }}
                                             />
@@ -1986,14 +2127,11 @@ export function FormModals({ c }: { c: any }) {
                                               <span className="font-bold text-slate-900 pt-1 block">{item.rate ? formatThousand(item.rate) : "0"}</span>
                                             ) : (
                                               <div className="flex justify-end pt-0.5">
-                                                <input
-                                                  type="text"
+                                                <FormattedNumberInput
                                                   className="w-40 bg-slate-50 hover:bg-white border border-slate-300 rounded px-2.5 py-1 text-right font-mono font-bold text-xs text-slate-900 focus:bg-white focus:border-cyan-700 outline-none"
-                                                  value={item.rate ? formatThousand(item.rate) : ""}
+                                                  value={item.rate}
                                                   placeholder="0"
-                                                  onFocus={(e) => e.target.select()}
-                                                  onChange={(e) => {
-                                                    const num = parseNumber(e.target.value);
+                                                  onChange={(num) => {
                                                     const updated = [...baOperatingItems];
                                                     updated[idx].rate = num;
                                                     updated[idx].initialVolume = 1;
@@ -2013,16 +2151,14 @@ export function FormModals({ c }: { c: any }) {
                                                 !isInlineEditingBA ? (
                                                   <span className="font-bold text-slate-900 pt-1 block">{item.initialVolume ? Number(item.initialVolume).toLocaleString("id-ID", { minimumFractionDigits: 3 }) : "0.000"}</span>
                                                 ) : (
-                                                  <input
-                                                    type="number"
-                                                    step="0.001"
+                                                  <FormattedNumberInput
+                                                    allowDecimals
+                                                    maxDecimals={3}
                                                     className="w-24 bg-white border border-slate-300 rounded px-2 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
                                                     value={item.initialVolume ? item.initialVolume : ""}
                                                     placeholder="0.000"
-                                                    onFocus={(e) => e.target.select()}
-                                                    onChange={(e) => {
+                                                    onChange={(val) => {
                                                       const updated = [...baOperatingItems];
-                                                      const val = parseFloat(e.target.value) || 0;
                                                       updated[idx].initialVolume = val;
                                                       updated[idx].adjustedVolume = val;
                                                       setBaOperatingItems(updated);
@@ -2044,15 +2180,13 @@ export function FormModals({ c }: { c: any }) {
                                               {!isInlineEditingBA ? (
                                                 <span className="pt-1 block">{formatIDR(item.rate || 0)}</span>
                                               ) : (
-                                                <input
-                                                  type="number"
+                                                <FormattedNumberInput
                                                   className="w-24 bg-slate-50 hover:bg-white border border-slate-300 rounded px-2 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
                                                   value={item.rate === 0 ? "" : (item.rate ?? "")}
                                                   placeholder="0"
-                                                  onFocus={(e) => e.target.select()}
-                                                  onChange={(e) => {
+                                                  onChange={(val) => {
                                                     const updated = [...baOperatingItems];
-                                                    updated[idx].rate = parseFloat(e.target.value) || 0;
+                                                    updated[idx].rate = val;
                                                     setBaOperatingItems(updated);
                                                   }}
                                                 />
@@ -2085,34 +2219,39 @@ export function FormModals({ c }: { c: any }) {
                             </div>
                           </div>
 
-                          {/* Tabel 2: MDO (Hanya untuk Customer POS) */}
-                          {isCustomerPOS && (
+                          {/* Tabel 2: MDO / Jasa Penunjang Produksi (POS & SBS) */}
+                          {(isCustomerPOS || isCustomerSBS) && (
                             <div className="space-y-2 pt-2">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-black uppercase text-indigo-900 flex items-center gap-1.5">
-                                  <Building2 size={14} className="text-indigo-700" /> Kategori 2: Mine Development Operation (MDO)
+                                  <Building2 size={14} className="text-indigo-700" />
+                                  {isCustomerSBS
+                                    ? "Kategori 2: Jasa Penunjang Produksi (Rental Alat)"
+                                    : "Kategori 2: Mine Development Operation (MDO)"}
                                 </span>
                                 {isInlineEditingBA && (
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const defMdo = activeSOWCatalog.find(s => s.category === "MDO") || activeSOWCatalog[activeSOWCatalog.length - 1];
+                                      const defItem = isCustomerSBS
+                                        ? (activeSOWCatalog.find(s => s.category === "Penunjang" || s.unit === "Hours") || { name: "Bulldozer DZ709", unit: "Hours", defaultRate: 1980000 })
+                                        : (activeSOWCatalog.find(s => s.category === "MDO") || activeSOWCatalog[activeSOWCatalog.length - 1]);
                                       setBaMDOItems([...baMDOItems, {
-                                        id: `mdo_${Date.now()}`,
-                                        category: "MDO",
-                                        area: "Site POS",
-                                        material: defMdo.name,
-                                        unit: defMdo.unit,
+                                        id: `${isCustomerSBS ? "rent" : "mdo"}_${Date.now()}`,
+                                        category: isCustomerSBS ? "Penunjang" : "MDO",
+                                        area: isCustomerSBS ? "Pit E" : "Site POS",
+                                        material: defItem.name,
+                                        unit: defItem.unit || (isCustomerSBS ? "Hours" : "Ha"),
                                         initialVolume: 0,
                                         adjustedVolume: 0,
-                                        rate: defMdo.defaultRate,
+                                        rate: defItem.defaultRate || 0,
                                         subtotalInitial: 0,
                                         subtotalAdjusted: 0
                                       }]);
                                     }}
                                     className="text-[11px] font-bold text-cyan-800 bg-cyan-100 hover:bg-cyan-200 px-2.5 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer"
                                   >
-                                    <Plus size={13} /> Tambah Baris MDO
+                                    <Plus size={13} /> {isCustomerSBS ? "Tambah Baris Alat" : "Tambah Baris MDO"}
                                   </button>
                                 )}
                               </div>
@@ -2122,9 +2261,11 @@ export function FormModals({ c }: { c: any }) {
                                   <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
                                     <tr>
                                       <th className="p-2">Area / Lokasi</th>
-                                      <th className="p-2 min-w-[180px]">Material / Pekerjaan MDO (Master SOW)</th>
+                                      <th className="p-2 min-w-[180px]">
+                                        {isCustomerSBS ? "Peralatan / Unit (Master SOW)" : "Material / Pekerjaan MDO (Master SOW)"}
+                                      </th>
                                       <th className="p-2 text-center">Satuan</th>
-                                      <th className="p-2 text-right">Volume Awal</th>
+                                      <th className="p-2 text-right">{isCustomerSBS ? "Volume Awal (Jam)" : "Volume Awal"}</th>
                                       <th className="p-2 text-right">SOW Rate (Rp)</th>
                                       <th className="p-2 text-right">Subtotal (Rp)</th>
                                       {isInlineEditingBA && <th className="p-2 text-center">#</th>}
@@ -2134,11 +2275,11 @@ export function FormModals({ c }: { c: any }) {
                                     {baMDOItems.map((item, idx) => (
                                       <tr key={item.id || idx} className="hover:bg-slate-50/80 transition">
                                         <td className="p-2 font-bold text-slate-800">
-                                          {!isInlineEditingBA ? (item.area || "Site POS") : (
+                                          {!isInlineEditingBA ? (item.area || (isCustomerSBS ? "Pit E" : "Site POS")) : (
                                             <input
                                               className="w-20 bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs font-bold focus:border-cyan-700 outline-none"
                                               value={item.area || ""}
-                                              placeholder="Site POS"
+                                              placeholder={isCustomerSBS ? "Pit E" : "Site POS"}
                                               onChange={(e) => {
                                                 const updated = [...baMDOItems];
                                                 updated[idx].area = e.target.value;
@@ -2151,54 +2292,50 @@ export function FormModals({ c }: { c: any }) {
                                           {!isInlineEditingBA ? (
                                             <span className="font-bold text-slate-900">{item.material}</span>
                                           ) : (
-                                            <select
-                                              className="w-full bg-indigo-50/50 border border-indigo-300 rounded px-2 py-1 text-xs font-bold text-slate-900 focus:border-indigo-700 outline-none"
-                                              value={item.material || "Mine Development (MDO) - Clearing & Access Road"}
-                                              onChange={(e) => {
-                                                const matName = e.target.value;
-                                                const sow = activeSOWCatalog.find(s => s.name === matName);
+                                            <SOWSelectDropdown
+                                              className="w-full bg-indigo-50/60 hover:bg-indigo-50 focus:bg-white border border-indigo-300 focus:border-indigo-700 rounded px-2 py-1 text-xs font-bold text-slate-900 outline-none transition cursor-pointer"
+                                              value={item.material || ""}
+                                              customerCode={formData.customerCode || ""}
+                                              activeSOWCatalog={activeSOWCatalog}
+                                              mRate={mRate}
+                                              categoryFilter={isCustomerSBS ? "Penunjang" : "MDO"}
+                                              isDistanceOnly={false}
+                                              onChange={(val) => {
                                                 const updated = [...baMDOItems];
-                                                updated[idx].material = matName;
-                                                if (sow) {
-                                                  updated[idx].unit = sow.unit;
-                                                  updated[idx].rate = sow.defaultRate;
-                                                }
+                                                updated[idx].material = val;
+                                                setBaMDOItems(updated);
+                                              }}
+                                              onSelectSow={(sow) => {
+                                                const updated = [...baMDOItems];
+                                                updated[idx].material = sow.name;
+                                                updated[idx].unit = sow.unit;
+                                                updated[idx].rate = sow.defaultRate;
                                                 const vol = Number(updated[idx].initialVolume || 0);
-                                                const r = Number(updated[idx].rate || 0);
+                                                const r = Number(sow.defaultRate || 0);
                                                 updated[idx].subtotalInitial = Math.round(vol * r);
                                                 updated[idx].subtotalAdjusted = Math.round(Number(updated[idx].adjustedVolume || vol) * r);
                                                 setBaMDOItems(updated);
                                               }}
-                                            >
-                                              {activeSOWCatalog.filter(s => s.category === "MDO").map(sow => (
-                                                <option key={sow.name} value={sow.name}>
-                                                  {sow.name}
-                                                </option>
-                                              ))}
-                                              {!activeSOWCatalog.some(s => s.name === item.material) && item.material && (
-                                                <option value={item.material}>{item.material}</option>
-                                              )}
-                                            </select>
+                                            />
                                           )}
                                         </td>
                                         <td className="p-2 text-center font-mono font-bold text-slate-800">
                                           <span className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-xs inline-block text-center min-w-[45px]">
-                                            {item.unit || "Ha"}
+                                            {item.unit || (isCustomerSBS ? "Hours" : "Ha")}
                                           </span>
                                         </td>
                                         <td className="p-2 text-right font-mono">
                                           {!isInlineEditingBA ? (
                                             <span className="font-bold text-slate-900">{item.initialVolume ? item.initialVolume.toLocaleString("id-ID") : "0"}</span>
                                           ) : (
-                                            <input
-                                              type="number"
-                                              step="0.01"
+                                            <FormattedNumberInput
+                                              allowDecimals
+                                              maxDecimals={2}
                                               className="w-24 bg-white border border-slate-300 rounded px-2 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
                                               value={item.initialVolume ? item.initialVolume : ""}
                                               placeholder="0.00"
-                                              onChange={(e) => {
+                                              onChange={(val) => {
                                                 const updated = [...baMDOItems];
-                                                const val = parseFloat(e.target.value) || 0;
                                                 updated[idx].initialVolume = val;
                                                 updated[idx].adjustedVolume = val;
                                                 const r = Number(updated[idx].rate || 0);
@@ -2213,14 +2350,12 @@ export function FormModals({ c }: { c: any }) {
                                           {!isInlineEditingBA ? (
                                             <span>{formatIDR(item.rate || 0)}</span>
                                           ) : (
-                                            <input
-                                              type="number"
+                                            <FormattedNumberInput
                                               className="w-24 bg-slate-50 hover:bg-white border border-slate-300 rounded px-2 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
                                               value={item.rate === 0 ? "" : (item.rate ?? "")}
                                               placeholder="0"
-                                              onChange={(e) => {
+                                              onChange={(r) => {
                                                 const updated = [...baMDOItems];
-                                                const r = parseFloat(e.target.value) || 0;
                                                 updated[idx].rate = r;
                                                 const vol = Number(updated[idx].initialVolume || 0);
                                                 updated[idx].subtotalInitial = Math.round(vol * r);
@@ -2246,34 +2381,160 @@ export function FormModals({ c }: { c: any }) {
                                         )}
                                       </tr>
                                     ))}
-                                    {baOperatingItems.length === 0 && (
+                                    {baMDOItems.length === 0 && (
                                       <tr>
-                                        <td colSpan={isInlineEditingBA ? 8 : 7} className="p-8 text-center text-slate-500 bg-slate-50/70">
-                                          <div className="flex flex-col items-center justify-center gap-2.5">
-                                            <span className="text-xs font-bold text-slate-700">Belum ada item rincian SOW untuk Berita Acara ini.</span>
+                                        <td colSpan={isInlineEditingBA ? 7 : 6} className="p-4 text-center text-slate-400 bg-slate-50 italic">
+                                          Belum ada data alat berat / jasa penunjang.
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Tabel 3: Pengurang Biaya (SBS Only) */}
+                          {isCustomerSBS && (
+                            <div className="space-y-2 mt-4">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-black uppercase text-rose-900 flex items-center gap-1.5">
+                                  <TrendingDown size={14} className="text-rose-700" /> Kategori 3: Pengurang Biaya (Denda & BBM SBS)
+                                </span>
+                                {isInlineEditingBA && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newDed = {
+                                        id: `sbs_ded_${Date.now()}`,
+                                        category: "Pengurang Biaya",
+                                        area: "Pit E",
+                                        material: "",
+                                        unit: "Lot",
+                                        initialVolume: 1,
+                                        adjustedVolume: 1,
+                                        rate: 0,
+                                        isDeduction: true,
+                                        subtotalInitial: 0,
+                                        subtotalAdjusted: 0,
+                                        notes: "",
+                                        keterangan: "",
+                                        period: formData.workPeriod || "Agustus 2026"
+                                      };
+                                      setBaDeductionItems([...(baDeductionItems || []), newDed]);
+                                    }}
+                                    className="text-[11px] font-bold text-rose-800 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer border border-rose-200"
+                                  >
+                                    <Plus size={12} />
+                                    <span>Tambah Pengurang Biaya</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="overflow-x-auto rounded-xl border border-rose-200 bg-white shadow-2xs">
+                                <table className="w-full text-xs text-left border-collapse">
+                                  <thead>
+                                    <tr className="bg-rose-100/70 text-rose-900 text-[10px] font-black uppercase tracking-wider border-b border-rose-200">
+                                      <th className="p-2 text-center w-10">No</th>
+                                      <th className="p-2 min-w-[220px]">Deskripsi Pengurang Biaya (Master SOW)</th>
+                                      <th className="p-2 min-w-[160px]">Keterangan</th>
+                                      <th className="p-2 text-center w-20">Satuan</th>
+                                      <th className="p-2 text-right w-36">Nilai Potongan (Rp)</th>
+                                      <th className="p-2 text-right w-36">Subtotal (Rp)</th>
+                                      {isInlineEditingBA && <th className="p-2 text-center w-10">#</th>}
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-rose-100">
+                                    {(baDeductionItems || []).map((item: any, idx: number) => (
+                                      <tr key={item.id || idx} className="hover:bg-rose-50/40 transition">
+                                        <td className="p-2 text-center font-mono text-slate-500 font-bold">{idx + 1}</td>
+                                        <td className="p-2">
+                                          {!isInlineEditingBA ? (
+                                            <span className="font-bold text-slate-900">{item.material}</span>
+                                          ) : (
+                                            <SOWSelectDropdown
+                                              value={item.material || ""}
+                                              customerCode="SBS"
+                                              activeSOWCatalog={activeSOWCatalog}
+                                              categoryFilter="Pengurang Biaya"
+                                              className="w-full bg-rose-50/60 hover:bg-rose-50 focus:bg-white border border-rose-300 focus:border-rose-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 outline-none transition cursor-pointer"
+                                              onChange={(val) => {
+                                                const updated = [...(baDeductionItems || [])];
+                                                updated[idx].material = val;
+                                                setBaDeductionItems(updated);
+                                              }}
+                                              onSelectSow={(sow) => {
+                                                const updated = [...(baDeductionItems || [])];
+                                                updated[idx].material = sow.name;
+                                                updated[idx].unit = sow.unit || "Lot";
+                                                setBaDeductionItems(updated);
+                                              }}
+                                            />
+                                          )}
+                                        </td>
+                                        <td className="p-2">
+                                          {!isInlineEditingBA ? (
+                                            <span className="text-slate-600 font-medium">{item.keterangan || item.notes || "-"}</span>
+                                          ) : (
+                                            <input
+                                              className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-slate-900 text-xs font-medium focus:border-rose-600 outline-none"
+                                              placeholder="Catatan..."
+                                              value={item.keterangan || item.notes || ""}
+                                              onChange={(e) => {
+                                                const updated = [...(baDeductionItems || [])];
+                                                updated[idx].keterangan = e.target.value;
+                                                updated[idx].notes = e.target.value;
+                                                setBaDeductionItems(updated);
+                                              }}
+                                            />
+                                          )}
+                                        </td>
+                                        <td className="p-2 text-center font-mono font-bold text-slate-800">
+                                          <span className="px-2 py-0.5 bg-rose-50 border border-rose-200 rounded text-xs inline-block text-center min-w-[45px]">
+                                            {item.unit || "Lot"}
+                                          </span>
+                                        </td>
+                                        <td className="p-2 text-right font-mono">
+                                          {!isInlineEditingBA ? (
+                                            <span className="font-extrabold text-rose-700">({formatIDR(Math.abs(item.rate || 0))})</span>
+                                          ) : (
+                                            <FormattedNumberInput
+                                              className="w-32 bg-white border border-rose-300 rounded px-2 py-1 text-right font-mono font-bold text-xs text-rose-900 focus:border-rose-700 outline-none"
+                                              value={item.rate === 0 ? "" : Math.abs(item.rate ?? 0)}
+                                              placeholder="0"
+                                              onChange={(r) => {
+                                                const updated = [...(baDeductionItems || [])];
+                                                const absVal = Math.abs(r);
+                                                updated[idx].rate = absVal;
+                                                updated[idx].initialVolume = 1;
+                                                updated[idx].adjustedVolume = 1;
+                                                updated[idx].subtotalInitial = -absVal;
+                                                updated[idx].subtotalAdjusted = -absVal;
+                                                setBaDeductionItems(updated);
+                                              }}
+                                            />
+                                          )}
+                                        </td>
+                                        <td className="p-2 text-right font-mono font-extrabold text-rose-700">
+                                          ({formatIDR(Math.abs(Number(item.rate) || 0))})
+                                        </td>
+                                        {isInlineEditingBA && (
+                                          <td className="p-2 text-center">
                                             <button
                                               type="button"
-                                              onClick={() => {
-                                                if (isCustomerBGG) {
-                                                  setBaOperatingItems(defaultBGGBAItems);
-                                                  setBaMDOItems([]);
-                                                } else if (isCustomerSBS) {
-                                                  setBaOperatingItems(defaultSBSBAOperatingItems);
-                                                  setBaMDOItems([]);
-                                                } else if (isCustomerDBK) {
-                                                  setBaOperatingItems(defaultDBKBAItems);
-                                                  setBaMDOItems([]);
-                                                } else {
-                                                  setBaOperatingItems(defaultPOSBAOperatingItems);
-                                                  setBaMDOItems(defaultPOSBAMDOItems);
-                                                }
-                                              }}
-                                              className="px-3.5 py-1.5 bg-cyan-800 hover:bg-cyan-900 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+                                              onClick={() => setBaDeductionItems(baDeductionItems.filter((_: any, i: number) => i !== idx))}
+                                              className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
                                             >
-                                              <RefreshCw size={13} />
-                                              <span>Muat Template SOW {isCustomerBGG ? "BGG (8 Item Kontrak Sesuai Invoice 091)" : isCustomerSBS ? "SBS (8 OB Disposal & 4 Alat)" : isCustomerDBK ? "DBK (Pit Sapan)" : "POS"}</span>
+                                              <Trash2 size={13} />
                                             </button>
-                                          </div>
+                                          </td>
+                                        )}
+                                      </tr>
+                                    ))}
+                                    {(!baDeductionItems || baDeductionItems.length === 0) && (
+                                      <tr>
+                                        <td colSpan={isInlineEditingBA ? 7 : 6} className="p-4 text-center text-slate-400 bg-rose-50/20 italic">
+                                          Tidak ada pengurang pembayaran / denda.
                                         </td>
                                       </tr>
                                     )}
@@ -2352,9 +2613,9 @@ export function FormModals({ c }: { c: any }) {
                                       <td className="p-2.5 font-bold text-slate-900 align-top">
                                         <div className="flex items-center gap-1.5">
                                           <span>{item.material || "-"}</span>
-                                          {!isDPFuel && (item.period || item.notes || item.keterangan) && (
+                                          {!isDPFuel && (item.keterangan || item.notes) && (
                                             <span className="px-1.5 py-0.5 bg-cyan-100 text-cyan-900 border border-cyan-300 rounded text-[10px] font-black">
-                                              {item.period || item.notes || item.keterangan}
+                                              {item.keterangan || item.notes}
                                             </span>
                                           )}
                                         </div>
@@ -2386,16 +2647,21 @@ export function FormModals({ c }: { c: any }) {
                                           !isInlineEditingBA ? (
                                             <span className="font-bold text-slate-900 pt-1 block">{volAdj.toLocaleString("id-ID", { minimumFractionDigits: 3 })}</span>
                                           ) : (
-                                            <input
-                                              type="number"
-                                              step="0.001"
+                                            <FormattedNumberInput
+                                              allowDecimals
+                                              maxDecimals={3}
                                               className="w-24 bg-cyan-50 border border-cyan-300 rounded px-2 py-1 text-right font-mono font-bold text-xs text-cyan-950 focus:border-cyan-700 outline-none"
                                               value={item.adjustedVolume !== undefined ? item.adjustedVolume : ""}
                                               placeholder="0.000"
-                                              onFocus={(e) => e.target.select()}
-                                              onChange={(e) => {
-                                                const val = parseFloat(e.target.value) || 0;
-                                                if (isOp) {
+                                              onChange={(val) => {
+                                                if (item.isDeduction || item.category === "Pengurang Biaya") {
+                                                  const deds = [...(baDeductionItems || [])];
+                                                  const dIdx = deds.findIndex(d => d.id === item.id);
+                                                  if (dIdx >= 0) {
+                                                    deds[dIdx].adjustedVolume = val;
+                                                    setBaDeductionItems(deds);
+                                                  }
+                                                } else if (isOp) {
                                                   const ops = [...baOperatingItems];
                                                   const opIdx = ops.findIndex(o => o.id === item.id);
                                                   if (opIdx >= 0) {

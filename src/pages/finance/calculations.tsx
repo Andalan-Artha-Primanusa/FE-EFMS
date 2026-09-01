@@ -215,24 +215,28 @@ export function createFinanceCalculations(deps: {
     // Customer: DBK (Dual Currency USD to IDR)
     if (cust === "DBK") {
       if (item.section === "C") {
-        // C1 — Over Distance OB (USD-based, basis 1.000m)
-        // C2 — Over Distance Coal (IDR-based, basis 3.000m)
-        const basis = item.baseMtr || (item.unitRateUSD ? 1000 : 3000);
-        const diff = (mtr || basis) - basis;
-        if (item.unitRateUSD && item.kursBI) {
-          // OB: vol × (diff/100) × rateUSD × kursBI
-          amount = Math.round(vol * (diff / 100) * item.unitRateUSD * item.kursBI);
+        // C1 — Over Distance OB (USD-based $0.028/100m, basis 1.000m)
+        // C2 — Over Distance Coal (IDR-based Rp 230/100m, basis 3.000m)
+        const isCoal = (item.subSection || item.description || "").toLowerCase().includes("coal") || (item.subSection || item.description || "").toLowerCase().includes("batubara");
+        const basis = item.baseMtr || (isCoal ? 3000 : 1000);
+        const curMtr = item.overhaulMtr !== undefined && item.overhaulMtr !== null ? item.overhaulMtr : basis;
+        const diff = Math.max(0, curMtr - basis);
+        if (!isCoal) {
+          const usdRate = item.unitRateUSD !== undefined && item.unitRateUSD !== null && item.unitRateUSD > 0 ? item.unitRateUSD : 0.028;
+          const kurs = item.kursBI || mRate || 17923.30;
+          amount = Math.round(vol * (diff / 100) * usdRate * kurs);
           unitRate = vol > 0 ? Math.round(amount / vol) : 0;
-        } else if (item.unitRateIDR) {
-          // Coal: vol × (diff/100) × rateIDR
-          amount = Math.round(vol * (diff / 100) * item.unitRateIDR);
+        } else {
+          const idrRate = item.unitRateIDR !== undefined && item.unitRateIDR !== null && item.unitRateIDR > 0 ? item.unitRateIDR : 230;
+          amount = Math.round(vol * (diff / 100) * idrRate);
           unitRate = vol > 0 ? Math.round(amount / vol) : 0;
         }
         return { unitRate, amount };
       }
-      if (item.unitRateUSD && item.kursBI) {
-        unitRate = Math.round(item.unitRateUSD * item.kursBI);
-        amount = Math.round(vol * item.unitRateUSD * item.kursBI);
+      if (item.unitRateUSD && (item.kursBI || mRate)) {
+        const kurs = item.kursBI || mRate || 17923.30;
+        unitRate = Math.round(item.unitRateUSD * kurs);
+        amount = Math.round(vol * item.unitRateUSD * kurs);
       } else if (item.unitRateIDR) {
         unitRate = item.unitRateIDR;
         amount = Math.round(vol * unitRate);

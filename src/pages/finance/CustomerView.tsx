@@ -1,8 +1,10 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Building2, Pickaxe, Layers, Calculator, Zap, TrendingUp, Scale,
   Eye, Edit2, Trash2, Plus, RefreshCw, Save, DollarSign, Sliders,
-  CheckCircle2, AlertTriangle, ShieldCheck, ArrowRight, Info, Check
+  CheckCircle2, AlertTriangle, ShieldCheck, ArrowRight, Info, Check,
+  ExternalLink
 } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { api, getCompanies, type Company } from "../../lib/api";
@@ -54,6 +56,7 @@ export function CustomerView({ c }: { c: any }) {
   const [selectedClientCode, setSelectedClientCode] = useState<string>("");
   const [setupSubTab, setSetupSubTab] = useState<"profile" | "sow" | "formula" | "simulation">("sow");
   const [companyList, setCompanyList] = useState<Company[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     getCompanies().then((c) => { if (Array.isArray(c)) setCompanyList(c); }).catch(() => {});
@@ -421,6 +424,13 @@ export function CustomerView({ c }: { c: any }) {
                     className="px-4 py-2 bg-cyan-700 hover:bg-cyan-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer shrink-0"
                   >
                     <Plus size={14} /> Tambah Material SOW
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/variable-sow")}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-1.5 transition border border-slate-300 cursor-pointer shrink-0"
+                  >
+                    <ExternalLink size={14} /> Buka Master Global SOW
                   </button>
                 </div>
 
