@@ -18,6 +18,12 @@ import { BudgetManagementPage } from "../pages/BudgetManagementPage";
 import { ClosingPeriodPage } from "../pages/ClosingPeriodPage";
 import { NotificationCenterPage } from "../pages/NotificationCenterPage";
 import { OrgUnitsPage } from "../pages/OrgUnitsPage";
+import { VariableSOWPage } from "../pages/VariableSOWPage";
+
+export function VariableSOWRoute({ viewTitle = "Variable SOW" }: { viewTitle?: string } = {}) {
+  const { query, setNotice } = useOutletContext<any>();
+  return <VariableSOWPage viewTitle={viewTitle} query={query} onNotice={setNotice} />;
+}
 
 export function SiteSetupRoute({ viewTitle = "Setup Parameter Site & Klien" }: { viewTitle?: string }) {
   const { query, setNotice, user } = useOutletContext<any>();

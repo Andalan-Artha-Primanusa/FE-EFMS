@@ -95,6 +95,7 @@ export function useFinanceController({
   const [dynamicSowOptions, setDynamicSowOptions] = useState<any[]>([]);
   const [bankAccountOptions, setBankAccountOptions] = useState<any[]>([]);
   const [latestKursBI, setLatestKursBI] = useState(17923.30);
+  const [coalIndexMaster, setCoalIndexMaster] = useState<any[]>([]);
 
   useEffect(() => {
     api<any[]>("/api/master-data/raise-fall")
@@ -105,6 +106,14 @@ export function useFinanceController({
           if (activeRf.actualMRateXn > 0) setMRate(activeRf.actualMRateXn);
           if (activeRf.actualFuelFn > 0) setFuelPriceUSD(activeRf.actualFuelFn);
           if (activeRf.actualLaborLn > 0) setLaborPriceIDR(activeRf.actualLaborLn);
+        }
+      })
+      .catch(() => {});
+
+    api<any[]>("/api/master-data/coal-index")
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCoalIndexMaster(data);
         }
       })
       .catch(() => {});
@@ -150,8 +159,19 @@ export function useFinanceController({
       .catch(() => {});
   }, []);
 
+  // Helper untuk mendapatkan status Tier Coal Index aktif untuk BGG
+  const getBGGActiveCoalTier = (periodStr?: string): "Tier 1" | "Tier 2" | "Tier 3" => {
+    if (!Array.isArray(coalIndexMaster) || coalIndexMaster.length === 0) return "Tier 3";
+    if (periodStr) {
+      const match = coalIndexMaster.find(c => (c.period || "").toLowerCase().includes(periodStr.toLowerCase()) || periodStr.toLowerCase().includes((c.period || "").toLowerCase()));
+      if (match) return (match.activeTier as any) || (match.avgR3 > 75 ? "Tier 3" : match.avgR3 >= 50 ? "Tier 2" : "Tier 1");
+    }
+    const latest = coalIndexMaster[0];
+    return (latest.activeTier as any) || (latest.avgR3 > 75 ? "Tier 3" : latest.avgR3 >= 50 ? "Tier 2" : "Tier 1");
+  };
+
   // Helper untuk mengambil unit rate dari Master Data Variable SOW per customer
-  const getSowMasterRate = (customer: string, itemName: string, fallbackRate: number, isUSD: boolean = false) => {
+  const getSowMasterRate = (customer: string, itemName: string, fallbackRate: number, isUSD: boolean = false, tier?: string) => {
     const custUpper = customer.toUpperCase();
     const itemNorm = itemName.toLowerCase().replace(/[^a-z0-9]/g, "");
     const match = dynamicSowOptions.find(s => {
@@ -160,9 +180,12 @@ export function useFinanceController({
       return (sCust === custUpper || (!sCust && custUpper === "POS")) && (sName.includes(itemNorm) || itemNorm.includes(sName));
     });
     if (match) {
+      if (tier === "Tier 1" && match.tier1Rate) return match.tier1Rate;
+      if (tier === "Tier 2" && match.tier2Rate) return match.tier2Rate;
+      if (tier === "Tier 3" && match.tier3Rate) return match.tier3Rate;
       if (isUSD && match.rateUSD) return match.rateUSD;
       if (!isUSD && match.rateIDR) return match.rateIDR;
-      if (!isUSD && match.rateUSD) return Math.round(match.rateUSD * (mRate || 17923.30));
+      if (!isUSD && match.rateUSD) return Math.round(match.rateUSD * (latestKursBI || mRate || 17923.30));
     }
     return fallbackRate;
   };
@@ -199,8 +222,9 @@ export function useFinanceController({
 
   const masterVariableOptions = dynamicSowOptions.length > 0 ? dynamicSowOptions : defaultMasterVariableOptions;
 
-  // Dynamic Master SOW Catalog derived live from master data API (dynamicSowOptions) & MRate
+  // Dynamic Master SOW Catalog derived live from master data API (dynamicSowOptions) & latestKursBI/MRate
   const activeSOWCatalog = useMemo(() => {
+    const currentKurs = latestKursBI || mRate || 17923.30;
     if (dynamicSowOptions && dynamicSowOptions.length > 0) {
       const custUpper = (formData.customerCode || "").toUpperCase();
       const filtered = dynamicSowOptions.filter((s) => {
@@ -209,13 +233,25 @@ export function useFinanceController({
       });
       if (filtered.length > 0) {
         return filtered.map((s) => {
-          let category = "Operating & Mining";
-          const catNorm = (s.category || "").toLowerCase();
+          let category = s.category || "Operating & Mining";
+          const catNorm = category.toLowerCase();
           if (catNorm.includes("mdo") || catNorm.includes("development") || catNorm.includes("mine development")) {
             category = "MDO";
+          } else if (catNorm.includes("distance") || catNorm.includes("overhaul")) {
+            category = "Over Distance";
           }
-          const rateIDR = s.rateIDR ? s.rateIDR : (s.rateUSD ? Math.round(s.rateUSD * (mRate || 17923.30)) : (s.baseRateUSD ? Math.round(s.baseRateUSD * (mRate || 17923.30)) : 0));
-          let cleanUnit = (s.unit || "BCM").replace(/^USD\//i, "").trim();
+          const isOverhaul = (s.itemName || s.name || "").toLowerCase().includes("overhaul") || catNorm.includes("distance");
+          const isCoalOverhaul = isOverhaul && ((s.itemName || s.name || "").toLowerCase().includes("coal") || (s.itemName || s.name || "").toLowerCase().includes("batubara"));
+
+          let rateIDR = s.rateIDR ? s.rateIDR : (s.rateUSD ? Math.round(s.rateUSD * currentKurs) : (s.baseRateUSD ? Math.round(s.baseRateUSD * currentKurs) : 0));
+          // If overhaul rate in master is per 100m, rate per 1000m (Km) in BA is * 10
+          if (isOverhaul && s.rateUSD && s.rateUSD < 0.1) {
+            rateIDR = Math.round(s.rateUSD * 10 * currentKurs);
+          } else if (isCoalOverhaul && s.rateIDR && s.rateIDR < 1000) {
+            rateIDR = s.rateIDR * 10;
+          }
+
+          let cleanUnit = (s.unit || "BCM").replace(/^USD\//i, "").replace(/^IDR\//i, "").trim();
           if (cleanUnit.toUpperCase() === "1KM") cleanUnit = "USD/1KM";
 
           return {
@@ -224,17 +260,66 @@ export function useFinanceController({
             unit: cleanUnit || "BCM",
             defaultRate: rateIDR,
             usdRate: s.rateUSD || s.baseRateUSD || 0,
-            defaultDistance: (s.itemName || "").toLowerCase().includes("overhaul") ? 1000 : 1000,
+            defaultDistance: isCoalOverhaul ? 3000 : (isOverhaul ? 1000 : 1000),
             overhaulRate: 0,
             id: s.id
           };
         });
       }
     }
-      return templateRows("sow_catalog");
-  }, [dynamicSowOptions, formData.customerCode, mRate]);
+    return templateRows("sow_catalog");
+  }, [dynamicSowOptions, formData.customerCode, latestKursBI, mRate, templateRows]);
 
   // ============ TEMPLATES PER CUSTOMER (dari backend finance_templates) ============
+  const FALLBACK_BLANK_DBK_ITEMS = [
+    { id: "dbk_inv_a1", section: "A", description: "OVER BURDEN REMOVAL", unit: "Bcm", volume: 0, unitRateUSD: 1.490, kursBI: 17923.30 },
+    { id: "dbk_inv_b1", section: "B", description: "COAL GETTING", unit: "Ton", volume: 0, unitRateUSD: 0.840, kursBI: 17923.30 },
+    { id: "dbk_inv_c1", section: "C", subSection: "C1. Over Distance For OB Removal", description: "Overhaul OB", unit: "Bcm", volume: 0, overhaulMtr: 1000, baseMtr: 1000, unitRateUSD: 0.028, kursBI: 17923.30 },
+    { id: "dbk_inv_c2", section: "C", subSection: "C2. Over Distance For Coal Winning", description: "Overhaul Coal Getting", unit: "Ton", volume: 0, overhaulMtr: 3000, baseMtr: 3000, unitRateIDR: 230 },
+  ];
+
+  const FALLBACK_BLANK_BGG_ITEMS = [
+    { id: "bgg_inv_a1", section: "A", description: "OVER BURDEN REMOVAL 1 (75%)", period: "Jun-26", unit: "Bcm", volume: 0, unitRateIDR: 29500 },
+    { id: "bgg_inv_a2", section: "A", description: "OVER BURDEN REMOVAL 2 (25%)", period: "Jun-26", unit: "Bcm", volume: 0, unitRateIDR: 28750 },
+    { id: "bgg_inv_b1", section: "B", description: "Coal Winning Pit Kungkilan", period: "Jun-26", unit: "Ton", volume: 0, unitRateIDR: 17500 },
+    { id: "bgg_inv_c1", section: "C", subSection: "C1. Over Distance For OB Removal", description: "Over Distance For OB Removal", unit: "Bcm", volume: 0, overhaulMtr: 1000, unitRateIDR: 155.00 },
+    { id: "bgg_inv_c2", section: "C", subSection: "C2. Over Distance For Coal Winning", description: "Over Distance For Coal Winning", unit: "Ton", volume: 0, overhaulMtr: 4000, unitRateIDR: 19700 },
+    { id: "bgg_inv_d1", section: "D", description: "Raise & Fall Factor (BBM)", unit: "Bcm", volume: 0, unitRateIDR: 0 },
+    { id: "bgg_inv_e1", section: "E", description: "Discount on Overdistance (Deduction 25%)", amount: 0 },
+    { id: "bgg_inv_f1", section: "F", description: "DP Fuel & Transport (Deduction)", amount: 0 },
+  ];
+
+  const FALLBACK_BLANK_SBS_ITEMS = [
+    { id: "sbs_inv_a1", section: "A", description: "PIT E - DISPOSAL TOPSOIL", unit: "BCM", volume: 0, unitRateIDR: 19792 },
+    { id: "sbs_inv_a2", section: "A", description: "PIT E - DISPOSAL SEKATAN", unit: "BCM", volume: 0, unitRateIDR: 22654 },
+    { id: "sbs_inv_a3", section: "A", description: "PIT E - RENCANA JALAN", unit: "BCM", volume: 0, unitRateIDR: 8346 },
+    { id: "sbs_inv_a4", section: "A", description: "PIT E - RENCANA CSA", unit: "BCM", volume: 0, unitRateIDR: 8346 },
+    { id: "sbs_inv_a5", section: "A", description: "PIT E - DISPOSAL SLINGSING", unit: "BCM", volume: 0, unitRateIDR: 6915 },
+    { id: "sbs_inv_a6", section: "A", description: "PIT E - DISPOSAL HUMAS", unit: "BCM", volume: 0, unitRateIDR: 11208 },
+    { id: "sbs_inv_a7", section: "A", description: "PROJECT HUMAS - RENCANA JALAN", unit: "BCM", volume: 0, unitRateIDR: 8346 },
+    { id: "sbs_inv_a8", section: "A", description: "PROJECT HUMAS - DISPOSAL TOPSOIL", unit: "BCM", volume: 0, unitRateIDR: 8346 },
+    { id: "sbs_inv_b1", section: "B", description: "Dozer CAT D10 - BDCT 1001", unit: "Hours", volume: 0, unitRateIDR: 1980000 },
+    { id: "sbs_inv_b2", section: "B", description: "Dozer CAT D10 - BDCT 1002", unit: "Hours", volume: 0, unitRateIDR: 1980000 },
+    { id: "sbs_inv_b3", section: "B", description: "Excavator CAT 395 - EXCT 3901", unit: "Hours", volume: 0, unitRateIDR: 1425000 },
+    { id: "sbs_inv_b4", section: "B", description: "Excavator CAT 395 - EXCT 3902", unit: "Hours", volume: 0, unitRateIDR: 1425000 },
+    { id: "sbs_inv_p1", section: "P", description: "1. Denda Ketidaktercapaian MA", unit: "Lot", volume: 1, unitRateIDR: 0, amount: 0, isDeduction: true },
+    { id: "sbs_inv_p2", section: "P", description: "2. Kelebihan Pemakaian BBM Loader (Fuel Ratio)", unit: "Lot", volume: 1, unitRateIDR: 0, amount: 0, isDeduction: true },
+    { id: "sbs_inv_p3", section: "P", description: "3. Kelebihan Pemakaian BBM Hauler (Fuel Consumption)", unit: "Lot", volume: 1, unitRateIDR: 0, amount: 0, isDeduction: true },
+    { id: "sbs_inv_p4", section: "P", description: "4. Denda Ketidakcapaian Volume", unit: "Lot", volume: 1, unitRateIDR: 0, amount: 0, isDeduction: true },
+  ];
+
+  const FALLBACK_BLANK_POS_ITEMS = [
+    { id: "pos_inv_a1", section: "A", description: "Topsoil Removal - Base Rate (1000m)", unit: "USD/BCM", baseRateUSD: 3.380, volume: 0 },
+    { id: "pos_inv_a2", section: "A", description: "Overburden/Waste - Base Rate (1000m)", unit: "USD/BCM", baseRateUSD: 3.327, volume: 0 },
+    { id: "pos_inv_a3", section: "A", description: "Limonite - Base Rate (1000m)", unit: "USD/BCM", baseRateUSD: 3.363, volume: 0 },
+    { id: "pos_inv_a4", section: "A", description: "Saprolite - Base Rate (1000m)", unit: "USD/BCM", baseRateUSD: 3.472, volume: 0 },
+    { id: "pos_inv_a5", section: "A", description: "Clear & Grub", unit: "USD/m2", baseRateUSD: 0.381, volume: 0 },
+    { id: "pos_inv_b1", section: "B", description: "Over/Underhaul For OB Removal", unit: "USD/1KM", baseRateUSD: 0.538, volume: 0, overhaulMtr: 1000 },
+    { id: "pos_inv_b2", section: "B", description: "Over/Underhaul For Top Soil Removal", unit: "USD/1KM", baseRateUSD: 0.538, volume: 0, overhaulMtr: 1000 },
+    { id: "pos_inv_b3", section: "B", description: "Over/Underhaul For Limonite", unit: "USD/1KM", baseRateUSD: 0.526, volume: 0, overhaulMtr: 1000 },
+    { id: "pos_inv_b4", section: "B", description: "Over/Underhaul For Saprolite", unit: "USD/1KM", baseRateUSD: 0.526, volume: 0, overhaulMtr: 1000 },
+  ];
+
   const applyRateLookup = (items: any[]): any[] =>
     items.map((it: any) => {
       if (!it || !it.lookup) return it;
@@ -246,13 +331,38 @@ export function useFinanceController({
       return { ...it, unitRateIDR: rate };
     });
 
-  const blankPOSItems = useMemo(() => applyRateLookup(templateRows("invoice_blank_POS")), [financeTemplates, dynamicSowOptions, mRate]);
+  const blankPOSItems = useMemo(() => {
+    const rows = templateRows("invoice_blank_POS");
+    return rows && rows.length > 0 ? applyRateLookup(rows) : FALLBACK_BLANK_POS_ITEMS;
+  }, [financeTemplates, dynamicSowOptions, mRate, templateRows]);
+
   const demoPOSItems = useMemo(() => templateRows("invoice_demo_POS"), [financeTemplates]);
-  const blankBGGItems = useMemo(() => applyRateLookup(templateRows("invoice_blank_BGG")), [financeTemplates, dynamicSowOptions, mRate]);
+
+  const blankBGGItems = useMemo(() => {
+    const rows = templateRows("invoice_blank_BGG");
+    return rows && rows.length > 0 ? applyRateLookup(rows) : FALLBACK_BLANK_BGG_ITEMS;
+  }, [financeTemplates, dynamicSowOptions, mRate, templateRows]);
+
   const demoBGGItems = useMemo(() => templateRows("invoice_demo_BGG"), [financeTemplates]);
-  const blankDBKItems = useMemo(() => applyRateLookup(templateRows("invoice_blank_DBK")), [financeTemplates, dynamicSowOptions, mRate]);
+
+  const blankDBKItems = useMemo(() => {
+    const rows = templateRows("invoice_blank_DBK");
+    const baseRows = rows && rows.length > 0 ? rows : FALLBACK_BLANK_DBK_ITEMS;
+    const currentKurs = latestKursBI || mRate || 17923.30;
+    return baseRows.map(r => ({
+      ...r,
+      kursBI: r.kursBI || currentKurs,
+      unitRateUSD: r.unitRateUSD || (r.description?.includes("OVER BURDEN") ? 1.490 : r.description?.includes("COAL") ? 0.840 : r.unitRateUSD)
+    }));
+  }, [financeTemplates, dynamicSowOptions, mRate, latestKursBI, templateRows]);
+
   const demoDBKItems = useMemo(() => templateRows("invoice_demo_DBK"), [financeTemplates]);
-  const blankSBSItems = useMemo(() => applyRateLookup(templateRows("invoice_blank_SBS")), [financeTemplates, dynamicSowOptions, mRate]);
+
+  const blankSBSItems = useMemo(() => {
+    const rows = templateRows("invoice_blank_SBS");
+    return rows && rows.length > 0 ? applyRateLookup(rows) : FALLBACK_BLANK_SBS_ITEMS;
+  }, [financeTemplates, dynamicSowOptions, mRate, templateRows]);
+
   const demoSBSItems = useMemo(() => templateRows("invoice_demo_SBS"), [financeTemplates]);
 
   const FALLBACK_BGG_BA_ITEMS = [
@@ -297,17 +407,44 @@ export function useFinanceController({
     return rows.length > 0 ? rows : FALLBACK_BGG_BA_ITEMS;
   }, [financeTemplates, templateRows]);
 
-  const FALLBACK_DBK_BA_ITEMS = [
-    { id: "dbk_ob",    category: "Operating & Mining", area: "Pit Sapan", material: "OVER BURDEN REMOVAL", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true,  distanceBasis: 0,    isDistanceVar: false, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: "dbk_coal",  category: "Operating & Mining", area: "Pit Sapan", material: "COAL GETTING",        unit: "MT",  initialVolume: 0, adjustedVolume: 0, isUSD: true,  distanceBasis: 0,    isDistanceVar: false, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: "dbk_od_ob", category: "Over Distance",      area: "Pit Sapan", material: "Overhaul OB",         unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true,  distanceBasis: 1000, isDistanceVar: true,  distanceWeightAvg: 1000, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: "dbk_od_cg", category: "Over Distance",      area: "Pit Sapan", material: "Overhaul Coal Getting",unit: "TON", initialVolume: 0, adjustedVolume: 0, isUSD: false, distanceBasis: 3000, isDistanceVar: true,  distanceWeightAvg: 3000, subtotalInitial: 0, subtotalAdjusted: 0 },
-  ];
-
   const defaultDBKBAItems = useMemo(() => {
+    const currentKurs = latestKursBI || mRate || 17923.30;
+    const obRateUSD = getSowMasterRate("DBK", "OVER BURDEN REMOVAL", 1.490, true);
+    const cgRateUSD = getSowMasterRate("DBK", "COAL GETTING", 0.840, true);
+    const odObRateUSD = getSowMasterRate("DBK", "Overhaul OB", 0.028, true);
+    const odCgRateIDR = getSowMasterRate("DBK", "Overhaul Coal Getting", 230, false);
+
     const rows = templateRows("ba_items_DBK");
-    return rows.length > 0 ? rows : FALLBACK_DBK_BA_ITEMS;
-  }, [financeTemplates, templateRows]);
+    if (rows.length > 0) {
+      return rows.map(r => {
+        let rate = r.rate || 0;
+        const mat = (r.material || "").toUpperCase();
+        if (mat.includes("OVER BURDEN")) {
+          const usd = r.rateUSD || obRateUSD;
+          rate = Math.round(usd * currentKurs);
+        } else if (mat.includes("COAL GETTING") || mat.includes("COAL WINNING")) {
+          const usd = r.rateUSD || cgRateUSD;
+          rate = Math.round(usd * currentKurs);
+        } else if (mat.includes("OVERHAUL OB") || mat.includes("OVER DISTANCE FOR OB")) {
+          const usd = r.rateUSD || odObRateUSD;
+          rate = Math.round(usd * 10 * currentKurs);
+        } else if (mat.includes("OVERHAUL COAL") || mat.includes("OVER DISTANCE FOR COAL")) {
+          const idr = r.rateIDR || odCgRateIDR;
+          rate = idr * 10;
+        } else if (r.isUSD) {
+          rate = Math.round((r.rateUSD || 0) * currentKurs);
+        }
+        return { ...r, rate, notes: "", keterangan: "" };
+      });
+    }
+
+    return [
+      { id: "dbk_ob",    category: "Operating & Mining", area: "Pit Sapan", material: "OVER BURDEN REMOVAL", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true,  rateUSD: obRateUSD, rate: Math.round(obRateUSD * currentKurs), distanceBasis: 0,    isDistanceVar: false, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "dbk_coal",  category: "Operating & Mining", area: "Pit Sapan", material: "COAL GETTING",        unit: "MT",  initialVolume: 0, adjustedVolume: 0, isUSD: true,  rateUSD: cgRateUSD, rate: Math.round(cgRateUSD * currentKurs), distanceBasis: 0,    isDistanceVar: false, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "dbk_od_ob", category: "Over Distance",      area: "Pit Sapan", material: "Overhaul OB",         unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true,  rateUSD: odObRateUSD, rate: Math.round(odObRateUSD * 10 * currentKurs), distanceBasis: 1000, isDistanceVar: true,  distanceWeightAvg: 1000, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "dbk_od_cg", category: "Over Distance",      area: "Pit Sapan", material: "Overhaul Coal Getting",unit: "TON", initialVolume: 0, adjustedVolume: 0, isUSD: false, rateIDR: odCgRateIDR, rate: odCgRateIDR * 10, distanceBasis: 3000, isDistanceVar: true,  distanceWeightAvg: 3000, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+    ];
+  }, [financeTemplates, templateRows, dynamicSowOptions, latestKursBI, mRate]);
 
   const FALLBACK_SBS_BA_ITEMS = [
     { id: "sbs_ba_a1", category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL SEKATAN", unit: "BCM", initialVolume: 80114.79, adjustedVolume: 80114.79, rate: 22654, subtotalInitial: 1814920453, subtotalAdjusted: 1814920453 },
@@ -317,11 +454,24 @@ export function useFinanceController({
     { id: "sbs_ba_a5", category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", unit: "BCM", initialVolume: 110582.62, adjustedVolume: 110582.62, rate: 16931, subtotalInitial: 1872274339, subtotalAdjusted: 1872274339 },
     { id: "sbs_ba_a6", category: "Operating & Mining", area: "Pit E", material: "PIT E - TS MAHONI", unit: "BCM", initialVolume: 1536.19, adjustedVolume: 1536.19, rate: 22654, subtotalInitial: 34800848, subtotalAdjusted: 34800848 },
     { id: "sbs_ba_a7", category: "Operating & Mining", area: "Pit E", material: "PIT E - IPD WARWEFILL", unit: "BCM", initialVolume: 3840.48, adjustedVolume: 3840.48, rate: 8346, subtotalInitial: 32052646, subtotalAdjusted: 32052646 },
-    { id: "sbs_ba_a8", category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", unit: "BCM", initialVolume: 1154.75, adjustedVolume: 1154.75, rate: 19375, subtotalInitial: 22373281, subtotalAdjusted: 22373281 },
-    { id: "sbs_ba_b1", category: "Operating & Mining", area: "Pit E", material: "Dozer CAT D10 - BDCT 1001", unit: "Hours", initialVolume: 250.70, adjustedVolume: 250.70, rate: 1980000, subtotalInitial: 496386000, subtotalAdjusted: 496386000 },
-    { id: "sbs_ba_b2", category: "Operating & Mining", area: "Pit E", material: "Dozer CAT D10 - BDCT 1002", unit: "Hours", initialVolume: 298.40, adjustedVolume: 298.40, rate: 1980000, subtotalInitial: 590832000, subtotalAdjusted: 590832000 },
-    { id: "sbs_ba_b3", category: "Operating & Mining", area: "Pit E", material: "Excavator CAT 395 - EXCT 3901", unit: "Hours", initialVolume: 386.30, adjustedVolume: 386.30, rate: 1425000, subtotalInitial: 550477500, subtotalAdjusted: 550477500 },
-    { id: "sbs_ba_b4", category: "Operating & Mining", area: "Pit E", material: "Excavator CAT 395 - EXCT 3902", unit: "Hours", initialVolume: 400.60, adjustedVolume: 400.60, rate: 1425000, subtotalInitial: 570855000, subtotalAdjusted: 570855000 }
+    { id: "sbs_ba_a8", category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", unit: "BCM", initialVolume: 1154.75, adjustedVolume: 1154.75, rate: 19375, subtotalInitial: 22373281, subtotalAdjusted: 22373281 }
+  ];
+
+  const FALLBACK_SBS_RENTAL_ITEMS = [
+    { id: "sbs_rent_1", category: "Penunjang", area: "Pit E", material: "Bulldozer DZ709", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1980000, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: "sbs_rent_2", category: "Penunjang", area: "Pit E", material: "Bulldozer DZ716", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1980000, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: "sbs_rent_3", category: "Penunjang", area: "Pit E", material: "Excavator EX815", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1425000, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: "sbs_rent_4", category: "Penunjang", area: "Pit E", material: "Excavator EX816", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1425000, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: "sbs_rent_5", category: "Penunjang", area: "Pit E", material: "Excavator EX817", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1425000, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: "sbs_rent_6", category: "Penunjang", area: "Pit E", material: "Motor Grader MG607", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1250000, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: "sbs_rent_7", category: "Penunjang", area: "Pit E", material: "Motor Grader MG608", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1250000, subtotalInitial: 0, subtotalAdjusted: 0 }
+  ];
+
+  const FALLBACK_SBS_DEDUCTION_ITEMS = [
+    { id: "sbs_ded_1", category: "Pengurang Biaya", area: "Pit E", material: "Denda ketidaktercapaian MA", unit: "Lot", initialVolume: 1, adjustedVolume: 1, rate: 0, isDeduction: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: "sbs_ded_2", category: "Pengurang Biaya", area: "Pit E", material: "Kelebihan Pemakaian BBM Loader", unit: "Lot", initialVolume: 1, adjustedVolume: 1, rate: 0, isDeduction: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: "sbs_ded_3", category: "Pengurang Biaya", area: "Pit E", material: "Kelebihan Pemakaian BBM Hauler", unit: "Lot", initialVolume: 1, adjustedVolume: 1, rate: 0, isDeduction: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: "sbs_ded_4", category: "Pengurang Biaya", area: "Pit E", material: "Denda ketidakcapaian Volume", unit: "Lot", initialVolume: 1, adjustedVolume: 1, rate: 0, isDeduction: true, subtotalInitial: 0, subtotalAdjusted: 0 }
   ];
 
   const defaultSBSBAOperatingItems = useMemo(() => {
@@ -329,8 +479,19 @@ export function useFinanceController({
     return rows.length > 0 ? rows : FALLBACK_SBS_BA_ITEMS;
   }, [financeTemplates, templateRows]);
 
+  const defaultSBSBAMDOItems = useMemo(() => {
+    const rows = templateRows("ba_mdo_SBS");
+    return rows.length > 0 ? rows : FALLBACK_SBS_RENTAL_ITEMS;
+  }, [financeTemplates, templateRows]);
+
+  const defaultSBSBADeductionItems = useMemo(() => {
+    const rows = templateRows("ba_deductions_SBS");
+    return rows.length > 0 ? rows : FALLBACK_SBS_DEDUCTION_ITEMS;
+  }, [financeTemplates, templateRows]);
+
   const [baOperatingItems, setBaOperatingItems] = useState<any[]>(FALLBACK_POS_OPERATING_ITEMS);
   const [baMDOItems, setBaMDOItems] = useState<any[]>(FALLBACK_POS_MDO_ITEMS);
+  const [baDeductionItems, setBaDeductionItems] = useState<any[]>([]);
   const [activeBAStep, setActiveBAStep] = useState<number>(1);
   const [showAddRowDropdown, setShowAddRowDropdown] = useState<boolean>(false);
   const [posInvoiceCategory, setPosInvoiceCategory] = useState<"Operation & Mining" | "MDO">("Operation & Mining");
@@ -406,25 +567,37 @@ export function useFinanceController({
     const cust = customerRows.find((c: any) => c.code === code);
 
     // Auto-switch template item list based on customer
-    if (code === "BGG") setInvLineItems(blankBGGItems);
-    else if (code === "DBK") setInvLineItems(blankDBKItems);
-    else if (code === "SBS") setInvLineItems(blankSBSItems);
-    else setInvLineItems(blankPOSItems);
+    if (code === "BGG") setInvLineItems(blankBGGItems.map(i => ({ ...i })));
+    else if (code === "DBK") setInvLineItems(blankDBKItems.map(i => ({ ...i })));
+    else if (code === "SBS") setInvLineItems(blankSBSItems.map(i => ({ ...i })));
+    else setInvLineItems(blankPOSItems.map(i => ({ ...i })));
 
     setFormData((prev: any) => {
       const period = prev.workPeriod || "Juni 2026";
       const autoInvNo = generateInvoiceNumber(code, period, invoiceRows.length);
+      const defaultSites: Record<string, string> = {
+        BGG: "PT Budi Gema Gempita Site",
+        POS: "POS PROJECT",
+        SBS: "SBS - Tanjung Enim",
+        DBK: "DBK MINING PROJECT"
+      };
+      const defaultContracts: Record<string, string> = {
+        BGG: "09/BGG-AAP/VIII/2018",
+        POS: "002/POS-AAP/2025",
+        SBS: "230/AAP-SBS/EXT/XII/24",
+        DBK: "001/DBK-AAP/2024"
+      };
       return {
         ...prev,
         customerCode: code,
-        projectSite: mapMatch?.project || cust?.projectSite || (cust ? `${cust.fullName} Site` : ""),
-        contractNo: mapMatch?.contract || cust?.contractNo || (cust ? `001/${cust.code}-AAP/2026` : ""),
-        noPO: mapMatch?.noPO || prev.noPO || "",
-        bankName: mapMatch?.bankName || prev.bankName || "Bank BNI",
-        bankAccountNo: mapMatch?.bankAccountNo || prev.bankAccountNo || "8188788882",
-        bankBranch: mapMatch?.bankBranch || prev.bankBranch || "Harmoni, Jakarta",
+        projectSite: mapMatch?.project || defaultSites[code] || cust?.projectSite || (cust ? `${cust.fullName} Site` : `${code} Site`),
+        contractNo: mapMatch?.contract || defaultContracts[code] || cust?.contractNo || (cust ? `001/${cust.code}-AAP/2026` : ""),
+        noPO: mapMatch?.noPO || prev.noPO || (code === "SBS" ? "SPPH-05852" : `PO-${code}-2026-001`),
+        bankName: mapMatch?.bankName || prev.bankName || (code === "BGG" ? "Bank Mandiri" : code === "DBK" || code === "SBS" ? "Bank BRI" : "Bank BNI"),
+        bankAccountNo: mapMatch?.bankAccountNo || prev.bankAccountNo || (code === "BGG" ? "070-00-2888000-8" : code === "DBK" || code === "SBS" ? "0417-01-880088-30-8" : "8188788882"),
+        bankBranch: mapMatch?.bankBranch || prev.bankBranch || (code === "BGG" ? "Plaza Mandiri Jakarta" : code === "DBK" || code === "SBS" ? "S. Parman - Slipi Jakarta" : "Harmoni, Jakarta"),
         directorName: mapMatch?.directorName || "GAHARI CHRISTINE",
-        directorTitle: mapMatch?.directorTitle || "DIRECTOR",
+        directorTitle: mapMatch?.directorTitle || (code === "SBS" ? "DIREKTUR UTAMA" : "DIRECTOR"),
         invoiceNo: autoInvNo
       };
     });
@@ -1069,23 +1242,95 @@ export function useFinanceController({
       return demoBGGItems.map(i => ({ ...i }));
     } else if (code === "DBK") {
       if (ba?.items && Array.isArray(ba.items) && ba.items.length > 0) {
-        return ba.items.map((bi: any, idx: number) => ({
-          id: bi.id || `dbk_inv_${idx}`,
-          sowDescription: bi.material || bi.sowDescription || "Pekerjaan Penambangan DBK",
-          unit: bi.unit || "BCM",
-          volume: Number(bi.adjustedVolume ?? bi.initialVolume ?? 0),
-          unitRateIDR: Number(bi.rate || 0),
-          amountIDR: Number(bi.subtotalAdjusted ?? bi.subtotalInitial ?? (Number(bi.rate || 0) * Number(bi.adjustedVolume ?? bi.initialVolume ?? 0))),
-          notes: bi.notes || bi.period || "-",
-        }));
+        const invItems: any[] = [];
+        const kurs = latestKursBI || 17923.30;
+        ba.items.forEach((bi: any, idx: number) => {
+          const mLow = (bi.material || bi.sowDescription || "").toLowerCase();
+          const isDist = bi.isDistanceVar || bi.category === "Over Distance" || mLow.includes("overhaul") || mLow.includes("distance");
+          const isCoal = mLow.includes("coal") || mLow.includes("batubara");
+          const vol = Number(bi.adjustedVolume ?? bi.initialVolume ?? 0);
+
+          if (isDist) {
+            const baseM = isCoal ? 3000 : 1000;
+            const curMtr = Number(bi.distanceWeightAvg ?? baseM);
+            const diff = Math.max(0, curMtr - baseM);
+            const usdRate = bi.rateUSD || 0.028;
+            const idrRate = bi.rateIDR || bi.rate || 230;
+            const amt = !isCoal 
+              ? Math.round(vol * (diff / 100) * usdRate * kurs)
+              : Math.round(vol * (diff / 100) * idrRate);
+
+            invItems.push({
+              id: bi.id || `dbk_inv_c_${idx}`,
+              section: "C",
+              subSection: !isCoal ? "C1. Over Distance For OB Removal" : "C2. Over Distance For Coal Winning",
+              description: bi.material || (isCoal ? "Overhaul Coal Getting (>3000m)" : "Overhaul OB (>1000m)"),
+              unit: isCoal ? "Ton" : "Bcm",
+              volume: vol,
+              overhaulMtr: curMtr,
+              baseMtr: baseM,
+              unitRateUSD: !isCoal ? usdRate : undefined,
+              unitRateIDR: isCoal ? idrRate : undefined,
+              kursBI: !isCoal ? kurs : undefined,
+              amount: amt,
+              amountIDR: amt,
+              notes: bi.notes || bi.keterangan || ""
+            });
+          } else if (isCoal) {
+            const usdRate = bi.rateUSD || 0.840;
+            invItems.push({
+              id: bi.id || `dbk_inv_b_${idx}`,
+              section: "B",
+              description: bi.material || "COAL GETTING",
+              sowDescription: "COAL GETTING",
+              unit: "Ton",
+              volume: vol,
+              unitRateUSD: usdRate,
+              kursBI: kurs,
+              amount: Math.round(vol * usdRate * kurs),
+              amountIDR: Math.round(vol * usdRate * kurs),
+              notes: bi.notes || bi.keterangan || ""
+            });
+          } else {
+            const usdRate = bi.rateUSD || 1.490;
+            invItems.push({
+              id: bi.id || `dbk_inv_a_${idx}`,
+              section: "A",
+              description: bi.material || "OVER BURDEN REMOVAL",
+              sowDescription: "OVER BURDEN REMOVAL",
+              unit: "Bcm",
+              volume: vol,
+              unitRateUSD: usdRate,
+              kursBI: kurs,
+              amount: Math.round(vol * usdRate * kurs),
+              amountIDR: Math.round(vol * usdRate * kurs),
+              notes: bi.notes || bi.keterangan || ""
+            });
+          }
+        });
+        return invItems;
       }
       return demoDBKItems.map(i => ({ ...i }));
     } else if (code === "SBS") {
       if (ba?.items && Array.isArray(ba.items) && ba.items.length > 0) {
         const invItems: any[] = [];
         ba.items.forEach((bi: any, idx: number) => {
+          if (bi.category === "Pengurang Biaya" || bi.isDeduction) {
+            const amt = Number(bi.rate || bi.subtotalAdjusted || bi.subtotalInitial || 0);
+            invItems.push({
+              id: bi.id || `sbs_inv_p_${idx}`,
+              section: "P",
+              description: bi.material,
+              unit: bi.unit || "Lot",
+              amount: -Math.abs(amt),
+              amountIDR: -Math.abs(amt),
+              isDeduction: true,
+              notes: bi.notes || bi.period || ba.workPeriod || "-"
+            });
+            return;
+          }
           const unit = (bi.unit || "BCM").trim();
-          const isHours = unit.toLowerCase().includes("hour") || unit.toLowerCase() === "jam" || (bi.material || "").toLowerCase().includes("dozer") || (bi.material || "").toLowerCase().includes("excavator");
+          const isHours = unit.toLowerCase().includes("hour") || unit.toLowerCase() === "jam" || (bi.material || "").toLowerCase().includes("dozer") || (bi.material || "").toLowerCase().includes("excavator") || (bi.material || "").toLowerCase().includes("grader");
           const section = isHours ? "B" : "A";
           const vol = Number(bi.adjustedVolume ?? bi.initialVolume ?? 0);
           const rate = Number(bi.rate || 0);
@@ -1103,11 +1348,13 @@ export function useFinanceController({
           });
         });
 
-        // Sertakan 4 baris Section P pengurang pembayaran SBS
-        const sbsDeductions = (blankSBSItems.length > 0 ? blankSBSItems : demoSBSItems).filter((it: any) => it.section === "P");
-        sbsDeductions.forEach((d: any) => {
-          invItems.push({ ...d });
-        });
+        // Sertakan 4 baris Section P pengurang pembayaran SBS jika belum ada
+        if (!invItems.some(i => i.section === "P")) {
+          const sbsDeductions = (blankSBSItems.length > 0 ? blankSBSItems : demoSBSItems).filter((it: any) => it.section === "P");
+          sbsDeductions.forEach((d: any) => {
+            invItems.push({ ...d });
+          });
+        }
 
         return invItems;
       }
@@ -1388,10 +1635,12 @@ export function useFinanceController({
       paymentDate: formatDateInput(item.paymentDate),
     });
     const initialItems = getInitialBAItemsForRecord(item);
-    const ops = initialItems.filter((i: any) => i.category === "Operating & Mining" || i.category === "Over Distance" || i.category === "Penambangan BGG" || i.category === "Mining");
-    const mdo = initialItems.filter((i: any) => i.category === "MDO");
+    const ops = initialItems.filter((i: any) => !i.isDeduction && i.category !== "Pengurang Biaya" && i.category !== "MDO" && i.category !== "Penunjang" && i.unit !== "Hours");
+    const mdo = initialItems.filter((i: any) => !i.isDeduction && (i.category === "MDO" || i.category === "Penunjang" || i.unit === "Hours"));
+    const deds = initialItems.filter((i: any) => i.isDeduction || i.category === "Pengurang Biaya");
     setBaOperatingItems(ops);
     setBaMDOItems(mdo);
+    setBaDeductionItems(deds);
     setActiveBAStep(1);
     setDetailViewItem(null);
     setModalType("ba");
@@ -1407,26 +1656,22 @@ export function useFinanceController({
   };
 
   const createBlankBGGBAItems = useCallback((period = getCurrentMonthPeriod()) => [
-    { id: `bgg_ob1_${Date.now()}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 1 (75%)", period: period, notes: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 29500, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `bgg_ob2_${Date.now() + 1}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 2 (25%)", period: period, notes: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 28750, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `bgg_cw_${Date.now() + 2}`, category: "Operating & Mining", area: "", material: "Coal Winning", period: period, notes: "", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: 17500, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `bgg_od_ob_${Date.now() + 3}`, category: "Over Distance", area: "", material: "Over Distance For OB Removal", period: period, notes: "", unit: "BCM", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 1550, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `bgg_od_cw_${Date.now() + 4}`, category: "Over Distance", area: "", material: "Over Distance For Coal Winning", period: period, notes: "", unit: "Ton", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 19700, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
+    { id: `bgg_ob1_${Date.now()}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 1 (75%)", period: period, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 29500, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `bgg_ob2_${Date.now() + 1}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 2 (25%)", period: period, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 28750, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `bgg_cw_${Date.now() + 2}`, category: "Operating & Mining", area: "", material: "Coal Winning", period: period, notes: "", keterangan: "", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: 17500, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `bgg_od_ob_${Date.now() + 3}`, category: "Over Distance", area: "", material: "Over Distance For OB Removal", period: period, notes: "", keterangan: "", unit: "BCM", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 1550, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `bgg_od_cw_${Date.now() + 4}`, category: "Over Distance", area: "", material: "Over Distance For Coal Winning", period: period, notes: "", keterangan: "", unit: "Ton", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 19700, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
   ], []);
 
   const createBlankSBSBAItems = useCallback((period = getCurrentMonthPeriod()) => [
-    { id: `sbs_ba_a1_${Date.now()}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL SEKATAN", period, unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 22654, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_a2_${Date.now() + 1}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA JALAN", period, unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 12638, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_a3_${Date.now() + 2}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA CSA", period, unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 8346, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_a4_${Date.now() + 3}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - JALAN BARITO", period, unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 15500, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_a5_${Date.now() + 4}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", period, unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 16931, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_a6_${Date.now() + 5}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - TS MAHONI", period, unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 22654, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_a7_${Date.now() + 6}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - IPD WARWEFILL", period, unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 8346, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_a8_${Date.now() + 7}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", period, unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 19375, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_b1_${Date.now() + 8}`, category: "Operating & Mining", area: "Pit E", material: "Dozer CAT D10 - BDCT 1001", period, unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1980000, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_b2_${Date.now() + 9}`, category: "Operating & Mining", area: "Pit E", material: "Dozer CAT D10 - BDCT 1002", period, unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1980000, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_b3_${Date.now() + 10}`, category: "Operating & Mining", area: "Pit E", material: "Excavator CAT 395 - EXCT 3901", period, unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1425000, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_b4_${Date.now() + 11}`, category: "Operating & Mining", area: "Pit E", material: "Excavator CAT 395 - EXCT 3902", period, unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1425000, subtotalInitial: 0, subtotalAdjusted: 0 }
+    { id: `sbs_ba_a1_${Date.now()}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL SEKATAN", period, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 22654, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_a2_${Date.now() + 1}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA JALAN", period, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 12638, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_a3_${Date.now() + 2}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA CSA", period, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 8346, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_a4_${Date.now() + 3}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - JALAN BARITO", period, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 15500, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_a5_${Date.now() + 4}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", period, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 16931, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_a6_${Date.now() + 5}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - TS MAHONI", period, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 22654, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_a7_${Date.now() + 6}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - IPD WARWEFILL", period, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 8346, subtotalInitial: 0, subtotalAdjusted: 0 },
+    { id: `sbs_ba_a8_${Date.now() + 7}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", period, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 19375, subtotalInitial: 0, subtotalAdjusted: 0 }
   ], []);
 
   const openCreateModal = (type: "ba" | "invoice" | "payment" | "customer" | "pending_volume", initialData: any = {}) => {
@@ -1464,11 +1709,19 @@ export function useFinanceController({
       });
       setBaOperatingItems(
         isBGG ? createBlankBGGBAItems(defaultPeriod)
-        : isDBK ? (defaultDBKBAItems || []).map((it: any) => ({ ...it, period: defaultPeriod }))
+        : isDBK ? (defaultDBKBAItems || []).map((it: any) => ({ ...it, period: defaultPeriod, notes: "", keterangan: "" }))
         : isSBS ? createBlankSBSBAItems(defaultPeriod)
-        : defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", period: defaultPeriod }))
+        : defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", period: defaultPeriod, notes: "", keterangan: "" }))
       );
-      setBaMDOItems(isBGG || isDBK || isSBS ? [] : defaultPOSBAMDOItems.map(it => ({ ...it, area: "", period: defaultPeriod })));
+      setBaMDOItems(
+        isSBS ? (defaultSBSBAMDOItems || []).map((it: any) => ({ ...it, area: "Pit E", period: defaultPeriod, notes: "", keterangan: "" }))
+        : isBGG || isDBK ? []
+        : defaultPOSBAMDOItems.map(it => ({ ...it, area: "", period: defaultPeriod, notes: "", keterangan: "" }))
+      );
+      setBaDeductionItems(
+        isSBS ? (defaultSBSBADeductionItems || []).map((it: any) => ({ ...it, area: "Pit E", period: defaultPeriod, notes: "", keterangan: "", material: it.material === "Denda ketidakcapaian Volume" ? `Denda ketidakcapaian Volume ${defaultPeriod}` : it.material }))
+        : []
+      );
       setActiveBAStep(1);
     } else if (type === "pending_volume") {
       const defaultCust = initialData?.customerCode || "BGG";
@@ -1490,28 +1743,41 @@ export function useFinanceController({
         ...initialData,
       });
     } else if (type === "invoice") {
-      const defaultCompany = initialData?.customerCode || "";
+      const defaultCompany = initialData?.customerCode || "POS";
       const defaultPeriod = initialData?.workPeriod || "Juni 2026";
       const autoInvNo = generateInvoiceNumber(defaultCompany, defaultPeriod, invoiceRows.length);
       const cInfo = customerContractMap[defaultCompany];
+      const defaultSites: Record<string, string> = {
+        BGG: "PT Budi Gema Gempita Site",
+        POS: "POS PROJECT",
+        SBS: "SBS - Tanjung Enim",
+        DBK: "DBK MINING PROJECT"
+      };
+      const defaultContracts: Record<string, string> = {
+        BGG: "09/BGG-AAP/VIII/2018",
+        POS: "002/POS-AAP/2025",
+        SBS: "230/AAP-SBS/EXT/XII/24",
+        DBK: "001/DBK-AAP/2024"
+      };
       setFormData({
         customerCode: defaultCompany,
         workPeriod: defaultPeriod,
         invoiceNo: autoInvNo,
-        activityGroup: "OPERATION & MINING",
-        projectSite: cInfo?.project || "POS PROJECT",
-        contractNo: cInfo?.contract || "002/POS-AAP/2025",
-        bankName: cInfo?.bankName || "Bank BNI",
-        bankAccountNo: cInfo?.bankAccountNo || "8188788882",
-        bankBranch: cInfo?.bankBranch || "Harmoni, Jakarta",
+        activityGroup: initialData?.activityGroup || "OPERATION & MINING",
+        projectSite: initialData?.projectSite || cInfo?.project || defaultSites[defaultCompany] || "POS PROJECT",
+        contractNo: initialData?.contractNo || cInfo?.contract || defaultContracts[defaultCompany] || "002/POS-AAP/2025",
+        noPO: initialData?.noPO || (defaultCompany === "SBS" ? "SPPH-05852" : `PO-${defaultCompany}-2026-001`),
+        bankName: cInfo?.bankName || (defaultCompany === "BGG" ? "Bank Mandiri" : defaultCompany === "DBK" || defaultCompany === "SBS" ? "Bank BRI" : "Bank BNI"),
+        bankAccountNo: cInfo?.bankAccountNo || (defaultCompany === "BGG" ? "070-00-2888000-8" : defaultCompany === "DBK" || defaultCompany === "SBS" ? "0417-01-880088-30-8" : "8188788882"),
+        bankBranch: cInfo?.bankBranch || (defaultCompany === "BGG" ? "Plaza Mandiri Jakarta" : defaultCompany === "DBK" || defaultCompany === "SBS" ? "S. Parman - Slipi Jakarta" : "Harmoni, Jakarta"),
         directorName: cInfo?.directorName || "GAHARI CHRISTINE",
-        directorTitle: cInfo?.directorTitle || "DIRECTOR",
+        directorTitle: cInfo?.directorTitle || (defaultCompany === "SBS" ? "DIREKTUR UTAMA" : "DIRECTOR"),
         ...initialData,
       });
-      if (defaultCompany === "BGG") setInvLineItems(blankBGGItems);
-      else if (defaultCompany === "DBK") setInvLineItems(blankDBKItems);
-      else if (defaultCompany === "SBS") setInvLineItems(blankSBSItems);
-      else setInvLineItems(blankPOSItems);
+      if (defaultCompany === "BGG") setInvLineItems(blankBGGItems.map(i => ({ ...i })));
+      else if (defaultCompany === "DBK") setInvLineItems(blankDBKItems.map(i => ({ ...i })));
+      else if (defaultCompany === "SBS") setInvLineItems(blankSBSItems.map(i => ({ ...i })));
+      else setInvLineItems(blankPOSItems.map(i => ({ ...i })));
     }
     setModalType(type);
   };
@@ -1603,7 +1869,7 @@ export function useFinanceController({
 
         const calculateItemSubtotal = (it: any, vol: number) => {
           const r = Number(it.rate || 0);
-          if (it.category === "DP Fuel" || it.isDeduction || (it.material || "").toLowerCase().includes("dp fuel")) {
+          if (it.category === "DP Fuel" || it.category === "Pengurang Biaya" || it.isDeduction || (it.material || "").toLowerCase().includes("dp fuel") || (it.material || "").toLowerCase().includes("denda") || (it.material || "").toLowerCase().includes("kelebihan pemakaian bbm")) {
             const amt = r !== 0 ? r : (it.subtotalInitial ? Number(it.subtotalInitial) : 0);
             const v = vol > 0 ? vol : 1;
             return -Math.abs(v === 1 ? amt : v * amt);
@@ -1616,7 +1882,7 @@ export function useFinanceController({
           return Math.round(vol * r);
         };
 
-        const allItems = [...baOperatingItems, ...baMDOItems].map((it) => {
+        const allItems = [...baOperatingItems, ...baMDOItems, ...baDeductionItems].map((it) => {
           const vInit = Number(it.initialVolume || 0);
           const vAdj = Number(it.adjustedVolume ?? it.initialVolume ?? 0);
           return {
@@ -1952,7 +2218,7 @@ export function useFinanceController({
     rfIndexCalculated, defaultMasterVariableOptions, masterVariableOptions, activeSOWCatalog, applyRateLookup,
     blankPOSItems, demoPOSItems, blankBGGItems, demoBGGItems, blankDBKItems,
     demoDBKItems, blankSBSItems, demoSBSItems, defaultPOSBAOperatingItems, defaultPOSBAMDOItems,
-    defaultBGGBAItems, defaultDBKBAItems, defaultSBSBAOperatingItems, latestKursBI, baOperatingItems, setBaOperatingItems, baMDOItems, setBaMDOItems,
+    defaultBGGBAItems, defaultDBKBAItems, defaultSBSBAOperatingItems, defaultSBSBAMDOItems, defaultSBSBADeductionItems, latestKursBI, coalIndexMaster, getBGGActiveCoalTier, baOperatingItems, setBaOperatingItems, baMDOItems, setBaMDOItems, baDeductionItems, setBaDeductionItems,
     activeBAStep, setActiveBAStep, showAddRowDropdown, setShowAddRowDropdown, posInvoiceCategory,
     setPosInvoiceCategory, invLineItems, setInvLineItems, selectedVarA, setSelectedVarA,
     selectedVarB, setSelectedVarB, selectedVarC, setSelectedVarC, selectedVarD,

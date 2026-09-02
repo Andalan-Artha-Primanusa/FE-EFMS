@@ -31,6 +31,15 @@ const formatIDR = (val: number) => {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 2 }).format(val);
 };
 
+export const SOW_OPERATIONAL_SITES = [
+  { code: "BGG", name: "PT Budi Gema Gempita", fullName: "PT Budi Gema Gempita (BGG)", contractNo: "09/BGG-AAP/VIII/2018" },
+  { code: "POS", name: "PT Prima Orbit Sejahtera", fullName: "PT Prima Orbit Sejahtera (POS)", contractNo: "002/POS-AAP/2025" },
+  { code: "SBS", name: "PT Sumber Bara Sejahtera", fullName: "PT Sumber Bara Sejahtera (SBS)", contractNo: "230/AAP-SBS/EXT/XII/24" },
+  { code: "DBK", name: "PT Duta Bara Kaltim", fullName: "PT Duta Bara Kaltim (DBK)", contractNo: "001/DBK-AAP/2024" },
+];
+
+export const VALID_SOW_SITE_CODES = new Set(["BGG", "POS", "SBS", "DBK"]);
+
 export const defaultBGGSOWTemplate = [
   { category: "OB Removal", itemName: "OVER BURDEN REMOVAL 1 (75%)", tier1Rate: 27000, tier2Rate: 27250, tier3Rate: 29500, splitPercentage: 75, baseDistanceMeters: 1000, unit: "Bcm", rateIDR: 29500, rateUSD: 0 },
   { category: "OB Removal", itemName: "OVER BURDEN REMOVAL 2 (25%)", tier1Rate: 26250, tier2Rate: 26500, tier3Rate: 28750, splitPercentage: 25, baseDistanceMeters: 1000, unit: "Bcm", rateIDR: 28750, rateUSD: 0 },
@@ -65,6 +74,40 @@ export const defaultSOWTemplate = [
   { category: "Mine Development (MDO)", itemName: "Geotextile", rateUSD: 2.003, unit: "USD/m2" }
 ];
 
+export const defaultSBSSOWTemplate = [
+  // Operation & Mining
+  { category: "Operation & Mining", itemName: "PIT E - DISPOSAL SEKATAN", unit: "BCM", rateIDR: 22654, rateUSD: 0 },
+  { category: "Operation & Mining", itemName: "PIT E - RENCANA JALAN", unit: "BCM", rateIDR: 12638, rateUSD: 0 },
+  { category: "Operation & Mining", itemName: "PIT E - RENCANA CSA", unit: "BCM", rateIDR: 8346, rateUSD: 0 },
+  { category: "Operation & Mining", itemName: "PIT E - JALAN BARITO", unit: "BCM", rateIDR: 15500, rateUSD: 0 },
+  { category: "Operation & Mining", itemName: "PIT E - SEKATAN", unit: "BCM", rateIDR: 16931, rateUSD: 0 },
+  { category: "Operation & Mining", itemName: "PIT E - TS MAHONI", unit: "BCM", rateIDR: 22654, rateUSD: 0 },
+  { category: "Operation & Mining", itemName: "PIT E - IPD WARWEFILL", unit: "BCM", rateIDR: 8346, rateUSD: 0 },
+  { category: "Operation & Mining", itemName: "PIT E - SEKATAN (High Rate)", unit: "BCM", rateIDR: 19375, rateUSD: 0 },
+
+  // Jasa Penunjang Produksi (Rental Alat)
+  { category: "Penunjang", itemName: "Bulldozer DZ709", unit: "Hours", rateIDR: 1980000, rateUSD: 0 },
+  { category: "Penunjang", itemName: "Bulldozer DZ716", unit: "Hours", rateIDR: 1980000, rateUSD: 0 },
+  { category: "Penunjang", itemName: "Excavator EX815", unit: "Hours", rateIDR: 1425000, rateUSD: 0 },
+  { category: "Penunjang", itemName: "Excavator EX816", unit: "Hours", rateIDR: 1425000, rateUSD: 0 },
+  { category: "Penunjang", itemName: "Excavator EX817", unit: "Hours", rateIDR: 1425000, rateUSD: 0 },
+  { category: "Penunjang", itemName: "Motor Grader MG607", unit: "Hours", rateIDR: 1250000, rateUSD: 0 },
+  { category: "Penunjang", itemName: "Motor Grader MG608", unit: "Hours", rateIDR: 1250000, rateUSD: 0 },
+
+  // Pengurang Biaya
+  { category: "Pengurang Biaya", itemName: "Denda ketidaktercapaian MA", unit: "Lot", rateIDR: 0, rateUSD: 0 },
+  { category: "Pengurang Biaya", itemName: "Kelebihan Pemakaian BBM Loader", unit: "Lot", rateIDR: 0, rateUSD: 0 },
+  { category: "Pengurang Biaya", itemName: "Kelebihan Pemakaian BBM Hauler", unit: "Lot", rateIDR: 0, rateUSD: 0 },
+  { category: "Pengurang Biaya", itemName: "Denda ketidakcapaian Volume", unit: "Lot", rateIDR: 0, rateUSD: 0 },
+];
+
+export const defaultDBKSOWTemplate = [
+  { category: "Operating & Mining", itemName: "OVER BURDEN REMOVAL", unit: "BCM", rateUSD: 1.490, rateIDR: 0 },
+  { category: "Operating & Mining", itemName: "COAL WINNING", unit: "Ton", rateUSD: 0.840, rateIDR: 0 },
+  { category: "Over Distance", itemName: "Overhaul OB (Pit Sapan)", unit: "BCM", rateUSD: 0.028, rateIDR: 0, baseDistanceMeters: 1000 },
+  { category: "Over Distance", itemName: "Overhaul Coal Getting (Pit Sapan)", unit: "Ton", rateUSD: 0, rateIDR: 230, baseDistanceMeters: 3000 },
+];
+
 export function VariableSOWPage({
   viewTitle,
   query,
@@ -79,7 +122,7 @@ export function VariableSOWPage({
   const [mrateBi, setMrateBi] = useState<number>(17923.30);
   const [contractsList, setContractsList] = useState<any[]>([]);
   const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>("ALL");
-  const [companyList, setCompanyList] = useState<Company[]>([]);
+  const [companyList, setCompanyList] = useState<any[]>(SOW_OPERATIONAL_SITES);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -95,14 +138,10 @@ export function VariableSOWPage({
   async function loadData() {
     setLoading(true);
     try {
-      const [resSow, resMrate, resCompanies] = await Promise.all([
+      const [resSow, resMrate] = await Promise.all([
         api<any[]>("/api/master-data/variable-sow").catch(() => []),
         api<any[]>("/api/master-data/daily-exchange-rates").catch(() => []),
-        getCompanies().catch(() => [] as Company[])
       ]);
-
-      const companies = Array.isArray(resCompanies) ? resCompanies : [];
-      setCompanyList(companies);
 
       const activeSows = Array.isArray(resSow) ? resSow : [];
       setSowRows(activeSows);
@@ -114,18 +153,23 @@ export function VariableSOWPage({
         if (val > 0) setMrateBi(val);
       }
 
-      // Group SOWs by Company & Contract for Main Table.
-      // Kept companies come from the backend API (/api/companies) — not hardcoded.
+      // Group SOWs strictly for the 4 Operational Mining Sites
       const groupedMap: Record<string, any> = {};
 
-      companies.forEach((c) => {
-        const code = c.code || `C${c.id}`;
-        const template = defaultSOWTemplate;
-        groupedMap[code] = {
-          companyName: c.name,
-          companyCode: code,
-          contractNo: "",
-          type: "generic",
+      SOW_OPERATIONAL_SITES.forEach((site) => {
+        let template = defaultSOWTemplate;
+        if (site.code === "BGG") {
+          template = defaultBGGSOWTemplate;
+        } else if (site.code === "SBS") {
+          template = defaultSBSSOWTemplate;
+        } else if (site.code === "DBK") {
+          template = defaultDBKSOWTemplate;
+        }
+        groupedMap[site.code] = {
+          companyName: site.name,
+          companyCode: site.code,
+          contractNo: site.contractNo,
+          type: site.code === "BGG" ? "coal" : "generic",
           badgeColor: "slate",
           desc: "",
           itemCount: template.length,
@@ -135,12 +179,11 @@ export function VariableSOWPage({
 
       // Overlay items from database (filtering out non-master / period-tagged legacy items)
       activeSows.forEach((item) => {
-        // Ignore legacy period-tagged items like (Feb-26), (Jun-26)
         if (item.itemName && (/\(Feb-|\(Jun-|\(Jan-|\(Mar-|\(Apr-|\(May-|\(Jul-|\(Aug-|\(Sep-|\(Oct-|\(Nov-|\(Dec-/i.test(item.itemName))) {
           return;
         }
 
-        const cCode = item.customerCode || item.customer || "";
+        const cCode = (item.customerCode || item.customer || "").toUpperCase();
         if (groupedMap[cCode]) {
           const existingItems = [...groupedMap[cCode].items];
           const idx = existingItems.findIndex(i => i.itemName.trim().toLowerCase() === item.itemName.trim().toLowerCase());
@@ -155,6 +198,7 @@ export function VariableSOWPage({
       });
 
       setContractsList(Object.values(groupedMap));
+      setCompanyList(SOW_OPERATIONAL_SITES);
     } catch (err: any) {
       onNotice(err?.message || "Gagal memuat data Variable SOW");
     } finally {
@@ -181,94 +225,74 @@ export function VariableSOWPage({
   });
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto pb-12">
-      {/* Top Banner Header */}
-      <div className="relative overflow-hidden bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-700/60 shadow-xl text-white">
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-cyan-500/10 pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 flex items-center gap-1.5 shadow-sm">
-                <Layers size={14} className="text-cyan-400" />
-                Scope of Work Pricing Engine
-              </span>
-              <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-white/10 text-amber-300 border border-white/10 flex items-center gap-1">
-                <Sparkles size={13} />
-                Multi-Tiering & USD Precision
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-              Master Data Variable SOW
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed">
-              Katalog tarif dasar per satuan operasional pertambangan: <strong>Multi-Tiering Coal Index</strong> (PT BGG) dan <strong>Presisi USD (3 Desimal)</strong> terhubung kurs M-Rate BI (PT POS).
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            <button
-              onClick={() => loadData()}
-              className="p-3 rounded-2xl border border-white/15 bg-white/10 hover:bg-white/20 text-white font-bold transition shadow-sm active:scale-95 cursor-pointer backdrop-blur-md"
-              title="Perbarui Data"
-            >
-              <RefreshCw size={17} className={loading ? "animate-spin" : ""} />
-            </button>
-            <button
-              onClick={openCreateGridModal}
-              className="px-5 py-3 rounded-2xl bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-cyan-500/25 transition active:scale-95 cursor-pointer"
-            >
-              <Plus size={18} className="stroke-[3]" />
-              <span>+ Input Tarif SOW Baru</span>
-            </button>
-          </div>
+    <div className="space-y-5 max-w-[1600px] mx-auto pb-12">
+      {/* Top Header */}
+      <PageHeader
+        title="Master Data Variable SOW"
+        description="Katalog tarif dan parameter komersial operasional per kontrak site pertambangan."
+      >
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => loadData()}
+            className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition shadow-2xs active:scale-95 cursor-pointer"
+            title="Perbarui Data"
+          >
+            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+          </button>
+          <button
+            onClick={openCreateGridModal}
+            className="px-3.5 py-2 rounded-lg bg-cyan-800 hover:bg-cyan-900 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition active:scale-95 cursor-pointer"
+          >
+            <Plus size={15} />
+            <span>Input Tarif SOW Baru</span>
+          </button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* KPI Cards Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-5 rounded-3xl border border-slate-200 bg-white shadow-xs space-y-1">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">KURS BI ACUAN (M-RATE)</span>
-            <span className="p-1 bg-emerald-50 rounded-lg text-emerald-700 font-bold text-[10px] px-2">Live Sync</span>
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Kurs Acuan BI (M-Rate)</span>
+            <span className="p-0.5 px-2 bg-emerald-50 rounded text-emerald-700 font-bold text-[10px] border border-emerald-200">Live Sync</span>
           </div>
-          <div className="text-2xl font-black text-cyan-900 font-mono tracking-tight pt-1">
+          <div className="text-xl font-black text-slate-900 font-mono tracking-tight pt-0.5">
             {formatIDR(mrateBi)}
-            <span className="text-xs font-sans font-bold text-slate-400 ml-1.5">/ USD</span>
+            <span className="text-xs font-sans font-normal text-slate-400 ml-1">/ USD</span>
           </div>
-          <p className="text-[11px] text-slate-400">Digunakan untuk konversi otomatis SOW nikel (PT POS)</p>
+          <p className="text-[11px] text-slate-500">Acuan konversi tarif USD (PT POS & PT DBK)</p>
         </div>
 
-        <div className="p-5 rounded-3xl border border-slate-200 bg-white shadow-xs space-y-1">
+        <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">KONTRAK AKTIF</span>
-            <span className="p-1 bg-slate-100 rounded-lg text-slate-700 font-bold text-[10px] px-2">{contractsList.length} Entitas</span>
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Kontrak Aktif</span>
+            <span className="p-0.5 px-2 bg-slate-100 rounded text-slate-700 font-bold text-[10px] border border-slate-200">{contractsList.length} Entitas</span>
           </div>
-          <div className="text-2xl font-black text-slate-900 font-mono tracking-tight pt-1">
-            {contractsList.length} Kontrak Perusahaan
+          <div className="text-xl font-black text-slate-900 font-mono tracking-tight pt-0.5">
+            {contractsList.length} Site & Klien
           </div>
-          <p className="text-[11px] text-slate-400">{companyList.map((c) => c.code).join(", ") || "Perusahaan dari database"}</p>
+          <p className="text-[11px] text-slate-500">{companyList.map((c) => c.code).join(", ") || "Terdaftar di database"}</p>
         </div>
 
-        <div className="p-5 rounded-3xl border border-slate-200 bg-white shadow-xs space-y-1">
+        <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">KOMODITAS & MODEL</span>
-            <span className="p-1 bg-amber-50 rounded-lg text-amber-800 font-bold text-[10px] px-2">Dual Mode</span>
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Model Komersial</span>
+            <span className="p-0.5 px-2 bg-cyan-50 rounded text-cyan-800 font-bold text-[10px] border border-cyan-200">Multi-Site</span>
           </div>
-          <div className="text-sm font-black text-amber-700 tracking-tight pt-2 flex items-center gap-1.5">
-            <Sparkles size={16} /> Batubara (Tiering) & Nikel (USD Presisi)
+          <div className="text-sm font-bold text-slate-900 pt-1">
+            Batubara (Tiering), Nikel (USD) & Rental (IDR)
           </div>
-          <p className="text-[11px] text-slate-400">Presisi 3 Desimal & Overhaul Distance</p>
+          <p className="text-[11px] text-slate-500">Tersinkronisasi ke BA Tracker & Invoice</p>
         </div>
       </div>
 
       {/* Filter Tabs by Company */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         <button
           onClick={() => setSelectedCompanyFilter("ALL")}
-          className={`px-4 py-2 rounded-2xl text-xs font-bold border transition cursor-pointer ${
+          className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
             selectedCompanyFilter === "ALL"
-              ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+              ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
               : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
           }`}
         >
@@ -278,14 +302,14 @@ export function VariableSOWPage({
           <button
             key={c.code}
             onClick={() => setSelectedCompanyFilter(c.code)}
-            className={`px-4 py-2 rounded-2xl text-xs font-bold border flex items-center gap-1.5 transition cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1.5 transition cursor-pointer ${
               selectedCompanyFilter === c.code
-                ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
                 : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
             }`}
           >
             <span>{c.name}</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded font-mono bg-slate-100 text-slate-800">
+            <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${selectedCompanyFilter === c.code ? "bg-slate-800 text-slate-200" : "bg-slate-100 text-slate-700"}`}>
               {c.code}
             </span>
           </button>
@@ -293,69 +317,72 @@ export function VariableSOWPage({
       </div>
 
       {/* Main Table Panel */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h3 className="font-black text-slate-900 text-base sm:text-lg">
+            <h3 className="font-bold text-slate-900 text-sm">
               Daftar Master Variable SOW Berdasarkan Kontrak
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Setiap kontrak memiliki katalog tarif unik yang secara otomatis dipakai saat pembuatan invoice & Berita Acara.
+            <p className="text-xs text-slate-500">
+              Katalog tarif dasar yang otomatis dipakai saat pembuatan Berita Acara dan Invoice.
             </p>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-xs sm:text-sm text-left border-collapse">
+          <table className="w-full text-xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/90 text-slate-600 font-extrabold uppercase text-[11px] tracking-wider border-b border-slate-200">
-                <th className="p-4 pl-6">NO</th>
-                <th className="p-4">NAMA PERUSAHAAN</th>
-                <th className="p-4 text-center">KODE</th>
-                <th className="p-4 font-mono">NOMOR KONTRAK</th>
-                <th className="p-4 text-center">KOMODITAS & MODEL</th>
-                <th className="p-4 text-center">JUMLAH SOW</th>
-                <th className="p-4 pr-6 text-right">AKSI</th>
+              <tr className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                <th className="p-3 pl-4 text-center w-12">NO</th>
+                <th className="p-3">NAMA PERUSAHAAN</th>
+                <th className="p-3 text-center w-20">KODE</th>
+                <th className="p-3 font-mono">NOMOR KONTRAK</th>
+                <th className="p-3 text-center">KOMODITAS & MODEL</th>
+                <th className="p-3 text-center w-28">JUMLAH SOW</th>
+                <th className="p-3 pr-4 text-right w-36">AKSI</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
               {filteredContracts.map((c, idx) => (
-                <tr key={c.companyCode || idx} className="hover:bg-slate-50/80 transition">
-                  <td className="p-4 pl-6 text-center font-bold text-slate-400">{idx + 1}</td>
-                  <td className="p-4">
-                    <div className="font-black text-slate-900 text-sm">{c.companyName}</div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">{c.desc}</p>
+                <tr key={c.companyCode || idx} className="hover:bg-slate-50 transition">
+                  <td className="p-3 pl-4 text-center font-bold text-slate-400">{idx + 1}</td>
+                  <td className="p-3">
+                    <div className="font-bold text-slate-900">{c.companyName}</div>
+                    {c.desc && <p className="text-[11px] text-slate-500 mt-0.5">{c.desc}</p>}
                   </td>
-                  <td className="p-4 text-center">
-                    <span className="px-3 py-1 rounded-xl font-mono text-xs font-black bg-cyan-50 text-cyan-900 border border-cyan-200">
+                  <td className="p-3 text-center">
+                    <span className="px-2 py-0.5 rounded font-mono text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
                       {c.companyCode}
                     </span>
                   </td>
-                  <td className="p-4 font-mono font-bold text-slate-800 text-xs">{c.contractNo}</td>
-                  <td className="p-4 text-center">
-                    {c.type === "coal" ? (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-900 border border-amber-300">
-                        <Flame size={12} className="text-amber-600" />
-                        Batubara (Multi-Tier)
+                  <td className="p-3 font-mono font-bold text-slate-700 text-xs">{c.contractNo || "-"}</td>
+                  <td className="p-3 text-center">
+                    {c.type === "coal" || c.companyCode === "BGG" ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                        <Flame size={12} className="text-amber-600" /> Batubara (Multi-Tier)
+                      </span>
+                    ) : c.companyCode === "SBS" ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-900 border border-emerald-200">
+                        <CheckCircle2 size={12} className="text-emerald-700" /> IDR (OB, Rental & Denda)
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black bg-cyan-100 text-cyan-900 border border-cyan-300">
-                        <DollarSign size={12} className="text-cyan-700" />
-                        Nikel (USD Presisi)
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-cyan-50 text-cyan-900 border border-cyan-200">
+                        <DollarSign size={12} className="text-cyan-700" /> Nikel (USD Presisi)
                       </span>
                     )}
                   </td>
-                  <td className="p-4 text-center font-bold text-slate-700">
-                    <span className="bg-slate-100 px-2.5 py-1 rounded-lg">
-                      {c.itemCount} Item SOW
+                  <td className="p-3 text-center font-bold text-slate-700">
+                    <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-mono text-xs">
+                      {c.itemCount} Item
                     </span>
                   </td>
-                  <td className="p-4 pr-6 text-right">
+                  <td className="p-3 pr-4 text-right">
                     <button
-                      className="px-4 py-2 rounded-2xl bg-cyan-800 hover:bg-cyan-900 text-white font-black text-xs flex items-center gap-1.5 ml-auto transition shadow-xs cursor-pointer active:scale-95"
+                      className="px-3 py-1.5 rounded-lg bg-cyan-800 hover:bg-cyan-900 text-white font-bold text-xs flex items-center gap-1 ml-auto transition shadow-2xs cursor-pointer active:scale-95"
                       onClick={() => openEditGridModal(c)}
                     >
-                      <Eye size={14} /> Lihat & Edit Tarif
+                      <Eye size={13} />
+                      <span>Lihat & Edit Tarif</span>
                     </button>
                   </td>
                 </tr>

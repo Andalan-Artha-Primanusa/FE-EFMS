@@ -8,7 +8,7 @@ import { MasterDataFormRoute } from "./pages/MasterDataFormRoute";
 import { TransactionFormPage } from "./pages/TransactionFormPage";
 import { ProtectedRoute } from "./router/ProtectedRoute";
 import { NotFoundPage } from "./pages/NotFoundPage";
-import { DashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute, CoalIndexRoute, RaiseFallRoute, FinanceDashboardRoute, FinanceBATrackerRoute, FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute, SiteSetupRoute, CompanyRoute, TreasuryManagementRoute, BudgetManagementRoute, ClosingPeriodRoute, NotificationCenterRoute, OrgUnitsRoute } from "./router/RouteWrappers";
+import { DashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute, CoalIndexRoute, RaiseFallRoute, FinanceDashboardRoute, FinanceBATrackerRoute, FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute, SiteSetupRoute, CompanyRoute, TreasuryManagementRoute, BudgetManagementRoute, ClosingPeriodRoute, NotificationCenterRoute, OrgUnitsRoute, VariableSOWRoute } from "./router/RouteWrappers";
 
 export function App() {
   const [user, setUser] = useState<User | null>(() => {
@@ -87,7 +87,9 @@ export function App() {
           <Route path="client-setup" element={<ProtectedRoute requiredView="Client Setup"><FinanceCustomerRoute viewTitle="Client Setup" /></ProtectedRoute>} />
           <Route path="customer-master-credit-terms" element={<ProtectedRoute requiredView="Client Setup"><FinanceCustomerRoute viewTitle="Client Setup" /></ProtectedRoute>} />
           
+          <Route path="variable-sow" element={<ProtectedRoute requiredView="Variable SOW"><VariableSOWRoute /></ProtectedRoute>} />
           <Route path="variable-sow/new" element={<ProtectedRoute requiredView="Variable SOW"><VariableSOWFormPage /></ProtectedRoute>} />
+          <Route path="variable-sow/edit" element={<ProtectedRoute requiredView="Variable SOW"><VariableSOWFormPage /></ProtectedRoute>} />
           <Route path="variable-sow/:id/edit" element={<ProtectedRoute requiredView="Variable SOW"><VariableSOWFormPage /></ProtectedRoute>} />
           <Route path=":slug/new" element={<MasterDataFormRoute />} />
           <Route path=":slug/:id/edit" element={<MasterDataFormRoute />} />
