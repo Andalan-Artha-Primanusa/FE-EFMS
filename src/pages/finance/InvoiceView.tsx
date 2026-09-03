@@ -11,7 +11,7 @@ import {
   generateBANumberPreview, generateInvoiceNumberPreview, getYearFromPeriod,
   generateInvoiceNumber, getBAInvoiceStatus, renderBAStatusBadge,
   getBAStatusForExport, renderInvoiceStatusBadge, parsePeriodToMonthIndex,
-  RupiahInput, MonthPickerInput, generateAuditTimeline
+  RupiahInput, MonthPickerInput, generateAuditTimeline, getCustomerOfficialName
 } from "./helpers";
 
 export function InvoiceView({ c }: { c: any }) {
@@ -19,7 +19,7 @@ export function InvoiceView({ c }: { c: any }) {
     baRows: rawBaRows, isSuper, isFinanceSpecialist, isSPV, isManager, isDirector, invoiceRows: rawInvoiceRows,
     invStatusFilter, setInvStatusFilter, invCardTab, setInvCardTab, invPeriodFilter,
     setInvPeriodFilter, showExportARDropdown, setShowExportARDropdown, showInputARDropdown, setShowInputARDropdown,
-    setDetailViewItem, templateRows: rawTemplateRows, exportAROnlyExcel, exportAROnlyPDF, openCreateModal,
+    setDetailViewItem, templateRows: rawTemplateRows, exportAROnlyExcel, exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV, openCreateModal,
     openEditModal, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, handleDelete,
     sbsPenalties: rawSbsPenalties, sbsPenaltyModalOpen, sbsPenaltyEditItem, handleSaveSBSPenalty, handleDeleteSBSPenalty, openSBSPenaltyModal, closeSBSPenaltyModal,
     query = ""
@@ -148,28 +148,28 @@ export function InvoiceView({ c }: { c: any }) {
             return (
               <div className="space-y-6">
                 {/* 3 INTERACTIVE STAT CARDS CONTAINER WITH ACTIVITY GROUP TOGGLE */}
-                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
-                  <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-slate-200 pb-3.5">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-700 shrink-0">
-                        <Receipt size={20} />
+                <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-3">
+                  <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 border-b border-slate-200 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 shrink-0">
+                        <Receipt size={18} />
                       </div>
                       <div>
-                        <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
+                        <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider">
                           Master Penagihan & Outstanding AR
                         </h3>
-                        <p className="text-xs text-slate-500 font-medium mt-0.5">
+                        <p className="text-[11px] text-slate-500 font-medium">
                           Pilih kartu di bawah untuk menyaring sajian tabel sesuai baseline Excel
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto justify-between lg:justify-end">
+                    <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-between lg:justify-end">
                       {/* Period Filter Dropdown for Invoice & AR Aging Cut-off */}
-                      <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-200">
-                        <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider pl-1.5">PERIODE:</span>
+                      <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider pl-1">PERIODE:</span>
                         <select
-                          className="bg-white text-slate-900 font-bold text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 focus:border-cyan-700 focus:outline-none cursor-pointer shadow-xs"
+                          className="bg-white text-slate-900 font-bold text-xs px-2 py-1 rounded border border-slate-300 focus:border-cyan-700 focus:outline-none cursor-pointer shadow-2xs"
                           value={invPeriodFilter}
                           onChange={(e) => setInvPeriodFilter(e.target.value)}
                         >
@@ -186,9 +186,9 @@ export function InvoiceView({ c }: { c: any }) {
                       </div>
 
                       {/* Status Filter */}
-                      <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                      <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-lg border border-slate-200">
                         <select
-                          className="bg-white text-slate-900 font-bold text-xs px-2.5 py-1.5 rounded-lg border border-slate-300 focus:border-cyan-700 focus:outline-none cursor-pointer shadow-xs"
+                          className="bg-white text-slate-900 font-bold text-xs px-2 py-1 rounded border border-slate-300 focus:border-cyan-700 focus:outline-none cursor-pointer shadow-2xs"
                           value={invStatusFilter}
                           onChange={(e) => setInvStatusFilter(e.target.value)}
                         >
@@ -205,19 +205,19 @@ export function InvoiceView({ c }: { c: any }) {
                       <div className="relative z-30">
                         <button
                           type="button"
-                          className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-white border border-cyan-700 text-cyan-800 hover:bg-cyan-50 shadow-xs transition cursor-pointer shrink-0"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-white border border-cyan-700 text-cyan-800 hover:bg-cyan-50 shadow-2xs transition cursor-pointer shrink-0"
                           onClick={() => setShowExportARDropdown(!showExportARDropdown)}
                           title="Export Laporan AR Outstanding"
                         >
-                          <FileText size={15} />
+                          <FileText size={14} />
                           <span>Export AR</span>
-                          <ChevronDown size={14} className="text-cyan-700" />
+                          <ChevronDown size={13} className="text-cyan-700" />
                         </button>
 
                         {showExportARDropdown && (
                           <>
                             <div className="fixed inset-0 z-40" onClick={() => setShowExportARDropdown(false)} />
-                            <div className="absolute right-0 mt-1.5 w-48 bg-white rounded-xl shadow-2xl border border-slate-200 py-1 z-50 text-xs font-bold divide-y divide-slate-100 animate-in fade-in zoom-in-95 duration-100">
+                            <div className="absolute right-0 mt-1.5 w-56 bg-white rounded-xl shadow-2xl border border-slate-200 py-1 z-50 text-xs font-bold divide-y divide-slate-100 animate-in fade-in zoom-in-95 duration-100">
                               <button
                                 type="button"
                                 className="w-full px-3.5 py-2.5 text-left text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 flex items-center gap-2 transition cursor-pointer"
@@ -226,7 +226,7 @@ export function InvoiceView({ c }: { c: any }) {
                                   setShowExportARDropdown(false);
                                 }}
                               >
-                                <FileSpreadsheet size={15} className="text-emerald-600" /> Export Excel AR
+                                <FileSpreadsheet size={15} className="text-emerald-600" /> Export Excel AR Outstanding
                               </button>
                               <button
                                 type="button"
@@ -236,7 +236,27 @@ export function InvoiceView({ c }: { c: any }) {
                                   setShowExportARDropdown(false);
                                 }}
                               >
-                                <FileText size={15} className="text-rose-600" /> Export PDF AR
+                                <FileText size={15} className="text-rose-600" /> Export PDF AR Outstanding
+                              </button>
+                              <button
+                                type="button"
+                                className="w-full px-3.5 py-2.5 text-left text-slate-700 hover:bg-violet-50 hover:text-violet-800 flex items-center gap-2 transition cursor-pointer"
+                                onClick={() => {
+                                  exportCoretaxEFakturCSV();
+                                  setShowExportARDropdown(false);
+                                }}
+                              >
+                                <FileSpreadsheet size={15} className="text-violet-600" /> e-Faktur Coretax (PPN 12%)
+                              </button>
+                              <button
+                                type="button"
+                                className="w-full px-3.5 py-2.5 text-left text-slate-700 hover:bg-amber-50 hover:text-amber-800 flex items-center gap-2 transition cursor-pointer"
+                                onClick={() => {
+                                  exportEBupotPPh23CSV();
+                                  setShowExportARDropdown(false);
+                                }}
+                              >
+                                <FileText size={15} className="text-amber-600" /> e-Bupot PPh 23 (2%)
                               </button>
                             </div>
                           </>
@@ -247,12 +267,12 @@ export function InvoiceView({ c }: { c: any }) {
                       {invCardTab === "PENALTY_UNCUT" && (
                         <button
                           type="button"
-                          className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-extrabold rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition shrink-0 cursor-pointer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-2xs transition shrink-0 cursor-pointer"
                           onClick={() => openSBSPenaltyModal()}
                           title="Catat Klaim Denda / Penalti Section P PT SBS"
                         >
-                          <Plus size={16} />
-                          <span>+ Catat Klaim Penalti SBS</span>
+                          <Plus size={15} />
+                          <span>+ Klaim Penalti SBS</span>
                         </button>
                       )}
 
@@ -260,13 +280,13 @@ export function InvoiceView({ c }: { c: any }) {
                       <div className="relative z-30">
                         <button
                           type="button"
-                          className="primary flex items-center gap-1.5 px-4 py-2 text-xs font-extrabold rounded-lg bg-cyan-700 hover:bg-cyan-800 text-white shadow-sm transition shrink-0 cursor-pointer"
+                          className="primary flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-extrabold rounded-lg bg-cyan-700 hover:bg-cyan-800 text-white shadow-2xs transition shrink-0 cursor-pointer"
                           onClick={() => setShowInputARDropdown(!showInputARDropdown)}
                           title="Buat Invoice Baru (Ops / MDO)"
                         >
-                          <Plus size={16} />
+                          <Plus size={15} />
                           <span>+ Input / Buat Invoice</span>
-                          <ChevronDown size={14} className="text-cyan-200" />
+                          <ChevronDown size={13} className="text-cyan-200" />
                         </button>
 
                         {showInputARDropdown && (
@@ -298,23 +318,23 @@ export function InvoiceView({ c }: { c: any }) {
                               >
                                 <Building2 size={16} className="text-indigo-700 mt-0.5 shrink-0" />
                                 <div>
-                                  <strong className="block text-slate-900 font-extrabold">2. Invoice Mine Development / MDO (POS)</strong>
-                                  <span className="text-[10px] text-slate-500 font-normal">Cut & Fill, Clearing, Access Road & Konstruksi</span>
+                                  <strong className="block text-slate-900 font-extrabold">2. Invoice Mine Development (POS)</strong>
+                                  <span className="text-[10px] text-slate-500 font-normal">MDO SOW: Jetty, Road & Infrastruktur</span>
                                 </div>
                               </button>
 
                               <button
                                 type="button"
-                                className="w-full px-3.5 py-2.5 text-left text-slate-800 hover:bg-amber-50 hover:text-amber-900 flex items-start gap-2.5 transition cursor-pointer"
+                                className="w-full px-3.5 py-2.5 text-left text-slate-800 hover:bg-amber-50 hover:text-amber-950 flex items-start gap-2.5 transition cursor-pointer"
                                 onClick={() => {
-                                  openCreateModal("invoice", { customerCode: "BGG", activityGroup: "OB REMOVAL & COAL WINNING" });
+                                  openCreateModal("invoice", { customerCode: "BGG", activityGroup: "OVERBURDEN & COAL MINING" });
                                   setShowInputARDropdown(false);
                                 }}
                               >
                                 <Scale size={16} className="text-amber-600 mt-0.5 shrink-0" />
                                 <div>
-                                  <strong className="block text-slate-900 font-extrabold">3. Invoice Joint Survey (BGG)</strong>
-                                  <span className="text-[10px] text-slate-500 font-normal">OB Removal, Coal Winning, OD & RF Factor</span>
+                                  <strong className="block text-slate-900 font-extrabold">3. Invoice PT BGG (Lahat)</strong>
+                                  <span className="text-[10px] text-slate-500 font-normal">OB, Coal, Distance Slip & SR True-Up</span>
                                 </div>
                               </button>
 
@@ -322,14 +342,14 @@ export function InvoiceView({ c }: { c: any }) {
                                 type="button"
                                 className="w-full px-3.5 py-2.5 text-left text-slate-800 hover:bg-emerald-50 hover:text-emerald-900 flex items-start gap-2.5 transition cursor-pointer"
                                 onClick={() => {
-                                  openCreateModal("invoice", { customerCode: "DBK", activityGroup: "OPERATION & MINING" });
+                                  openCreateModal("invoice", { customerCode: "PTRO", activityGroup: "COAL HAULING & MINING SERVICES" });
                                   setShowInputARDropdown(false);
                                 }}
                               >
-                                <Pickaxe size={16} className="text-emerald-700 mt-0.5 shrink-0" />
+                                <Pickaxe size={16} className="text-emerald-600 mt-0.5 shrink-0" />
                                 <div>
-                                  <strong className="block text-slate-900 font-extrabold">4. Invoice Petrosea (DBK)</strong>
-                                  <span className="text-[10px] text-slate-500 font-normal">OB & Coal Getting (USD rate / Kurs BI)</span>
+                                  <strong className="block text-slate-900 font-extrabold">4. Invoice PT Petrosea (PTRO)</strong>
+                                  <span className="text-[10px] text-slate-500 font-normal">Pekerjaan Tambang & Hauling</span>
                                 </div>
                               </button>
 
@@ -355,51 +375,51 @@ export function InvoiceView({ c }: { c: any }) {
                   </div>
 
                   {/* 3 STAT CARDS WITH CLEAN SUBTLE ACTIVE STYLING */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 font-mono">
                     {/* Card 1: Total AR Andalan */}
                     <div
                       onClick={() => setInvCardTab("AR_ANDALAN")}
-                      className={`cursor-pointer transition rounded-xl p-4 text-center border ${invCardTab === "AR_ANDALAN" ? "bg-cyan-50/50 border-cyan-700 ring-1 ring-cyan-600/40 shadow-xs" : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"}`}
+                      className={`cursor-pointer transition rounded-xl p-2.5 sm:p-3 text-center border ${invCardTab === "AR_ANDALAN" ? "bg-cyan-50/50 border-cyan-700 ring-1 ring-cyan-600/40 shadow-2xs" : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"}`}
                     >
-                      <span className="text-xs font-sans font-extrabold uppercase tracking-wider text-slate-600 block">
+                      <span className="text-[10px] sm:text-[11px] font-sans font-bold uppercase tracking-wider text-slate-600 block">
                         Total AR Andalan
                       </span>
-                      <span className="text-xl sm:text-2xl font-black text-slate-900 mt-1 block">
+                      <span className="text-sm sm:text-base lg:text-lg font-bold font-mono text-slate-900 mt-0.5 block truncate">
                         {formatIDR(totalARAndalan)}
                       </span>
-                      <span className="text-[11px] font-sans text-slate-500 font-medium block mt-1">
-                        BGG + DBK + SBS + POS Outstanding
+                      <span className="text-[10px] font-sans text-slate-500 font-medium block truncate mt-0.5">
+                        BGG + PTRO + SBS + POS Outstanding
                       </span>
                     </div>
 
                     {/* Card 2: Total progress Pinalty yang belum di potong */}
                     <div
                       onClick={() => setInvCardTab("PENALTY_UNCUT")}
-                      className={`cursor-pointer transition rounded-xl p-4 text-center border ${invCardTab === "PENALTY_UNCUT" ? "bg-amber-50/60 border-amber-600 ring-1 ring-amber-600/40 shadow-xs" : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"}`}
+                      className={`cursor-pointer transition rounded-xl p-2.5 sm:p-3 text-center border ${invCardTab === "PENALTY_UNCUT" ? "bg-amber-50/60 border-amber-600 ring-1 ring-amber-600/40 shadow-2xs" : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"}`}
                     >
-                      <span className="text-xs font-sans font-extrabold uppercase tracking-wider text-slate-600 block">
-                        Total progress Pinalty belum dipotong
+                      <span className="text-[10px] sm:text-[11px] font-sans font-bold uppercase tracking-wider text-slate-600 block">
+                        Total Penalti Belum Potong
                       </span>
-                      <span className="text-xl sm:text-2xl font-black text-amber-800 mt-1 block">
+                      <span className="text-sm sm:text-base lg:text-lg font-bold font-mono text-amber-800 mt-0.5 block truncate">
                         {formatIDR(totalPenaltyUncut)}
                       </span>
-                      <span className="text-[11px] font-sans text-slate-500 font-medium block mt-1">
-                        Klaim Penalti Section P (Eksklusif SBS Project)
+                      <span className="text-[10px] font-sans text-slate-500 font-medium block truncate mt-0.5">
+                        Klaim Penalti Section P (SBS)
                       </span>
                     </div>
 
                     {/* Card 3: Total Subject To Invoice */}
                     <div
                       onClick={() => setInvCardTab("SUBJECT_TO_INVOICE")}
-                      className={`cursor-pointer transition rounded-xl p-4 text-center border ${invCardTab === "SUBJECT_TO_INVOICE" ? "bg-emerald-50/60 border-emerald-600 ring-1 ring-emerald-600/40 shadow-xs" : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"}`}
+                      className={`cursor-pointer transition rounded-xl p-2.5 sm:p-3 text-center border ${invCardTab === "SUBJECT_TO_INVOICE" ? "bg-emerald-50/60 border-emerald-600 ring-1 ring-emerald-600/40 shadow-2xs" : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"}`}
                     >
-                      <span className="text-xs font-sans font-extrabold uppercase tracking-wider text-slate-600 block">
+                      <span className="text-[10px] sm:text-[11px] font-sans font-bold uppercase tracking-wider text-slate-600 block">
                         Total Subject To Invoice
                       </span>
-                      <span className="text-xl sm:text-2xl font-black text-emerald-800 mt-1 block">
+                      <span className="text-sm sm:text-base lg:text-lg font-bold font-mono text-emerald-800 mt-0.5 block truncate">
                         {formatIDR(totalSubjectToInvoice)}
                       </span>
-                      <span className="text-[11px] font-sans text-slate-500 font-medium block mt-1">
+                      <span className="text-[10px] font-sans text-slate-500 font-medium block truncate mt-0.5">
                         Total BA Siap Tagih (Ready to Invoice)
                       </span>
                     </div>
@@ -500,7 +520,10 @@ export function InvoiceView({ c }: { c: any }) {
                                     const isImmutable = row.status === "Tax_Reported" || row.status === "Paid";
                                     return (
                                       <tr key={row.id} className="hover:bg-slate-50 transition group">
-                                        <td className="p-2.5 font-bold text-slate-900">{row.customerCode}</td>
+                                        <td className="p-2.5">
+                                          <div className="font-extrabold text-slate-900">{row.customerCode}</div>
+                                          <div className="text-[10px] text-slate-500 font-medium">{getCustomerOfficialName(row.customerCode)}</div>
+                                        </td>
                                         <td className="p-2.5 text-slate-700 font-medium">{row.workPeriod || "Juni 2026"}</td>
                                         <td className="p-2.5 font-mono font-bold text-cyan-800">
                                           <div>{row.invoiceNo}</div>
@@ -603,7 +626,10 @@ export function InvoiceView({ c }: { c: any }) {
                                 </tr>
                                   {clientRows.map((row) => (
                                     <tr key={row.id} className="hover:bg-slate-50 transition">
-                                      <td className="p-2.5 font-bold text-slate-900">{row.customerCode}</td>
+                                      <td className="p-2.5">
+                                        <div className="font-extrabold text-slate-900">{row.customerCode}</div>
+                                        <div className="text-[10px] text-slate-500 font-medium">{getCustomerOfficialName(row.customerCode)}</div>
+                                      </td>
                                       <td className="p-2.5 font-medium text-slate-700">{row.workPeriod}</td>
                                       <td className="p-2.5 text-slate-600 font-mono text-xs font-bold">{row.claimRefNo || row.invoiceNo}</td>
                                       <td className="p-2.5 text-slate-700 font-medium">{row.remarks}</td>

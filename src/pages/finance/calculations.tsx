@@ -20,26 +20,98 @@ export async function fetchServerCalculations(input: any) {
 /** Hitung Raise & Fall Index dari harga solar, upah, dan kurs. */
 export function calcRFIndex(fuelPriceUSD: number, laborPriceIDR: number, mRate: number, rfMaster?: any): number {
   if (!rfMaster) {
-    return 1.0; // fallback if no RF master is provided
+    return 1.0;
   }
   
-  const baseFuelPrice = rfMaster.baseFuelFo || 1;
-  const baseLaborPrice = rfMaster.baseLaborLo || 1;
-  const baseForexRate = rfMaster.baseForexXo || 1;
-  const weightA = rfMaster.weightFuelA || 0;
-  const weightB = rfMaster.weightLaborB || 0;
-  const weightC = rfMaster.weightFixedC || 0;
+  if (rfMaster.formulaScheme === "SINGLE_FACTOR_FUEL" || rfMaster.customerCode === "BGG") {
+    const baseFo = rfMaster.baseFuelFo || 9000;
+    const actualFn = rfMaster.actualFuelFn || 21601.53;
+    return Number((0.60 + (0.40 * (actualFn / baseFo))).toFixed(3));
+  }
+
+  // POS (TRIPLE_FACTOR_DLF): D + L + F
+  const baseFuelPrice = rfMaster.baseFuelFo || 10699.97;
+  const baseLaborPrice = rfMaster.baseLaborLo || 3594536;
+  const baseForexRate = rfMaster.baseForexXo || 15388.75;
+  const weightA = rfMaster.weightFuelA || 0.34;
+  const weightB = rfMaster.weightLaborB || 0.25;
+  const weightC = rfMaster.weightFixedC || 0.41;
   
-  // We assume obBaseRateUSD is 1 for the purpose of the index multiplier calculation, 
-  // since the index is a multiplier applied to the base rate later.
-  const obBaseRateUSD = 1.0; 
+  const fuelTerm = (weightA * (fuelPriceUSD * mRate)) / baseFuelPrice;
+  const laborTerm = weightB > 0 && baseLaborPrice > 0 && baseForexRate > 0
+    ? (weightB * (laborPriceIDR * mRate)) / (baseLaborPrice * baseForexRate)
+    : 0;
+  const fixedTerm = weightC;
   
-  const fuelTerm = (obBaseRateUSD * weightA * (fuelPriceUSD * mRate)) / baseFuelPrice;
-  const laborTerm = weightB > 0 ? (obBaseRateUSD * weightB * (laborPriceIDR * mRate)) / (baseLaborPrice * baseForexRate) : 0;
-  const fixedTerm = obBaseRateUSD * weightC;
-  
-  return (fuelTerm + laborTerm + fixedTerm) / obBaseRateUSD;
+  return Number((fuelTerm + laborTerm + fixedTerm).toFixed(3));
 }
+
+export interface SBSDistanceTier {
+  min: number;
+  max: number;
+  rangeLabel: string;
+  rate: number;
+}
+
+export const SBS_DISTANCE_TIERS: SBSDistanceTier[] = [
+  { min: 0, max: 250, rangeLabel: "0-250", rate: 5485 },
+  { min: 251, max: 500, rangeLabel: "251-500", rate: 6915 },
+  { min: 501, max: 750, rangeLabel: "501-750", rate: 8346 },
+  { min: 751, max: 1000, rangeLabel: "751-1000", rate: 9777 },
+  { min: 1001, max: 1250, rangeLabel: "1001-1250", rate: 11208 },
+  { min: 1251, max: 1500, rangeLabel: "1251-1500", rate: 12638 },
+  { min: 1501, max: 1750, rangeLabel: "1501-1750", rate: 14069 },
+  { min: 1751, max: 2000, rangeLabel: "1751-2000", rate: 15500 },
+  { min: 2001, max: 2250, rangeLabel: "2001-2250", rate: 16931 },
+  { min: 2251, max: 2500, rangeLabel: "2251-2500", rate: 18362 },
+  { min: 2501, max: 2750, rangeLabel: "2501-2750", rate: 19792 },
+  { min: 2751, max: 3000, rangeLabel: "2751-3000", rate: 21223 },
+  { min: 3001, max: 3250, rangeLabel: "3001-3250", rate: 22654 },
+  { min: 3251, max: 3500, rangeLabel: "3251-3500", rate: 24085 },
+  { min: 3501, max: 3750, rangeLabel: "3501-3750", rate: 25515 },
+  { min: 3751, max: 4000, rangeLabel: "3751-4000", rate: 26946 },
+  { min: 4001, max: 4250, rangeLabel: "4001-4250", rate: 28377 },
+  { min: 4251, max: 4500, rangeLabel: "4251-4500", rate: 29808 },
+  { min: 4501, max: 4750, rangeLabel: "4501-4750", rate: 31238 },
+  { min: 4751, max: 5000, rangeLabel: "4751-5000", rate: 32669 },
+  { min: 5001, max: 5250, rangeLabel: "5001-5250", rate: 34100 },
+  { min: 5251, max: 5500, rangeLabel: "5251-5500", rate: 35531 },
+  { min: 5501, max: 5750, rangeLabel: "5501-5750", rate: 36962 },
+  { min: 5751, max: 6000, rangeLabel: "5751-6000", rate: 38392 },
+  { min: 6001, max: 6250, rangeLabel: "6001-6250", rate: 39823 },
+  { min: 6251, max: 6500, rangeLabel: "6251-6500", rate: 41254 },
+  { min: 6501, max: 6750, rangeLabel: "6501-6750", rate: 42685 },
+  { min: 6751, max: 7000, rangeLabel: "6751-7000", rate: 44115 },
+  { min: 7001, max: 7250, rangeLabel: "7001-7250", rate: 45546 },
+  { min: 7251, max: 7500, rangeLabel: "7251-7500", rate: 46977 },
+  { min: 7501, max: 7750, rangeLabel: "7501-7750", rate: 48408 },
+  { min: 7751, max: 8000, rangeLabel: "7751-8000", rate: 49838 },
+  { min: 8001, max: 8250, rangeLabel: "8001-8250", rate: 51269 },
+  { min: 8251, max: 8500, rangeLabel: "8251-8500", rate: 52700 },
+  { min: 8501, max: 8750, rangeLabel: "8501-8750", rate: 54131 },
+  { min: 8751, max: 9000, rangeLabel: "8751-9000", rate: 55562 },
+  { min: 9001, max: 9250, rangeLabel: "9001-9250", rate: 56992 },
+  { min: 9251, max: 9500, rangeLabel: "9251-9500", rate: 58423 },
+  { min: 9501, max: 9750, rangeLabel: "9501-9750", rate: 59854 },
+  { min: 9751, max: 10000, rangeLabel: "9751-10000", rate: 61285 },
+];
+
+export function getSBSTarifByDistance(distance: number): { rate: number; tier: SBSDistanceTier | null } {
+  if (distance === undefined || distance === null || distance < 0) {
+    return { rate: 0, tier: null };
+  }
+  const dist = Number(distance);
+  const matched = SBS_DISTANCE_TIERS.find((t) => dist >= t.min && dist <= t.max);
+  if (matched) {
+    return { rate: matched.rate, tier: matched };
+  }
+  if (dist > 10000) {
+    const maxTier = SBS_DISTANCE_TIERS[SBS_DISTANCE_TIERS.length - 1];
+    return { rate: maxTier.rate, tier: maxTier };
+  }
+  return { rate: 0, tier: null };
+}
+
 /** Pabrik rumus item invoice: dependensi state disuntikkan lewat parameter. */
 export function createFinanceCalculations(deps: {
   formData: any;
@@ -168,7 +240,18 @@ export function createFinanceCalculations(deps: {
       }
 
       if (item.section === "D") {
-        unitRate = Number(item.unitRateIDR || 0);
+        if (item.unitRateIDR !== undefined && item.unitRateIDR !== null && Number(item.unitRateIDR) > 0) {
+          unitRate = Number(item.unitRateIDR);
+        } else {
+          const rfDelta = Math.max(0, rfIndexCalculated - 1);
+          let baseRate = 29500;
+          if (item.description?.includes("REMOVAL 2") || item.description?.includes("25%")) {
+            baseRate = 28750;
+          } else if (item.description?.toLowerCase().includes("coal")) {
+            baseRate = 17500;
+          }
+          unitRate = Math.round(baseRate * rfDelta);
+        }
         amount = Math.round(vol * unitRate);
         return { unitRate, amount };
       }
@@ -207,13 +290,20 @@ export function createFinanceCalculations(deps: {
       return { unitRate, amount };
     }
 
-    // Explicit amount item (e.g. Discounts / Deductions)
+    // Explicit amount item (e.g. Discounts / Deductions or Master Item)
     if (item.amount !== undefined && item.amount !== null && item.amount !== 0) {
-      return { unitRate: 0, amount: item.amount };
+      return { unitRate: Number(item.unitRateIDR || (vol > 0 ? Math.round(item.amount / vol) : item.amount)), amount: Number(item.amount) };
     }
 
-    // Customer: DBK (Dual Currency USD to IDR)
-    if (cust === "DBK") {
+    // Explicit unitRateIDR (e.g. Facility Claims, Rental Alat, Direct IDR pricing)
+    if (item.unitRateIDR !== undefined && item.unitRateIDR !== null && item.unitRateIDR > 0 && (!item.baseRateUSD || item.baseRateUSD === 0)) {
+      unitRate = Number(item.unitRateIDR);
+      amount = Math.round(vol * unitRate);
+      return { unitRate, amount };
+    }
+
+    // Customer: PTRO / DBK (Petrosea Dual Currency USD to IDR)
+    if (cust === "PTRO" || cust === "DBK") {
       if (item.section === "C") {
         // C1 — Over Distance OB (USD-based $0.028/100m, basis 1.000m)
         // C2 — Over Distance Coal (IDR-based Rp 230/100m, basis 3.000m)
@@ -245,7 +335,7 @@ export function createFinanceCalculations(deps: {
     }
 
     // Customer: SBS with explicit unitRateIDR
-    if (item.unitRateIDR !== undefined) {
+    if (item.unitRateIDR !== undefined && item.unitRateIDR > 0) {
       unitRate = item.unitRateIDR;
       amount = Math.round(vol * unitRate);
       return { unitRate, amount };
@@ -253,23 +343,23 @@ export function createFinanceCalculations(deps: {
 
     // Customer: POS (Formula USD * mRate & RF Index)
     if (item.section === "A") {
-      unitRate = Math.round((item.baseRateUSD || 0) * mRate);
+      unitRate = (item.baseRateUSD && item.baseRateUSD > 0) ? Math.round(item.baseRateUSD * mRate) : Number(item.unitRateIDR || 0);
       amount = Math.round(vol * unitRate);
     } else if (item.section === "B") {
       const effMtr = (mtr - 1000) / 1000;
-      unitRate = Math.round(effMtr * (item.baseRateUSD || 0) * mRate);
+      unitRate = (item.baseRateUSD && item.baseRateUSD > 0) ? Math.round(effMtr * item.baseRateUSD * mRate) : Number(item.unitRateIDR || 0);
       amount = Math.round(vol * unitRate);
     } else if (item.section === "C") {
-      unitRate = Math.round((item.baseRateUSD || 0) * mRate);
+      unitRate = (item.baseRateUSD && item.baseRateUSD > 0) ? Math.round(item.baseRateUSD * mRate) : Number(item.unitRateIDR || 0);
       amount = Math.round(vol * unitRate);
     } else if (item.section === "D") {
       if (item.type === "overhaul" || item.description.toLowerCase().includes("overhaul")) {
         const effMtr = (mtr - 1000) / 1000;
-        const baseRateIDR = Math.round(effMtr * (item.baseRateUSD || 0) * mRate);
+        const baseRateIDR = (item.baseRateUSD && item.baseRateUSD > 0) ? Math.round(effMtr * item.baseRateUSD * mRate) : Number(item.unitRateIDR || 0);
         unitRate = Math.round(baseRateIDR * rfFactor);
         amount = Math.round(vol * unitRate);
       } else {
-        const baseRateIDR = Math.round((item.baseRateUSD || 0) * mRate);
+        const baseRateIDR = (item.baseRateUSD && item.baseRateUSD > 0) ? Math.round(item.baseRateUSD * mRate) : Number(item.unitRateIDR || 0);
         unitRate = Math.round(baseRateIDR * rfFactor);
         amount = Math.round(vol * unitRate);
       }
@@ -303,7 +393,7 @@ export function createFinanceCalculations(deps: {
       pph23 = Math.round(totalGross * 0.02);
       totalInvoice = totalGross + vat12 - pph23;
       totalDibayar = totalInvoice;
-    } else if (cust === "DBK") {
+    } else if (cust === "PTRO" || cust === "DBK") {
       totalGross = subA + subB + subC;
       dpp11_12 = Math.round(totalGross * 11 / 12);
       vat12 = Math.round(dpp11_12 * 0.12);

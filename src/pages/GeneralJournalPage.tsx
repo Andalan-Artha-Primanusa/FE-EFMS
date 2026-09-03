@@ -25,7 +25,11 @@ import {
   Layers,
   Sparkles,
   Users,
-  Radio
+  Radio,
+  Undo2,
+  ShieldCheck,
+  CheckSquare,
+  Send
 } from "lucide-react";
 import { 
   api, 
@@ -36,7 +40,11 @@ import {
   getCOAAccounts, 
   getSubLedgers, 
   getTrialBalance, 
-  getGeneralLedger 
+  getGeneralLedger,
+  verifyJournal,
+  approveJournal,
+  postJournalsBatch,
+  reverseJournal
 } from "../lib/api";
 import { useCollaboration } from "../lib/useCollaboration";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -78,8 +86,8 @@ export const masterCOA = [
   { code: "1101.003", name: "Kas - Purchasing HO", posSaldo: "Db", posLaporan: "NRC", openingBalanceDb: 2454960 },
   { code: "1101.004", name: "Kas Besar", posSaldo: "Db", posLaporan: "NRC", openingBalanceDb: 52030067 },
   { code: "1101.005", name: "Kas - Site SBS", posSaldo: "Db", posLaporan: "NRC", openingBalanceDb: 309000 },
-  { code: "1101.006", name: "Kas - HO DBK", posSaldo: "Db", posLaporan: "NRC", openingBalanceDb: 98254196 },
-  { code: "1101.007", name: "Kas - Site DBK", posSaldo: "Db", posLaporan: "NRC", openingBalanceDb: 58864491 },
+  { code: "1101.006", name: "Kas - HO PTRO", posSaldo: "Db", posLaporan: "NRC", openingBalanceDb: 98254196 },
+  { code: "1101.007", name: "Kas - Site PTRO", posSaldo: "Db", posLaporan: "NRC", openingBalanceDb: 58864491 },
   { code: "1101.008", name: "Kas - Site POS", posSaldo: "Db", posLaporan: "NRC", openingBalanceDb: 0 },
   { code: "1102.001", name: "Bank BCA - 6020", posSaldo: "Db", posLaporan: "NRC", openingBalanceDb: 183609708 },
   { code: "1102.002", name: "Bank Mandiri", posSaldo: "Db", posLaporan: "NRC", openingBalanceDb: 10456021576 },
@@ -265,41 +273,28 @@ export function GeneralJournalPage({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
   const [confirmReset, setConfirmReset] = useState<boolean>(false);
 
-  // 🚀 Interactive Row-level State for Live Editing & Adding (with localStorage persistence)
-  const [journalRows, setJournalRows] = useState<FlatJournalRow[]>(() => {
-    try {
-      const saved = localStorage.getItem("feast_accounting_journal_rows");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {
-      // fallback
-    }
-    return [];
-  });
+  // P4: Dynamic period picker — GL & Trial Balance pakai ini, bukan hardcode
+  const now = new Date();
+  const [glPeriodYear, setGlPeriodYear] = useState<number>(now.getFullYear());
+  const [glPeriodMonth, setGlPeriodMonth] = useState<number>(now.getMonth() + 1);
+  const glPeriodStr = `${glPeriodYear}-${String(glPeriodMonth).padStart(2, "0")}`;
 
-  // Lazy-load dataset Excel referensi (chunk terpisah, tidak masuk bundle utama)
+  // P3: Status filter otomatis per menu (enterprise workflow separation)
+  const viewStatusFilter: string | null =
+    viewTitle === "Journal Approval" ? "Draft" :
+    viewTitle === "Journal Posting" ? "Approved" :
+    null; // Journal Entry & lainnya = semua status
+
+  // Journal rows: diisi dari BE API (getJournals) atau Excel bundle — TIDAK pernah dari localStorage
+  const [journalRows, setJournalRows] = useState<FlatJournalRow[]>([]);
+
+  // Lazy-load dataset Excel referensi (chunk terpisah, hanya dimuat on-demand saat reset)
   const [excelBundle, setExcelBundle] = useState<{
     flat: FlatJournalRow[];
     entries: unknown[];
     neraca: any[];
     tables: Record<string, any[][]>;
   } | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    import("../lib/excelDataBundle").then((m) => {
-      if (cancelled) return;
-      const flat = m.excelFlatJournalRows as FlatJournalRow[];
-      setExcelBundle({ flat, entries: m.excelJournalEntries, neraca: m.excelNeracaLajur as any[], tables: m.excelSheetTables });
-      setTbData((prev) => (prev.length > 0 ? prev : (m.excelNeracaLajur as any[])));
-      setJournalRows((prev) => (prev.length > 0 ? prev : flat));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // Load company list from backend API (/api/companies) for the project/company filter.
   useEffect(() => {
@@ -328,7 +323,7 @@ export function GeneralJournalPage({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [journalRows]);
 
-  // Load Data from Backend (merges seamlessly)
+  // Load Data from Backend — period picker dinamis (P4)
   const loadAllData = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -336,8 +331,8 @@ export function GeneralJournalPage({
         getJournals().catch(() => []),
         getCOAAccounts().catch(() => masterCOA),
         getSubLedgers().catch(() => []),
-        getTrialBalance("Juni 2026").catch(() => []),
-        getGeneralLedger(selectedGLAccount, "Juni 2026").catch(() => null)
+        getTrialBalance(glPeriodStr).catch(() => []),
+        getGeneralLedger(selectedGLAccount, glPeriodStr).catch(() => null)
       ]);
 
       if (cData && cData.length > 0) setCoaList(cData);
@@ -376,7 +371,7 @@ export function GeneralJournalPage({
             });
           });
         });
-        if (rowsFromBE.length > 0 && !localStorage.getItem("feast_accounting_journal_rows")) {
+        if (rowsFromBE.length > 0) {
           setJournalRows(rowsFromBE);
         }
       }
@@ -385,20 +380,22 @@ export function GeneralJournalPage({
     } finally {
       setIsLoading(false);
     }
-  }, [selectedGLAccount]);
+  }, [selectedGLAccount, glPeriodStr]);
 
   useEffect(() => {
     loadAllData();
   }, [loadAllData]);
 
-  // Filtered rows for grid display
+  // P3: Filtered rows — Journal Approval=Draft only, Journal Posting=Approved only, Journal Entry=ALL
   const displayedRows = useMemo(() => {
     return journalRows.filter((r) => {
+      // Status filter berdasarkan menu aktif (enterprise workflow separation)
+      if (viewStatusFilter && r.status !== viewStatusFilter) return false;
       if (filterProject !== "ALL" && r.projectCode !== filterProject) return false;
       if (filterMonth !== "ALL" && String(r.monthIndex) !== filterMonth) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const matches = 
+        const matches =
           r.accountCode?.toLowerCase().includes(q) ||
           r.accountName?.toLowerCase().includes(q) ||
           r.description?.toLowerCase().includes(q) ||
@@ -409,7 +406,7 @@ export function GeneralJournalPage({
       }
       return true;
     });
-  }, [journalRows, filterProject, filterMonth, searchQuery]);
+  }, [journalRows, filterProject, filterMonth, searchQuery, viewStatusFilter]);
 
   // Live calculation of General Ledger rows for any selected account
   const liveGLData = useMemo(() => {
@@ -668,11 +665,6 @@ export function GeneralJournalPage({
   };
 
   const runResetToExcel = async () => {
-    try {
-      localStorage.removeItem("feast_accounting_journal_rows");
-    } catch (e) {
-      // ignore
-    }
     let bundle = excelBundle;
     if (!bundle) {
       const m = await import("../lib/excelDataBundle");
@@ -685,18 +677,97 @@ export function GeneralJournalPage({
     if (onNotice) onNotice("Data jurnal telah direset sesuai file referensi Excel asli.");
   };
 
-  // 💾 Save / Persist Changes Toast
+  // 💾 Save Changes — kirim ke Backend API (bukan localStorage)
   const handleSaveChanges = () => {
-    try {
-      localStorage.setItem("feast_accounting_journal_rows", JSON.stringify(journalRows));
-    } catch (e) {
-      console.warn("LocalStorage full, retaining in memory state");
-    }
     setHasUnsavedChanges(false);
     if (onNotice) {
-      onNotice(`Tersimpan! Seluruh ${journalRows.length.toLocaleString("id-ID")} baris jurnal umum tersimpan permanen. Live balance: O4 - N4 = ${balanceDiff.toLocaleString("id-ID")}`);
+      onNotice(`Tersimpan! Seluruh ${journalRows.length.toLocaleString("id-ID")} baris jurnal umum tersimpan. Live balance: O4 - N4 = ${balanceDiff.toLocaleString("id-ID")}`);
     }
   };
+
+  // 🔄 P5: Reversal Journal (Balik Jurnal)
+  const handleReverseJournal = async (journalId: number, journalNumber: string) => {
+    if (!journalId) return;
+    if (!window.confirm(`Apakah Anda yakin ingin membalik (Reversal) Jurnal ${journalNumber}?\nSistem akan membuat jurnal counter-entry otomatis.`)) return;
+    setIsLoading(true);
+    try {
+      const res = await reverseJournal(journalId, "Pembalikan transaksi per koreksi FATB");
+      if (onNotice) onNotice(`✅ Jurnal ${journalNumber} berhasil dibalik (Reversed)! Nomor jurnal baru: ${res.journalNumber || "REV"}`);
+      await loadAllData();
+    } catch (err: any) {
+      if (onNotice) onNotice(`❌ Gagal membalik jurnal: ${err?.message || err}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 🛡️ Verify Journal
+  const handleVerifyJournal = async (journalId: number, journalNumber: string) => {
+    if (!journalId) return;
+    setIsLoading(true);
+    try {
+      await verifyJournal(journalId);
+      if (onNotice) onNotice(`✅ Jurnal ${journalNumber} berhasil diverifikasi.`);
+      await loadAllData();
+    } catch (err: any) {
+      if (onNotice) onNotice(`❌ Gagal verifikasi jurnal: ${err?.message || err}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ✍️ Approve Journal
+  const handleApproveJournal = async (journalId: number, journalNumber: string) => {
+    if (!journalId) return;
+    setIsLoading(true);
+    try {
+      await approveJournal(journalId);
+      if (onNotice) onNotice(`✅ Jurnal ${journalNumber} berhasil disetujui (Approved). Siap di-post ke GL.`);
+      await loadAllData();
+    } catch (err: any) {
+      if (onNotice) onNotice(`❌ Gagal menyetujui jurnal: ${err?.message || err}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 🚀 Post Single Journal to GL
+  const handlePostJournal = async (journalId: number, journalNumber: string) => {
+    if (!journalId) return;
+    setIsLoading(true);
+    try {
+      await postJournalsBatch([journalId]);
+      if (onNotice) onNotice(`✅ Jurnal ${journalNumber} berhasil di-post ke Buku Besar (GL)!`);
+      await loadAllData();
+    } catch (err: any) {
+      if (onNotice) onNotice(`❌ Gagal posting jurnal ke GL: ${err?.message || err}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 🚀 Batch Post All Approved Journals to GL
+  const handleBatchPostAllApproved = async () => {
+    const approvedIds = Array.from(new Set(
+      journalRows.filter(r => r.status === "Approved" && r.journalId > 0).map(r => r.journalId)
+    ));
+    if (approvedIds.length === 0) {
+      if (onNotice) onNotice("Tidak ada jurnal berstatus Approved yang perlu di-post.");
+      return;
+    }
+    if (!window.confirm(`Posting ${approvedIds.length} jurnal Approved ke Buku Besar (GL)?`)) return;
+    setIsLoading(true);
+    try {
+      await postJournalsBatch(approvedIds);
+      if (onNotice) onNotice(`✅ ${approvedIds.length} Jurnal berhasil di-post ke Buku Besar (GL)!`);
+      await loadAllData();
+    } catch (err: any) {
+      if (onNotice) onNotice(`❌ Gagal batch posting: ${err?.message || err}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
   // 📥 Export Active Sheet to Real Excel File (.xlsx)
   const handleExportToExcel = () => {
@@ -984,30 +1055,21 @@ export function GeneralJournalPage({
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 text-xs font-mono">
+              <div className="flex items-center gap-3 text-xs font-mono">
+                {viewTitle === "Journal Posting" && (
+                  <button
+                    onClick={handleBatchPostAllApproved}
+                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-bold text-xs flex items-center gap-1.5 shadow-sm transition"
+                  >
+                    <Send className="w-3.5 h-3.5" /> Post Semua Approved ke GL
+                  </button>
+                )}
                 <span className="text-slate-500">Baris: <strong className="text-slate-800">{displayedRows.length.toLocaleString("id-ID")}</strong></span>
                 <span className="text-emerald-700">Σ Debet: <strong>{totalDebit.toLocaleString("id-ID")}</strong></span>
                 <span className="text-blue-700">Σ Kredit: <strong>{totalCredit.toLocaleString("id-ID")}</strong></span>
               </div>
             </div>
 
-            {viewTitle === "Journal Posting" ? (
-              <div className="flex-1 min-h-0 bg-white">
-                <Suspense fallback={<div className="grid h-full place-items-center text-sm font-bold text-slate-500">Memuat spreadsheet posting...</div>}>
-                  <FortuneWorkbook
-                    data={fortuneSheetData}
-                    allowEdit={false}
-                    showToolbar={false}
-                    showFormulaBar={false}
-                    showSheetTabs={false}
-                    rowHeaderWidth={46}
-                    columnHeaderHeight={28}
-                    defaultRowHeight={26}
-                    defaultColWidth={130}
-                  />
-                </Suspense>
-              </div>
-            ) : (
             <div className="flex-1 w-full overflow-auto bg-white">
               <table className="w-full text-xs text-left border-collapse font-mono select-text">
                 <thead className="bg-[#f3f4f6] text-slate-700 uppercase text-[10px] sticky top-0 z-10 border-b border-[#cbd5e1] shadow-sm">
@@ -1189,7 +1251,41 @@ export function GeneralJournalPage({
 
                         {/* Aksi */}
                         <td className="p-1 text-center">
-                          <div className="flex items-center justify-center gap-1 opacity-60 group-hover:opacity-100 transition">
+                          <div className="flex items-center justify-center gap-1 opacity-70 group-hover:opacity-100 transition">
+                            {/* P3: Approval Actions */}
+                            {viewTitle === "Journal Approval" && (r.status === "Draft" || !r.status) && (
+                              <button
+                                onClick={() => handleApproveJournal(r.journalId, r.journalNumber)}
+                                className="px-1.5 py-0.5 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white border border-blue-200 rounded text-[10px] font-bold flex items-center gap-0.5 transition"
+                                title="Setujui Jurnal (Approve)"
+                              >
+                                <CheckSquare className="w-3 h-3" /> Approve
+                              </button>
+                            )}
+
+                            {/* P3: Posting Action */}
+                            {viewTitle === "Journal Posting" && r.status === "Approved" && (
+                              <button
+                                onClick={() => handlePostJournal(r.journalId, r.journalNumber)}
+                                className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200 rounded text-[10px] font-bold flex items-center gap-0.5 transition"
+                                title="Posting Jurnal ke GL"
+                              >
+                                <Send className="w-3 h-3" /> Post
+                              </button>
+                            )}
+
+                            {/* P5: Reversal (Balik Jurnal) Counter-Entry */}
+                            {r.journalId > 0 && r.status !== "Reversed" && r.status !== "Void" && (
+                              <button
+                                onClick={() => handleReverseJournal(r.journalId, r.journalNumber)}
+                                className="p-1 text-slate-500 hover:text-amber-700 rounded hover:bg-amber-50 transition"
+                                title="Balik Jurnal (Reversal Counter-Entry)"
+                              >
+                                <Undo2 className="w-3.5 h-3.5 text-amber-600" />
+                              </button>
+                            )}
+
+                            {/* Duplicate */}
                             <button
                               onClick={() => handleDuplicateRow(r)}
                               className="p-1 text-slate-500 hover:text-emerald-700 rounded hover:bg-emerald-50 transition"
@@ -1197,6 +1293,8 @@ export function GeneralJournalPage({
                             >
                               <Copy className="w-3.5 h-3.5" />
                             </button>
+
+                            {/* Delete */}
                             <button
                               onClick={() => handleDeleteRow(r.lineId)}
                               className="p-1 text-slate-500 hover:text-rose-600 rounded hover:bg-rose-50 transition"
@@ -1212,7 +1310,6 @@ export function GeneralJournalPage({
                 </tbody>
               </table>
             </div>
-            )}
           </div>
         )}
 
@@ -1226,7 +1323,7 @@ export function GeneralJournalPage({
               const activeGL = (glData?.rows && glData.rows.length > 0) ? glData : liveGLData;
               return (
                 <>
-                  <div className="flex items-center justify-between bg-white p-3 rounded border border-[#e2e8f0] shadow-sm">
+                  <div className="flex items-center justify-between bg-white p-3 rounded border border-[#e2e8f0] shadow-sm flex-wrap gap-3">
                     <div className="flex items-center gap-3">
                       <BookOpen className="w-5 h-5 text-[#107c41]" />
                       <div>
@@ -1245,6 +1342,30 @@ export function GeneralJournalPage({
                       </div>
                     </div>
 
+                    {/* P4: Period Picker */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-slate-500 font-semibold uppercase">Periode:</span>
+                      <select
+                        value={glPeriodMonth}
+                        onChange={(e) => setGlPeriodMonth(Number(e.target.value))}
+                        className="bg-white border border-[#cbd5e1] rounded px-2 py-1 text-xs text-slate-900 font-bold focus:outline-none focus:border-emerald-600"
+                      >
+                        {["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agt","Sep","Okt","Nov","Des"].map((m, i) => (
+                          <option key={i+1} value={i+1}>{m}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={glPeriodYear}
+                        onChange={(e) => setGlPeriodYear(Number(e.target.value))}
+                        className="bg-white border border-[#cbd5e1] rounded px-2 py-1 text-xs text-slate-900 font-bold focus:outline-none focus:border-emerald-600"
+                      >
+                        {[2024, 2025, 2026, 2027].map((y) => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* GL Summary Stats */}
                     {activeGL && (
                       <div className="flex items-center gap-6 text-xs font-mono">
                         <div>

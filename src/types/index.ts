@@ -569,64 +569,94 @@ export interface DailyExchangeRate {
 
 // ─── Accounting ─────────────────────────────────────────────
 
+export interface JournalLine {
+  id?: number;
+  journalId?: number;
+  projectCode?: string;
+  accountCode: string;
+  accountName: string;
+  subAccountCode?: string;
+  description: string;
+  debit: number;
+  credit: number;
+  lineOrder?: number;
+}
+
 export interface JournalEntry {
   id: number;
   journalNumber: string;
   journalDate: string;
-  sourceModule: string;
-  sourceReference: string;
+  sourceModule?: string;
+  sourceReference?: string;
+  customerCode?: string;
   description: string;
-  status: string;
   totalDebit: number;
   totalCredit: number;
+  isBalanced?: boolean;
+  status: string; // "Draft" | "Verified" | "Approved" | "Posted to GL" | "Reversed"
+  createdBy?: string;
+  verifiedBy?: string;
+  approvedBy?: string;
+  postedBy?: string;
+  createdAt?: string;
   lines: JournalLine[];
-  createdAt: string;
-}
-
-export interface JournalLine {
-  id: number;
-  accountCode: string;
-  accountName: string;
-  description: string;
-  debit: number;
-  credit: number;
-  costCenter?: string;
-  project?: string;
-  department?: string;
 }
 
 export interface COAAccount {
-  id: number;
   code: string;
   name: string;
-  type: string;
   parentCode?: string;
+  posSaldo: string; // "Db" | "Kr" | "-"
+  posLaporan: string; // "NRC" | "LR" | "-"
+  level?: number;
+  openingBalanceDb?: number;
+  openingBalanceKr?: number;
   isActive: boolean;
 }
 
-export interface SubLedger {
-  id: number;
+export interface SubLedgerCode {
+  code: string;
+  name: string;
+  parentAccountCode: string;
+  category: string;
+  openingBalance: number;
+  isActive: boolean;
+}
+export type SubLedger = SubLedgerCode;
+
+export interface GeneralLedgerRow {
+  date: string;
+  buktiNo: string;
+  projectCode: string;
+  description: string;
+  debit: number;
+  credit: number;
+  balance: number;
+  journalId?: number;
+}
+
+export interface GeneralLedgerView {
   accountCode: string;
   accountName: string;
-  type: string;
-  balance: number;
+  posSaldo: string;
+  openingBalance: number;
+  endingBalance: number;
+  totalDebit: number;
+  totalCredit: number;
+  rows: GeneralLedgerRow[];
 }
 
 export interface TrialBalanceRow {
   accountCode: string;
   accountName: string;
-  debit: number;
-  credit: number;
-  balance: number;
-}
-
-export interface GeneralLedgerEntry {
-  date: string;
-  journalNumber: string;
-  description: string;
-  debit: number;
-  credit: number;
-  balance: number;
+  posSaldo: string;
+  posLaporan: string;
+  neracaSaldoDebit: number;
+  neracaSaldoKredit: number;
+  labaRugiDebit: number;
+  labaRugiKredit: number;
+  neracaDebit: number;
+  neracaKredit: number;
 }
 
 export interface ProfitLossData {

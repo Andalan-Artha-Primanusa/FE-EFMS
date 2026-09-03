@@ -63,17 +63,17 @@ th {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  font-size: 0.72rem;
-  padding: 0.65rem 0.85rem;
+  font-size: 0.725rem;
+  padding: 0.55rem 0.75rem;
   border-bottom: 1px solid var(--ink-200);
   white-space: nowrap;
 }
 
 td {
-  padding: 0.75rem 0.85rem;
+  padding: 0.55rem 0.75rem;
   border-bottom: 1px solid var(--ink-200);
   color: var(--ink-800);
-  font-size: 0.825rem;
+  font-size: 0.815rem;
   font-variant-numeric: tabular-nums;
   transition: background-color 0.1s ease;
 }
@@ -86,13 +86,16 @@ tbody tr:hover {
   background-color: var(--brand-soft);
 }
 
-/* Form fields: Sharp, premium 3px border radius */
+/* Form fields: Sharp, premium 4px border radius */
 input[type="text"], input[type="number"], input[type="date"], select, textarea {
   transition: border-color 0.14s ease, box-shadow 0.14s ease;
   border: 1px solid var(--ink-300);
-  border-radius: 3px;
+  border-radius: 4px;
   color: var(--ink-900);
   background-color: var(--paper);
+  font-size: 0.835rem;
+  padding: 0.38rem 0.65rem;
+  min-height: var(--app-control-height, 2.5rem);
 }
 
 input:focus, select:focus, textarea:focus {

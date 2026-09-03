@@ -122,7 +122,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
         </div>
         {!twoFactor ? (
         <form onSubmit={submit} className="login-form">
-          <label>Email<input value={email} onChange={(e) => setEmail(e.target.value)} type="email" /></label>
+          <label>Email<input value={email} onChange={(e) => setEmail(e.target.value)} type="text" placeholder="name@company.com" /></label>
           <label>Password<input value={password} onChange={(e) => setPassword(e.target.value)} type="password" /></label>
           {error && <div className="error">{error}</div>}
           <button className="transition disabled:cursor-wait disabled:opacity-70 !bg-[#20a6b8] !text-white hover:!bg-[#1c92a2] !shadow-[0_16px_30px_rgba(32,166,184,.25)]" disabled={loading}>{loading ? "Memeriksa..." : "Login"}</button>

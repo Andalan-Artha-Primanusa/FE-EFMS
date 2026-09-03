@@ -1,5 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, ChevronRight, Lock, Play, RotateCcw, ShieldCheck } from "lucide-react";
+import { useCallback, useEffect, useState, useMemo } from "react";
+import { 
+  AlertCircle, 
+  CheckCircle2, 
+  ChevronRight, 
+  Lock, 
+  Play, 
+  RotateCcw, 
+  ShieldCheck, 
+  Scale, 
+  AlertTriangle, 
+  FileCheck, 
+  ShieldAlert 
+} from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import {
   advanceClosingStep,
@@ -7,6 +19,8 @@ import {
   resetClosing,
   startClosing,
   lockClosingPeriod,
+  getJournals,
+  getTrialBalance,
   type ClosingStep
 } from "../lib/api";
 
@@ -19,6 +33,7 @@ const STEPS = [
 ];
 
 const fmtDate = (d?: string | null) => (d ? new Date(d).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : "—");
+const formatIDR = (val: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val || 0);
 
 export function ClosingPeriodPage({ viewTitle = "Period Closing" }: { viewTitle?: string }) {
   const [periods, setPeriods] = useState<ClosingStep[]>([]);
@@ -26,9 +41,31 @@ export function ClosingPeriodPage({ viewTitle = "Period Closing" }: { viewTitle?
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const [periodJournals, setPeriodJournals] = useState<any[]>([]);
+  const [tbData, setTbData] = useState<any[]>([]);
 
   const currentYear = new Date().getFullYear();
   const monthOptions = Array.from({ length: 12 }, (_, i) => `${currentYear}-${String(i + 1).padStart(2, "0")}`);
+
+  const loadAuditChecklist = useCallback(async (period: string) => {
+    if (!period) return;
+    try {
+      const [jList, tb] = await Promise.all([
+        getJournals().catch(() => []),
+        getTrialBalance(period).catch(() => [])
+      ]);
+      const filtered = (jList || []).filter((j: any) => {
+        if (!j.journalDate) return false;
+        const d = new Date(j.journalDate);
+        const p = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        return p === period;
+      });
+      setPeriodJournals(filtered);
+      setTbData(tb || []);
+    } catch (e) {
+      // ignore
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -48,14 +85,36 @@ export function ClosingPeriodPage({ viewTitle = "Period Closing" }: { viewTitle?
     if (!selected && periods.length > 0) setSelected(periods[0].period);
   }, [periods, selected]);
 
+  useEffect(() => {
+    if (selected) {
+      loadAuditChecklist(selected);
+    }
+  }, [selected, loadAuditChecklist]);
+
   const current = periods.find((p) => p.period === selected);
   const currentIdx = current ? STEPS.indexOf(current.step) : 0;
   const isClosed = current?.status === "Closed" || current?.step === STEPS[STEPS.length - 1];
+
+  // Audit calculations for pre-closing checklist
+  const draftJournals = useMemo(() => periodJournals.filter(j => !j.status || j.status === "Draft"), [periodJournals]);
+  const approvedJournals = useMemo(() => periodJournals.filter(j => j.status === "Approved"), [periodJournals]);
+  const postedJournals = useMemo(() => periodJournals.filter(j => j.status === "Posted to GL"), [periodJournals]);
+  const reversedJournals = useMemo(() => periodJournals.filter(j => j.status === "Reversed"), [periodJournals]);
+
+  const totalTbDebit = useMemo(() => tbData.reduce((acc, r) => acc + (r.neracaSaldoDebit || 0), 0), [tbData]);
+  const totalTbCredit = useMemo(() => tbData.reduce((acc, r) => acc + (r.neracaSaldoKredit || 0), 0), [tbData]);
+  const isTbBalanced = useMemo(() => Math.abs(totalTbDebit - totalTbCredit) < 100, [totalTbDebit, totalTbCredit]);
+  const isReadyToLock = draftJournals.length === 0 && isTbBalanced;
 
   function setNoticeMsg(m: string) { setNotice(m); }
 
   async function run(label: string, fn: (p: string) => Promise<ClosingStep>) {
     if (!selected) { setNoticeMsg("Pilih periode terlebih dahulu."); return; }
+    if (label.toLowerCase().includes("lock") && draftJournals.length > 0) {
+      if (!window.confirm(`Perhatian: Masih ada ${draftJournals.length} jurnal berstatus Draft pada periode ${selected}. Yakin ingin mengunci periode?`)) {
+        return;
+      }
+    }
     setBusy(true);
     setNoticeMsg("");
     try {
@@ -117,6 +176,82 @@ export function ClosingPeriodPage({ viewTitle = "Period Closing" }: { viewTitle?
           </button>
         </div>
       </div>
+
+      {/* 🛡️ Enterprise Pre-Closing Audit & Readiness Checklist */}
+      {selected && (
+        <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs">
+          <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <Scale size={15} className="text-[#20a6b8]" /> Audit Pra-Closing & Kesiapan Tutup Buku ({selected})
+            </span>
+            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+              isReadyToLock ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-800 border-amber-200"
+            }`}>
+              {isReadyToLock ? "✓ Siap Kunci Periode" : "⚠️ Perlu Review Auditor"}
+            </span>
+          </div>
+          <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-3.5 text-xs">
+            {/* Card 1: Balance Trial Balance */}
+            <div className={`p-3.5 rounded-xl border ${isTbBalanced ? "bg-emerald-50/50 border-emerald-200" : "bg-rose-50/50 border-rose-200"}`}>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-bold text-slate-700">Keseimbangan Neraca Saldo</span>
+                {isTbBalanced ? <CheckCircle2 size={16} className="text-emerald-600" /> : <ShieldAlert size={16} className="text-rose-600" />}
+              </div>
+              <div className="space-y-1 font-mono text-[11px]">
+                <div className="flex justify-between text-slate-600"><span>Σ Debet:</span><span className="font-bold text-slate-900">{formatIDR(totalTbDebit)}</span></div>
+                <div className="flex justify-between text-slate-600"><span>Σ Kredit:</span><span className="font-bold text-slate-900">{formatIDR(totalTbCredit)}</span></div>
+                <div className={`flex justify-between pt-1 border-t font-bold ${isTbBalanced ? "text-emerald-700 border-emerald-200" : "text-rose-700 border-rose-200"}`}>
+                  <span>Status:</span>
+                  <span>{isTbBalanced ? "SEIMBANG (0 Diff)" : `SELISIH: ${formatIDR(Math.abs(totalTbDebit - totalTbCredit))}`}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Journal Status Breakdown */}
+            <div className={`p-3.5 rounded-xl border ${draftJournals.length === 0 ? "bg-emerald-50/50 border-emerald-200" : "bg-amber-50/50 border-amber-200"}`}>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-bold text-slate-700">Integritas Jurnal Transaksi</span>
+                {draftJournals.length === 0 ? <CheckCircle2 size={16} className="text-emerald-600" /> : <AlertTriangle size={16} className="text-amber-600" />}
+              </div>
+              <div className="space-y-1 text-[11px]">
+                <div className="flex justify-between text-slate-600">
+                  <span>Jurnal Draft (Unapproved):</span>
+                  <span className={`font-bold font-mono ${draftJournals.length > 0 ? "text-amber-700" : "text-emerald-700"}`}>{draftJournals.length} JV</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Jurnal Approved:</span>
+                  <span className="font-bold font-mono text-blue-700">{approvedJournals.length} JV</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Jurnal Posted to GL:</span>
+                  <span className="font-bold font-mono text-slate-900">{postedJournals.length} JV</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Reversals & Control Summary */}
+            <div className="p-3.5 rounded-xl border bg-slate-50 border-slate-200">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="font-bold text-slate-700">Kontrol & Pembalikan (Reversal)</span>
+                <FileCheck size={16} className="text-slate-500" />
+              </div>
+              <div className="space-y-1 text-[11px]">
+                <div className="flex justify-between text-slate-600">
+                  <span>Jurnal Dibalik (Reversed):</span>
+                  <span className="font-bold font-mono text-amber-700">{reversedJournals.length} JV</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Total Entri Periode Ini:</span>
+                  <span className="font-bold font-mono text-slate-900">{periodJournals.length} JV</span>
+                </div>
+                <div className="text-[10px] text-slate-500 pt-1 border-t border-slate-200">
+                  {draftJournals.length > 0 ? "Selesaikan approval seluruh jurnal draft sebelum melakukan closing." : "Seluruh jurnal telah diverifikasi & disetujui."}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">

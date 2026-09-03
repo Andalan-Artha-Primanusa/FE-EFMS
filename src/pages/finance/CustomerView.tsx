@@ -224,7 +224,7 @@ export function CustomerView({ c }: { c: any }) {
               const code = (c.code || "").toUpperCase();
               const isBGG = code === "BGG";
               const isPOS = code === "POS";
-              const isDBK = code === "DBK";
+              const isDBK = code === "PTRO" || code === "DBK";
               const isSBS = code === "SBS";
 
               return (
@@ -349,7 +349,7 @@ export function CustomerView({ c }: { c: any }) {
                     {isActive && <span className="text-[9px] font-black uppercase text-cyan-800 bg-cyan-100 px-1.5 py-0.5 rounded">Aktif</span>}
                   </div>
                   <div className="font-extrabold text-xs text-slate-900 mt-1.5">
-                    {c.code === "POS" ? "Site POS (Nikel)" : c.code === "BGG" ? "Site BGG (Batubara)" : c.code === "DBK" ? "Site DBK (Petrosea)" : "Site SBS"}
+                    {c.code === "POS" ? "Site POS (PT Position)" : c.code === "BGG" ? "Site BGG (PT Budi Gema Gempita)" : (c.code === "PTRO" || c.code === "DBK") ? "Site PTRO (PT Petrosea)" : "Site SBS (PT Satria Bahana Sarana)"}
                   </div>
                 </button>
               );

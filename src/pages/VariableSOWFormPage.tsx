@@ -6,7 +6,7 @@ import {
   defaultSOWTemplate,
   defaultBGGSOWTemplate,
   defaultSBSSOWTemplate,
-  defaultDBKSOWTemplate,
+  defaultPTROSOWTemplate,
   SOW_OPERATIONAL_SITES
 } from "./VariableSOWPage";
 import { FormattedNumberInput, formatIDR } from "./finance/helpers";
@@ -23,7 +23,7 @@ export function VariableSOWFormPage() {
     const c = (code || "").toUpperCase();
     if (c === "BGG" || c === "PT BGG") return defaultBGGSOWTemplate;
     if (c === "SBS") return defaultSBSSOWTemplate;
-    if (c === "DBK") return defaultDBKSOWTemplate;
+    if (c === "PTRO" || c === "DBK") return defaultPTROSOWTemplate;
     return defaultSOWTemplate;
   };
 
@@ -53,7 +53,7 @@ export function VariableSOWFormPage() {
     const isSBS = headerForm.companyCode === "SBS";
     const isBGG = headerForm.companyCode === "BGG";
     const newRow = {
-      category: isSBS ? "Operating & Mining" : isBGG ? "OB Removal" : "Operation & Mining",
+      category: isSBS ? "OB Removal" : isBGG ? "OB Removal" : "Operation & Mining",
       itemName: "",
       unit: isSBS ? "BCM" : isBGG ? "Bcm" : "USD/BCM",
       rateUSD: 0,
@@ -112,7 +112,7 @@ export function VariableSOWFormPage() {
 
   const isBGG = headerForm.companyCode === "BGG" || headerForm.companyCode === "PT BGG";
   const isSBS = headerForm.companyCode === "SBS";
-  const isDBK = headerForm.companyCode === "DBK";
+  const isPTRO = headerForm.companyCode === "PTRO" || headerForm.companyCode === "DBK";
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-12 mt-4">
@@ -199,8 +199,8 @@ export function VariableSOWFormPage() {
                 <>Multi-Tier Coal Index (PT BGG)</>
               ) : isSBS ? (
                 <>IDR Tetap (OB, Rental Alat & Denda)</>
-              ) : isDBK ? (
-                <>Multi-Currency USD & IDR (PT DBK)</>
+              ) : isPTRO ? (
+                <>Multi-Currency USD & IDR (PT Petrosea / PTRO)</>
               ) : (
                 <>{formatIDR(mrateBi)} / USD (M-Rate BI)</>
               )}
@@ -351,12 +351,25 @@ export function VariableSOWFormPage() {
                       <td className="p-2 pl-4 border-r border-slate-200">
                         <select
                           className="w-full bg-slate-50 border border-slate-300 rounded-lg p-1.5 text-xs font-bold text-slate-800 outline-none"
-                          value={item.category || "Operating & Mining"}
-                          onChange={(e) => handleFieldChange(idx, "category", e.target.value)}
+                          value={item.category || "OB Removal"}
+                          onChange={(e) => {
+                            const cat = e.target.value;
+                            handleFieldChange(idx, "category", cat);
+                            if (cat === "Jasa Penunjang Produksi" && (!item.unit || item.unit === "BCM" || item.unit === "Lot")) {
+                              handleFieldChange(idx, "unit", "Hours");
+                            } else if (cat === "Pengurang Pembayaran" && (!item.unit || item.unit === "BCM")) {
+                              handleFieldChange(idx, "unit", "Lot");
+                            } else if (cat === "OB Removal" && (!item.unit || item.unit === "Hours" || item.unit === "Lot")) {
+                              handleFieldChange(idx, "unit", "BCM");
+                            }
+                          }}
                         >
-                          <option value="Operating & Mining">Operating & Mining (OB)</option>
-                          <option value="Penunjang">Jasa Penunjang (Rental Alat)</option>
-                          <option value="Pengurang Biaya">Pengurang Biaya (Denda & BBM)</option>
+                          <option value="OB Removal">OB Removal (Per Area Kerja)</option>
+                          <option value="Jasa Penunjang Produksi">Jasa Penunjang Produksi (Rental Alat)</option>
+                          <option value="Pengurang Pembayaran">Pengurang Pembayaran (Denda & BBM)</option>
+                          {item.category === "Operating & Mining" && <option value="Operating & Mining">Operating & Mining (OB)</option>}
+                          {item.category === "Penunjang" && <option value="Penunjang">Penunjang (Rental Alat)</option>}
+                          {item.category === "Pengurang Biaya" && <option value="Pengurang Biaya">Pengurang Biaya (Denda & BBM)</option>}
                         </select>
                       </td>
                       <td className="p-2 border-r border-slate-200">
@@ -400,14 +413,14 @@ export function VariableSOWFormPage() {
                 </tbody>
               </table>
             </div>
-          ) : isDBK ? (
-            /* DBK MULTI-CURRENCY TABLE */
+          ) : isPTRO ? (
+            /* PTRO MULTI-CURRENCY TABLE */
             <div className="overflow-x-auto rounded-2xl border-2 border-slate-200 shadow-xs">
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-900 text-white font-black uppercase text-[11px]">
                     <th className="p-3 pl-4 border-r border-slate-800 w-44">KATEGORI</th>
-                    <th className="p-3 border-r border-slate-800">ITEM PEKERJAAN (DBK)</th>
+                    <th className="p-3 border-r border-slate-800">ITEM PEKERJAAN (PTRO)</th>
                     <th className="p-3 border-r border-slate-800 text-center w-24">SATUAN</th>
                     <th className="p-3 border-r border-slate-800 text-right w-36 bg-amber-950 text-amber-300">RATE USD ($)</th>
                     <th className="p-3 border-r border-slate-800 text-right w-36 bg-cyan-950 text-cyan-300">RATE IDR (RP)</th>

@@ -114,9 +114,12 @@ export function OrgUnitsPage({
 
   const companyName = (id: number) => companies.find((c) => c.id === id)?.name ?? "—";
 
+  const [modalError, setModalError] = useState<string | null>(null);
+
   const openCreate = () => {
     setModalMode("create");
     setEditTarget(null);
+    setModalError(null);
     setFormData({ type: "site", companyId: companies[0]?.id ?? 0, code: "", name: "", parentId: "", status: "active" });
     setModalOpen(true);
   };
@@ -124,6 +127,7 @@ export function OrgUnitsPage({
   const openEdit = (u: OrgUnit) => {
     setModalMode("edit");
     setEditTarget(u);
+    setModalError(null);
     setFormData({
       type: u.type,
       companyId: u.companyId,
@@ -137,6 +141,7 @@ export function OrgUnitsPage({
 
   const handleSave = async () => {
     setSubmitting(true);
+    setModalError(null);
     try {
       const payload = {
         type: formData.type,
@@ -156,7 +161,7 @@ export function OrgUnitsPage({
       setModalOpen(false);
       await loadUnits();
     } catch (err: any) {
-      setFeedback({ type: "error", message: err?.message || "Gagal menyimpan org unit" });
+      setModalError(err?.message || "Gagal menyimpan org unit");
     } finally {
       setSubmitting(false);
     }
@@ -340,6 +345,16 @@ export function OrgUnitsPage({
                 </div>
               </div>
             </div>
+
+            {modalError && (
+              <div className="p-2.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg flex items-center justify-between text-xs font-bold">
+                <span>{modalError}</span>
+                <button type="button" onClick={() => setModalError(null)} className="p-0.5 hover:bg-rose-100 rounded">
+                  <X size={13} />
+                </button>
+              </div>
+            )}
+
             <div className="flex items-center justify-end gap-2 pt-2">
               <button onClick={() => setModalOpen(false)} className="px-4 py-2 border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-700 transition">Batal</button>
               <button onClick={handleSave} disabled={submitting || !formData.code || !formData.name || !formData.companyId} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition disabled:opacity-50 flex items-center gap-2">

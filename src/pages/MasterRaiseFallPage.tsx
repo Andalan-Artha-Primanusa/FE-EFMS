@@ -33,7 +33,7 @@ const customerContractOptions = [
   { code: "POS", name: "PT Position (POS)", project: "POS PROJECT", contract: "002/POS-AAP/2025" },
   { code: "SBS", name: "PT Satria Bahana Sarana (SBS)", project: "PT Satria Bahana Sarana Site", contract: "230/AAP-SBS/EXT/XII/24" },
   { code: "BGG", name: "PT Budi Gema Gempita (BGG)", project: "PT Budi Gema Gempita Site", contract: "09/BGG-AAP/VIII/2018" },
-  { code: "DBK", name: "PT Daya Bumindo Karunia (DBK)", project: "PT Daya Bumindo Karunia Site", contract: "001/DBK-AAP/2024" },
+  { code: "PTRO", name: "PT Petrosea (PTRO)", project: "PT Petrosea Site", contract: "001/PTRO-AAP/2024" },
   { code: "ABN", name: "PT Andalan Bhumi Nusantara (ABN)", project: "PT Andalan Bhumi Nusantara Site", contract: "001/AAP-ABN/IV/25" }
 ];
 
@@ -63,15 +63,17 @@ export function MasterRaiseFallPage({
   const [selectedCustomer, setSelectedCustomer] = useState("ALL");
   const [companyList, setCompanyList] = useState<Company[]>([]);
 
-  // Company options built from the backend API (/api/companies) — not hardcoded.
+  // Company options built from the backend API (/api/companies) — limited to active R&F contracts (BGG & POS).
   const customerContractOptions = [
-    { code: "ALL", name: "Semua Customer / Kontrak", project: "All Projects", contract: "Semua Kontrak Active" },
-    ...companyList.map((c) => ({
-      code: c.code,
-      name: `${c.name} (${c.code})`,
-      project: "",
-      contract: ""
-    }))
+    { code: "ALL", name: "Semua Customer R&F (BGG & POS)", project: "All Projects", contract: "Semua Kontrak Active" },
+    ...companyList
+      .filter((c) => c.code === "BGG" || c.code === "POS")
+      .map((c) => ({
+        code: c.code,
+        name: `${c.name} (${c.code})`,
+        project: c.code === "POS" ? "POS PROJECT" : "PT Budi Gema Gempita Site",
+        contract: c.code === "POS" ? "002/POS-AAP/2025" : "09/BGG-AAP/VIII/2018"
+      }))
   ];
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -314,6 +316,10 @@ export function MasterRaiseFallPage({
       customerCode: selectedCustomer === "ALL" ? "" : selectedCustomer,
       projectSite: isBGG ? "PT Budi Gema Gempita Site" : "POS PROJECT",
       contractNo: isBGG ? "09/BGG-AAP/VIII/2018" : "002/POS-AAP/2025",
+      addendumNo: isBGG ? "Addendum 02/ADDM-BGG-AAP/I/2022" : "Addendum 01/POS-AAP/VI/2025",
+      effectiveFrom: isBGG ? "2022-01-01" : "2025-06-01",
+      effectiveTo: "Open-ended",
+      status: "Active",
       formulaScheme: isBGG ? "SINGLE_FACTOR_FUEL" : "TRIPLE_FACTOR_DLF",
       weightFuelA: isBGG ? 0.40 : 0.34,
       weightLaborB: isBGG ? 0.0 : 0.25,
@@ -630,13 +636,25 @@ export function MasterRaiseFallPage({
                       <td className="p-3 border-r border-slate-200">
                         <div className="font-bold text-slate-900">{r.customerCode} — {r.projectSite}</div>
                         <div className="text-[10px] font-mono text-slate-500">{r.contractNo}</div>
+                        {r.addendumNo && (
+                          <div className="text-[10px] font-mono font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/60 px-1.5 py-0.5 rounded mt-0.5 inline-block">
+                            {r.addendumNo} {r.effectiveFrom ? `(${r.effectiveFrom} s/d ${r.effectiveTo || "Open"})` : ""}
+                          </div>
+                        )}
                       </td>
                       <td className="p-3 border-r border-slate-200">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
-                          isSingle ? "bg-amber-100 text-amber-800" : "bg-cyan-100 text-cyan-800"
-                        }`}>
-                          {isSingle ? "1-Faktor BBM" : "3-Faktor (D+L+F)"}
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                            isSingle ? "bg-amber-100 text-amber-800" : "bg-cyan-100 text-cyan-800"
+                          }`}>
+                            {isSingle ? "1-Faktor BBM" : "3-Faktor (D+L+F)"}
+                          </span>
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                            r.status === "Archived" ? "bg-slate-100 text-slate-600 border border-slate-300" : "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                          }`}>
+                            {r.status || "Active"}
+                          </span>
+                        </div>
                       </td>
                       <td className="p-3 text-right font-mono font-bold border-r border-slate-200">
                         {r.actualFuelFn > 100 ? `Rp ${r.actualFuelFn?.toLocaleString("id-ID")}` : `USD ${r.actualFuelFn?.toFixed(3)}`}
@@ -978,6 +996,47 @@ export function MasterRaiseFallPage({
                       >
                         <option value="SINGLE_FACTOR_FUEL">1-Faktor BBM: 0,60 + 0,40*(Fn/Fo) (BGG)</option>
                         <option value="TRIPLE_FACTOR_DLF">3-Faktor: D + L + F (POS)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">No. Adendum Kontrak</label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: Addendum 02/..."
+                        className="w-full bg-slate-50 border border-slate-300 font-bold text-xs p-2 rounded-lg outline-none focus:border-cyan-600"
+                        value={rfForm.addendumNo || ""}
+                        onChange={(e) => setRfForm({ ...rfForm, addendumNo: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Masa Berlaku Adendum</label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: 2025-01-01 s/d Open"
+                        className="w-full bg-slate-50 border border-slate-300 font-bold text-xs p-2 rounded-lg outline-none focus:border-cyan-600"
+                        value={rfForm.effectiveFrom ? `${rfForm.effectiveFrom} s/d ${rfForm.effectiveTo || "Open"}` : ""}
+                        onChange={(e) => {
+                          const parts = e.target.value.split("s/d");
+                          setRfForm({
+                            ...rfForm,
+                            effectiveFrom: parts[0]?.trim() || e.target.value,
+                            effectiveTo: parts[1]?.trim() || "Open-ended"
+                          });
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Status Versioning</label>
+                      <select
+                        className="w-full bg-slate-50 border border-slate-300 font-bold text-xs p-2 rounded-lg outline-none focus:border-cyan-600"
+                        value={rfForm.status || "Active"}
+                        onChange={(e) => setRfForm({ ...rfForm, status: e.target.value })}
+                      >
+                        <option value="Active">Active (Berlaku)</option>
+                        <option value="Archived">Archived (Histori)</option>
                       </select>
                     </div>
                   </div>

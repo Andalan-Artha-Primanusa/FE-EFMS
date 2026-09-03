@@ -26,7 +26,7 @@ export function DashboardView({ c }: { c: any }) {
             {(dashboardData?.kpis ?? []).map((kpi: any, idx: number) => {
               const label = String(kpi?.Label || kpi?.label || "");
               const tone = String(kpi?.Tone || kpi?.tone || "");
-              const isMoney = label.toUpperCase().includes("TOTAL AR") || label.toUpperCase().includes("AR CRITICAL");
+              const isMoney = label.toUpperCase().includes("TOTAL AR") || label.toUpperCase().includes("AR CRITICAL") || label.toUpperCase().includes("PPN") || label.toUpperCase().includes("PPH");
               const isPct = label.includes("%");
               const isDays = label.toUpperCase().includes("DSO");
               const rawVal = kpi?.Value !== undefined ? kpi?.Value : kpi?.value;

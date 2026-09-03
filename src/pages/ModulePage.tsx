@@ -42,10 +42,23 @@ export function ModulePage({
   const canManage = authorized(user, permModule, "manage");
   const canAct = authorized(user, permModule, "approve") || authorized(user, permModule, "post");
   const canWriteOrManage = canWrite || canManage;
-  const filteredRows = rows.filter((row) => JSON.stringify(row ?? {}).toLowerCase().includes(query.trim().toLowerCase()));
   const isTransaction = config.endpoint.startsWith("/api/transactions");
   const isMasterData = config.endpoint.startsWith("/api/master-data");
   const masterSchema = schemaFor(config.masterType);
+
+  const trxTypes: Record<string, string> = {
+    "Purchase Request": "Purchase Request",
+    "Expense Request": "Expense Request",
+    "Cash Advance": "Cash Advance",
+    "Reimbursement": "Reimbursement",
+    "Payment Request": "Payment Request"
+  };
+  const targetTrxType = trxTypes[config.title];
+  const typeFilteredRows = (isTransaction && targetTrxType)
+    ? rows.filter((r) => !r.type || r.type === targetTrxType || r.type.toLowerCase().includes(targetTrxType.toLowerCase()) || r.type.toLowerCase().replace(/_/g, " ").includes(targetTrxType.toLowerCase()))
+    : rows;
+
+  const filteredRows = typeFilteredRows.filter((row) => JSON.stringify(row ?? {}).toLowerCase().includes(query.trim().toLowerCase()));
   const [viewRecord, setViewRecord] = useState<Record<string, unknown> | null>(null);
   const [confirmAction, setConfirmAction] = useState<null | {
     title: string;

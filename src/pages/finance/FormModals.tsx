@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, useRef, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, TrendingDown, Archive, Scale, Search, Fuel, Loader2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, ChevronUp, GripVertical, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, TrendingDown, Archive, Scale, Search, Fuel, Loader2 } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, getAuditLogs, getCompanies, type Company, User as UserType } from "../../lib/api";
@@ -13,6 +13,7 @@ import {
   getBAStatusForExport, renderInvoiceStatusBadge, parsePeriodToMonthIndex,
   RupiahInput, VolumeInput, FormattedNumberInput, MonthPickerInput, generateAuditTimeline
 } from "./helpers";
+import { getSBSTarifByDistance, SBS_DISTANCE_TIERS } from "./calculations";
 
 export const SITE_SOW_DEFAULTS: Record<string, Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean }>> = {
   BGG: [
@@ -40,12 +41,22 @@ export const SITE_SOW_DEFAULTS: Record<string, Array<{ name: string; unit: strin
     { name: "Uncrushed rocks for construction (MDO)", unit: "BCM", defaultRate: 142275, category: "MDO", isDistanceVar: false },
     { name: "Road Construction & Drainage", unit: "Mtr", defaultRate: 450000, category: "MDO", isDistanceVar: false },
   ],
+  PTRO: [
+    { name: "OVER BURDEN", unit: "USD/Bcm", defaultRate: 26700, category: "Operating & Mining", isDistanceVar: false },
+    { name: "COAL GETTING", unit: "USD/MT", defaultRate: 15050, category: "Operating & Mining", isDistanceVar: false },
+    { name: "OVERHAUL OB", unit: "USD/BCM/100 Mtr", defaultRate: 500, category: "Over Distance", isDistanceVar: true },
+    { name: "OVERHAUL COAL GETTING", unit: "IDR/TON/100 Mtr", defaultRate: 230, category: "Over Distance", isDistanceVar: true },
+  ],
   DBK: [
-    { name: "OB Removal (Pit Sapan)", unit: "BCM", defaultRate: 31500, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Coal Winning (Pit Sapan)", unit: "Ton", defaultRate: 36000, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Land Clearing & Grubbing", unit: "Ha", defaultRate: 12500000, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Overhaul OB (>1000m)", unit: "BCM", defaultRate: 1550, category: "Over Distance", isDistanceVar: true },
-    { name: "Overhaul Coal (>3000m)", unit: "Ton", defaultRate: 19700, category: "Over Distance", isDistanceVar: true },
+    { name: "OVER BURDEN", unit: "USD/Bcm", defaultRate: 26700, category: "Operating & Mining", isDistanceVar: false },
+    { name: "COAL GETTING", unit: "USD/MT", defaultRate: 15050, category: "Operating & Mining", isDistanceVar: false },
+    { name: "OVERHAUL OB", unit: "USD/BCM/100 Mtr", defaultRate: 500, category: "Over Distance", isDistanceVar: true },
+    { name: "OVERHAUL COAL GETTING", unit: "IDR/TON/100 Mtr", defaultRate: 230, category: "Over Distance", isDistanceVar: true },
+  ],
+  ABN: [
+    { name: "Bulldozer D8R Rental", unit: "Hours", defaultRate: 2200000, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Bulldozer D85ESS Rental", unit: "Hours", defaultRate: 1950000, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Motor Grader 160K", unit: "Hours", defaultRate: 1720000, category: "Operating & Mining", isDistanceVar: false },
   ],
   SBS: [
     { name: "PIT E - DISPOSAL SEKATAN", unit: "BCM", defaultRate: 22654, category: "Operating & Mining", isDistanceVar: false },
@@ -204,7 +215,7 @@ export function FormModals({ c }: { c: any }) {
     fuelPriceUSD, setFuelPriceUSD, laborPriceIDR, setLaborPriceIDR, masterBankAccounts,
     rfIndexCalculated, activeSOWCatalog, defaultPOSBAOperatingItems, defaultPOSBAMDOItems, defaultBGGBAItems, defaultDBKBAItems, defaultSBSBAOperatingItems, defaultSBSBAMDOItems, defaultSBSBADeductionItems, latestKursBI,
     coalIndexMaster, getBGGActiveCoalTier, baOperatingItems, setBaOperatingItems, baMDOItems, setBaMDOItems, baDeductionItems, setBaDeductionItems, activeBAStep,
-    setActiveBAStep, showAddRowDropdown, setShowAddRowDropdown, invLineItems, handleCompanySelect,
+    setActiveBAStep, showAddRowDropdown, setShowAddRowDropdown, invLineItems, setInvLineItems, handleCompanySelect,
     loadDemoPOSData, loadDemoBGGData, loadDemoDBKData, loadDemoSBSData, removeInvLineItem,
     updateInvItemVolume, updateInvItemOverhaul, updateInvItemRateIDR, updateInvItemRateUSD, updateInvItemKurs,
     updateInvItemAmount, getItemEffectiveVolume, getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations,
@@ -220,6 +231,73 @@ export function FormModals({ c }: { c: any }) {
   const [baAuditLogs, setBaAuditLogs] = useState<any[]>([]);
 
   const [companyList, setCompanyList] = useState<Company[]>([]);
+  const [draggedInvId, setDraggedInvId] = useState<string | null>(null);
+  const [dragOverInvId, setDragOverInvId] = useState<string | null>(null);
+  const [isAddRowDropdownOpen, setIsAddRowDropdownOpen] = useState<boolean>(false);
+
+  const handleAddInvLineItem = (section: string = "A") => {
+    setIsAddRowDropdownOpen(false);
+    if (typeof c?.addInvLineItem === "function") {
+      c.addInvLineItem(section);
+    } else {
+      const currentCust = (formData?.customerCode || "POS").toUpperCase();
+      const isUSD = currentCust === "POS" || currentCust === "PTRO" || currentCust === "DBK";
+      const isSBS = currentCust === "SBS";
+      const desc = isSBS
+        ? (section === "B" ? "Alat Berat Tambahan (Jasa Penunjang)" : section === "P" ? "Pengurang Pembayaran Tambahan" : "Area Kerja OB Tambahan")
+        : "Pekerjaan / Item Tambahan";
+      const unit = isSBS
+        ? (section === "B" ? "Hours" : section === "P" ? "Lot" : "BCM")
+        : "Bcm";
+      const newItem = {
+        id: `custom_inv_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        section,
+        description: desc,
+        unit: unit,
+        volume: 0,
+        unitRateUSD: isUSD ? 0 : undefined,
+        unitRateIDR: isUSD ? undefined : 0,
+        kursBI: latestKursBI || mRate || 17923.30,
+        amount: 0,
+        isCustom: true
+      };
+      if (typeof c?.setInvLineItems === "function") {
+        c.setInvLineItems((prev: any[]) => [...(prev || []), newItem]);
+      }
+    }
+  };
+
+  const handleUpdateInvItemField = (id: string, field: string, val: any) => {
+    if (typeof c?.updateInvItemField === "function") {
+      c.updateInvItemField(id, field, val);
+    } else if (typeof c?.setInvLineItems === "function") {
+      c.setInvLineItems((prev: any[]) => (prev || []).map((item: any) => item.id === id ? { ...item, [field]: val } : item));
+    }
+  };
+
+  const handleReorderInvLineItems = (startIndex: number, endIndex: number) => {
+    if (typeof c?.reorderInvLineItems === "function") {
+      c.reorderInvLineItems(startIndex, endIndex);
+    } else if (typeof c?.setInvLineItems === "function") {
+      c.setInvLineItems((prev: any[]) => {
+        if (!Array.isArray(prev) || startIndex < 0 || startIndex >= prev.length || endIndex < 0 || endIndex >= prev.length) return prev;
+        const result = Array.from(prev);
+        const [removed] = result.splice(startIndex, 1);
+        result.splice(endIndex, 0, removed);
+        return result;
+      });
+    }
+  };
+
+  const moveInvRow = (id: string, dir: "up" | "down") => {
+    const list: any[] = invLineItems || [];
+    const idx = list.findIndex(i => i.id === id);
+    if (idx === -1) return;
+    const targetIdx = dir === "up" ? idx - 1 : idx + 1;
+    if (targetIdx >= 0 && targetIdx < list.length) {
+      handleReorderInvLineItems(idx, targetIdx);
+    }
+  };
 
   useEffect(() => {
     getCompanies().then((c) => { if (Array.isArray(c)) setCompanyList(c); }).catch(() => {});
@@ -247,63 +325,85 @@ export function FormModals({ c }: { c: any }) {
   if (!modalType || modalType === "none") return null;
 
   return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-2 sm:p-4">
-          <div className={`bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 w-full ${modalType === "ba" || modalType === "pending_volume" ? "max-w-7xl" : modalType === "invoice" ? "max-w-5xl lg:max-w-6xl" : "max-w-3xl"} shadow-2xl space-y-6 max-h-[96vh] overflow-y-auto transition-all`}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-1.5 sm:p-3">
+          <div className={`bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 w-full ${modalType === "ba" || modalType === "pending_volume" || modalType === "invoice" ? "max-w-[96vw] 2xl:max-w-[1550px]" : "max-w-3xl"} shadow-2xl space-y-4 max-h-[96vh] overflow-y-auto transition-all`}>
             {/* Modal Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-slate-200 pb-4">
-              <div>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2.5 flex-wrap min-w-0">
+                <h3 className="text-lg sm:text-xl font-black text-slate-900 truncate">
+                  {modalType === "ba"
+                    ? (editItem ? `Berita Acara: ${formData.baNumber || formData.signedBANumber || formData.draftBARefNo || "Draft BA"}` : "Input Berita Acara Baru")
+                    : modalType === "invoice"
+                    ? (editItem ? "Edit Invoice" : "Create Invoice")
+                    : `${editItem ? "Edit Data" : "Tambah Data Baru"} — ${modalType === "pending_volume" ? "Pending Volume" : modalType === "payment" ? "Payment Receipt" : "Customer Master"}`
+                  }
+                </h3>
                 {modalType === "ba" && editItem && (
-                  <div className="mb-1">
+                  <div className="shrink-0">
                     {renderBAStatusBadge(formData.statusBA || editItem.statusBA, formData.invoiceNoLinked || editItem.invoiceNoLinked, undefined, editItem || formData, invoiceRows)}
                   </div>
                 )}
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <h3 className="text-xl sm:text-2xl font-black text-slate-900">
-                    {modalType === "ba"
-                      ? (editItem ? `Berita Acara: ${formData.baNumber || formData.signedBANumber || formData.draftBARefNo || "Draft BA"}` : "Input Berita Acara Baru")
-                      : modalType === "invoice"
-                      ? (editItem ? "Edit Invoice" : "Create Invoice")
-                      : `${editItem ? "Edit Data" : "Tambah Data Baru"} — ${modalType === "pending_volume" ? "Pending Volume (Joint Survey)" : modalType === "payment" ? "Payment Receipt" : "Customer Master"}`
-                    }
-                  </h3>
-                  {modalType === "invoice" && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200">
-                        Site: <strong className="text-cyan-900 font-black">{(formData.customerCode || "POS").toUpperCase()}</strong>
-                      </span>
-                      {(formData.customerCode || "").toUpperCase() === "POS" && (
-                        <span className="text-xs font-bold text-slate-700 bg-amber-50 px-2.5 py-0.5 rounded-lg border border-amber-200">
-                          RF Index: <strong className="text-amber-800 font-mono font-black">{rfIndexCalculated.toFixed(3)}</strong>
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-                {modalType === "ba" && editItem && Boolean(formData.invoiceNoLinked || editItem?.invoiceNoLinked) && (
-                  <div className="mt-2 p-2.5 bg-purple-50 border border-purple-200 rounded-xl flex items-center gap-2 text-xs text-purple-950 font-medium">
-                    <Lock size={14} className="text-purple-700 shrink-0" />
-                    <span>
-                      <strong>Status Terkunci:</strong> Berita Acara ini telah terbit menjadi Invoice <strong>#{formData.invoiceNoLinked || editItem?.invoiceNoLinked}</strong>. Nilai klaim & volume dilindungi dari perubahan.
+                {modalType === "invoice" && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200">
+                      Site: <strong className="text-cyan-900 font-black">{(formData.customerCode || "POS").toUpperCase()}</strong>
                     </span>
+                    {(formData.customerCode || "").toUpperCase() === "POS" && (
+                      <span className="text-xs font-bold text-slate-700 bg-amber-50 px-2.5 py-0.5 rounded-lg border border-amber-200">
+                        RF Index: <strong className="text-amber-800 font-mono font-black">{rfIndexCalculated.toFixed(3)}</strong>
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap shrink-0">
                 {modalType === "ba" && editItem && (
                   <>
-                    {(formData.statusBA === "Ready to Invoice" || formData.statusBA === "Approved" || editItem.statusBA === "Ready to Invoice") && (
-                      (editItem.customerCode === "POS" || formData.customerCode === "POS") ? (
-                        (() => {
-                          const modalInvStatus = getBAInvoiceStatus(editItem || formData, invoiceRows);
-                          if (modalInvStatus.isFullyInvoiced) {
-                            return (
-                              <span className="px-3 py-1.5 rounded-xl bg-purple-100 border border-purple-300 text-purple-900 font-extrabold text-xs flex items-center gap-1.5 shadow-xs">
-                                <Archive size={14} className="text-purple-700" />
-                                <span>2/2 Invoice Telah Terbit</span>
-                              </span>
-                            );
-                          }
+                    {(() => {
+                      const modalInvStatus = getBAInvoiceStatus(editItem || formData, invoiceRows);
+                      const isPOS = (editItem.customerCode === "POS" || formData.customerCode === "POS");
+                      const linkedNo = (formData.invoiceNoLinked || editItem?.invoiceNoLinked || "").trim();
+                      const isLinked = Boolean(linkedNo && linkedNo !== "-") || modalInvStatus.isFullyInvoiced;
+
+                      if (isPOS) {
+                        if (modalInvStatus.isFullyInvoiced || (isLinked && linkedNo.includes("&"))) {
+                          return (
+                            <div className="flex items-center gap-1.5">
+                              {modalInvStatus.createdMiningInv && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setModalType("none");
+                                    setDetailViewItem({ type: "invoice", data: modalInvStatus.createdMiningInv });
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-900 font-bold text-xs flex items-center gap-1 transition cursor-pointer"
+                                  title="Lihat Dokumen Invoice Mining"
+                                >
+                                  <Archive size={12} className="text-purple-700" />
+                                  <span>Inv Mining</span>
+                                  <ExternalLink size={10} className="text-purple-700 ml-0.5" />
+                                </button>
+                              )}
+                              {modalInvStatus.createdMDOInv && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setModalType("none");
+                                    setDetailViewItem({ type: "invoice", data: modalInvStatus.createdMDOInv });
+                                  }}
+                                  className="px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-900 font-bold text-xs flex items-center gap-1 transition cursor-pointer"
+                                  title="Lihat Dokumen Invoice MDO"
+                                >
+                                  <Archive size={12} className="text-purple-700" />
+                                  <span>Inv MDO</span>
+                                  <ExternalLink size={10} className="text-purple-700 ml-0.5" />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        }
+                        if (formData.statusBA === "Ready to Invoice" || formData.statusBA === "Approved" || editItem.statusBA === "Ready to Invoice") {
                           return (
                             <div className="flex items-center gap-1.5">
                               {!modalInvStatus.createdMiningInv && (
@@ -314,9 +414,8 @@ export function FormModals({ c }: { c: any }) {
                                     createInvoiceFromBA(editItem || formData, "Operation & Mining");
                                   }}
                                   className="px-3 py-1.5 bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition cursor-pointer"
-                                  title="Auto-generate Form Invoice Kategori 1: Operations & Mining"
                                 >
-                                  <Pickaxe size={14} />
+                                  <Pickaxe size={13} />
                                   <span>+ Inv Mining</span>
                                 </button>
                               )}
@@ -328,63 +427,73 @@ export function FormModals({ c }: { c: any }) {
                                     createInvoiceFromBA(editItem || formData, "MDO");
                                   }}
                                   className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition cursor-pointer"
-                                  title="Auto-generate Form Invoice Kategori 2: Mine Development (MDO)"
                                 >
-                                  <Building2 size={14} />
+                                  <Building2 size={13} />
                                   <span>+ Inv MDO</span>
-                                </button>
-                              )}
-                              {modalInvStatus.isPartiallyInvoiced && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const targetInv = modalInvStatus.createdMiningInv || modalInvStatus.createdMDOInv;
-                                    if (targetInv) {
-                                      setDetailViewItem({ type: "invoice", data: targetInv });
-                                    }
-                                  }}
-                                  className="px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-300 text-purple-900 font-extrabold text-xs flex items-center gap-1 transition cursor-pointer"
-                                >
-                                  <Archive size={12} className="text-purple-700" />
-                                  <span>{modalInvStatus.createdMiningInv ? "Inv Mining ✓" : "Inv MDO ✓"}</span>
-                                  <ExternalLink size={11} className="text-purple-700 ml-0.5" />
                                 </button>
                               )}
                             </div>
                           );
-                        })()
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setModalType("none");
-                            createInvoiceFromBA(editItem || formData);
-                          }}
-                          className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition cursor-pointer"
-                          title="Auto-generate Form Invoice dari BA ini"
-                        >
-                          <Zap size={14} className="fill-amber-300 text-amber-300" />
-                          <span>+ Terbitkan Invoice</span>
-                        </button>
-                      )
-                    )}
+                        }
+                      } else {
+                        // Non-POS (BGG, SBS, PTRO/DBK, ABN)
+                        if (isLinked) {
+                          const displayInvNo = linkedNo || modalInvStatus.createdInvoices[0]?.invoiceNo || "Terbit";
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setModalType("none");
+                                const targetInv = modalInvStatus.createdInvoices[0] || invoiceRows.find((inv: any) => inv.invoiceNo === displayInvNo || inv.baNoReference === formData.baNumber || inv.baID === (editItem?.id || formData.id));
+                                if (targetInv) {
+                                  setDetailViewItem({ type: "invoice", data: targetInv });
+                                } else {
+                                  alert(`Invoice #${displayInvNo} telah resmi diterbitkan.`);
+                                }
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-purple-100 hover:bg-purple-200 border border-purple-300 text-purple-900 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                              title="Buka Dokumen Invoice"
+                            >
+                              <Archive size={13} className="text-purple-700" />
+                              <span>Lihat Invoice</span>
+                              <ExternalLink size={11} className="text-purple-700" />
+                            </button>
+                          );
+                        }
+                        if (formData.statusBA === "Ready to Invoice" || formData.statusBA === "Approved" || editItem.statusBA === "Ready to Invoice") {
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setModalType("none");
+                                createInvoiceFromBA(editItem || formData);
+                              }}
+                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition cursor-pointer"
+                            >
+                              <Zap size={13} className="fill-amber-300 text-amber-300" />
+                              <span>+ Terbitkan Invoice</span>
+                            </button>
+                          );
+                        }
+                      }
+                      return null;
+                    })()}
                     <button
                       type="button"
                       onClick={() => setIsInlineEditingBA(!isInlineEditingBA)}
-                      className={`px-3.5 py-1.5 rounded-xl font-extrabold text-xs transition flex items-center gap-1.5 shadow-xs border cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-xl font-bold text-xs transition flex items-center gap-1.5 shadow-xs border cursor-pointer ${
                         isInlineEditingBA
                           ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
                           : "bg-cyan-700 hover:bg-cyan-800 text-white border-cyan-800"
                       }`}
-                      title={isInlineEditingBA ? "Alihkan ke Mode Pratinjau Bersih" : "Buka Mode Edit Data"}
                     >
                       {isInlineEditingBA ? (
                         <>
-                          <Eye size={14} /> Mode Pratinjau
+                          <Eye size={13} /> Pratinjau
                         </>
                       ) : (
                         <>
-                          <Edit2 size={14} /> Mode Edit Data
+                          <Edit2 size={13} /> Edit
                         </>
                       )}
                     </button>
@@ -392,10 +501,10 @@ export function FormModals({ c }: { c: any }) {
                 )}
                 <button
                   type="button"
-                  className="p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition cursor-pointer"
+                  className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition cursor-pointer"
                   onClick={() => setModalType("none")}
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
             </div>
@@ -437,9 +546,9 @@ export function FormModals({ c }: { c: any }) {
                             onChange={(e) => handleCompanySelect(e.target.value)}
                           >
                             <option value="BGG">BGG — PT Budi Gema Gempita</option>
-                            <option value="POS">POS — PT Prima Orbit Sejahtera</option>
-                            <option value="SBS">SBS — PT Sumber Bara Sejahtera</option>
-                            <option value="DBK">DBK — PT Duta Bara Kaltim</option>
+                            <option value="POS">POS — PT Position</option>
+                            <option value="SBS">SBS — PT Satria Bahana Sarana</option>
+                            <option value="PTRO">PTRO — PT Petrosea</option>
                           </select>
                         </div>
 
@@ -527,196 +636,477 @@ export function FormModals({ c }: { c: any }) {
                     const currentCust = (formData.customerCode || "").toUpperCase();
                     const cCalc = getCustomerCalculations(invLineItems, currentCust);
 
+                    const renderActionCell = (item: any) => (
+                      <td className="p-1.5 text-center">
+                        <div className="flex items-center justify-center gap-0.5">
+                          <div
+                            className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded transition"
+                            title="Klik & tahan untuk drag baris"
+                          >
+                            <GripVertical size={13} />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => moveInvRow(item.id, "up")}
+                            className="p-1 text-slate-400 hover:text-cyan-700 hover:bg-slate-200 rounded transition"
+                            title="Pindah baris ke atas"
+                          >
+                            <ChevronUp size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveInvRow(item.id, "down")}
+                            className="p-1 text-slate-400 hover:text-cyan-700 hover:bg-slate-200 rounded transition"
+                            title="Pindah baris ke bawah"
+                          >
+                            <ChevronDown size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeInvLineItem(item.id)}
+                            className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-100 rounded ml-0.5 transition"
+                            title="Hapus baris ini"
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    );
+
+                    const getRowDragProps = (item: any) => ({
+                      draggable: true,
+                      onDragStart: (e: React.DragEvent) => {
+                        e.dataTransfer.setData("text/plain", item.id);
+                        setDraggedInvId(item.id);
+                      },
+                      onDragOver: (e: React.DragEvent) => {
+                        e.preventDefault();
+                        if (dragOverInvId !== item.id) setDragOverInvId(item.id);
+                      },
+                      onDragLeave: () => {
+                        if (dragOverInvId === item.id) setDragOverInvId(null);
+                      },
+                      onDrop: (e: React.DragEvent) => {
+                        e.preventDefault();
+                        const sourceId = e.dataTransfer.getData("text/plain") || draggedInvId;
+                        if (sourceId && sourceId !== item.id) {
+                          const fromIdx = (invLineItems || []).findIndex((i: any) => i.id === sourceId);
+                          const toIdx = (invLineItems || []).findIndex((i: any) => i.id === item.id);
+                          if (fromIdx !== -1 && toIdx !== -1) {
+                            handleReorderInvLineItems(fromIdx, toIdx);
+                          }
+                        }
+                        setDraggedInvId(null);
+                        setDragOverInvId(null);
+                      },
+                      className: `hover:bg-slate-50 transition ${dragOverInvId === item.id ? "border-t-2 border-cyan-500 bg-cyan-50/50" : ""}`
+                    });
+
+                    const renderDescriptionCell = (item: any) => (
+                      <td className="p-2 font-bold text-slate-800">
+                        {item.isCustom ? (
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="text"
+                              className="w-full bg-cyan-50/50 border border-cyan-300 rounded px-2 py-0.5 text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 outline-none"
+                              value={item.description}
+                              placeholder="Deskripsi pekerjaan baru..."
+                              onChange={(e) => handleUpdateInvItemField(item.id, "description", e.target.value)}
+                            />
+                            <span className="text-[10px] uppercase font-mono px-1 py-0.5 bg-cyan-100 text-cyan-800 rounded font-normal shrink-0">Kustom</span>
+                          </div>
+                        ) : (
+                          <div>
+                            <span>{item.subSection || item.description}</span>
+                            {item.period && <span className="text-[10px] text-slate-500 font-mono font-normal ml-2">({item.period})</span>}
+                          </div>
+                        )}
+                      </td>
+                    );
+
+                    const getCustomerCategories = (cust: string) => {
+                      switch (cust) {
+                        case "BGG":
+                          return [
+                            { section: "A", label: "A. OB Removal (Pit Kungkilan)", desc: "Overburden (Bcm)" },
+                            { section: "B", label: "B. Coal Winning", desc: "Batubara (Ton)" },
+                            { section: "C", label: "C. Over Distance", desc: "Jarak angkut lebih (Mtr)" },
+                            { section: "D", label: "D. Raise & Fall's Factor", desc: "Eskalasi ICP / Fuel" },
+                            { section: "E", label: "E. Discount on Overdistance", desc: "Deduction 25%" },
+                            { section: "F", label: "F. DP Fuel & Transport", desc: "Potongan DP BBM" },
+                          ];
+                        case "PTRO":
+                        case "DBK":
+                          return [
+                            { section: "A", label: "A. OB Removal (Pit Sapan)", desc: "OB Mining (USD/Bcm)" },
+                            { section: "B", label: "B. Coal Winning (Pit Sapan)", desc: "Coal Mining (USD/Ton)" },
+                            { section: "C", label: "C. Over Distance", desc: "Overhaul OB (USD) & Coal (IDR)" },
+                          ];
+                        case "SBS":
+                          return [
+                            { section: "A", label: "A. OB Removal", desc: "Per Area Kerja (BCM)" },
+                            { section: "B", label: "B. Jasa Penunjang Produksi", desc: "Rental Alat Berat (Hours)" },
+                            { section: "P", label: "P. Pengurang Pembayaran", desc: "Denda & Pemakaian BBM" },
+                          ];
+                        case "POS":
+                        default:
+                          return [
+                            { section: "A", label: "A. Production / MDO", desc: "OB / Coal Removal (Bcm)" },
+                            { section: "B", label: "B. Over Distance", desc: "Overhaul Jarak Angkut" },
+                            { section: "C", label: "C. Land Clearing", desc: "Pembersihan Lahan (Ha)" },
+                            { section: "D", label: "D. Raise & Fall's Factor", desc: "Eskalasi / Penyesuaian Harga" },
+                          ];
+                      }
+                    };
+
                     return (
-                      <div className="overflow-x-auto rounded-xl border border-slate-300 shadow-sm bg-white">
-                        <table className="w-full text-xs text-left border-collapse">
-                          <thead>
-                            <tr className="bg-slate-900 text-white font-extrabold text-[11px] uppercase tracking-wider">
-                              <th className="p-2.5 text-center w-10">Del</th>
-                              <th className="p-2.5">DESCRIPTION</th>
-                              <th className="p-2.5 text-center">{currentCust === "SBS" ? "CLAIMED UNIT" : "CLAIMED VOLUME / DISTANCE"}</th>
-                              {currentCust === "DBK" ? (
-                                <>
-                                  <th className="p-2.5 text-right">UNIT RATE (USD)</th>
-                                  <th className="p-2.5 text-right">KURS (USD to IDR)</th>
-                                </>
-                              ) : (
-                                <th className="p-2.5 text-right">UNIT RATE (IDR)</th>
-                              )}
-                              <th className="p-2.5 text-right font-extrabold">AMOUNT (IDR)</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-200 font-medium">
+                      <div className="rounded-xl border border-slate-300 shadow-sm bg-white overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-2 bg-slate-100 border-b border-slate-300 text-xs font-bold text-slate-700">
+                          <span className="flex items-center gap-1.5 text-slate-800">
+                            <Layers size={14} className="text-cyan-600" />
+                            <span>Rincian Item Pembayaran ({currentCust})</span>
+                            <span className="hidden sm:inline-block text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-normal">
+                              Drag ikon ⋮⋮ atau gunakan panah ↑↓ untuk pindah posisi baris
+                            </span>
+                          </span>
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setIsAddRowDropdownOpen(prev => !prev)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-cyan-700 hover:bg-cyan-800 rounded-lg shadow-sm transition cursor-pointer"
+                            >
+                              <Plus size={13} />
+                              <span>Tambah Baris</span>
+                              <ChevronDown size={13} className={`transition-transform duration-200 ${isAddRowDropdownOpen ? "rotate-180" : ""}`} />
+                            </button>
 
-                            {/* BGG CUSTOMER TABLE (Gambar 2) */}
-                            {currentCust === "BGG" && (
+                            {isAddRowDropdownOpen && (
                               <>
-                                {/* Section A: OB Removal */}
-                                <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-400">
-                                  <td className="p-2 text-center text-slate-400">#</td>
-                                  <td className="p-2 underline font-extrabold">A. OB REMOVAL (Pit Kungkilan)</td>
-                                  <td className="p-2 text-center font-mono text-cyan-900">
-                                    {invLineItems.filter(i => i.section === "A").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} Bcm
-                                  </td>
-                                  <td className="p-2 text-right"></td>
-                                  <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalA)}</td>
-                                </tr>
-                                {invLineItems.filter(i => i.section === "A").map(item => (
-                                  <tr key={item.id} className="hover:bg-slate-50 transition">
-                                    <td className="p-2 text-center">
-                                      <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
-                                    </td>
-                                    <td className="p-2 font-bold text-slate-800">
-                                      {item.description} &nbsp; &nbsp; <span className="text-[10px] text-slate-500 font-mono font-normal">({item.period})</span>
-                                    </td>
-                                    <td className="p-2 text-center">
-                                      <div className="flex items-center justify-center gap-1">
-                                        <FormattedNumberInput
-                                          allowDecimals
-                                          maxDecimals={2}
-                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                          placeholder="0"
-                                          value={item.volume === 0 ? "" : (item.volume ?? "")}
-                                          onChange={(val) => updateInvItemVolume(item.id, val)}
-                                        />
-                                        <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Bcm"}</span>
-                                      </div>
-                                    </td>
-                                    <td className="p-2 text-right">
-                                      <FormattedNumberInput
-                                        className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                        placeholder="0"
-                                        value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
-                                        onChange={(val) => updateInvItemRateIDR(item.id, val)}
-                                      />
-                                    </td>
-                                    <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateIDR || 0)))}</td>
-                                  </tr>
-                                ))}
+                                <div
+                                  className="fixed inset-0 z-40"
+                                  onClick={() => setIsAddRowDropdownOpen(false)}
+                                />
+                                <div className="absolute right-0 top-full mt-1.5 w-72 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 text-slate-800 animate-in fade-in zoom-in-95 duration-100">
+                                  <div className="px-3 py-1.5 border-b border-slate-100 text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                                    <span>Pilih Kategori Baris</span>
+                                    <span className="text-[10px] font-mono font-bold text-cyan-700 bg-cyan-50 px-1.5 py-0.5 rounded">{currentCust}</span>
+                                  </div>
+                                  <div className="max-h-64 overflow-y-auto py-1 divide-y divide-slate-50">
+                                    {getCustomerCategories(currentCust).map((cat) => (
+                                      <button
+                                        key={cat.section}
+                                        type="button"
+                                        onClick={() => handleAddInvLineItem(cat.section)}
+                                        className="w-full text-left px-3 py-2 hover:bg-cyan-50 flex flex-col gap-0.5 transition cursor-pointer group"
+                                      >
+                                        <span className="text-xs font-bold text-slate-800 group-hover:text-cyan-800 flex items-center justify-between">
+                                          <span>{cat.label}</span>
+                                          <span className="text-[10px] bg-slate-100 group-hover:bg-cyan-100 text-slate-600 group-hover:text-cyan-800 px-1.5 py-0.5 rounded font-mono font-bold">
+                                            Seksi {cat.section}
+                                          </span>
+                                        </span>
+                                        <span className="text-[10px] text-slate-500 font-normal">
+                                          {cat.desc}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {currentCust === "SBS" ? (
+                          <div className="space-y-4">
+                            {/* TABEL UTAMA INVOICE PEKERJAAN (NILAI JKP) */}
+                            <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+                              <div className="bg-slate-100 border-b border-slate-200 px-4 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <Receipt size={14} className="text-cyan-700" />
+                                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                                    Tabel Utama Invoice Pekerjaan (Nilai JKP)
+                                  </h4>
+                                </div>
+                                <span className="text-[11px] text-slate-600 font-medium">
+                                  OB Removal & Jasa Penunjang Produksi (SPPH-05852)
+                                </span>
+                              </div>
 
-                                {/* Section B: Coal Winning */}
-                                <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
-                                  <td className="p-2 text-center text-slate-400">#</td>
-                                  <td className="p-2 underline font-extrabold">B. COAL WINNING</td>
-                                  <td className="p-2 text-center font-mono text-cyan-900">
-                                    {invLineItems.filter(i => i.section === "B").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} Ton
-                                  </td>
-                                  <td className="p-2 text-right"></td>
-                                  <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalB)}</td>
-                                </tr>
-                                {invLineItems.filter(i => i.section === "B").map(item => (
-                                  <tr key={item.id} className="hover:bg-slate-50 transition">
-                                    <td className="p-2 text-center">
-                                      <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
-                                    </td>
-                                    <td className="p-2 font-bold text-slate-800">{item.description}</td>
-                                    <td className="p-2 text-center">
-                                      <div className="flex items-center justify-center gap-1">
-                                        <FormattedNumberInput
-                                          allowDecimals
-                                          maxDecimals={2}
-                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                          placeholder="0"
-                                          value={item.volume === 0 ? "" : (item.volume ?? "")}
-                                          onChange={(val) => updateInvItemVolume(item.id, val)}
-                                        />
-                                        <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Ton"}</span>
-                                      </div>
-                                    </td>
-                                    <td className="p-2 text-right">
-                                      <FormattedNumberInput
-                                        className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                        placeholder="0"
-                                        value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
-                                        onChange={(val) => updateInvItemRateIDR(item.id, val)}
-                                      />
-                                    </td>
-                                    <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateIDR || 0)))}</td>
-                                  </tr>
-                                ))}
-
-                                {/* Section C: Over Distance */}
-                                <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
-                                  <td className="p-2 text-center text-slate-400">#</td>
-                                  <td className="p-2 underline font-extrabold">C. OVER DISTANCE</td>
-                                  <td className="p-2 text-center"></td>
-                                  <td className="p-2 text-right"></td>
-                                  <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalC)}</td>
-                                </tr>
-                                {invLineItems.filter(i => i.section === "C").map(item => {
-                                  const effVol = getItemEffectiveVolume(item);
-                                  const effMtr = getItemEffectiveOverhaulMtr(item);
-                                  const { unitRate, amount } = calculateItemRateAndAmount(item, "BGG");
-                                  const diffMtr = effMtr - 1000;
-                                  return (
-                                    <tr key={item.id} className="hover:bg-slate-50 transition">
-                                      <td className="p-2 text-center">
-                                        <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
-                                      </td>
-                                      <td className="p-2 font-bold text-slate-800">
-                                        <div>{item.subSection || item.description}</div>
-                                        <div className="flex items-center gap-1.5 mt-1">
-                                          <FormattedNumberInput
-                                            className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                            placeholder="1000"
-                                            value={item.overhaulMtr === 0 ? "" : (item.overhaulMtr ?? "")}
-                                            onChange={(val) => updateInvItemOverhaul(item.id, val)}
-                                          />
-                                          <span className="text-[10px] text-slate-600 font-mono font-bold">mtr - 1000 mtr = ({diffMtr > 0 ? `+${diffMtr}` : diffMtr}) mtr</span>
-                                        </div>
-                                      </td>
-                                      <td className="p-2 text-center">
-                                        <div className="flex items-center justify-center gap-1">
-                                          <FormattedNumberInput
-                                            allowDecimals
-                                            maxDecimals={2}
-                                            className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                            placeholder={String(effVol)}
-                                            value={item.volume === 0 ? "" : (item.volume ?? "")}
-                                            onChange={(val) => updateInvItemVolume(item.id, val)}
-                                          />
-                                          <span className="text-[11px] text-slate-600 font-bold">{item.unit || (item.subSection?.includes("Coal") ? "Ton" : "Bcm")}</span>
-                                        </div>
-                                      </td>
-                                      <td className="p-2 text-right">
-                                        <FormattedNumberInput
-                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                          placeholder={String(unitRate)}
-                                          value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
-                                          onChange={(val) => updateInvItemRateIDR(item.id, val)}
-                                        />
-                                      </td>
-                                      <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs text-left border-collapse">
+                                  <thead>
+                                    <tr className="bg-slate-900 text-white font-extrabold text-[11px] uppercase tracking-wider">
+                                      <th className="p-2.5 text-center w-24">AKSI</th>
+                                      <th className="p-2.5">DESCRIPTION</th>
+                                      <th className="p-2.5 text-center w-28">JARAK (M)</th>
+                                      <th className="p-2.5 text-center w-36">CLAIMED UNIT</th>
+                                      <th className="p-2.5 text-right w-36">UNIT RATE (IDR)</th>
+                                      <th className="p-2.5 text-right w-44 font-extrabold">AMOUNT (IDR)</th>
                                     </tr>
-                                  );
-                                })}
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-200 font-medium">
+                                    {/* Seksi A: OB REMOVAL */}
+                                    <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-400">
+                                      <td className="p-2 text-center text-slate-400">#</td>
+                                      <td className="p-2 underline font-extrabold">OB REMOVAL (Per Area Kerja)</td>
+                                      <td className="p-2 text-center text-slate-400 font-mono">-</td>
+                                      <td className="p-2 text-center font-mono text-cyan-900 font-black">
+                                        {invLineItems.filter(i => i.section === "A").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} BCM
+                                      </td>
+                                      <td className="p-2 text-right"></td>
+                                      <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalA)}</td>
+                                    </tr>
+                                    {invLineItems.filter(i => i.section === "A").map(item => {
+                                      const currentDist = item.distanceM ?? item.overhaulMtr ?? "";
+                                      const tier = getSBSTarifByDistance(Number(currentDist)).tier;
+                                      return (
+                                        <tr key={item.id} {...getRowDragProps(item)} className="hover:bg-slate-50/80">
+                                          {renderActionCell(item)}
+                                          {renderDescriptionCell(item)}
+                                          <td className="p-2 text-center">
+                                            <div className="flex flex-col items-center justify-center gap-0.5">
+                                              <FormattedNumberInput
+                                                className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-1.5 py-0.5 rounded text-center focus:bg-white focus:border-cyan-700 outline-none"
+                                                placeholder="0"
+                                                value={currentDist === 0 ? "" : currentDist}
+                                                onChange={(val) => {
+                                                  const dist = Number(val) || 0;
+                                                  const { rate } = getSBSTarifByDistance(dist);
+                                                  setInvLineItems(prev => prev.map(it => {
+                                                    if (it.id !== item.id) return it;
+                                                    return {
+                                                      ...it,
+                                                      distanceM: dist,
+                                                      overhaulMtr: dist,
+                                                      ...(rate > 0 ? { unitRateIDR: rate } : {})
+                                                    };
+                                                  }));
+                                                }}
+                                              />
+                                              {tier && (
+                                                <span className="text-[9px] text-cyan-800 font-mono font-bold leading-none">
+                                                  {tier.rangeLabel}m
+                                                </span>
+                                              )}
+                                            </div>
+                                          </td>
+                                          <td className="p-2 text-center">
+                                            <div className="flex items-center justify-center gap-1">
+                                              <FormattedNumberInput
+                                                allowDecimals
+                                                maxDecimals={2}
+                                                className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                                placeholder="0"
+                                                value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                                onChange={(val) => updateInvItemVolume(item.id, val)}
+                                              />
+                                              <span className="text-[11px] text-slate-600 font-bold">{item.unit || "BCM"}</span>
+                                            </div>
+                                          </td>
+                                          <td className="p-2 text-right">
+                                            <FormattedNumberInput
+                                              className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                              placeholder="0"
+                                              value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
+                                              onChange={(val) => updateInvItemRateIDR(item.id, val)}
+                                            />
+                                          </td>
+                                          <td className="p-2 text-right font-mono font-extrabold text-slate-900">
+                                            {formatIDR(Math.round((item.volume || 0) * (item.unitRateIDR || 0)))}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
 
-                                {/* Section D: Raise & Fall Factor */}
-                                <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
-                                  <td className="p-2 text-center text-slate-400">#</td>
-                                  <td className="p-2 underline font-extrabold">D. RAISE & FALL'S FACTOR</td>
-                                  <td className="p-2 text-center"></td>
-                                  <td className="p-2 text-right"></td>
-                                  <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalD)}</td>
-                                </tr>
-                                {invLineItems.filter(i => i.section === "D").map(item => {
-                                  const effVol = getItemEffectiveVolume(item);
-                                  const { unitRate, amount } = calculateItemRateAndAmount(item, "BGG");
-                                  return (
-                                    <tr key={item.id} className="hover:bg-slate-50 transition">
-                                      <td className="p-2 text-center">
-                                        <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
+                                    {/* Seksi B: JASA PENUNJANG PRODUKSI */}
+                                    <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
+                                      <td className="p-2 text-center text-slate-400">#</td>
+                                      <td className="p-2 underline font-extrabold">JASA PENUNJANG PRODUKSI (Rental Alat)</td>
+                                      <td className="p-2 text-center text-slate-400 font-mono">-</td>
+                                      <td className="p-2 text-center font-mono text-cyan-900 font-black">
+                                        {invLineItems.filter(i => i.section === "B").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} Hours
                                       </td>
-                                      <td className="p-2 font-bold text-slate-800">
-                                        {item.subSection || ""} {item.description}
-                                      </td>
+                                      <td className="p-2 text-right"></td>
+                                      <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalB)}</td>
+                                    </tr>
+                                    {invLineItems.filter(i => i.section === "B").map(item => (
+                                      <tr key={item.id} {...getRowDragProps(item)} className="hover:bg-slate-50/80">
+                                        {renderActionCell(item)}
+                                        {renderDescriptionCell(item)}
+                                        <td className="p-2 text-center text-slate-400 font-mono">-</td>
+                                        <td className="p-2 text-center">
+                                          <div className="flex items-center justify-center gap-1">
+                                            <FormattedNumberInput
+                                              allowDecimals
+                                              maxDecimals={2}
+                                              className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                              placeholder="0"
+                                              value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                              onChange={(val) => updateInvItemVolume(item.id, val)}
+                                            />
+                                            <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Hours"}</span>
+                                          </div>
+                                        </td>
+                                        <td className="p-2 text-right">
+                                          <FormattedNumberInput
+                                            className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                            placeholder="0"
+                                            value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
+                                            onChange={(val) => updateInvItemRateIDR(item.id, val)}
+                                          />
+                                        </td>
+                                        <td className="p-2 text-right font-mono font-extrabold text-slate-900">
+                                          {formatIDR(Math.round((item.volume || 0) * (item.unitRateIDR || 0)))}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+
+                                  {/* Footer Tabel Utama: Kalkulasi Pajak Bruto */}
+                                  <tfoot className="border-t-2 border-slate-900 bg-slate-50 font-bold text-xs">
+                                    <tr>
+                                      <td colSpan={4} className="p-2.5 text-right font-black uppercase text-slate-700">TOTAL (NILAI PEKERJAAN BRUTO):</td>
+                                      <td colSpan={2} className="p-2.5 text-right font-mono text-sm font-black text-slate-900">{formatIDR(cCalc.totalGross)}</td>
+                                    </tr>
+                                    <tr>
+                                      <td colSpan={4} className="p-2.5 text-right uppercase text-slate-600 font-bold">DPP PPN 11/12:</td>
+                                      <td colSpan={2} className="p-2.5 text-right font-mono font-bold text-slate-800">{formatIDR(cCalc.dpp11_12)}</td>
+                                    </tr>
+                                    <tr>
+                                      <td colSpan={4} className="p-2.5 text-right uppercase text-emerald-800 font-extrabold">VAT ( 12% ) (+):</td>
+                                      <td colSpan={2} className="p-2.5 text-right font-mono font-extrabold text-emerald-700">{formatIDR(cCalc.vat12)}</td>
+                                    </tr>
+                                    <tr>
+                                      <td colSpan={4} className="p-2.5 text-right uppercase text-rose-800 font-extrabold">WITH HOLDING TAX ART 23 (2%) (-):</td>
+                                      <td colSpan={2} className="p-2.5 text-right font-mono font-extrabold text-rose-700">({formatIDR(cCalc.pph23)})</td>
+                                    </tr>
+                                    <tr className="bg-slate-900 text-white font-black text-sm border-t-2 border-slate-900">
+                                      <td colSpan={4} className="p-3 text-right uppercase tracking-wider text-cyan-300 font-black">TOTAL INVOICE:</td>
+                                      <td colSpan={2} className="p-3 text-right font-mono text-base font-black text-emerald-400">{formatIDR(cCalc.totalInvoice)}</td>
+                                    </tr>
+                                  </tfoot>
+                                </table>
+                              </div>
+                            </div>
+
+                            {/* TABEL TERPISAH PENGURANG PEMBAYARAN */}
+                            <div className="rounded-xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+                              <div className="bg-slate-100 border-b border-slate-200 px-4 py-2.5 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <TrendingDown size={14} className="text-rose-600" />
+                                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                                    Pengurang Pembayaran
+                                  </h4>
+                                </div>
+                                <span className="text-[11px] text-slate-500 font-medium">
+                                  Denda Operasional & Kelebihan Konsumsi BBM
+                                </span>
+                              </div>
+
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs text-left border-collapse">
+                                  <thead>
+                                    <tr className="bg-slate-900 text-white font-extrabold text-[11px] uppercase tracking-wider">
+                                      <th className="p-2.5 text-center w-24">AKSI</th>
+                                      <th className="p-2.5">PENGURANG PEMBAYARAN</th>
+                                      <th className="p-2.5 text-center w-36">CLAIMED UNIT</th>
+                                      <th className="p-2.5 text-right w-36">UNIT RATE (IDR)</th>
+                                      <th className="p-2.5 text-right w-44 font-extrabold">AMOUNT (IDR)</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-slate-200 font-medium">
+                                    {invLineItems.filter(i => i.section === "P").map(item => (
+                                      <tr key={item.id} {...getRowDragProps(item)} className="hover:bg-slate-50/70">
+                                        {renderActionCell(item)}
+                                        <td className="p-2 font-bold text-slate-800">{item.description}</td>
+                                        <td className="p-2 text-center font-mono text-slate-600">{item.unit || "Lot"}</td>
+                                        <td className="p-2 text-right font-mono text-slate-400">-</td>
+                                        <td className="p-2 text-right">
+                                          <div className="flex items-center justify-end gap-1">
+                                            <span className="text-slate-400 font-mono font-bold">(</span>
+                                            <FormattedNumberInput
+                                              className="w-36 bg-slate-50 hover:bg-white border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:border-cyan-700 outline-none"
+                                              placeholder="0"
+                                              value={item.amount === 0 ? "" : Math.abs(item.amount)}
+                                              onChange={(val) => updateInvItemAmount(item.id, -Math.abs(val))}
+                                            />
+                                            <span className="text-slate-400 font-mono font-bold">)</span>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                  <tfoot className="border-t-2 border-slate-300 bg-slate-50 font-bold text-xs">
+                                    <tr>
+                                      <td colSpan={4} className="p-2.5 text-right font-black uppercase text-slate-800">TOTAL PENGURANG PEMBAYARAN:</td>
+                                      <td className="p-2.5 text-right font-mono text-sm font-black text-rose-700">({formatIDR(Math.abs(cCalc.subtotalP))})</td>
+                                    </tr>
+                                  </tfoot>
+                                </table>
+                              </div>
+                            </div>
+
+                            {/* TOTAL DIBAYAR (SETTLEMENT BERSIH) */}
+                            <div className="rounded-xl border border-slate-800 bg-slate-900 text-white p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                              <div className="space-y-1">
+                                <h4 className="text-sm font-black uppercase text-white tracking-wider flex items-center gap-2">
+                                  <CheckCircle2 size={16} className="text-emerald-400" /> TOTAL DIBAYAR
+                                </h4>
+                                <p className="text-[11px] text-slate-400 font-medium">
+                                  Total Invoice ({formatIDR(cCalc.totalInvoice)}) dikurangi Pengurang Pembayaran ({formatIDR(Math.abs(cCalc.subtotalP))})
+                                </p>
+                              </div>
+                              <div className="text-right w-full sm:w-auto bg-slate-800/90 border border-slate-700 px-5 py-2.5 rounded-xl shadow-xs">
+                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Net Transfer Cash</span>
+                                <span className="font-mono text-xl sm:text-2xl font-black text-emerald-400 tracking-tight">{formatIDR(cCalc.totalDibayar)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto">
+                          <table className="w-full text-xs text-left border-collapse">
+                            <thead>
+                              <tr className="bg-slate-900 text-white font-extrabold text-[11px] uppercase tracking-wider">
+                                <th className="p-2.5 text-center w-24">AKSI</th>
+                                <th className="p-2.5">DESCRIPTION</th>
+                                <th className="p-2.5 text-center">CLAIMED VOLUME / DISTANCE</th>
+                                {(currentCust === "PTRO" || currentCust === "DBK") ? (
+                                  <>
+                                    <th className="p-2.5 text-right">UNIT RATE (USD)</th>
+                                    <th className="p-2.5 text-right">KURS (USD to IDR)</th>
+                                  </>
+                                ) : (
+                                  <th className="p-2.5 text-right">UNIT RATE (IDR)</th>
+                                )}
+                                <th className="p-2.5 text-right font-extrabold">AMOUNT (IDR)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200 font-medium">
+
+                              {/* BGG CUSTOMER TABLE (Gambar 2) */}
+                              {currentCust === "BGG" && (
+                                <>
+                                  {/* Section A: OB Removal */}
+                                  <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-400">
+                                    <td className="p-2 text-center text-slate-400">#</td>
+                                    <td className="p-2 underline font-extrabold">A. OB REMOVAL (Pit Kungkilan)</td>
+                                    <td className="p-2 text-center font-mono text-cyan-900">
+                                      {invLineItems.filter(i => i.section === "A").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} Bcm
+                                    </td>
+                                    <td className="p-2 text-right"></td>
+                                    <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalA)}</td>
+                                  </tr>
+                                  {invLineItems.filter(i => i.section === "A").map(item => (
+                                    <tr key={item.id} {...getRowDragProps(item)}>
+                                      {renderActionCell(item)}
+                                      {renderDescriptionCell(item)}
                                       <td className="p-2 text-center">
                                         <div className="flex items-center justify-center gap-1">
                                           <FormattedNumberInput
                                             allowDecimals
                                             maxDecimals={2}
                                             className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                            placeholder={String(effVol)}
+                                            placeholder="0"
                                             value={item.volume === 0 ? "" : (item.volume ?? "")}
                                             onChange={(val) => updateInvItemVolume(item.id, val)}
                                           />
@@ -726,613 +1116,648 @@ export function FormModals({ c }: { c: any }) {
                                       <td className="p-2 text-right">
                                         <FormattedNumberInput
                                           className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                          placeholder={String(unitRate)}
+                                          placeholder="0"
                                           value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
                                           onChange={(val) => updateInvItemRateIDR(item.id, val)}
                                         />
                                       </td>
-                                      <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
+                                      <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateIDR || 0)))}</td>
                                     </tr>
-                                  );
-                                })}
+                                  ))}
 
-                                {/* Section E: Discount on Overdistance */}
-                                <tr className="bg-rose-50/70 font-extrabold text-rose-900 border-t-2 border-rose-300">
-                                  <td className="p-2 text-center text-rose-400">#</td>
-                                  <td colSpan={3} className="p-2 underline">E. DISCOUNT ON OVERDISTANCE (Deduction 25%)</td>
-                                  <td className="p-2 text-right font-mono text-rose-900 font-extrabold">({formatIDR(Math.abs(cCalc.subtotalE))})</td>
-                                </tr>
-                                {invLineItems.filter(i => i.section === "E").map(item => {
-                                  const { amount } = calculateItemRateAndAmount(item, "BGG");
-                                  return (
-                                    <tr key={item.id} className="hover:bg-rose-50/30 transition">
+                                  {/* Section B: Coal Winning */}
+                                  <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
+                                    <td className="p-2 text-center text-slate-400">#</td>
+                                    <td className="p-2 underline font-extrabold">B. COAL WINNING (Pit Kungkilan)</td>
+                                    <td className="p-2 text-center font-mono text-cyan-900">
+                                      {invLineItems.filter(i => i.section === "B").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} Ton
+                                    </td>
+                                    <td className="p-2 text-right"></td>
+                                    <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalB)}</td>
+                                  </tr>
+                                  {invLineItems.filter(i => i.section === "B").map(item => (
+                                    <tr key={item.id} {...getRowDragProps(item)}>
+                                      {renderActionCell(item)}
+                                      {renderDescriptionCell(item)}
                                       <td className="p-2 text-center">
-                                        <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
-                                      </td>
-                                      <td colSpan={3} className="p-2 font-medium text-slate-700">{item.description}</td>
-                                      <td className="p-2 text-right font-mono text-rose-900 font-extrabold">({formatIDR(Math.abs(amount))})</td>
-                                    </tr>
-                                  );
-                                })}
-
-                                {/* Section F: DP Fuel & Transport */}
-                                <tr className="bg-rose-50/70 font-extrabold text-rose-900 border-t-2 border-rose-300">
-                                  <td className="p-2 text-center text-rose-400">#</td>
-                                  <td colSpan={3} className="p-2 underline">F. DP FUEL & TRANSPORT (Deduction)</td>
-                                  <td className="p-2 text-right font-mono text-rose-900 font-extrabold">({formatIDR(Math.abs(cCalc.subtotalF))})</td>
-                                </tr>
-                                {invLineItems.filter(i => i.section === "F").map(item => (
-                                  <tr key={item.id} className="hover:bg-rose-50/30 transition">
-                                    <td className="p-2 text-center">
-                                      <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
-                                    </td>
-                                    <td colSpan={3} className="p-2 font-medium text-slate-700">{item.description}</td>
-                                    <td className="p-2 text-right font-mono">
-                                      <FormattedNumberInput
-                                        className="w-36 bg-slate-50 border border-rose-300 font-mono font-extrabold text-rose-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white outline-none"
-                                        placeholder="0"
-                                        value={item.amount === 0 ? "" : Math.abs(item.amount)}
-                                        onChange={(val) => updateInvItemAmount(item.id, -Math.abs(val))}
-                                      />
-                                    </td>
-                                  </tr>
-                                ))}
-                              </>
-                            )}
-
-                            {/* DBK PETROSEA CUSTOMER TABLE (Gambar 3 - Dual Currency) */}
-                            {currentCust === "DBK" && (
-                              <>
-                                {/* Section A: OB Removal */}
-                                <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-400">
-                                  <td className="p-2 text-center text-slate-400">#</td>
-                                  <td className="p-2 underline font-extrabold">A. OB REMOVAL (Pit Sapan)</td>
-                                  <td className="p-2 text-center font-mono text-cyan-900">
-                                    {invLineItems.filter(i => i.section === "A").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })} Bcm
-                                  </td>
-                                  <td className="p-2 text-right"></td>
-                                  <td className="p-2 text-right"></td>
-                                  <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalA)}</td>
-                                </tr>
-                                {invLineItems.filter(i => i.section === "A").map(item => (
-                                  <tr key={item.id} className="hover:bg-slate-50 transition">
-                                    <td className="p-2 text-center">
-                                      <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
-                                    </td>
-                                    <td className="p-2 font-bold text-slate-800">{item.description}</td>
-                                    <td className="p-2 text-center">
-                                      <div className="flex items-center justify-center gap-1">
-                                        <FormattedNumberInput
-                                          allowDecimals
-                                          maxDecimals={3}
-                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                          placeholder="0.000"
-                                          value={item.volume === 0 ? "" : (item.volume ?? "")}
-                                          onChange={(val) => updateInvItemVolume(item.id, val)}
-                                        />
-                                        <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Bcm"}</span>
-                                      </div>
-                                    </td>
-                                    <td className="p-2 text-right">
-                                      <FormattedNumberInput
-                                        allowDecimals
-                                        maxDecimals={3}
-                                        className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                        placeholder="0.000"
-                                        value={item.unitRateUSD === 0 ? "" : (item.unitRateUSD ?? "")}
-                                        onChange={(val) => updateInvItemRateUSD(item.id, val)}
-                                      />
-                                    </td>
-                                    <td className="p-2 text-right">
-                                      <FormattedNumberInput
-                                        allowDecimals
-                                        maxDecimals={2}
-                                        className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                        placeholder="17.923,30"
-                                        value={item.kursBI === 0 ? "" : (item.kursBI ?? "")}
-                                        onChange={(val) => updateInvItemKurs(item.id, val)}
-                                      />
-                                    </td>
-                                    <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateUSD || 0) * (item.kursBI || 17140.76)))}</td>
-                                  </tr>
-                                ))}
-
-                                {/* Section B: Coal Winning */}
-                                <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
-                                  <td className="p-2 text-center text-slate-400">#</td>
-                                  <td className="p-2 underline font-extrabold">B. COAL WINNING (Pit Sapan)</td>
-                                  <td className="p-2 text-center font-mono text-cyan-900">
-                                    {invLineItems.filter(i => i.section === "B").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })} Ton
-                                  </td>
-                                  <td className="p-2 text-right"></td>
-                                  <td className="p-2 text-right"></td>
-                                  <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalB)}</td>
-                                </tr>
-                                {invLineItems.filter(i => i.section === "B").map(item => (
-                                  <tr key={item.id} className="hover:bg-slate-50 transition">
-                                    <td className="p-2 text-center">
-                                      <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
-                                    </td>
-                                    <td className="p-2 font-bold text-slate-800">{item.description}</td>
-                                    <td className="p-2 text-center">
-                                      <div className="flex items-center justify-center gap-1">
-                                        <FormattedNumberInput
-                                          allowDecimals
-                                          maxDecimals={3}
-                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                          placeholder="0.000"
-                                          value={item.volume === 0 ? "" : (item.volume ?? "")}
-                                          onChange={(val) => updateInvItemVolume(item.id, val)}
-                                        />
-                                        <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Ton"}</span>
-                                      </div>
-                                    </td>
-                                    <td className="p-2 text-right">
-                                      <FormattedNumberInput
-                                        allowDecimals
-                                        maxDecimals={3}
-                                        className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                        placeholder="0.000"
-                                        value={item.unitRateUSD === 0 ? "" : (item.unitRateUSD ?? "")}
-                                        onChange={(val) => updateInvItemRateUSD(item.id, val)}
-                                      />
-                                    </td>
-                                    <td className="p-2 text-right">
-                                      <FormattedNumberInput
-                                        allowDecimals
-                                        maxDecimals={2}
-                                        className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                        placeholder="17.923,30"
-                                        value={item.kursBI === 0 ? "" : (item.kursBI ?? "")}
-                                        onChange={(val) => updateInvItemKurs(item.id, val)}
-                                      />
-                                    </td>
-                                    <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateUSD || 0) * (item.kursBI || 17140.76)))}</td>
-                                  </tr>
-                                ))}
-
-                                {/* Section C: Over Distance */}
-                                <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
-                                  <td className="p-2 text-center text-slate-400">#</td>
-                                  <td className="p-2 underline font-extrabold">C. OVER DISTANCE</td>
-                                  <td className="p-2 text-center"></td>
-                                  <td className="p-2 text-right"></td>
-                                  <td className="p-2 text-right"></td>
-                                  <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalC)}</td>
-                                </tr>
-                                {invLineItems.filter(i => i.section === "C").map(item => {
-                                  const isCoal = (item.subSection || item.description || "").toLowerCase().includes("coal") || (item.subSection || item.description || "").toLowerCase().includes("batubara");
-                                  const baseM = item.baseMtr || (isCoal ? 3000 : 1000);
-                                  const curMtr = item.overhaulMtr !== undefined && item.overhaulMtr !== null ? item.overhaulMtr : baseM;
-                                  const diff = Math.max(0, curMtr - baseM);
-                                  const calculated = calculateItemRateAndAmount(item, "DBK");
-
-                                  return (
-                                    <tr key={item.id} className="hover:bg-slate-50 transition">
-                                      <td className="p-2 text-center">
-                                        <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
-                                      </td>
-                                      <td className="p-2 font-bold text-slate-800">
-                                        <div>{item.subSection || item.description}</div>
-                                        <div className="flex items-center gap-1 text-[10px] text-slate-500 font-mono mt-0.5">
-                                          <span>Dist:</span>
+                                        <div className="flex items-center justify-center gap-1">
                                           <FormattedNumberInput
                                             allowDecimals
                                             maxDecimals={2}
-                                            className="w-18 bg-slate-50 border border-slate-300 font-mono text-[10px] px-1.5 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                            placeholder={formatThousand(baseM)}
+                                            className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                            placeholder="0"
+                                            value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                            onChange={(val) => updateInvItemVolume(item.id, val)}
+                                          />
+                                          <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Ton"}</span>
+                                        </div>
+                                      </td>
+                                      <td className="p-2 text-right">
+                                        <FormattedNumberInput
+                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                          placeholder="0"
+                                          value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
+                                          onChange={(val) => updateInvItemRateIDR(item.id, val)}
+                                        />
+                                      </td>
+                                      <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateIDR || 0)))}</td>
+                                    </tr>
+                                  ))}
+
+                                  {/* Section C: Over Distance */}
+                                  <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
+                                    <td className="p-2 text-center text-slate-400">#</td>
+                                    <td className="p-2 underline font-extrabold">C. OVER DISTANCE</td>
+                                    <td className="p-2 text-center"></td>
+                                    <td className="p-2 text-right"></td>
+                                    <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalC)}</td>
+                                  </tr>
+                                  {invLineItems.filter(i => i.section === "C").map(item => (
+                                    <tr key={item.id} {...getRowDragProps(item)}>
+                                      {renderActionCell(item)}
+                                      <td className="p-2 font-bold text-slate-800">
+                                        <div>{item.description}</div>
+                                        <div className="flex items-center gap-1.5 mt-1">
+                                          <FormattedNumberInput
+                                            className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                            placeholder="1.000"
                                             value={item.overhaulMtr === 0 ? "" : (item.overhaulMtr ?? "")}
                                             onChange={(val) => updateInvItemOverhaul(item.id, val)}
                                           />
-                                          <span>m - {formatThousand(baseM)}m = {formatThousand(diff)}m</span>
+                                          <span className="text-[11px] text-slate-600 font-bold">Mtr Jarak Riil</span>
                                         </div>
                                       </td>
                                       <td className="p-2 text-center">
                                         <div className="flex items-center justify-center gap-1">
                                           <FormattedNumberInput
                                             allowDecimals
-                                            maxDecimals={3}
+                                            maxDecimals={2}
                                             className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                            placeholder="0.000"
+                                            placeholder="0"
                                             value={item.volume === 0 ? "" : (item.volume ?? "")}
                                             onChange={(val) => updateInvItemVolume(item.id, val)}
                                           />
-                                          <span className="text-[11px] text-slate-600 font-bold">{item.unit || (isCoal ? "Ton" : "Bcm")}</span>
+                                          <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Bcm"}</span>
                                         </div>
                                       </td>
                                       <td className="p-2 text-right">
-                                        {!isCoal ? (
-                                          <FormattedNumberInput
-                                            allowDecimals
-                                            maxDecimals={3}
-                                            className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                            placeholder="0.028"
-                                            value={item.unitRateUSD === 0 ? "" : (item.unitRateUSD ?? 0.028)}
-                                            onChange={(val) => updateInvItemRateUSD(item.id, val)}
-                                          />
-                                        ) : (
-                                          <div className="flex items-center justify-end gap-1">
-                                            <span className="text-[10px] text-slate-500 font-bold">Rp</span>
-                                            <FormattedNumberInput
-                                              allowDecimals
-                                              maxDecimals={2}
-                                              className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                              placeholder="230"
-                                              value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? 230)}
-                                              onChange={(val) => updateInvItemRateIDR(item.id, val)}
-                                            />
-                                          </div>
-                                        )}
+                                        <FormattedNumberInput
+                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                          placeholder="0"
+                                          value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
+                                          onChange={(val) => updateInvItemRateIDR(item.id, val)}
+                                        />
                                       </td>
-                                      <td className="p-2 text-right">
-                                        {!isCoal ? (
+                                      <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateIDR || 0)))}</td>
+                                    </tr>
+                                  ))}
+
+                                  {/* Section D: Raise & Fall */}
+                                  <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
+                                    <td className="p-2 text-center text-slate-400">#</td>
+                                    <td className="p-2 underline font-extrabold">D. RAISE & FALL'S FACTOR</td>
+                                    <td className="p-2 text-center"></td>
+                                    <td className="p-2 text-right"></td>
+                                    <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalD)}</td>
+                                  </tr>
+                                  {invLineItems.filter(i => i.section === "D").map(item => (
+                                    <tr key={item.id} {...getRowDragProps(item)}>
+                                      {renderActionCell(item)}
+                                      {renderDescriptionCell(item)}
+                                      <td className="p-2 text-center">
+                                        <div className="flex items-center justify-center gap-1">
                                           <FormattedNumberInput
                                             allowDecimals
                                             maxDecimals={2}
                                             className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                            placeholder="17.923,30"
-                                            value={item.kursBI === 0 ? "" : (item.kursBI ?? "")}
-                                            onChange={(val) => updateInvItemKurs(item.id, val)}
+                                            placeholder="0"
+                                            value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                            onChange={(val) => updateInvItemVolume(item.id, val)}
                                           />
-                                        ) : (
-                                          <span className="text-slate-400 font-mono text-center block">-</span>
-                                        )}
+                                          <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Bcm"}</span>
+                                        </div>
+                                      </td>
+                                      <td className="p-2 text-right">
+                                        <FormattedNumberInput
+                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                          placeholder="0"
+                                          value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
+                                          onChange={(val) => updateInvItemRateIDR(item.id, val)}
+                                        />
+                                      </td>
+                                      <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateIDR || 0)))}</td>
+                                    </tr>
+                                  ))}
+
+                                  {/* Section E: Discount Over Distance */}
+                                  <tr className="bg-rose-50 font-extrabold text-rose-900 border-t-2 border-rose-300">
+                                    <td className="p-2 text-center text-rose-400">#</td>
+                                    <td colSpan={3} className="p-2 underline font-extrabold">E. DISCOUNT ON OVERDISTANCE (Deduction 25%)</td>
+                                    <td className="p-2 text-right font-mono text-rose-900 font-extrabold">({formatIDR(Math.abs(cCalc.subtotalE))})</td>
+                                  </tr>
+                                  {invLineItems.filter(i => i.section === "E").map(item => (
+                                    <tr key={item.id} {...getRowDragProps(item)}>
+                                      {renderActionCell(item)}
+                                      <td colSpan={3} className="p-2 font-medium text-slate-700">{item.description}</td>
+                                      <td className="p-2 text-right font-mono">
+                                        <FormattedNumberInput
+                                          className="w-36 bg-slate-50 border border-rose-300 font-mono font-extrabold text-rose-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white outline-none"
+                                          placeholder="0"
+                                          value={item.amount === 0 ? "" : Math.abs(item.amount)}
+                                          onChange={(val) => updateInvItemAmount(item.id, -Math.abs(val))}
+                                        />
+                                      </td>
+                                    </tr>
+                                  ))}
+
+                                  {/* Section F: DP Fuel & Transport */}
+                                  <tr className="bg-rose-50 font-extrabold text-rose-900 border-t-2 border-rose-300">
+                                    <td className="p-2 text-center text-rose-400">#</td>
+                                    <td colSpan={3} className="p-2 underline font-extrabold">F. DP FUEL & TRANSPORT (Deduction)</td>
+                                    <td className="p-2 text-right font-mono text-rose-900 font-extrabold">({formatIDR(Math.abs(cCalc.subtotalF))})</td>
+                                  </tr>
+                                  {invLineItems.filter(i => i.section === "F").map(item => (
+                                    <tr key={item.id} {...getRowDragProps(item)}>
+                                      {renderActionCell(item)}
+                                      <td colSpan={3} className="p-2 font-medium text-slate-700">{item.description}</td>
+                                      <td className="p-2 text-right font-mono">
+                                        <FormattedNumberInput
+                                          className="w-36 bg-slate-50 border border-rose-300 font-mono font-extrabold text-rose-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white outline-none"
+                                          placeholder="0"
+                                          value={item.amount === 0 ? "" : Math.abs(item.amount)}
+                                          onChange={(val) => updateInvItemAmount(item.id, -Math.abs(val))}
+                                        />
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </>
+                              )}
+
+                              {/* PTRO / DBK CUSTOMER TABLE (Gambar 3) */}
+                              {(currentCust === "PTRO" || currentCust === "DBK") && (
+                                <>
+                                  {/* Section A: OB Removal */}
+                                  <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-400">
+                                    <td className="p-2 text-center text-slate-400">#</td>
+                                    <td className="p-2 underline font-extrabold">A. OB REMOVAL (Pit Sapan)</td>
+                                    <td className="p-2 text-center font-mono text-cyan-900">
+                                      {invLineItems.filter(i => i.section === "A").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} BCM
+                                    </td>
+                                    <td className="p-2 text-right"></td>
+                                    <td className="p-2 text-right"></td>
+                                    <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalA)}</td>
+                                  </tr>
+                                  {invLineItems.filter(i => i.section === "A").map(item => (
+                                    <tr key={item.id} {...getRowDragProps(item)}>
+                                      {renderActionCell(item)}
+                                      {renderDescriptionCell(item)}
+                                      <td className="p-2 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                          <FormattedNumberInput
+                                            allowDecimals
+                                            maxDecimals={2}
+                                            className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                            placeholder="0"
+                                            value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                            onChange={(val) => updateInvItemVolume(item.id, val)}
+                                          />
+                                          <span className="text-[11px] text-slate-600 font-bold">{item.unit || "BCM"}</span>
+                                        </div>
+                                      </td>
+                                      <td className="p-2 text-right">
+                                        <FormattedNumberInput
+                                          allowDecimals
+                                          maxDecimals={3}
+                                          className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                          placeholder="0.000"
+                                          value={item.unitRateUSD === 0 ? "" : (item.unitRateUSD ?? "")}
+                                          onChange={(val) => updateInvItemRateUSD(item.id, val)}
+                                        />
+                                      </td>
+                                      <td className="p-2 text-right">
+                                        <FormattedNumberInput
+                                          allowDecimals
+                                          maxDecimals={2}
+                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                          placeholder="16.000"
+                                          value={item.kursBI === 0 ? "" : (item.kursBI ?? "")}
+                                          onChange={(val) => updateInvItemKurs(item.id, val)}
+                                        />
                                       </td>
                                       <td className="p-2 text-right font-mono font-extrabold text-slate-900">
-                                        {formatIDR(calculated.amount)}
+                                        {formatIDR(Math.round((item.volume || 0) * (item.unitRateUSD || 0) * (item.kursBI || 17923.30)))}
                                       </td>
                                     </tr>
-                                  );
-                                })}
-                              </>
-                            )}
+                                  ))}
 
-                            {/* SBS CUSTOMER TABLE (Gambar 4 - OB & Jasa Penunjang & Deductions) */}
-                            {currentCust === "SBS" && (
-                              <>
-                                {/* Section OB Removal */}
-                                <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-400">
-                                  <td className="p-2 text-center text-slate-400">#</td>
-                                  <td className="p-2 underline font-extrabold">OB REMOVAL (Per Area Kerja)</td>
-                                  <td className="p-2 text-center font-mono text-cyan-900">
-                                    {invLineItems.filter(i => i.section === "A").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} BCM
-                                  </td>
-                                  <td className="p-2 text-right"></td>
-                                  <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalA)}</td>
-                                </tr>
-                                {invLineItems.filter(i => i.section === "A").map(item => (
-                                  <tr key={item.id} className="hover:bg-slate-50 transition">
-                                    <td className="p-2 text-center">
-                                      <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
+                                  {/* Section B: Coal Winning */}
+                                  <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
+                                    <td className="p-2 text-center text-slate-400">#</td>
+                                    <td className="p-2 underline font-extrabold">B. COAL WINNING (Pit Sapan)</td>
+                                    <td className="p-2 text-center font-mono text-cyan-900">
+                                      {invLineItems.filter(i => i.section === "B").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} Ton
                                     </td>
-                                    <td className="p-2 font-bold text-slate-800">{item.description}</td>
-                                    <td className="p-2 text-center">
-                                      <div className="flex items-center justify-center gap-1">
+                                    <td className="p-2 text-right"></td>
+                                    <td className="p-2 text-right"></td>
+                                    <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalB)}</td>
+                                  </tr>
+                                  {invLineItems.filter(i => i.section === "B").map(item => (
+                                    <tr key={item.id} {...getRowDragProps(item)}>
+                                      {renderActionCell(item)}
+                                      {renderDescriptionCell(item)}
+                                      <td className="p-2 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                          <FormattedNumberInput
+                                            allowDecimals
+                                            maxDecimals={2}
+                                            className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                            placeholder="0"
+                                            value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                            onChange={(val) => updateInvItemVolume(item.id, val)}
+                                          />
+                                          <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Ton"}</span>
+                                        </div>
+                                      </td>
+                                      <td className="p-2 text-right">
+                                        <FormattedNumberInput
+                                          allowDecimals
+                                          maxDecimals={3}
+                                          className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                          placeholder="0.000"
+                                          value={item.unitRateUSD === 0 ? "" : (item.unitRateUSD ?? "")}
+                                          onChange={(val) => updateInvItemRateUSD(item.id, val)}
+                                        />
+                                      </td>
+                                      <td className="p-2 text-right">
                                         <FormattedNumberInput
                                           allowDecimals
                                           maxDecimals={2}
                                           className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                          placeholder="0"
-                                          value={item.volume === 0 ? "" : (item.volume ?? "")}
-                                          onChange={(val) => updateInvItemVolume(item.id, val)}
+                                          placeholder="16.000"
+                                          value={item.kursBI === 0 ? "" : (item.kursBI ?? "")}
+                                          onChange={(val) => updateInvItemKurs(item.id, val)}
                                         />
-                                        <span className="text-[11px] text-slate-600 font-bold">{item.unit || "BCM"}</span>
-                                      </div>
-                                    </td>
-                                    <td className="p-2 text-right">
-                                      <FormattedNumberInput
-                                        className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                        placeholder="0"
-                                        value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
-                                        onChange={(val) => updateInvItemRateIDR(item.id, val)}
-                                      />
-                                    </td>
-                                    <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateIDR || 0)))}</td>
-                                  </tr>
-                                ))}
-
-                                {/* Section Jasa Penunjang Produksi */}
-                                <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
-                                  <td className="p-2 text-center text-slate-400">#</td>
-                                  <td className="p-2 underline font-extrabold">JASA PENUNJANG PRODUKSI (Rental Alat)</td>
-                                  <td className="p-2 text-center font-mono text-cyan-900">
-                                    {invLineItems.filter(i => i.section === "B").reduce((s, i) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} Hours
-                                  </td>
-                                  <td className="p-2 text-right"></td>
-                                  <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalB)}</td>
-                                </tr>
-                                {invLineItems.filter(i => i.section === "B").map(item => (
-                                  <tr key={item.id} className="hover:bg-slate-50 transition">
-                                    <td className="p-2 text-center">
-                                      <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
-                                    </td>
-                                    <td className="p-2 font-bold text-slate-800">{item.description}</td>
-                                    <td className="p-2 text-center">
-                                      <div className="flex items-center justify-center gap-1">
-                                        <FormattedNumberInput
-                                          allowDecimals
-                                          maxDecimals={2}
-                                          className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                          placeholder="0"
-                                          value={item.volume === 0 ? "" : (item.volume ?? "")}
-                                          onChange={(val) => updateInvItemVolume(item.id, val)}
-                                        />
-                                        <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Hours"}</span>
-                                      </div>
-                                    </td>
-                                    <td className="p-2 text-right">
-                                      <FormattedNumberInput
-                                        className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                        placeholder="0"
-                                        value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
-                                        onChange={(val) => updateInvItemRateIDR(item.id, val)}
-                                      />
-                                    </td>
-                                    <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(Math.round((item.volume || 0) * (item.unitRateIDR || 0)))}</td>
-                                  </tr>
-                                ))}
-
-                                {/* Section P: Pengurang Pembayaran */}
-                                <tr className="bg-rose-50 font-extrabold text-rose-900 border-t-2 border-rose-300">
-                                  <td className="p-2 text-center text-rose-400">#</td>
-                                  <td colSpan={3} className="p-2 underline font-extrabold">PENGURANG PEMBAYARAN (Denda & BBM)</td>
-                                  <td className="p-2 text-right font-mono text-rose-900 font-extrabold">({formatIDR(Math.abs(cCalc.subtotalP))})</td>
-                                </tr>
-                                {invLineItems.filter(i => i.section === "P").map(item => (
-                                  <tr key={item.id} className="hover:bg-rose-50/30 transition">
-                                    <td className="p-2 text-center">
-                                      <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"><X size={14} /></button>
-                                    </td>
-                                    <td colSpan={3} className="p-2 font-medium text-slate-700">{item.description}</td>
-                                    <td className="p-2 text-right font-mono">
-                                      <FormattedNumberInput
-                                        className="w-36 bg-slate-50 border border-rose-300 font-mono font-extrabold text-rose-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white outline-none"
-                                        placeholder="0"
-                                        value={item.amount === 0 ? "" : Math.abs(item.amount)}
-                                        onChange={(val) => updateInvItemAmount(item.id, -Math.abs(val))}
-                                      />
-                                    </td>
-                                  </tr>
-                                ))}
-                              </>
-                            )}
-
-                            {/* POS MINING BASELINE TABLE (Gambar 1) */}
-                            {currentCust === "POS" && (
-                              <>
-                                {/* SECTION A. PRODUCTION / MDO */}
-                                {invLineItems.filter(i => i.section === "A").length > 0 && (
-                                  <>
-                                    <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-400">
-                                      <td className="p-2 text-center text-slate-400">#</td>
-                                      <td className="p-2 underline">
-                                        {formData.customerCode === "POS" && (formData.invoiceCategory === "MDO" || formData.activityGroup?.includes("MDO"))
-                                          ? "A. MINE DEVELOPMENT (MDO)"
-                                          : "A. PRODUCTION"}
                                       </td>
-                                      <td className="p-2 text-center font-mono text-cyan-900">
-                                        {formData.customerCode === "POS" && (formData.invoiceCategory === "MDO" || formData.activityGroup?.includes("MDO"))
-                                          ? ""
-                                          : `${invLineItems.filter(i => i.section === "A").reduce((sum, i) => sum + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} Bcm`
-                                        }
+                                      <td className="p-2 text-right font-mono font-extrabold text-slate-900">
+                                        {formatIDR(Math.round((item.volume || 0) * (item.unitRateUSD || 0) * (item.kursBI || 17923.30)))}
                                       </td>
-                                      <td className="p-2 text-right"></td>
-                                      <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalA)}</td>
                                     </tr>
-                                    {invLineItems.filter(i => i.section === "A").map((item, idx) => {
-                                      const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
-                                      const cleanDesc = (item.description || "").replace(/^[A-Z][0-9]*[\.\s\-]+\s*/i, "").trim();
-                                      return (
-                                        <tr key={item.id} className="hover:bg-slate-50 transition">
-                                          <td className="p-2 text-center">
-                                            <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded" title="Hapus Variable Ini">
-                                              <X size={14} />
-                                            </button>
-                                          </td>
-                                          <td className="p-2 font-bold text-slate-800">
-                                            <span className="text-cyan-900 font-mono mr-1.5 font-black">{`A${idx + 1}.`}</span>
-                                            <span>{cleanDesc}</span>
-                                          </td>
-                                          <td className="p-2 text-center">
-                                            <div className="flex items-center justify-center gap-1">
-                                              <FormattedNumberInput
-                                                allowDecimals
-                                                maxDecimals={2}
-                                                className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                                placeholder="0"
-                                                value={item.volume === 0 ? "" : (item.volume ?? "")}
-                                                onChange={(val) => updateInvItemVolume(item.id, val)}
-                                              />
-                                              <span className="text-[11px] text-slate-600 font-bold">{item.unit}</span>
-                                            </div>
-                                          </td>
-                                          <td className="p-2 text-right font-mono text-slate-700">{formatIDR(unitRate)}</td>
-                                          <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
-                                        </tr>
-                                      );
-                                    })}
-                                  </>
-                                )}
+                                  ))}
 
-                                {/* SECTION B. OVER DISTANCE */}
-                                {invLineItems.filter(i => i.section === "B").length > 0 && (
-                                  <>
-                                    <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
-                                      <td className="p-2 text-center text-slate-400">#</td>
-                                      <td className="p-2 underline font-extrabold">B. OVER DISTANCE</td>
-                                      <td className="p-2 text-center"></td>
-                                      <td className="p-2 text-right"></td>
-                                      <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalB)}</td>
-                                    </tr>
-                                    {invLineItems.filter(i => i.section === "B").map((item, idx) => {
-                                      const effVol = getItemEffectiveVolume(item);
-                                      const effMtr = getItemEffectiveOverhaulMtr(item);
-                                      const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
-                                      const diffMtr = effMtr - 1000;
-                                      const cleanDesc = (item.description || "").replace(/^[A-Z][0-9]*[\.\s\-]+\s*/i, "").trim();
+                                  {/* Section C: Over Distance */}
+                                  <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
+                                    <td className="p-2 text-center text-slate-400">#</td>
+                                    <td className="p-2 underline font-extrabold">C. OVER DISTANCE</td>
+                                    <td className="p-2 text-center"></td>
+                                    <td className="p-2 text-right"></td>
+                                    <td className="p-2 text-right"></td>
+                                    <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalC)}</td>
+                                  </tr>
+                                  {invLineItems.filter(i => i.section === "C").map(item => {
+                                    const effVol = getItemEffectiveVolume(item);
+                                    const effMtr = getItemEffectiveOverhaulMtr(item);
+                                    const baseMtr = item.baseMtr || (item.unit === "Ton" ? 3000 : 1000);
+                                    const diff = Math.max(0, effMtr - baseMtr);
+                                    const isCoal = item.subSection?.includes("Coal") || item.description?.includes("Coal") || item.unit === "Ton";
+                                    const calculated = calculateItemRateAndAmount(item, "PTRO");
 
-                                      return (
-                                        <tr key={item.id} className="hover:bg-slate-50 transition">
-                                          <td className="p-2 text-center">
-                                            <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded" title="Hapus Variable Ini">
-                                              <X size={14} />
-                                            </button>
-                                          </td>
-                                          <td className="p-2 font-bold text-slate-800">
-                                            <div>
-                                              <span className="text-cyan-900 font-mono mr-1.5 font-black">{`B${idx + 1}.`}</span>
-                                              <span>{cleanDesc}</span>
-                                            </div>
-                                            <div className="flex items-center gap-1.5 mt-1">
-                                              <FormattedNumberInput
-                                                className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                                placeholder="1.000"
-                                                value={item.overhaulMtr === 0 ? "" : (item.overhaulMtr ?? "")}
-                                                onChange={(val) => updateInvItemOverhaul(item.id, val)}
-                                              />
-                                              <span className="text-[11px] text-slate-600 font-bold">mtr - 1.000 mtr = ({diffMtr > 0 ? `+${formatThousand(diffMtr)}` : formatThousand(diffMtr)}) mtr</span>
-                                            </div>
-                                          </td>
-                                          <td className="p-2 text-center">
-                                            <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 border border-slate-300 rounded font-mono font-extrabold text-slate-800 text-xs">
-                                              <span>{effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</span>
-                                              <span className="text-[11px] text-slate-600 font-bold">{item.unit}</span>
-                                            </div>
-                                          </td>
-                                          <td className="p-2 text-right font-mono text-slate-700">{formatIDR(unitRate)}</td>
-                                          <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
-                                        </tr>
-                                      );
-                                    })}
-                                  </>
-                                )}
+                                    return (
+                                      <tr key={item.id} {...getRowDragProps(item)}>
+                                        {renderActionCell(item)}
+                                        <td className="p-2 font-bold text-slate-800">
+                                          <div>{item.description}</div>
+                                          <div className="flex items-center gap-1.5 mt-1">
+                                            <FormattedNumberInput
+                                              className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                              placeholder={String(baseMtr)}
+                                              value={item.overhaulMtr === 0 ? "" : (item.overhaulMtr ?? "")}
+                                              onChange={(val) => updateInvItemOverhaul(item.id, val)}
+                                            />
+                                            <span className="text-[11px] text-slate-600 font-bold">
+                                              mtr - {formatThousand(baseMtr)} mtr = ({diff > 0 ? `+${formatThousand(diff)}` : 0}) mtr
+                                            </span>
+                                          </div>
+                                        </td>
+                                        <td className="p-2 text-center">
+                                          <div className="flex items-center justify-center gap-1">
+                                            <FormattedNumberInput
+                                              allowDecimals
+                                              maxDecimals={2}
+                                              className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                              placeholder="0"
+                                              value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                              onChange={(val) => updateInvItemVolume(item.id, val)}
+                                            />
+                                            <span className="text-[11px] text-slate-600 font-bold">{item.unit || "BCM"}</span>
+                                          </div>
+                                        </td>
+                                        <td className="p-2 text-right">
+                                          {!isCoal ? (
+                                            <FormattedNumberInput
+                                              allowDecimals
+                                              maxDecimals={3}
+                                              className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                              placeholder="0.028"
+                                              value={item.unitRateUSD === 0 ? "" : (item.unitRateUSD ?? "")}
+                                              onChange={(val) => updateInvItemRateUSD(item.id, val)}
+                                            />
+                                          ) : (
+                                            <span className="text-slate-400 font-mono text-[11px]">-</span>
+                                          )}
+                                        </td>
+                                        <td className="p-2 text-right">
+                                          {!isCoal ? (
+                                            <FormattedNumberInput
+                                              allowDecimals
+                                              maxDecimals={2}
+                                              className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                              placeholder="16.000"
+                                              value={item.kursBI === 0 ? "" : (item.kursBI ?? "")}
+                                              onChange={(val) => updateInvItemKurs(item.id, val)}
+                                            />
+                                          ) : (
+                                            <span className="text-slate-400 font-mono text-[11px]">-</span>
+                                          )}
+                                        </td>
+                                        <td className="p-2 text-right font-mono font-extrabold text-slate-900">
+                                          {formatIDR(calculated.amount)}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </>
+                              )}
 
-                                {/* SECTION C. LAND CLEARING */}
-                                {invLineItems.filter(i => i.section === "C").length > 0 && (
-                                  <>
-                                    <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
-                                      <td className="p-2 text-center text-slate-400">#</td>
-                                      <td className="p-2 underline font-extrabold">C. LAND CLEARING</td>
-                                      <td className="p-2 text-center"></td>
-                                      <td className="p-2 text-right"></td>
-                                      <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalC)}</td>
-                                    </tr>
-                                    {invLineItems.filter(i => i.section === "C").map((item, idx) => {
-                                      const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
-                                      const cleanDesc = (item.description || "").replace(/^[A-Z][0-9]*[\.\s\-]+\s*/i, "").trim();
-                                      return (
-                                        <tr key={item.id} className="hover:bg-slate-50 transition">
-                                          <td className="p-2 text-center">
-                                            <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded" title="Hapus Variable Ini">
-                                              <X size={14} />
-                                            </button>
-                                          </td>
-                                          <td className="p-2 font-bold text-slate-800">
-                                            <span className="text-cyan-900 font-mono mr-1.5 font-black">{`C${idx + 1}.`}</span>
-                                            <span>{cleanDesc}</span>
-                                          </td>
-                                          <td className="p-2 text-center">
-                                            <div className="flex items-center justify-center gap-1">
-                                              <FormattedNumberInput
-                                                allowDecimals
-                                                maxDecimals={2}
-                                                className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                                                placeholder="0"
-                                                value={item.volume === 0 ? "" : (item.volume ?? "")}
-                                                onChange={(val) => updateInvItemVolume(item.id, val)}
-                                              />
-                                              <span className="text-[11px] text-slate-600 font-bold">{item.unit}</span>
-                                            </div>
-                                          </td>
-                                          <td className="p-2 text-right font-mono text-slate-700">{formatIDR(unitRate)}</td>
-                                          <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
-                                        </tr>
-                                      );
-                                    })}
-                                  </>
-                                )}
+                              {/* POS MINING BASELINE TABLE (Gambar 1) */}
+                              {currentCust === "POS" && (
+                                <>
+                                  {/* SECTION A. PRODUCTION / MDO */}
+                                  {invLineItems.filter(i => i.section === "A").length > 0 && (
+                                    <>
+                                      <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-400">
+                                        <td className="p-2 text-center text-slate-400">#</td>
+                                        <td className="p-2 underline">
+                                          {formData.customerCode === "POS" && (formData.invoiceCategory === "MDO" || formData.activityGroup?.includes("MDO"))
+                                            ? "A. MINE DEVELOPMENT (MDO)"
+                                            : "A. PRODUCTION"}
+                                        </td>
+                                        <td className="p-2 text-center font-mono text-cyan-900">
+                                          {formData.customerCode === "POS" && (formData.invoiceCategory === "MDO" || formData.activityGroup?.includes("MDO"))
+                                            ? ""
+                                            : `${invLineItems.filter(i => i.section === "A").reduce((sum, i) => sum + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} Bcm`
+                                          }
+                                        </td>
+                                        <td className="p-2 text-right"></td>
+                                        <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalA)}</td>
+                                      </tr>
+                                      {invLineItems.filter(i => i.section === "A").map((item, idx) => {
+                                        const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
+                                        const cleanDesc = (item.description || "").replace(/^[A-Z][0-9]*[\.\s\-]+\s*/i, "").trim();
+                                        return (
+                                          <tr key={item.id} {...getRowDragProps(item)}>
+                                            {renderActionCell(item)}
+                                            <td className="p-2 font-bold text-slate-800">
+                                              {item.isCustom ? (
+                                                <input
+                                                  type="text"
+                                                  className="w-full bg-cyan-50/50 border border-cyan-300 rounded px-2 py-0.5 text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 outline-none"
+                                                  value={item.description}
+                                                  placeholder="Deskripsi produksi kustom..."
+                                                  onChange={(e) => handleUpdateInvItemField(item.id, "description", e.target.value)}
+                                                />
+                                              ) : (
+                                                <>
+                                                  <span className="text-cyan-900 font-mono mr-1.5 font-black">{`A${idx + 1}.`}</span>
+                                                  <span>{cleanDesc}</span>
+                                                </>
+                                              )}
+                                            </td>
+                                            <td className="p-2 text-center">
+                                              <div className="flex items-center justify-center gap-1">
+                                                <FormattedNumberInput
+                                                  allowDecimals
+                                                  maxDecimals={2}
+                                                  className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                                  placeholder="0"
+                                                  value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                                  onChange={(val) => updateInvItemVolume(item.id, val)}
+                                                />
+                                                <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Bcm"}</span>
+                                              </div>
+                                            </td>
+                                            <td className="p-2 text-right font-mono text-slate-700">{formatIDR(unitRate)}</td>
+                                            <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </>
+                                  )}
 
-                                {/* SECTION D. RAISE & FALL'S FACTOR */}
-                                {invLineItems.filter(i => i.section === "D").length > 0 && (
-                                  <>
-                                    <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
-                                      <td className="p-2 text-center text-slate-400">#</td>
-                                      <td className="p-2 underline font-extrabold">D. RAISE & FALL'S FACTOR</td>
-                                      <td className="p-2 text-center"></td>
-                                      <td className="p-2 text-right"></td>
-                                      <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalD)}</td>
-                                    </tr>
-                                    {invLineItems.filter(i => i.section === "D").map((item, idx) => {
-                                      const effVol = getItemEffectiveVolume(item);
-                                      const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
-                                      const cleanDesc = (item.description || "").replace(/^[A-Z][0-9]*[\.\s\-]+\s*/i, "").trim();
+                                  {/* SECTION B. OVER DISTANCE */}
+                                  {invLineItems.filter(i => i.section === "B").length > 0 && (
+                                    <>
+                                      <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
+                                        <td className="p-2 text-center text-slate-400">#</td>
+                                        <td className="p-2 underline font-extrabold">B. OVER DISTANCE</td>
+                                        <td className="p-2 text-center"></td>
+                                        <td className="p-2 text-right"></td>
+                                        <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalB)}</td>
+                                      </tr>
+                                      {invLineItems.filter(i => i.section === "B").map((item, idx) => {
+                                        const effVol = getItemEffectiveVolume(item);
+                                        const effMtr = getItemEffectiveOverhaulMtr(item);
+                                        const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
+                                        const diffMtr = effMtr - 1000;
+                                        const cleanDesc = (item.description || "").replace(/^[A-Z][0-9]*[\.\s\-]+\s*/i, "").trim();
 
-                                      return (
-                                        <tr key={item.id} className="hover:bg-slate-50 transition">
-                                          <td className="p-2 text-center">
-                                            <button type="button" onClick={() => removeInvLineItem(item.id)} className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded" title="Hapus Variable Ini">
-                                              <X size={14} />
-                                            </button>
-                                          </td>
-                                          <td className="p-2 font-bold text-slate-800">
-                                            <span className="text-cyan-900 font-mono mr-1.5 font-black">{`D${idx + 1}.`}</span>
-                                            <span>{cleanDesc}</span>
-                                          </td>
-                                          <td className="p-2 text-center">
-                                            <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 border border-slate-300 rounded font-mono font-extrabold text-slate-800 text-xs">
-                                              <span>{effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</span>
-                                              <span className="text-[11px] text-slate-600 font-bold">{item.unit}</span>
-                                            </div>
-                                          </td>
-                                          <td className="p-2 text-right font-mono text-slate-700">{formatIDR(unitRate)}</td>
-                                          <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
-                                        </tr>
-                                      );
-                                    })}
-                                  </>
-                                )}
-                              </>
-                            )}
-                          </tbody>
+                                        return (
+                                          <tr key={item.id} {...getRowDragProps(item)}>
+                                            {renderActionCell(item)}
+                                            <td className="p-2 font-bold text-slate-800">
+                                              {item.isCustom ? (
+                                                <div className="mb-1">
+                                                  <input
+                                                    type="text"
+                                                    className="w-full bg-cyan-50/50 border border-cyan-300 rounded px-2 py-0.5 text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 outline-none"
+                                                    value={item.description}
+                                                    placeholder="Deskripsi overhaul kustom..."
+                                                    onChange={(e) => handleUpdateInvItemField(item.id, "description", e.target.value)}
+                                                  />
+                                                </div>
+                                              ) : (
+                                                <div>
+                                                  <span className="text-cyan-900 font-mono mr-1.5 font-black">{`B${idx + 1}.`}</span>
+                                                  <span>{cleanDesc}</span>
+                                                </div>
+                                              )}
+                                              <div className="flex items-center gap-1.5 mt-1">
+                                                <FormattedNumberInput
+                                                  className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                                  placeholder="1.000"
+                                                  value={item.overhaulMtr === 0 ? "" : (item.overhaulMtr ?? "")}
+                                                  onChange={(val) => updateInvItemOverhaul(item.id, val)}
+                                                />
+                                                <span className="text-[11px] text-slate-600 font-bold">mtr - 1.000 mtr = ({diffMtr > 0 ? `+${formatThousand(diffMtr)}` : formatThousand(diffMtr)}) mtr</span>
+                                              </div>
+                                            </td>
+                                            <td className="p-2 text-center">
+                                              <div className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 border border-slate-300 rounded font-mono font-extrabold text-slate-800 text-xs">
+                                                <span>{effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</span>
+                                                <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Bcm"}</span>
+                                              </div>
+                                            </td>
+                                            <td className="p-2 text-right font-mono text-slate-700">{formatIDR(unitRate)}</td>
+                                            <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </>
+                                  )}
 
-                          {/* ZONA 5: SUMMARY TOTALS & TAX BREAKDOWN */}
-                          <tfoot className="border-t-2 border-slate-900 bg-slate-50 font-bold text-xs">
-                            <tr>
-                              <td colSpan={currentCust === "DBK" ? 4 : 3} className="p-2.5 text-right font-black uppercase text-slate-700">SUBTOTAL REVENUE (GROSS):</td>
-                              <td colSpan={2} className="p-2.5 text-right font-mono text-sm font-black text-slate-900">{formatIDR(cCalc.totalGross)}</td>
-                            </tr>
-                            <tr>
-                              <td colSpan={currentCust === "DBK" ? 4 : 3} className="p-2.5 text-right uppercase text-slate-600 font-bold">DPP (Dasar Pengenaan Pajak):</td>
-                              <td colSpan={2} className="p-2.5 text-right font-mono font-bold text-slate-800">{formatIDR(cCalc.dpp11_12 || cCalc.totalGross)}</td>
-                            </tr>
-                            <tr>
-                              <td colSpan={currentCust === "DBK" ? 4 : 3} className="p-2.5 text-right uppercase text-emerald-800 font-extrabold">PPN 11% (+):</td>
-                              <td colSpan={2} className="p-2.5 text-right font-mono font-extrabold text-emerald-700">{formatIDR(cCalc.vat12 || Math.round((cCalc.dpp11_12 || cCalc.totalGross) * 0.11))}</td>
-                            </tr>
-                            <tr>
-                              <td colSpan={currentCust === "DBK" ? 4 : 3} className="p-2.5 text-right uppercase text-rose-800 font-extrabold">PPh Pasal 23 (2%) (-):</td>
-                              <td colSpan={2} className="p-2.5 text-right font-mono font-extrabold text-rose-700">({formatIDR(cCalc.pph23 || Math.round((cCalc.dpp11_12 || cCalc.totalGross) * 0.02))})</td>
-                            </tr>
-                            <tr className="bg-slate-900 text-white font-black text-sm border-t-2 border-slate-900">
-                              <td colSpan={currentCust === "DBK" ? 4 : 3} className="p-3 text-right uppercase tracking-wider text-cyan-300">TOTAL INVOICE (NETTO):</td>
-                              <td colSpan={2} className="p-3 text-right font-mono text-base font-black text-emerald-400">{formatIDR(cCalc.totalInvoice)}</td>
-                            </tr>
-                            {currentCust === "SBS" && (
-                              <tr className="bg-emerald-800 text-white font-black text-sm border-t-2 border-emerald-950">
-                                <td colSpan={3} className="p-3 text-right uppercase tracking-wider text-emerald-200">TOTAL DIBAYAR (NETTO SETELAH POTONGAN):</td>
-                                <td colSpan={2} className="p-3 text-right font-mono text-lg text-white underline">{formatIDR(cCalc.totalDibayar)}</td>
+                                  {/* SECTION C. LAND CLEARING */}
+                                  {invLineItems.filter(i => i.section === "C").length > 0 && (
+                                    <>
+                                      <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
+                                        <td className="p-2 text-center text-slate-400">#</td>
+                                        <td className="p-2 underline font-extrabold">C. LAND CLEARING</td>
+                                        <td className="p-2 text-center font-mono text-cyan-900">
+                                          {invLineItems.filter(i => i.section === "C").reduce((sum, i) => sum + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} m2
+                                        </td>
+                                        <td className="p-2 text-right"></td>
+                                        <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalC)}</td>
+                                      </tr>
+                                      {invLineItems.filter(i => i.section === "C").map((item, idx) => {
+                                        const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
+                                        const cleanDesc = (item.description || "").replace(/^[A-Z][0-9]*[\.\s\-]+\s*/i, "").trim();
+                                        return (
+                                          <tr key={item.id} {...getRowDragProps(item)}>
+                                            {renderActionCell(item)}
+                                            <td className="p-2 font-bold text-slate-800">
+                                              {item.isCustom ? (
+                                                <input
+                                                  type="text"
+                                                  className="w-full bg-cyan-50/50 border border-cyan-300 rounded px-2 py-0.5 text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 outline-none"
+                                                  value={item.description}
+                                                  placeholder="Deskripsi land clearing..."
+                                                  onChange={(e) => handleUpdateInvItemField(item.id, "description", e.target.value)}
+                                                />
+                                              ) : (
+                                                <>
+                                                  <span className="text-cyan-900 font-mono mr-1.5 font-black">{`C${idx + 1}.`}</span>
+                                                  <span>{cleanDesc}</span>
+                                                </>
+                                              )}
+                                            </td>
+                                            <td className="p-2 text-center">
+                                              <div className="flex items-center justify-center gap-1">
+                                                <FormattedNumberInput
+                                                  allowDecimals
+                                                  maxDecimals={2}
+                                                  className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                                  placeholder="0"
+                                                  value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                                  onChange={(val) => updateInvItemVolume(item.id, val)}
+                                                />
+                                                <span className="text-[11px] text-slate-600 font-bold">{item.unit || "m2"}</span>
+                                              </div>
+                                            </td>
+                                            <td className="p-2 text-right font-mono text-slate-700">{formatIDR(unitRate)}</td>
+                                            <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </>
+                                  )}
+
+                                  {/* SECTION D. RAISE & FALL'S FACTOR */}
+                                  {invLineItems.filter(i => i.section === "D").length > 0 && (
+                                    <>
+                                      <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
+                                        <td className="p-2 text-center text-slate-400">#</td>
+                                        <td className="p-2 underline font-extrabold">D. RAISE & FALL'S FACTOR</td>
+                                        <td className="p-2 text-center"></td>
+                                        <td className="p-2 text-right"></td>
+                                        <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalD)}</td>
+                                      </tr>
+                                      {invLineItems.filter(i => i.section === "D").map((item, idx) => {
+                                        const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
+                                        const cleanDesc = (item.description || "").replace(/^[A-Z][0-9]*[\.\s\-]+\s*/i, "").trim();
+                                        return (
+                                          <tr key={item.id} {...getRowDragProps(item)}>
+                                            {renderActionCell(item)}
+                                            <td className="p-2 font-bold text-slate-800">
+                                              {item.isCustom ? (
+                                                <input
+                                                  type="text"
+                                                  className="w-full bg-cyan-50/50 border border-cyan-300 rounded px-2 py-0.5 text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 outline-none"
+                                                  value={item.description}
+                                                  placeholder="Deskripsi penyesuaian..."
+                                                  onChange={(e) => handleUpdateInvItemField(item.id, "description", e.target.value)}
+                                                />
+                                              ) : (
+                                                <>
+                                                  <span className="text-cyan-900 font-mono mr-1.5 font-black">{`D${idx + 1}.`}</span>
+                                                  <span>{cleanDesc}</span>
+                                                </>
+                                              )}
+                                            </td>
+                                            <td className="p-2 text-center">
+                                              <div className="flex items-center justify-center gap-1">
+                                                <FormattedNumberInput
+                                                  allowDecimals
+                                                  maxDecimals={2}
+                                                  className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                                                  placeholder="0"
+                                                  value={item.volume === 0 ? "" : (item.volume ?? "")}
+                                                  onChange={(val) => updateInvItemVolume(item.id, val)}
+                                                />
+                                                <span className="text-[11px] text-slate-600 font-bold">{item.unit || "Bcm"}</span>
+                                              </div>
+                                            </td>
+                                            <td className="p-2 text-right font-mono text-slate-700">{formatIDR(unitRate)}</td>
+                                            <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </>
+                                  )}
+                                </>
+                              )}
+                            </tbody>
+
+                            {/* ZONA 5: SUMMARY TOTALS & TAX BREAKDOWN */}
+                            <tfoot className="border-t-2 border-slate-900 bg-slate-50 font-bold text-xs">
+                              <tr>
+                                <td colSpan={(currentCust === "PTRO" || currentCust === "DBK") ? 4 : 3} className="p-2.5 text-right font-black uppercase text-slate-700">SUBTOTAL REVENUE (GROSS):</td>
+                                <td colSpan={2} className="p-2.5 text-right font-mono text-sm font-black text-slate-900">{formatIDR(cCalc.totalGross)}</td>
                               </tr>
-                            )}
-                          </tfoot>
-                        </table>
+                              <tr>
+                                <td colSpan={(currentCust === "PTRO" || currentCust === "DBK") ? 4 : 3} className="p-2.5 text-right uppercase text-slate-600 font-bold">DPP PPN 11/12:</td>
+                                <td colSpan={2} className="p-2.5 text-right font-mono font-bold text-slate-800">{formatIDR(cCalc.dpp11_12 || Math.round(cCalc.totalGross * 11 / 12))}</td>
+                              </tr>
+                              <tr>
+                                <td colSpan={(currentCust === "PTRO" || currentCust === "DBK") ? 4 : 3} className="p-2.5 text-right uppercase text-emerald-800 font-extrabold">VAT (12%) (+):</td>
+                                <td colSpan={2} className="p-2.5 text-right font-mono font-extrabold text-emerald-700">{formatIDR(cCalc.vat12 || Math.round((cCalc.dpp11_12 || (cCalc.totalGross * 11 / 12)) * 0.12))}</td>
+                              </tr>
+                              <tr>
+                                <td colSpan={(currentCust === "PTRO" || currentCust === "DBK") ? 4 : 3} className="p-2.5 text-right uppercase text-rose-800 font-extrabold">WITHHOLDING TAX ART 23 (2%) (-):</td>
+                                <td colSpan={2} className="p-2.5 text-right font-mono font-extrabold text-rose-700">({formatIDR(cCalc.pph23 || Math.round(cCalc.totalGross * 0.02))})</td>
+                              </tr>
+                              <tr className="bg-slate-900 text-white font-black text-sm border-t-2 border-slate-900">
+                                <td colSpan={(currentCust === "PTRO" || currentCust === "DBK") ? 4 : 3} className="p-3 text-right uppercase tracking-wider text-cyan-300">TOTAL INVOICE (NETTO):</td>
+                                <td colSpan={2} className="p-3 text-right font-mono text-base font-black text-emerald-400">{formatIDR(cCalc.totalInvoice)}</td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
 
-                  {/* Helper legend footer */}
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-1">
                     <span className="text-[11px] text-slate-500 font-medium">
-                      * Pilih customer di atas untuk berganti otomatis format dan urutan field SOW (POS, BGG, DBK, SBS). Kolom tabel & perhitungan otomatis menyesuaikan.
+                      * Pilih customer di atas untuk berganti otomatis format dan urutan field SOW (POS, BGG, PTRO, SBS). Kolom tabel & perhitungan otomatis menyesuaikan.
                     </span>
                   </div>
                 </div>
@@ -1363,12 +1788,12 @@ export function FormModals({ c }: { c: any }) {
                     <div className="text-slate-600 font-medium pl-4">
                       {formData.customerCode === "BGG" ? (
                         <span>Kontrak BGG: Perbandingan Top Soil & Overburden adalah maksimal <strong>3.0 BCM / 1 Ton Coal (3 : 1)</strong>. Nilai coal 1 Ton dengan nilai top soil dan overburden maksimal 3 Bcm kontraknya. Kelebihan volume pengerjaan di-pending ke invoice selanjutnya.</span>
-                      ) : formData.customerCode === "DBK" ? (
-                        <span>Kontrak DBK: Perbandingan Overburden maksimal <strong>3.5 BCM / 1 Ton Coal</strong>. Selisih volume over-ratio di-carry over.</span>
+                      ) : formData.customerCode === "PTRO" || formData.customerCode === "DBK" ? (
+                        <span>Kontrak PTRO (PT Petrosea): Perbandingan Overburden maksimal <strong>3.5 BCM / 1 Ton Coal</strong>. Selisih volume over-ratio di-carry over.</span>
                       ) : formData.customerCode === "POS" ? (
-                        <span>Kontrak POS: Perbandingan Waste/OB & Top Soil maksimal <strong>4.0 BCM / 1 Ton Ore</strong>. Selisih kuota masuk ke Pending Volume.</span>
+                        <span>Kontrak POS (PT Position): Perbandingan Waste/OB & Top Soil maksimal <strong>4.0 BCM / 1 Ton Ore</strong>. Selisih kuota masuk ke Pending Volume.</span>
                       ) : formData.customerCode === "SBS" ? (
-                        <span>Kontrak SBS: Penagihan berbasis 8 titik Overburden per Disposal & Jasa Alat Berat Jam-Mesin (tanpa rasio batubara).</span>
+                        <span>Kontrak SBS (PT Satria Bahana Sarana): Penagihan berbasis 8 titik Overburden per Disposal & Jasa Alat Berat Jam-Mesin (tanpa rasio batubara).</span>
                       ) : (
                         <span>Kontrak Standar: Rasio Top Soil & OB maksimal <strong>3.0 BCM / 1 Ton Coal (3 : 1)</strong>.</span>
                       )}
@@ -1400,7 +1825,7 @@ export function FormModals({ c }: { c: any }) {
                       >
                         <option value="BGG">BGG - PT Budi Gema Gempita (Quota SR 3:1)</option>
                         <option value="SBS">SBS - PT Satria Bahana Sarana</option>
-                        <option value="DBK">DBK - PT Daya Bumindo Karunia</option>
+                        <option value="PTRO">PTRO - PT Petrosea</option>
                       </select>
                     </div>
 
@@ -1513,7 +1938,7 @@ export function FormModals({ c }: { c: any }) {
                 const isCustomerBGG = (formData.customerCode === "BGG" || formData.customerCode === "PT BGG");
                 const isCustomerPOS = (formData.customerCode === "POS" || !formData.customerCode);
                 const isCustomerSBS = formData.customerCode === "SBS";
-                const isCustomerDBK = formData.customerCode === "DBK";
+                const isCustomerDBK = formData.customerCode === "PTRO" || formData.customerCode === "DBK";
 
                 const allBAItems = [...baOperatingItems, ...baMDOItems, ...(baDeductionItems || [])];
 
@@ -1614,6 +2039,11 @@ export function FormModals({ c }: { c: any }) {
                     const dist = Number(item.distanceWeightAvg ?? baseDist);
                     // Untuk overhaul jika di bawah base (1.000m OB / 3.000m Coal) dianggap 0
                     const diffMtr = Math.max(0, dist - baseDist);
+                    const isPer100m = isCustomerDBK || (item.unit || "").includes("100") || (item.material || "").includes("100m") || (item.material || "").toUpperCase().includes("PIT SAPAN") || (item.material || "").toUpperCase().includes("OVERHAUL COAL");
+                    if (isPer100m) {
+                      const diff100m = diffMtr / 100;
+                      return Math.round(volume * diff100m * r);
+                    }
                     const diffKm = diffMtr / 1000;
                     return Math.round(volume * diffKm * r);
                   }
@@ -1673,7 +2103,7 @@ export function FormModals({ c }: { c: any }) {
                                 onChange={(e) => {
                                   const code = e.target.value;
                                   const isBGG = code === "BGG" || code === "PT BGG";
-                                  const isDBK = code === "DBK";
+                                  const isDBK = code === "PTRO" || code === "DBK";
                                   const isSBS = code === "SBS";
                                   const currentPeriod = formData.workPeriod || "Agustus 2026";
                                   setFormData({ ...formData, customerCode: code });
@@ -1702,10 +2132,10 @@ export function FormModals({ c }: { c: any }) {
                                   }
                                 }}
                               >
-                                <option value="POS">POS – PT Position / Paramitha</option>
+                                <option value="POS">POS – PT Position</option>
                                 <option value="SBS">SBS – PT Satria Bahana Sarana</option>
                                 <option value="BGG">BGG – PT Budi Gema Gempita</option>
-                                <option value="DBK">DBK – PT Dayabumi Kencana</option>
+                                <option value="PTRO">PTRO – PT Petrosea</option>
                               </select>
                             </div>
                             <div>
@@ -1730,9 +2160,9 @@ export function FormModals({ c }: { c: any }) {
                                 PIC Site AAP
                               </label>
                               <input
-                                className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 text-xs focus:border-cyan-700 outline-none"
+                                className="w-full bg-white border border-slate-300 rounded-lg p-2 text-slate-900 text-xs focus:border-cyan-700 outline-none font-bold"
                                 placeholder="Operations / Site Engineer"
-                                value={formData.picAAP || ""}
+                                value={formData.picAAP !== undefined ? formData.picAAP : (user?.name || "Operations / Site Engineer")}
                                 onChange={(e) => setFormData({ ...formData, picAAP: e.target.value })}
                               />
                             </div>
@@ -1932,14 +2362,15 @@ export function FormModals({ c }: { c: any }) {
                               <table className="w-full text-xs text-left">
                                 <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
                                   <tr>
-                                    <th className="p-2.5 w-24">Area / Lokasi</th>
-                                    <th className="p-2.5 min-w-[200px]">Material / Pekerjaan (Master SOW)</th>
-                                    <th className="p-2.5 w-28 text-center">Keterangan</th>
-                                    <th className="p-2.5 text-center w-18">Satuan</th>
-                                    <th className="p-2.5 text-right w-28">Volume Awal</th>
-                                    <th className="p-2.5 text-right w-28">SOW Rate (Rp)</th>
-                                    <th className="p-2.5 text-right w-32">Subtotal (Rp)</th>
-                                    {isInlineEditingBA && <th className="p-2.5 text-center w-10">#</th>}
+                                    <th className="p-2 w-20">Area / Lokasi</th>
+                                    <th className="p-2 min-w-[170px]">Material / Pekerjaan (Master SOW)</th>
+                                    {isCustomerBGG && <th className="p-2 w-24 text-center">Bulan</th>}
+                                    <th className="p-2 text-center w-14">Satuan</th>
+                                    <th className="p-2 text-right w-24">Volume TC</th>
+                                    {isCustomerSBS && <th className="p-2 text-right w-24 text-indigo-900 bg-indigo-50/70 border-x border-indigo-200">Jarak (M)</th>}
+                                    <th className="p-2 text-right w-24">SOW Rate (Rp)</th>
+                                    <th className="p-2 text-right w-28">Subtotal (Rp)</th>
+                                    {isInlineEditingBA && <th className="p-2 text-center w-8">#</th>}
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -2077,28 +2508,30 @@ export function FormModals({ c }: { c: any }) {
                                             </div>
                                           )}
                                         </td>
-                                        <td className="p-2.5 font-medium text-slate-800 align-top text-center">
-                                          {!isInlineEditingBA ? (
-                                            (item.keterangan || item.notes) ? (
-                                              <span className="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs font-bold text-slate-700 inline-block text-center min-w-[55px] mt-0.5">
-                                                {item.keterangan || item.notes}
-                                              </span>
-                                            ) : null
-                                          ) : (
-                                            <input
-                                              type="text"
-                                              className="w-24 bg-slate-50 hover:bg-white border border-slate-300 rounded px-2 py-1 text-xs font-bold text-slate-900 text-center focus:border-cyan-700 outline-none"
-                                              value={item.keterangan ?? item.notes ?? ""}
-                                              placeholder=""
-                                              onChange={(e) => {
-                                                const updated = [...baOperatingItems];
-                                                updated[idx].keterangan = e.target.value;
-                                                updated[idx].notes = e.target.value;
-                                                setBaOperatingItems(updated);
-                                              }}
-                                            />
-                                          )}
-                                        </td>
+                                        {isCustomerBGG && (
+                                          <td className="p-2 font-medium text-slate-800 align-top text-center">
+                                            {!isInlineEditingBA ? (
+                                              (item.period || item.keterangan || item.notes) ? (
+                                                <span className="px-2 py-1 bg-amber-50 border border-amber-200 rounded text-xs font-bold text-amber-950 inline-block text-center min-w-[55px] mt-0.5 font-mono">
+                                                  {item.period || item.keterangan || item.notes}
+                                                </span>
+                                              ) : null
+                                            ) : (
+                                              <MonthPickerInput
+                                                value={item.period || item.keterangan || item.notes || formData.workPeriod || "Agustus 2026"}
+                                                onChange={(newPeriod) => {
+                                                  const updated = [...baOperatingItems];
+                                                  updated[idx].period = newPeriod;
+                                                  updated[idx].keterangan = newPeriod;
+                                                  updated[idx].notes = newPeriod;
+                                                  setBaOperatingItems(updated);
+                                                }}
+                                                format="short"
+                                                className="w-24 bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 rounded px-1.5 py-1 text-xs font-bold text-slate-900 text-center focus:border-cyan-700 outline-none shadow-2xs font-mono"
+                                              />
+                                            )}
+                                          </td>
+                                        )}
                                         <td className="p-2.5 text-center font-mono font-bold text-slate-800 align-top">
                                           {isDPFuel ? (
                                             <span className="text-slate-400 font-bold pt-1 block">-</span>
@@ -2176,22 +2609,73 @@ export function FormModals({ c }: { c: any }) {
                                                 </div>
                                               )}
                                             </td>
-                                            <td className="p-2.5 text-right font-mono align-top">
-                                              {!isInlineEditingBA ? (
-                                                <span className="pt-1 block">{formatIDR(item.rate || 0)}</span>
-                                              ) : (
-                                                <FormattedNumberInput
-                                                  className="w-24 bg-slate-50 hover:bg-white border border-slate-300 rounded px-2 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
-                                                  value={item.rate === 0 ? "" : (item.rate ?? "")}
-                                                  placeholder="0"
-                                                  onChange={(val) => {
-                                                    const updated = [...baOperatingItems];
-                                                    updated[idx].rate = val;
-                                                    setBaOperatingItems(updated);
-                                                  }}
-                                                />
+                                              {isCustomerSBS && (
+                                                <td className="p-2.5 text-right font-mono align-top bg-indigo-50/30 border-x border-indigo-100">
+                                                  {!isInlineEditingBA ? (
+                                                    <div className="pt-1">
+                                                      <span className="font-bold text-slate-900 font-mono">{item.distance ? formatThousand(item.distance) : "-"}</span>
+                                                      {(() => {
+                                                        const lookup = getSBSTarifByDistance(Number(item.distance || 0));
+                                                        return lookup.tier ? (
+                                                          <span className="text-[9px] font-mono font-bold text-indigo-700 bg-indigo-100/80 px-1 py-0.2 rounded ml-1">
+                                                            {lookup.tier.rangeLabel}m
+                                                          </span>
+                                                        ) : null;
+                                                      })()}
+                                                    </div>
+                                                  ) : (
+                                                    <div className="flex flex-col items-end">
+                                                      <FormattedNumberInput
+                                                        className="w-24 bg-white border border-indigo-300 rounded px-2 py-1 text-right font-mono font-bold text-xs text-indigo-950 focus:border-indigo-600 outline-none"
+                                                        value={item.distance === 0 ? "" : (item.distance ?? "")}
+                                                        placeholder="0"
+                                                        onChange={(distVal) => {
+                                                          const updated = [...baOperatingItems];
+                                                          updated[idx].distance = distVal;
+                                                          const lookup = getSBSTarifByDistance(distVal);
+                                                          if (lookup.rate > 0) {
+                                                            updated[idx].rate = lookup.rate;
+                                                          }
+                                                          const vInit = Number(updated[idx].initialVolume || 0);
+                                                          const vAdj = Number(updated[idx].adjustedVolume ?? updated[idx].initialVolume ?? 0);
+                                                          const r = Number(updated[idx].rate || 0);
+                                                          updated[idx].subtotalInitial = Math.round(vInit * r);
+                                                          updated[idx].subtotalAdjusted = Math.round(vAdj * r);
+                                                          setBaOperatingItems(updated);
+                                                        }}
+                                                      />
+                                                      {(() => {
+                                                        const lookup = getSBSTarifByDistance(Number(item.distance || 0));
+                                                        return lookup.tier ? (
+                                                          <span className="text-[9px] font-mono font-bold text-indigo-700 bg-indigo-100/70 px-1 py-0.2 rounded mt-0.5 whitespace-nowrap">
+                                                            {lookup.tier.rangeLabel}m
+                                                          </span>
+                                                        ) : null;
+                                                      })()}
+                                                    </div>
+                                                  )}
+                                                </td>
                                               )}
-                                            </td>
+                                            <td className="p-2.5 text-right font-mono align-top">
+                                                {!isInlineEditingBA ? (
+                                                  <span className="pt-1 block">{formatIDR(item.rate || 0)}</span>
+                                                ) : (
+                                                  <FormattedNumberInput
+                                                    className="w-24 bg-slate-50 hover:bg-white border border-slate-300 rounded px-2 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
+                                                    value={item.rate === 0 ? "" : (item.rate ?? "")}
+                                                    placeholder="0"
+                                                    onChange={(val) => {
+                                                      const updated = [...baOperatingItems];
+                                                      updated[idx].rate = val;
+                                                      const vInit = Number(updated[idx].initialVolume || 0);
+                                                      const vAdj = Number(updated[idx].adjustedVolume ?? updated[idx].initialVolume ?? 0);
+                                                      updated[idx].subtotalInitial = Math.round(vInit * val);
+                                                      updated[idx].subtotalAdjusted = Math.round(vAdj * val);
+                                                      setBaOperatingItems(updated);
+                                                    }}
+                                                  />
+                                                )}
+                                              </td>
                                           </>
                                         )}
 
@@ -2589,7 +3073,7 @@ export function FormModals({ c }: { c: any }) {
                                 <tr>
                                   <th className="p-2.5 min-w-[240px]">Material / Pekerjaan</th>
                                   <th className="p-2.5 text-center w-20">Satuan</th>
-                                  <th className="p-2.5 text-right w-28">Vol Awal</th>
+                                  <th className="p-2.5 text-right w-28">Volume TC</th>
                                   <th className="p-2.5 text-right w-32">Vol Hasil Survey</th>
                                   <th className="p-2.5 text-right w-28">Rate SOW (Rp)</th>
                                   <th className="p-2.5 text-right w-32">Subtotal Baru (Rp)</th>
@@ -2929,53 +3413,92 @@ export function FormModals({ c }: { c: any }) {
                             </div>
                           )}
 
-                          {/* Status Ready to Invoice Action Banner */}
-                          {(formData.statusBA === "Ready to Invoice" || formData.statusBA === "Approved") && (
-                            <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-emerald-950 shadow-xs">
-                              <div className="flex items-center gap-2.5">
-                                <CheckCircle2 size={20} className="text-emerald-700 shrink-0" />
-                                <div>
-                                  <strong className="block font-black text-emerald-900">Berita Acara Telah Disetujui (Ready to Invoice)</strong>
-                                  <span className="text-emerald-800 text-[11px]">Dokumen siap diterbitkan invoice penagihan resmi ke pelanggan.</span>
-                                </div>
-                              </div>
-                              {formData.customerCode === "POS" ? (
-                                <div className="flex items-center gap-2">
+                          {/* Status Ready to Invoice / Invoiced Action Banner */}
+                          {(() => {
+                            const step3InvStatus = getBAInvoiceStatus(editItem || formData, invoiceRows);
+                            const linkedNo = (formData.invoiceNoLinked || editItem?.invoiceNoLinked || "").trim();
+                            const isLinked = Boolean(linkedNo && linkedNo !== "-") || step3InvStatus.isFullyInvoiced;
+                            const isPOS = (editItem?.customerCode === "POS" || formData.customerCode === "POS");
+
+                            if (isLinked) {
+                              const displayInvNo = linkedNo || step3InvStatus.createdInvoices[0]?.invoiceNo || "Terbit";
+                              return (
+                                <div className="bg-purple-50 border border-purple-300 rounded-xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-purple-950 shadow-xs">
+                                  <div className="flex items-center gap-2.5">
+                                    <Archive size={16} className="text-purple-700 shrink-0" />
+                                    <span className="font-black text-purple-900">Arsip: Telah Terbit Invoice #{displayInvNo}</span>
+                                  </div>
                                   <button
                                     type="button"
                                     onClick={() => {
                                       setModalType("none");
-                                      createInvoiceFromBA(editItem || formData, "Operation & Mining");
+                                      const targetInv = step3InvStatus.createdInvoices[0] || invoiceRows.find((inv: any) => inv.invoiceNo === displayInvNo || inv.baNoReference === formData.baNumber || inv.baID === (editItem?.id || formData.id));
+                                      if (targetInv) {
+                                        setDetailViewItem({ type: "invoice", data: targetInv });
+                                      } else {
+                                        alert(`Invoice #${displayInvNo} telah tercatat.`);
+                                      }
                                     }}
-                                    className="bg-cyan-700 hover:bg-cyan-800 text-white font-extrabold py-2 px-3 rounded-xl flex items-center gap-1.5 transition text-xs shadow-xs whitespace-nowrap cursor-pointer"
+                                    className="bg-purple-700 hover:bg-purple-800 text-white font-bold py-1.5 px-3.5 rounded-xl flex items-center gap-1.5 transition text-xs shadow-xs whitespace-nowrap cursor-pointer"
                                   >
-                                    <Pickaxe size={14} /> + Inv Mining
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setModalType("none");
-                                      createInvoiceFromBA(editItem || formData, "MDO");
-                                    }}
-                                    className="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold py-2 px-3 rounded-xl flex items-center gap-1.5 transition text-xs shadow-xs whitespace-nowrap cursor-pointer"
-                                  >
-                                    <Building2 size={14} /> + Inv MDO
+                                    <ExternalLink size={12} /> Lihat Invoice
                                   </button>
                                 </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setModalType("none");
-                                    createInvoiceFromBA(editItem || formData);
-                                  }}
-                                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-black py-2 px-3.5 rounded-xl flex items-center gap-1.5 transition text-xs shadow-xs whitespace-nowrap cursor-pointer"
-                                >
-                                  <Zap size={14} /> + Terbitkan Invoice
-                                </button>
-                              )}
-                            </div>
-                          )}
+                              );
+                            }
+
+                            if (formData.statusBA === "Ready to Invoice" || formData.statusBA === "Approved") {
+                              return (
+                                <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-emerald-950 shadow-xs">
+                                  <div className="flex items-center gap-2.5">
+                                    <CheckCircle2 size={16} className="text-emerald-700 shrink-0" />
+                                    <span className="font-black text-emerald-900">BA Disetujui (Ready to Invoice)</span>
+                                  </div>
+                                  {isPOS ? (
+                                    <div className="flex items-center gap-2">
+                                      {!step3InvStatus.createdMiningInv && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setModalType("none");
+                                            createInvoiceFromBA(editItem || formData, "Operation & Mining");
+                                          }}
+                                          className="bg-cyan-700 hover:bg-cyan-800 text-white font-extrabold py-2 px-3 rounded-xl flex items-center gap-1.5 transition text-xs shadow-xs whitespace-nowrap cursor-pointer"
+                                        >
+                                          <Pickaxe size={14} /> + Inv Mining
+                                        </button>
+                                      )}
+                                      {!step3InvStatus.createdMDOInv && (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setModalType("none");
+                                            createInvoiceFromBA(editItem || formData, "MDO");
+                                          }}
+                                          className="bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold py-2 px-3 rounded-xl flex items-center gap-1.5 transition text-xs shadow-xs whitespace-nowrap cursor-pointer"
+                                        >
+                                          <Building2 size={14} /> + Inv MDO
+                                        </button>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setModalType("none");
+                                        createInvoiceFromBA(editItem || formData);
+                                      }}
+                                      className="bg-emerald-700 hover:bg-emerald-800 text-white font-black py-2 px-3.5 rounded-xl flex items-center gap-1.5 transition text-xs shadow-xs whitespace-nowrap cursor-pointer"
+                                    >
+                                      <Zap size={14} /> + Terbitkan Invoice
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            }
+
+                            return null;
+                          })()}
 
                           {/* Navigation Buttons */}
                           <div className="flex justify-start items-center pt-2">
@@ -3049,17 +3572,17 @@ export function FormModals({ c }: { c: any }) {
                         </div>
 
                         {/* Draft BA Card */}
-                        <div className="p-3 bg-slate-900 text-white rounded-xl space-y-2">
+                        <div className="p-3 bg-slate-900 text-white rounded-xl space-y-2.5 shadow-sm">
                           <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-cyan-400 flex items-center gap-1">
-                              <Upload size={13} /> Draft BA PDF
+                            <span className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+                              <FileText size={13} className="text-cyan-400" /> Draft BA PDF (Internal Routing)
                             </span>
                             {formData.draftBAPath ? (
                               <a
                                 href={resolveDocumentUrl(formData.draftBAPath)}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="text-[10px] px-2 py-0.5 rounded bg-cyan-700 hover:bg-cyan-600 text-white font-bold inline-flex items-center gap-1"
+                                className="text-[10px] px-2.5 py-1 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white font-bold inline-flex items-center gap-1 transition shadow-xs"
                               >
                                 <ExternalLink size={11} /> Buka Tab Baru
                               </a>
@@ -3068,8 +3591,20 @@ export function FormModals({ c }: { c: any }) {
                             )}
                           </div>
                           {formData.draftBAPath ? (
-                            <div className="w-full h-36 rounded-lg overflow-hidden border border-slate-700 bg-slate-800">
-                              <iframe src={resolveDocumentUrl(formData.draftBAPath)} className="w-full h-full" title="Draft BA PDF Preview" />
+                            <div className="p-3 bg-slate-800/80 rounded-lg border border-slate-700 flex items-center gap-3">
+                              <div className="p-2.5 bg-cyan-950/80 border border-cyan-700/50 rounded-lg text-cyan-400 shrink-0">
+                                <FileText size={22} />
+                              </div>
+                              <div className="min-w-0 flex-1 text-xs">
+                                <span className="font-mono font-bold text-slate-200 block truncate" title={formData.draftBAPath}>
+                                  {formData.draftBARefNo ? `Draft-${formData.draftBARefNo.replace(/\//g, '_')}.pdf` : formData.draftBAPath.split('/').pop() || "draft_berita_acara.pdf"}
+                                </span>
+                                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                                  <span>Site: <strong className="text-cyan-300">{formData.customerCode || "POS"}</strong></span>
+                                  <span>•</span>
+                                  <span>Routing: <strong className="text-slate-300">{formData.internalRoutingDate || "Tercatat"}</strong></span>
+                                </div>
+                              </div>
                             </div>
                           ) : (
                             <div className="p-3 text-center text-xs text-slate-400 bg-slate-800/50 rounded-lg border border-dashed border-slate-700">
@@ -3079,17 +3614,17 @@ export function FormModals({ c }: { c: any }) {
                         </div>
 
                         {/* Final Signed BA Card */}
-                        <div className="p-3 bg-slate-900 text-white rounded-xl space-y-2">
+                        <div className="p-3 bg-slate-900 text-white rounded-xl space-y-2.5 shadow-sm">
                           <div className="flex justify-between items-center">
-                            <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                              <CheckCircle size={13} /> Final Signed BA PDF
+                            <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                              <CheckCircle size={13} className="text-emerald-400" /> Final Signed BA PDF (TTD Resmi)
                             </span>
                             {formData.finalBAPath ? (
                               <a
                                 href={resolveDocumentUrl(formData.finalBAPath)}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="text-[10px] px-2 py-0.5 rounded bg-emerald-700 hover:bg-emerald-600 text-white font-bold inline-flex items-center gap-1"
+                                className="text-[10px] px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-bold inline-flex items-center gap-1 transition shadow-xs"
                               >
                                 <ExternalLink size={11} /> Buka Tab Baru
                               </a>
@@ -3098,8 +3633,20 @@ export function FormModals({ c }: { c: any }) {
                             )}
                           </div>
                           {formData.finalBAPath ? (
-                            <div className="w-full h-36 rounded-lg overflow-hidden border border-slate-700 bg-slate-800">
-                              <iframe src={resolveDocumentUrl(formData.finalBAPath)} className="w-full h-full" title="Final BA PDF Preview" />
+                            <div className="p-3 bg-slate-800/80 rounded-lg border border-slate-700 flex items-center gap-3">
+                              <div className="p-2.5 bg-emerald-950/80 border border-emerald-700/50 rounded-lg text-emerald-400 shrink-0">
+                                <CheckCircle size={22} />
+                              </div>
+                              <div className="min-w-0 flex-1 text-xs">
+                                <span className="font-mono font-bold text-emerald-200 block truncate" title={formData.finalBAPath}>
+                                  {formData.signedBANumber ? `Signed-${formData.signedBANumber.replace(/\//g, '_')}.pdf` : formData.baNumber ? `BA-${formData.baNumber.replace(/\//g, '_')}.pdf` : formData.finalBAPath.split('/').pop() || "signed_berita_acara.pdf"}
+                                </span>
+                                <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                                  <span>TTD: <strong className="text-emerald-300">{formData.baSignedDate || "Selesai"}</strong></span>
+                                  <span>•</span>
+                                  <span className="text-emerald-400 font-bold">Terverifikasi ✓</span>
+                                </div>
+                              </div>
                             </div>
                           ) : (
                             <div className="p-3 text-center text-xs text-slate-400 bg-slate-800/50 rounded-lg border border-dashed border-slate-700">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { menuPermissionMap } from "../data/navigation";
-import { getCompanies, type Company, type Permission, type RoleAccess, type TCode, type User } from "./api";
+import { DEFAULT_COMPANIES, getCompanies, type Company, type Permission, type RoleAccess, type TCode, type User } from "./api";
 
 export function isSuperAdminRole(role: string) {
   const normalized = role?.toLowerCase() ?? "";
@@ -129,7 +129,7 @@ export function companyScopeOf(user: User) {
   return { all: false, codes: codes.map((code) => code.toUpperCase()), ids, names };
 }
 
-let cachedCompanies: Company[] = [];
+let cachedCompanies: Company[] = [...DEFAULT_COMPANIES];
 let companyLoadPromise: Promise<Company[]> | null = null;
 
 // Loads the company list from the backend (/api/companies) once and caches it.
@@ -137,14 +137,14 @@ let companyLoadPromise: Promise<Company[]> | null = null;
 export function loadCompanies(): Promise<Company[]> {
   if (!companyLoadPromise) {
     companyLoadPromise = getCompanies()
-      .then((companies) => (Array.isArray(companies) ? companies : []))
+      .then((companies) => (Array.isArray(companies) && companies.length > 0 ? companies : DEFAULT_COMPANIES))
       .then((companies) => {
         cachedCompanies = companies;
         return companies;
       })
       .catch(() => {
-        cachedCompanies = [];
-        return [];
+        cachedCompanies = DEFAULT_COMPANIES;
+        return DEFAULT_COMPANIES;
       });
   }
   return companyLoadPromise;

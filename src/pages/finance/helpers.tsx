@@ -35,6 +35,27 @@ export const formatThousand = (val: any): string => {
   return new Intl.NumberFormat("id-ID").format(num);
 };
 
+export const getCustomerOfficialName = (code: string | undefined | null): string => {
+  const c = String(code || "").toUpperCase().trim();
+  switch (c) {
+    case "POS":
+      return "PT Position";
+    case "SBS":
+      return "PT Satria Bahana Sarana";
+    case "BGG":
+      return "PT Budi Gema Gempita";
+    case "PTRO":
+    case "DBK":
+      return "PT Petrosea";
+    case "ABN":
+      return "PT Andalan Bhumi Nusantara";
+    case "AAP":
+      return "PT Andalan Artha Primanusa";
+    default:
+      return c;
+  }
+};
+
 export const formatDateInput = (dateStr: any) => {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -222,19 +243,27 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
       createdMiningInv: null,
       createdMDOInv: null,
       createdInvoices: [],
-      remainingCount: 0,
+      remainingCount: 1,
     };
   }
 
   const baNum = (ba.baNumber || "").trim().toLowerCase();
   const linkedNo = (ba.invoiceNoLinked || "").trim().toLowerCase();
-
   const custCode = (ba.customerCode || "").trim().toUpperCase();
 
-  // Find all invoices that reference this BA or whose invoiceNo matches linkedNo AND customer
+  const isCustMatch = (c1: string, c2: string) => {
+    if (!c1 || !c2) return true;
+    if (c1 === c2) return true;
+    if ((c1 === "PTRO" || c1 === "DBK") && (c2 === "PTRO" || c2 === "DBK")) return true;
+    if ((c1 === "BGG" || c1 === "PT BGG") && (c2 === "BGG" || c2 === "PT BGG")) return true;
+    return false;
+  };
+
+  // Find all invoices that reference this BA or whose invoiceNo matches linkedNo OR matches baID
   const matchedInvoices = (allInvoices || []).filter((inv) => {
+    if (inv.baID && ba.id && Number(inv.baID) === Number(ba.id)) return true;
     const invCust = (inv.customerCode || "").trim().toUpperCase();
-    if (custCode && invCust && custCode !== invCust) return false;
+    if (custCode && invCust && !isCustMatch(custCode, invCust)) return false;
     const invRef = (inv.baNoReference || "").trim().toLowerCase();
     const invNo = (inv.invoiceNo || "").trim().toLowerCase();
     if (baNum && invRef === baNum) return true;
@@ -258,8 +287,8 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
       (inv.invoiceNo || "").includes("MDO")
     ) || null;
 
-    const isFullyInvoiced = Boolean(createdMiningInv && createdMDOInv);
-    const isPartiallyInvoiced = Boolean((createdMiningInv || createdMDOInv) && !isFullyInvoiced);
+    const isFullyInvoiced = Boolean((createdMiningInv && createdMDOInv) || (linkedNo && linkedNo !== "-" && linkedNo.includes("&")));
+    const isPartiallyInvoiced = Boolean((createdMiningInv || createdMDOInv || (linkedNo && linkedNo !== "-")) && !isFullyInvoiced);
 
     return {
       isFullyInvoiced,
@@ -270,7 +299,7 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
       remainingCount: (createdMiningInv ? 0 : 1) + (createdMDOInv ? 0 : 1),
     };
   } else {
-    const isFullyInvoiced = matchedInvoices.length > 0;
+    const isFullyInvoiced = matchedInvoices.length > 0 || Boolean(linkedNo && linkedNo !== "-");
     return {
       isFullyInvoiced,
       isPartiallyInvoiced: false,
@@ -284,6 +313,7 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
 
 export function renderBAStatusBadge(status: string, invoiceNoLinked?: string, isInvoiced?: boolean, baRow?: any, allInvoices?: any[]) {
   const s = (status || "").trim();
+  const linked = (invoiceNoLinked || baRow?.invoiceNoLinked || "").trim();
   const isPOS = baRow?.customerCode === "POS";
 
   if (allInvoices && baRow) {
@@ -291,111 +321,86 @@ export function renderBAStatusBadge(status: string, invoiceNoLinked?: string, is
     if (isPOS) {
       if (invStatus.isFullyInvoiced) {
         return (
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-purple-100 text-purple-900 border border-purple-300 inline-flex items-center gap-1 shadow-2xs">
-              <Archive size={11} className="text-purple-700" /> Arsip (2/2 Terbit)
-            </span>
-            <span className="text-[9px] font-mono text-purple-800 font-bold text-center leading-tight">
-              {invStatus.createdMiningInv?.invoiceNo} &<br/>{invStatus.createdMDOInv?.invoiceNo}
-            </span>
-          </div>
+          <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300 inline-flex items-center gap-1.5 shadow-2xs whitespace-nowrap">
+            <Archive size={12} className="text-purple-700 shrink-0" />
+            <span>Arsip (2/2 Terbit)</span>
+          </span>
         );
       } else if (invStatus.isPartiallyInvoiced) {
         const created = invStatus.createdMiningInv ? "Mining" : "MDO";
-        const missing = invStatus.createdMiningInv ? "MDO" : "Mining";
-        const createdInvNo = invStatus.createdMiningInv?.invoiceNo || invStatus.createdMDOInv?.invoiceNo;
+        const createdInvNo = invStatus.createdMiningInv?.invoiceNo || invStatus.createdMDOInv?.invoiceNo || "";
 
         return (
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1 shadow-2xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-              1/2 Inv Terbit
-            </span>
-            <div className="text-[9px] flex flex-col items-center leading-tight">
-              <span className="text-emerald-700 font-bold">✓ {created}: {createdInvNo}</span>
-              <span className="text-amber-800 font-extrabold">⏳ Belum: Inv {missing}</span>
-            </div>
-          </div>
+          <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1.5 shadow-2xs whitespace-nowrap" title={`Terbit: ${created} (${createdInvNo})`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+            <span>1/2 Inv ({created})</span>
+          </span>
         );
       }
     } else {
-      // Non-POS (BGG, SBS, DBK)
-      if (invStatus.isFullyInvoiced) {
+      // Non-POS (BGG, SBS, PTRO/DBK, ABN)
+      if (invStatus.isFullyInvoiced || (linked && linked !== "-")) {
         const inv = invStatus.createdInvoices[0];
         const isDraft = inv?.status === "Draft" || inv?.status === "Submitted" || inv?.status === "Pending Approval";
+        const invNo = inv?.invoiceNo || linked;
         if (isDraft) {
           return (
-            <div className="flex flex-col items-center gap-0.5">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1 shadow-2xs">
-                <Clock size={11} className="text-amber-700" /> Invoice Draft (Menunggu Mgr)
-              </span>
-              <span className="text-[10px] font-mono text-amber-800 font-bold">
-                {inv.invoiceNo}
-              </span>
-            </div>
+            <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1.5 shadow-2xs whitespace-nowrap" title={`Draft Invoice: ${invNo}`}>
+              <Clock size={12} className="text-amber-700 shrink-0" />
+              <span>Draf Inv ({invNo})</span>
+            </span>
           );
         }
         return (
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-purple-100 text-purple-900 border border-purple-300 inline-flex items-center gap-1 shadow-2xs">
-              <Archive size={11} className="text-purple-700" /> Arsip (Inv Terbit)
-            </span>
-            <span className="text-[10px] font-mono text-purple-700 font-bold">
-              {inv?.invoiceNo || invoiceNoLinked}
-            </span>
-          </div>
+          <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300 inline-flex items-center gap-1.5 shadow-2xs whitespace-nowrap" title={`Arsip Invoice: ${invNo}`}>
+            <Archive size={12} className="text-purple-700 shrink-0" />
+            <span>Arsip ({invNo})</span>
+          </span>
         );
       }
     }
   }
 
-  const linked = (invoiceNoLinked || "").trim();
-  if (isInvoiced || s === "Arsip" || s === "Invoiced") {
+  if (isInvoiced || (linked && linked !== "-") || s === "Arsip" || s === "Invoiced") {
     return (
-      <div className="flex flex-col items-center gap-0.5">
-        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-purple-100 text-purple-900 border border-purple-300 inline-flex items-center gap-1 shadow-2xs">
-          <Archive size={11} className="text-purple-700" /> Arsip
-        </span>
-        {linked && linked !== "-" && (
-          <span className="text-[10px] font-mono text-purple-700 font-bold">
-            {linked}
-          </span>
-        )}
-      </div>
+      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300 inline-flex items-center gap-1.5 shadow-2xs whitespace-nowrap">
+        <Archive size={12} className="text-purple-700 shrink-0" />
+        <span>Arsip {linked && linked !== "-" ? `(${linked})` : ""}</span>
+      </span>
     );
   }
 
   if (s === "Submit" || s.startsWith("Draft") || s.startsWith("Siap") || s.startsWith("Submited") || s.startsWith("Submitted")) {
     return (
-      <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-300 inline-block whitespace-nowrap shadow-2xs">
-        Submit
+      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-300 inline-flex items-center gap-1 shadow-2xs whitespace-nowrap">
+        Draft
       </span>
     );
   }
   if (s === "Pending Berita Acara" || s.startsWith("Pending") || s.startsWith("Verified")) {
     return (
-      <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-block whitespace-nowrap shadow-2xs">
-        Pending Berita Acara
+      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1 shadow-2xs whitespace-nowrap">
+        Pending BA
       </span>
     );
   }
   if (s === "Ready to Invoice" || s.startsWith("Approved")) {
     return (
-      <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-block whitespace-nowrap shadow-2xs">
+      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1 shadow-2xs whitespace-nowrap">
         Ready to Invoice
       </span>
     );
   }
   if (s === "Revisi" || s.startsWith("Reject")) {
     return (
-      <span className="px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-block whitespace-nowrap shadow-2xs">
+      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-flex items-center gap-1 shadow-2xs whitespace-nowrap">
         Revisi
       </span>
     );
   }
   return (
-    <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-300 inline-block whitespace-nowrap shadow-2xs">
-      {status || "Submit"}
+    <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-300 inline-flex items-center gap-1 shadow-2xs whitespace-nowrap">
+      {status || "Draft"}
     </span>
   );
 }
@@ -436,13 +441,7 @@ export function getBAStatusForExport(ba: any, allInvoices: any[]) {
   if (s === "Ready to Invoice" || s === "Approved") {
     return { label: "READY TO INVOICE", badgeClass: "bg-emerald", subtext: "" };
   }
-  if (s === "Pending Berita Acara" || s === "Verified" || s === "Pending") {
-    return { label: "PENDING BERITA ACARA", badgeClass: "bg-amber", subtext: "" };
-  }
-  if (s === "Revisi" || s.startsWith("Reject")) {
-    return { label: "REVISI", badgeClass: "bg-rose", subtext: "" };
-  }
-  return { label: "SUBMIT", badgeClass: "bg-slate", subtext: "" };
+  return { label: "ON PROGRESS", badgeClass: "bg-amber", subtext: "" };
 }
 
 export function renderInvoiceStatusBadge(status: string) {
@@ -661,9 +660,28 @@ export function FormattedNumberInput({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
-    const clean = allowDecimals ? raw.replace(/[^0-9.,-]/g, "") : raw.replace(/[^0-9.-]/g, "");
-    setLocalStr(clean);
-    onChange(parseVal(clean));
+    if (allowDecimals) {
+      const clean = raw.replace(/[^0-9.,-]/g, "");
+      setLocalStr(clean);
+      onChange(parseVal(clean));
+    } else {
+      const cleanDigits = raw.replace(/[^0-9-]/g, "");
+      if (!cleanDigits || cleanDigits === "-") {
+        setLocalStr(cleanDigits);
+        onChange(0);
+        return;
+      }
+      const isNeg = cleanDigits.startsWith("-");
+      const numOnly = parseInt(cleanDigits.replace(/-/g, ""), 10);
+      if (isNaN(numOnly)) {
+        setLocalStr("");
+        onChange(0);
+        return;
+      }
+      const formatted = (isNeg ? "-" : "") + numOnly.toLocaleString("id-ID");
+      setLocalStr(formatted);
+      onChange(isNeg ? -numOnly : numOnly);
+    }
   };
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -683,7 +701,13 @@ export function FormattedNumberInput({
       onFocus={(e) => {
         setIsFocused(true);
         const curNum = typeof value === "number" ? value : parseVal(String(value || ""));
-        setLocalStr(curNum && curNum !== 0 ? (allowDecimals ? String(curNum).replace(".", ",") : String(Math.round(curNum))) : "");
+        if (!curNum) {
+          setLocalStr("");
+        } else if (allowDecimals) {
+          setLocalStr(String(curNum).replace(".", ","));
+        } else {
+          setLocalStr(Math.round(curNum).toLocaleString("id-ID"));
+        }
         e.target.select();
         onFocus?.(e);
       }}

@@ -13,10 +13,11 @@ import {
   getBAStatusForExport, renderInvoiceStatusBadge, parsePeriodToMonthIndex,
   RupiahInput, generateAuditTimeline
 } from "./helpers";
-import { calcRFIndex, createFinanceCalculations } from "./calculations";
+import { calcRFIndex, createFinanceCalculations, getSBSTarifByDistance, SBS_DISTANCE_TIERS } from "./calculations";
 import {
-  exportPaymentDetailPDFImpl, exportARBAIMonitoringExcelImpl, exportARBAIMonitoringPDFImpl,
+  exportPaymentDetailPDFImpl, exportBADocumentPDFImpl, exportARBAIMonitoringExcelImpl, exportARBAIMonitoringPDFImpl,
   exportBAOnlyExcelImpl, exportBAOnlyPDFImpl, exportAROnlyExcelImpl, exportAROnlyPDFImpl,
+  exportCoretaxEFakturCSVImpl, exportEBupotPPh23CSVImpl
 } from "./exporters";
 
 export function useFinanceController({
@@ -53,7 +54,7 @@ export function useFinanceController({
   const [sbsPenalties, setSbsPenalties] = useState<SBSPenaltyItem[]>([]);
   const [sbsPenaltyModalOpen, setSbsPenaltyModalOpen] = useState<boolean>(false);
   const [sbsPenaltyEditItem, setSbsPenaltyEditItem] = useState<SBSPenaltyItem | null>(null);
-  const [showPendingVolumeDrawer, setShowPendingVolumeDrawer] = useState<boolean>(false);
+  const [rawShowPendingVolumeDrawer, setRawShowPendingVolumeDrawer] = useState<boolean>(false);
   const [baFilter, setBaFilter] = useState("All");
   const [periodFilter, setPeriodFilter] = useState("All");
   const [invStatusFilter, setInvStatusFilter] = useState("All");
@@ -61,7 +62,7 @@ export function useFinanceController({
   const [invPeriodFilter, setInvPeriodFilter] = useState("All");
 
   // Modal Input & Edit State
-  const [modalType, setModalType] = useState<"none" | "ba" | "invoice" | "payment" | "customer" | "pending_volume">("none");
+  const [modalType, setRawModalType] = useState<"none" | "ba" | "invoice" | "payment" | "customer" | "pending_volume">("none");
   const [editItem, setEditItem] = useState<any>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [formData, setFormData] = useState<any>({ customerCode: "POS", workPeriod: "Juni 2026" });
@@ -73,8 +74,67 @@ export function useFinanceController({
   const [baRowActionDropdownId, setBaRowActionDropdownId] = useState<number | null>(null);
 
   // Modal Detail View 2 Kolom State
-  const [detailViewItem, setDetailViewItem] = useState<{ type: "ba" | "invoice" | "payment" | "customer"; data: any } | null>(null);
+  const [detailViewItem, setRawDetailViewItem] = useState<{ type: "ba" | "invoice" | "payment" | "customer"; data: any } | null>(null);
   const [isInlineEditingBA, setIsInlineEditingBA] = useState<boolean>(true);
+
+  // Ponytail Single-Modal Invariant: Guarantee strict mutual exclusivity across all modals (FormModals, DetailModal, Drawers)
+  const setDetailViewItem = useCallback((item: { type: "ba" | "invoice" | "payment" | "customer"; data: any } | null | ((prev: any) => any)) => {
+    if (typeof item === "function") {
+      setRawDetailViewItem((prev: any) => {
+        const next = item(prev);
+        if (next) {
+          setRawModalType("none");
+          setRawShowPendingVolumeDrawer(false);
+        }
+        return next;
+      });
+    } else {
+      if (item) {
+        setRawModalType("none");
+        setRawShowPendingVolumeDrawer(false);
+      }
+      setRawDetailViewItem(item);
+    }
+  }, []);
+
+  const setModalType = useCallback((type: "none" | "ba" | "invoice" | "payment" | "customer" | "pending_volume" | ((prev: any) => any)) => {
+    if (typeof type === "function") {
+      setRawModalType((prev: any) => {
+        const next = type(prev);
+        if (next && next !== "none") {
+          setRawDetailViewItem(null);
+          setRawShowPendingVolumeDrawer(false);
+        }
+        return next;
+      });
+    } else {
+      if (type && type !== "none") {
+        setRawDetailViewItem(null);
+        setRawShowPendingVolumeDrawer(false);
+      }
+      setRawModalType(type);
+    }
+  }, []);
+
+  const showPendingVolumeDrawer = rawShowPendingVolumeDrawer;
+  const setShowPendingVolumeDrawer = useCallback((val: boolean | ((prev: boolean) => boolean)) => {
+    if (typeof val === "function") {
+      setRawShowPendingVolumeDrawer((prev) => {
+        const next = val(prev);
+        if (next) {
+          setRawModalType("none");
+          setRawDetailViewItem(null);
+        }
+        return next;
+      });
+    } else {
+      if (val) {
+        setRawModalType("none");
+        setRawDetailViewItem(null);
+      }
+      setRawShowPendingVolumeDrawer(val);
+    }
+  }, []);
 
   // State Form Partial Payment (Catat Cicilan Baru)
   const [showAddPartialPayment, setShowAddPartialPayment] = useState(false);
@@ -90,6 +150,7 @@ export function useFinanceController({
   const [mRate, setMRate] = useState(17923.30);
   const [fuelPriceUSD, setFuelPriceUSD] = useState(1.422);
   const [laborPriceIDR, setLaborPriceIDR] = useState(3721423);
+  const [raiseFallMasters, setRaiseFallMasters] = useState<any[]>([]);
   const [raiseFallMaster, setRaiseFallMaster] = useState<any>(null);
 
   const [dynamicSowOptions, setDynamicSowOptions] = useState<any[]>([]);
@@ -101,11 +162,7 @@ export function useFinanceController({
     api<any[]>("/api/master-data/raise-fall")
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
-          const activeRf = data[0];
-          setRaiseFallMaster(activeRf);
-          if (activeRf.actualMRateXn > 0) setMRate(activeRf.actualMRateXn);
-          if (activeRf.actualFuelFn > 0) setFuelPriceUSD(activeRf.actualFuelFn);
-          if (activeRf.actualLaborLn > 0) setLaborPriceIDR(activeRf.actualLaborLn);
+          setRaiseFallMasters(data);
         }
       })
       .catch(() => {});
@@ -158,6 +215,17 @@ export function useFinanceController({
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (raiseFallMasters.length > 0) {
+      const custUpper = (formData.customerCode || "POS").toUpperCase();
+      const matched = raiseFallMasters.find((r) => r.customerCode?.toUpperCase() === custUpper) || raiseFallMasters[0];
+      setRaiseFallMaster(matched);
+      if (matched.actualMRateXn > 0) setMRate(matched.actualMRateXn);
+      if (matched.actualFuelFn > 0) setFuelPriceUSD(matched.actualFuelFn);
+      if (matched.actualLaborLn > 0) setLaborPriceIDR(matched.actualLaborLn);
+    }
+  }, [formData.customerCode, raiseFallMasters]);
 
   // Helper untuk mendapatkan status Tier Coal Index aktif untuk BGG
   const getBGGActiveCoalTier = (periodStr?: string): "Tier 1" | "Tier 2" | "Tier 3" => {
@@ -244,11 +312,8 @@ export function useFinanceController({
           const isCoalOverhaul = isOverhaul && ((s.itemName || s.name || "").toLowerCase().includes("coal") || (s.itemName || s.name || "").toLowerCase().includes("batubara"));
 
           let rateIDR = s.rateIDR ? s.rateIDR : (s.rateUSD ? Math.round(s.rateUSD * currentKurs) : (s.baseRateUSD ? Math.round(s.baseRateUSD * currentKurs) : 0));
-          // If overhaul rate in master is per 100m, rate per 1000m (Km) in BA is * 10
-          if (isOverhaul && s.rateUSD && s.rateUSD < 0.1) {
-            rateIDR = Math.round(s.rateUSD * 10 * currentKurs);
-          } else if (isCoalOverhaul && s.rateIDR && s.rateIDR < 1000) {
-            rateIDR = s.rateIDR * 10;
+          if (isOverhaul && s.rateUSD) {
+            rateIDR = Math.round(s.rateUSD * currentKurs);
           }
 
           let cleanUnit = (s.unit || "BCM").replace(/^USD\//i, "").replace(/^IDR\//i, "").trim();
@@ -271,12 +336,13 @@ export function useFinanceController({
   }, [dynamicSowOptions, formData.customerCode, latestKursBI, mRate, templateRows]);
 
   // ============ TEMPLATES PER CUSTOMER (dari backend finance_templates) ============
-  const FALLBACK_BLANK_DBK_ITEMS = [
-    { id: "dbk_inv_a1", section: "A", description: "OVER BURDEN REMOVAL", unit: "Bcm", volume: 0, unitRateUSD: 1.490, kursBI: 17923.30 },
-    { id: "dbk_inv_b1", section: "B", description: "COAL GETTING", unit: "Ton", volume: 0, unitRateUSD: 0.840, kursBI: 17923.30 },
-    { id: "dbk_inv_c1", section: "C", subSection: "C1. Over Distance For OB Removal", description: "Overhaul OB", unit: "Bcm", volume: 0, overhaulMtr: 1000, baseMtr: 1000, unitRateUSD: 0.028, kursBI: 17923.30 },
-    { id: "dbk_inv_c2", section: "C", subSection: "C2. Over Distance For Coal Winning", description: "Overhaul Coal Getting", unit: "Ton", volume: 0, overhaulMtr: 3000, baseMtr: 3000, unitRateIDR: 230 },
+  const FALLBACK_BLANK_PTRO_ITEMS = [
+    { id: "ptro_inv_a1", section: "A", description: "OVER BURDEN REMOVAL", unit: "Bcm", volume: 0, unitRateUSD: 1.490, kursBI: 17923.30 },
+    { id: "ptro_inv_b1", section: "B", description: "COAL GETTING", unit: "Ton", volume: 0, unitRateUSD: 0.840, kursBI: 17923.30 },
+    { id: "ptro_inv_c1", section: "C", subSection: "C1. Over Distance For OB Removal", description: "Overhaul OB", unit: "Bcm", volume: 0, overhaulMtr: 1000, baseMtr: 1000, unitRateUSD: 0.028, kursBI: 17923.30 },
+    { id: "ptro_inv_c2", section: "C", subSection: "C2. Over Distance For Coal Winning", description: "Overhaul Coal Getting", unit: "Ton", volume: 0, overhaulMtr: 3000, baseMtr: 3000, unitRateIDR: 230 },
   ];
+  const FALLBACK_BLANK_DBK_ITEMS = FALLBACK_BLANK_PTRO_ITEMS;
 
   const FALLBACK_BLANK_BGG_ITEMS = [
     { id: "bgg_inv_a1", section: "A", description: "OVER BURDEN REMOVAL 1 (75%)", period: "Jun-26", unit: "Bcm", volume: 0, unitRateIDR: 29500 },
@@ -290,14 +356,14 @@ export function useFinanceController({
   ];
 
   const FALLBACK_BLANK_SBS_ITEMS = [
-    { id: "sbs_inv_a1", section: "A", description: "PIT E - DISPOSAL TOPSOIL", unit: "BCM", volume: 0, unitRateIDR: 19792 },
-    { id: "sbs_inv_a2", section: "A", description: "PIT E - DISPOSAL SEKATAN", unit: "BCM", volume: 0, unitRateIDR: 22654 },
-    { id: "sbs_inv_a3", section: "A", description: "PIT E - RENCANA JALAN", unit: "BCM", volume: 0, unitRateIDR: 8346 },
-    { id: "sbs_inv_a4", section: "A", description: "PIT E - RENCANA CSA", unit: "BCM", volume: 0, unitRateIDR: 8346 },
-    { id: "sbs_inv_a5", section: "A", description: "PIT E - DISPOSAL SLINGSING", unit: "BCM", volume: 0, unitRateIDR: 6915 },
-    { id: "sbs_inv_a6", section: "A", description: "PIT E - DISPOSAL HUMAS", unit: "BCM", volume: 0, unitRateIDR: 11208 },
-    { id: "sbs_inv_a7", section: "A", description: "PROJECT HUMAS - RENCANA JALAN", unit: "BCM", volume: 0, unitRateIDR: 8346 },
-    { id: "sbs_inv_a8", section: "A", description: "PROJECT HUMAS - DISPOSAL TOPSOIL", unit: "BCM", volume: 0, unitRateIDR: 8346 },
+    { id: "sbs_inv_a1", section: "A", description: "PIT E - DISPOSAL SEKATAN", unit: "BCM", volume: 0, distanceM: 3100, overhaulMtr: 3100, unitRateIDR: 22654 },
+    { id: "sbs_inv_a2", section: "A", description: "PIT E - RENCANA JALAN", unit: "BCM", volume: 0, distanceM: 1350, overhaulMtr: 1350, unitRateIDR: 12638 },
+    { id: "sbs_inv_a3", section: "A", description: "PIT E - RENCANA CSA", unit: "BCM", volume: 0, distanceM: 600, overhaulMtr: 600, unitRateIDR: 8346 },
+    { id: "sbs_inv_a4", section: "A", description: "PIT E - JALAN BARITO", unit: "BCM", volume: 0, distanceM: 1850, overhaulMtr: 1850, unitRateIDR: 15500 },
+    { id: "sbs_inv_a5", section: "A", description: "PIT E - SEKATAN", unit: "BCM", volume: 0, distanceM: 2150, overhaulMtr: 2150, unitRateIDR: 16931 },
+    { id: "sbs_inv_a6", section: "A", description: "PIT E - TS MAHONI", unit: "BCM", volume: 0, distanceM: 3100, overhaulMtr: 3100, unitRateIDR: 22654 },
+    { id: "sbs_inv_a7", section: "A", description: "PIT E - IPD WARWEFILL", unit: "BCM", volume: 0, distanceM: 600, overhaulMtr: 600, unitRateIDR: 8346 },
+    { id: "sbs_inv_a8", section: "A", description: "PIT E - SEKATAN", unit: "BCM", volume: 0, distanceM: 2450, overhaulMtr: 2450, unitRateIDR: 19375 },
     { id: "sbs_inv_b1", section: "B", description: "Dozer CAT D10 - BDCT 1001", unit: "Hours", volume: 0, unitRateIDR: 1980000 },
     { id: "sbs_inv_b2", section: "B", description: "Dozer CAT D10 - BDCT 1002", unit: "Hours", volume: 0, unitRateIDR: 1980000 },
     { id: "sbs_inv_b3", section: "B", description: "Excavator CAT 395 - EXCT 3901", unit: "Hours", volume: 0, unitRateIDR: 1425000 },
@@ -345,9 +411,9 @@ export function useFinanceController({
 
   const demoBGGItems = useMemo(() => templateRows("invoice_demo_BGG"), [financeTemplates]);
 
-  const blankDBKItems = useMemo(() => {
-    const rows = templateRows("invoice_blank_DBK");
-    const baseRows = rows && rows.length > 0 ? rows : FALLBACK_BLANK_DBK_ITEMS;
+  const blankPTROItems = useMemo(() => {
+    const rows = templateRows("invoice_blank_PTRO");
+    const baseRows = rows && rows.length > 0 ? rows : FALLBACK_BLANK_PTRO_ITEMS;
     const currentKurs = latestKursBI || mRate || 17923.30;
     return baseRows.map(r => ({
       ...r,
@@ -355,8 +421,10 @@ export function useFinanceController({
       unitRateUSD: r.unitRateUSD || (r.description?.includes("OVER BURDEN") ? 1.490 : r.description?.includes("COAL") ? 0.840 : r.unitRateUSD)
     }));
   }, [financeTemplates, dynamicSowOptions, mRate, latestKursBI, templateRows]);
+  const blankDBKItems = blankPTROItems;
 
-  const demoDBKItems = useMemo(() => templateRows("invoice_demo_DBK"), [financeTemplates]);
+  const demoPTROItems = useMemo(() => templateRows("invoice_demo_PTRO"), [financeTemplates]);
+  const demoDBKItems = demoPTROItems;
 
   const blankSBSItems = useMemo(() => {
     const rows = templateRows("invoice_blank_SBS");
@@ -407,14 +475,14 @@ export function useFinanceController({
     return rows.length > 0 ? rows : FALLBACK_BGG_BA_ITEMS;
   }, [financeTemplates, templateRows]);
 
-  const defaultDBKBAItems = useMemo(() => {
+  const defaultPTROBAItems = useMemo(() => {
     const currentKurs = latestKursBI || mRate || 17923.30;
-    const obRateUSD = getSowMasterRate("DBK", "OVER BURDEN REMOVAL", 1.490, true);
-    const cgRateUSD = getSowMasterRate("DBK", "COAL GETTING", 0.840, true);
-    const odObRateUSD = getSowMasterRate("DBK", "Overhaul OB", 0.028, true);
-    const odCgRateIDR = getSowMasterRate("DBK", "Overhaul Coal Getting", 230, false);
+    const obRateUSD = getSowMasterRate("PTRO", "OVER BURDEN REMOVAL", 1.490, true);
+    const cgRateUSD = getSowMasterRate("PTRO", "COAL GETTING", 0.840, true);
+    const odObRateUSD = getSowMasterRate("PTRO", "Overhaul OB", 0.028, true);
+    const odCgRateIDR = getSowMasterRate("PTRO", "Overhaul Coal Getting", 230, false);
 
-    const rows = templateRows("ba_items_DBK");
+    const rows = templateRows("ba_items_PTRO");
     if (rows.length > 0) {
       return rows.map(r => {
         let rate = r.rate || 0;
@@ -427,34 +495,32 @@ export function useFinanceController({
           rate = Math.round(usd * currentKurs);
         } else if (mat.includes("OVERHAUL OB") || mat.includes("OVER DISTANCE FOR OB")) {
           const usd = r.rateUSD || odObRateUSD;
-          rate = Math.round(usd * 10 * currentKurs);
+          rate = Math.round(usd * currentKurs);
         } else if (mat.includes("OVERHAUL COAL") || mat.includes("OVER DISTANCE FOR COAL")) {
-          const idr = r.rateIDR || odCgRateIDR;
-          rate = idr * 10;
-        } else if (r.isUSD) {
-          rate = Math.round((r.rateUSD || 0) * currentKurs);
+          rate = r.rate || odCgRateIDR;
         }
-        return { ...r, rate, notes: "", keterangan: "" };
+        return { ...r, rate, subtotalInitial: (r.initialVolume || 0) * rate, subtotalAdjusted: (r.adjustedVolume || 0) * rate };
       });
     }
-
     return [
-      { id: "dbk_ob",    category: "Operating & Mining", area: "Pit Sapan", material: "OVER BURDEN REMOVAL", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true,  rateUSD: obRateUSD, rate: Math.round(obRateUSD * currentKurs), distanceBasis: 0,    isDistanceVar: false, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
-      { id: "dbk_coal",  category: "Operating & Mining", area: "Pit Sapan", material: "COAL GETTING",        unit: "MT",  initialVolume: 0, adjustedVolume: 0, isUSD: true,  rateUSD: cgRateUSD, rate: Math.round(cgRateUSD * currentKurs), distanceBasis: 0,    isDistanceVar: false, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
-      { id: "dbk_od_ob", category: "Over Distance",      area: "Pit Sapan", material: "Overhaul OB",         unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true,  rateUSD: odObRateUSD, rate: Math.round(odObRateUSD * 10 * currentKurs), distanceBasis: 1000, isDistanceVar: true,  distanceWeightAvg: 1000, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
-      { id: "dbk_od_cg", category: "Over Distance",      area: "Pit Sapan", material: "Overhaul Coal Getting",unit: "TON", initialVolume: 0, adjustedVolume: 0, isUSD: false, rateIDR: odCgRateIDR, rate: odCgRateIDR * 10, distanceBasis: 3000, isDistanceVar: true,  distanceWeightAvg: 3000, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "ptro_ba_ob", category: "Operating & Mining", area: "Pit Sapan", material: "OVER BURDEN REMOVAL", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: obRateUSD, distanceBasis: 0, isDistanceVar: false, rate: Math.round(obRateUSD * currentKurs), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "ptro_ba_cg", category: "Operating & Mining", area: "Pit Sapan", material: "COAL GETTING", unit: "MT", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: cgRateUSD, distanceBasis: 0, isDistanceVar: false, rate: Math.round(cgRateUSD * currentKurs), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "ptro_ba_odob", category: "Over Distance", area: "Pit Sapan", material: "Overhaul OB", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: odObRateUSD, distanceBasis: 1000, isDistanceVar: true, distanceWeightAvg: 1000, rate: Math.round(odObRateUSD * currentKurs), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "ptro_ba_odcg", category: "Over Distance", area: "Pit Sapan", material: "Overhaul Coal Getting", unit: "TON", initialVolume: 0, adjustedVolume: 0, isUSD: false, rateIDR: odCgRateIDR, distanceBasis: 3000, isDistanceVar: true, distanceWeightAvg: 3000, rate: odCgRateIDR, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
     ];
   }, [financeTemplates, templateRows, dynamicSowOptions, latestKursBI, mRate]);
 
+  const defaultDBKBAItems = defaultPTROBAItems;
+
   const FALLBACK_SBS_BA_ITEMS = [
-    { id: "sbs_ba_a1", category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL SEKATAN", unit: "BCM", initialVolume: 80114.79, adjustedVolume: 80114.79, rate: 22654, subtotalInitial: 1814920453, subtotalAdjusted: 1814920453 },
-    { id: "sbs_ba_a2", category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA JALAN", unit: "BCM", initialVolume: 23741.16, adjustedVolume: 23741.16, rate: 12638, subtotalInitial: 300040780, subtotalAdjusted: 300040780 },
-    { id: "sbs_ba_a3", category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA CSA", unit: "BCM", initialVolume: 442.24, adjustedVolume: 442.24, rate: 8346, subtotalInitial: 3690935, subtotalAdjusted: 3690935 },
-    { id: "sbs_ba_a4", category: "Operating & Mining", area: "Pit E", material: "PIT E - JALAN BARITO", unit: "BCM", initialVolume: 33726.42, adjustedVolume: 33726.42, rate: 15500, subtotalInitial: 522759510, subtotalAdjusted: 522759510 },
-    { id: "sbs_ba_a5", category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", unit: "BCM", initialVolume: 110582.62, adjustedVolume: 110582.62, rate: 16931, subtotalInitial: 1872274339, subtotalAdjusted: 1872274339 },
-    { id: "sbs_ba_a6", category: "Operating & Mining", area: "Pit E", material: "PIT E - TS MAHONI", unit: "BCM", initialVolume: 1536.19, adjustedVolume: 1536.19, rate: 22654, subtotalInitial: 34800848, subtotalAdjusted: 34800848 },
-    { id: "sbs_ba_a7", category: "Operating & Mining", area: "Pit E", material: "PIT E - IPD WARWEFILL", unit: "BCM", initialVolume: 3840.48, adjustedVolume: 3840.48, rate: 8346, subtotalInitial: 32052646, subtotalAdjusted: 32052646 },
-    { id: "sbs_ba_a8", category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", unit: "BCM", initialVolume: 1154.75, adjustedVolume: 1154.75, rate: 19375, subtotalInitial: 22373281, subtotalAdjusted: 22373281 }
+    { id: "sbs_ba_a1", category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL SEKATAN", unit: "BCM", distance: 3150, initialVolume: 80114.79, adjustedVolume: 80114.79, rate: 22654, subtotalInitial: 1814920453, subtotalAdjusted: 1814920453 },
+    { id: "sbs_ba_a2", category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA JALAN", unit: "BCM", distance: 1400, initialVolume: 23741.16, adjustedVolume: 23741.16, rate: 12638, subtotalInitial: 300040780, subtotalAdjusted: 300040780 },
+    { id: "sbs_ba_a3", category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA CSA", unit: "BCM", distance: 650, initialVolume: 442.24, adjustedVolume: 442.24, rate: 8346, subtotalInitial: 3690935, subtotalAdjusted: 3690935 },
+    { id: "sbs_ba_a4", category: "Operating & Mining", area: "Pit E", material: "PIT E - JALAN BARITO", unit: "BCM", distance: 1850, initialVolume: 33726.42, adjustedVolume: 33726.42, rate: 15500, subtotalInitial: 522759510, subtotalAdjusted: 522759510 },
+    { id: "sbs_ba_a5", category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", unit: "BCM", distance: 2150, initialVolume: 110582.62, adjustedVolume: 110582.62, rate: 16931, subtotalInitial: 1872274339, subtotalAdjusted: 1872274339 },
+    { id: "sbs_ba_a6", category: "Operating & Mining", area: "Pit E", material: "PIT E - TS MAHONI", unit: "BCM", distance: 3100, initialVolume: 1536.19, adjustedVolume: 1536.19, rate: 22654, subtotalInitial: 34800848, subtotalAdjusted: 34800848 },
+    { id: "sbs_ba_a7", category: "Operating & Mining", area: "Pit E", material: "PIT E - IPD WARWEFILL", unit: "BCM", distance: 700, initialVolume: 3840.48, adjustedVolume: 3840.48, rate: 8346, subtotalInitial: 32052646, subtotalAdjusted: 32052646 },
+    { id: "sbs_ba_a8", category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", unit: "BCM", distance: 2650, initialVolume: 1154.75, adjustedVolume: 1154.75, rate: 19375, subtotalInitial: 22373281, subtotalAdjusted: 22373281 }
   ];
 
   const FALLBACK_SBS_RENTAL_ITEMS = [
@@ -568,7 +634,7 @@ export function useFinanceController({
 
     // Auto-switch template item list based on customer
     if (code === "BGG") setInvLineItems(blankBGGItems.map(i => ({ ...i })));
-    else if (code === "DBK") setInvLineItems(blankDBKItems.map(i => ({ ...i })));
+    else if (code === "PTRO" || code === "DBK") setInvLineItems(blankPTROItems.map(i => ({ ...i })));
     else if (code === "SBS") setInvLineItems(blankSBSItems.map(i => ({ ...i })));
     else setInvLineItems(blankPOSItems.map(i => ({ ...i })));
 
@@ -579,13 +645,13 @@ export function useFinanceController({
         BGG: "PT Budi Gema Gempita Site",
         POS: "POS PROJECT",
         SBS: "SBS - Tanjung Enim",
-        DBK: "DBK MINING PROJECT"
+        PTRO: "PT Petrosea Site",
       };
       const defaultContracts: Record<string, string> = {
         BGG: "09/BGG-AAP/VIII/2018",
         POS: "002/POS-AAP/2025",
         SBS: "230/AAP-SBS/EXT/XII/24",
-        DBK: "001/DBK-AAP/2024"
+        PTRO: "001/PTRO-AAP/2024",
       };
       return {
         ...prev,
@@ -593,9 +659,9 @@ export function useFinanceController({
         projectSite: mapMatch?.project || defaultSites[code] || cust?.projectSite || (cust ? `${cust.fullName} Site` : `${code} Site`),
         contractNo: mapMatch?.contract || defaultContracts[code] || cust?.contractNo || (cust ? `001/${cust.code}-AAP/2026` : ""),
         noPO: mapMatch?.noPO || prev.noPO || (code === "SBS" ? "SPPH-05852" : `PO-${code}-2026-001`),
-        bankName: mapMatch?.bankName || prev.bankName || (code === "BGG" ? "Bank Mandiri" : code === "DBK" || code === "SBS" ? "Bank BRI" : "Bank BNI"),
-        bankAccountNo: mapMatch?.bankAccountNo || prev.bankAccountNo || (code === "BGG" ? "070-00-2888000-8" : code === "DBK" || code === "SBS" ? "0417-01-880088-30-8" : "8188788882"),
-        bankBranch: mapMatch?.bankBranch || prev.bankBranch || (code === "BGG" ? "Plaza Mandiri Jakarta" : code === "DBK" || code === "SBS" ? "S. Parman - Slipi Jakarta" : "Harmoni, Jakarta"),
+        bankName: mapMatch?.bankName || prev.bankName || (code === "BGG" ? "Bank Mandiri" : (code === "PTRO" || code === "SBS") ? "Bank BRI" : "Bank BNI"),
+        bankAccountNo: mapMatch?.bankAccountNo || prev.bankAccountNo || (code === "BGG" ? "070-00-2888000-8" : (code === "PTRO" || code === "SBS") ? "0417-01-880088-30-8" : "8188788882"),
+        bankBranch: mapMatch?.bankBranch || prev.bankBranch || (code === "BGG" ? "Plaza Mandiri Jakarta" : (code === "PTRO" || code === "SBS") ? "S. Parman - Slipi Jakarta" : "Harmoni, Jakarta"),
         directorName: mapMatch?.directorName || "GAHARI CHRISTINE",
         directorTitle: mapMatch?.directorTitle || (code === "SBS" ? "DIREKTUR UTAMA" : "DIRECTOR"),
         invoiceNo: autoInvNo
@@ -637,36 +703,37 @@ export function useFinanceController({
     onNotice("Template preset BGG Mining (Juni 2026) berhasil dimuat.");
   };
 
-  const loadDemoDBKData = () => {
+  const loadDemoPTROData = () => {
     setFormData({
-      customerCode: "DBK",
+      customerCode: "PTRO",
       invoiceNo: "013/AAP-PTRO/VI/2026",
       workPeriod: "01 - 30 JUNI 2026",
-      projectSite: "DBK MINING PROJECT",
-      contractNo: "001/DBK-AAP/2024",
+      projectSite: "PT Petrosea Site",
+      contractNo: "001/PTRO-AAP/2024",
       bankName: "Bank BRI",
       bankAccountNo: "0417-01-880088-30-8",
       bankBranch: "S. Parman - Slipi Jakarta",
       directorName: "GAHARI CHRISTINE",
       directorTitle: "DIRECTOR"
     });
-    if (demoDBKItems.length > 0) {
-      setInvLineItems(demoDBKItems);
+    if (demoPTROItems.length > 0) {
+      setInvLineItems(demoPTROItems);
     } else {
       const kurs = latestKursBI;
-      const obRate   = getSowMasterRate("DBK", "OVER BURDEN REMOVAL",   1.49,  true);
-      const cgRate   = getSowMasterRate("DBK", "COAL GETTING",           0.84,  true);
-      const odObRate = getSowMasterRate("DBK", "Overhaul OB",            0.028, true);
-      const odCgRate = getSowMasterRate("DBK", "Overhaul Coal Getting",  230,   false);
+      const obRate   = getSowMasterRate("PTRO", "OVER BURDEN REMOVAL",   1.49,  true);
+      const cgRate   = getSowMasterRate("PTRO", "COAL GETTING",           0.84,  true);
+      const odObRate = getSowMasterRate("PTRO", "Overhaul OB",            0.028, true);
+      const odCgRate = getSowMasterRate("PTRO", "Overhaul Coal Getting",  230,   false);
       setInvLineItems([
-        { id: "dbk_inv_a1", section: "A", description: "OVER BURDEN REMOVAL", unit: "Bcm", volume: 259165.259, unitRateUSD: obRate,   kursBI: kurs },
-        { id: "dbk_inv_b1", section: "B", description: "COAL GETTING",        unit: "Ton", volume: 19456.32,   unitRateUSD: cgRate,   kursBI: kurs },
-        { id: "dbk_inv_c1", section: "C", subSection: "C1. Over Distance For OB Removal",   unit: "Bcm", volume: 259165.259, overhaulMtr: 1012.92, baseMtr: 1000, unitRateUSD: odObRate, kursBI: kurs },
-        { id: "dbk_inv_c2", section: "C", subSection: "C2. Over Distance For Coal Winning", unit: "Ton", volume: 34025.212,   overhaulMtr: 3174.88, baseMtr: 3000, unitRateIDR: odCgRate },
+        { id: "ptro_inv_a1", section: "A", description: "OVER BURDEN REMOVAL", unit: "Bcm", volume: 259165.259, unitRateUSD: obRate,   kursBI: kurs },
+        { id: "ptro_inv_b1", section: "B", description: "COAL GETTING",        unit: "Ton", volume: 19456.32,   unitRateUSD: cgRate,   kursBI: kurs },
+        { id: "ptro_inv_c1", section: "C", subSection: "C1. Over Distance For OB Removal",   unit: "Bcm", volume: 259165.259, overhaulMtr: 1012.92, baseMtr: 1000, unitRateUSD: odObRate, kursBI: kurs },
+        { id: "ptro_inv_c2", section: "C", subSection: "C2. Over Distance For Coal Winning", unit: "Ton", volume: 34025.212,   overhaulMtr: 3174.88, baseMtr: 3000, unitRateIDR: odCgRate },
       ]);
     }
-    onNotice("Template preset DBK Petrosea (Juni 2026) berhasil dimuat — rate & kurs dari master data.");
+    onNotice("Template preset Petrosea (PTRO Juni 2026) berhasil dimuat — rate & kurs dari master data.");
   };
+  const loadDemoDBKData = loadDemoPTROData;
 
   const loadDemoSBSData = () => {
     setFormData({
@@ -682,7 +749,18 @@ export function useFinanceController({
       directorName: "GAHARI CHRISTINE",
       directorTitle: "DIREKTUR UTAMA"
     });
-    setInvLineItems(demoSBSItems);
+    const itemsWithDist = demoSBSItems.map((item: any) => {
+      if (item.section === "A" && !item.distanceM) {
+        if (item.unitRateIDR === 22654) return { ...item, distanceM: 3100, overhaulMtr: 3100 };
+        if (item.unitRateIDR === 12638) return { ...item, distanceM: 1350, overhaulMtr: 1350 };
+        if (item.unitRateIDR === 8346) return { ...item, distanceM: 600, overhaulMtr: 600 };
+        if (item.unitRateIDR === 15500) return { ...item, distanceM: 1850, overhaulMtr: 1850 };
+        if (item.unitRateIDR === 16931) return { ...item, distanceM: 2150, overhaulMtr: 2150 };
+        if (item.unitRateIDR === 19375) return { ...item, distanceM: 2450, overhaulMtr: 2450 };
+      }
+      return item;
+    });
+    setInvLineItems(itemsWithDist);
     onNotice("Template preset SBS Mining berhasil dimuat.");
   };
 
@@ -712,6 +790,45 @@ export function useFinanceController({
 
   const updateInvItemAmount = (id: string, amt: number) => {
     setInvLineItems(prev => prev.map(item => item.id === id ? { ...item, amount: amt } : item));
+  };
+
+  const addInvLineItem = (section: string = "A") => {
+    const cust = (formData.customerCode || "POS").toUpperCase();
+    const isUSD = cust === "POS" || cust === "PTRO" || cust === "DBK";
+    const isSBS = cust === "SBS";
+    const desc = isSBS
+      ? (section === "B" ? "Alat Berat Tambahan (Jasa Penunjang)" : section === "P" ? "Pengurang Pembayaran Tambahan" : "Area Kerja OB Tambahan")
+      : "Pekerjaan / Item Tambahan";
+    const unit = isSBS
+      ? (section === "B" ? "Hours" : section === "P" ? "Lot" : "BCM")
+      : "Bcm";
+    const newItem = {
+      id: `custom_inv_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      section: section,
+      description: desc,
+      unit: unit,
+      volume: 0,
+      unitRateUSD: isUSD ? 0 : undefined,
+      unitRateIDR: isUSD ? undefined : 0,
+      kursBI: latestKursBI || mRate || 17923.30,
+      amount: 0,
+      isCustom: true
+    };
+    setInvLineItems(prev => [...prev, newItem]);
+  };
+
+  const updateInvItemField = (id: string, field: string, val: any) => {
+    setInvLineItems(prev => prev.map(item => item.id === id ? { ...item, [field]: val } : item));
+  };
+
+  const reorderInvLineItems = (startIndex: number, endIndex: number) => {
+    setInvLineItems(prev => {
+      if (startIndex < 0 || startIndex >= prev.length || endIndex < 0 || endIndex >= prev.length) return prev;
+      const result = Array.from(prev);
+      const [removed] = result.splice(startIndex, 1);
+      result.splice(endIndex, 0, removed);
+      return result;
+    });
   };
 
   // Rumus item invoice disediakan control calculations.tsx
@@ -879,6 +996,28 @@ export function useFinanceController({
       return [
         { id: "MDO_1", section: "A", code: "MDO1", description: "Mine Development (MDO Cut & Fill & Access Road)", volume: vol1, unit: "Ha", baseRateUSD: 0, unitRateIDR: 15500000 },
         { id: "MDO_2", section: "A", code: "MDO2", description: "Rocks for construction - under/overhaul", volume: vol2, unit: "USD/1KM", baseRateUSD: 0.526, unitRateIDR: 9450 }
+      ];
+    }
+
+    // If POS Facility / Backcharge / Non-Mining (e.g. Mess Facility, Mobilization)
+    const isPOSFacility = code === "POS" && ((ba?.jobType || "").toLowerCase().includes("mess") || (ba?.jobType || "").toLowerCase().includes("mob") || (ba?.jobType || "").toLowerCase().includes("facility") || (ba?.invoiceNo || "").toLowerCase().includes("bc-"));
+    if (isPOSFacility) {
+      const gross = Number(ba.revenueGross || ba.workAmount || 2313397963);
+      const vol = Number(ba.volume || 1);
+      const rate = Number(ba.rate || (vol > 0 ? Math.round(gross / vol) : gross));
+      return [
+        {
+          id: "pos_inv_fac_1",
+          section: "A",
+          code: "A1",
+          description: ba.jobType || "Mess Facility Construction / Backcharge Claim",
+          volume: vol,
+          unit: ba.volumeUnit || "Unit",
+          baseRateUSD: 0,
+          unitRateIDR: rate,
+          amount: gross,
+          amountIDR: gross
+        }
       ];
     }
 
@@ -1240,11 +1379,14 @@ export function useFinanceController({
         return invItems;
       }
       return demoBGGItems.map(i => ({ ...i }));
-    } else if (code === "DBK") {
-      if (ba?.items && Array.isArray(ba.items) && ba.items.length > 0) {
+    } else if (code === "DBK" || code === "PTRO") {
+      const sourceBA = (ba?.items && ba.items.length > 0) ? ba : baRows?.find((b: any) => b.baNumber === ba?.baNoReference || b.baNumber === ba?.baNumber || b.id === ba?.baID);
+      const itemsToProcess = sourceBA?.items && Array.isArray(sourceBA.items) && sourceBA.items.length > 0 ? sourceBA.items : ba?.items;
+
+      if (itemsToProcess && Array.isArray(itemsToProcess) && itemsToProcess.length > 0) {
         const invItems: any[] = [];
         const kurs = latestKursBI || 17923.30;
-        ba.items.forEach((bi: any, idx: number) => {
+        itemsToProcess.forEach((bi: any, idx: number) => {
           const mLow = (bi.material || bi.sowDescription || "").toLowerCase();
           const isDist = bi.isDistanceVar || bi.category === "Over Distance" || mLow.includes("overhaul") || mLow.includes("distance");
           const isCoal = mLow.includes("coal") || mLow.includes("batubara");
@@ -1261,7 +1403,7 @@ export function useFinanceController({
               : Math.round(vol * (diff / 100) * idrRate);
 
             invItems.push({
-              id: bi.id || `dbk_inv_c_${idx}`,
+              id: bi.id || `ptro_inv_c_${idx}`,
               section: "C",
               subSection: !isCoal ? "C1. Over Distance For OB Removal" : "C2. Over Distance For Coal Winning",
               description: bi.material || (isCoal ? "Overhaul Coal Getting (>3000m)" : "Overhaul OB (>1000m)"),
@@ -1279,7 +1421,7 @@ export function useFinanceController({
           } else if (isCoal) {
             const usdRate = bi.rateUSD || 0.840;
             invItems.push({
-              id: bi.id || `dbk_inv_b_${idx}`,
+              id: bi.id || `ptro_inv_b_${idx}`,
               section: "B",
               description: bi.material || "COAL GETTING",
               sowDescription: "COAL GETTING",
@@ -1294,7 +1436,7 @@ export function useFinanceController({
           } else {
             const usdRate = bi.rateUSD || 1.490;
             invItems.push({
-              id: bi.id || `dbk_inv_a_${idx}`,
+              id: bi.id || `ptro_inv_a_${idx}`,
               section: "A",
               description: bi.material || "OVER BURDEN REMOVAL",
               sowDescription: "OVER BURDEN REMOVAL",
@@ -1310,17 +1452,84 @@ export function useFinanceController({
         });
         return invItems;
       }
-      return demoDBKItems.map(i => ({ ...i }));
-    } else if (code === "SBS") {
-      if (ba?.items && Array.isArray(ba.items) && ba.items.length > 0) {
+      if (ba?.volume > 0 || ba?.rate > 0 || ba?.revenueGross > 0) {
+        const gross = Number(ba.revenueGross || ba.workAmount || 0);
+        const vol = Number(ba.volume || 165000);
+        const rate = Number(ba.rate || (vol > 0 && gross > 0 ? Math.round(gross / vol) : 31500));
+        return [
+          {
+            id: "ptro_inv_auto_1",
+            section: "A",
+            description: ba.jobType || "OVER BURDEN REMOVAL",
+            unit: ba.volumeUnit || "Bcm",
+            volume: vol,
+            unitRateIDR: rate,
+            amount: gross > 0 ? gross : Math.round(vol * rate),
+            amountIDR: gross > 0 ? gross : Math.round(vol * rate),
+            notes: ba.workPeriod || "-"
+          }
+        ];
+      }
+      return (demoPTROItems.length > 0 ? demoPTROItems : demoDBKItems).map(i => ({ ...i }));
+    } else if (code === "ABN") {
+      const sourceBA = (ba?.items && ba.items.length > 0) ? ba : baRows?.find((b: any) => b.baNumber === ba?.baNoReference || b.baNumber === ba?.baNumber || b.id === ba?.baID);
+      const itemsToProcess = sourceBA?.items && Array.isArray(sourceBA.items) && sourceBA.items.length > 0 ? sourceBA.items : ba?.items;
+
+      if (itemsToProcess && Array.isArray(itemsToProcess) && itemsToProcess.length > 0) {
         const invItems: any[] = [];
-        ba.items.forEach((bi: any, idx: number) => {
-          if (bi.category === "Pengurang Biaya" || bi.isDeduction) {
-            const amt = Number(bi.rate || bi.subtotalAdjusted || bi.subtotalInitial || 0);
+        itemsToProcess.forEach((bi: any, idx: number) => {
+          const vol = Number(bi.adjustedVolume ?? bi.initialVolume ?? 0);
+          const rate = Number(bi.rate || 1950000);
+          invItems.push({
+            id: bi.id || `abn_inv_${idx}`,
+            section: "A",
+            description: bi.material || `Sewa Alat Berat ABN ${idx + 1}`,
+            sowDescription: bi.material || `Sewa Alat Berat ABN ${idx + 1}`,
+            unit: bi.unit || "Hours",
+            volume: vol,
+            unitRateIDR: rate,
+            amount: Math.round(vol * rate),
+            amountIDR: Math.round(vol * rate),
+            notes: bi.notes || ba.workPeriod || "-"
+          });
+        });
+        return invItems;
+      }
+      if (ba?.volume > 0 || ba?.rate > 0 || ba?.revenueGross > 0) {
+        const gross = Number(ba.revenueGross || ba.workAmount || 0);
+        const vol = Number(ba.volume || 745.35);
+        const rate = Number(ba.rate || (vol > 0 && gross > 0 ? Math.round(gross / vol) : 1950000));
+        return [
+          {
+            id: "abn_inv_auto_1",
+            section: "A",
+            description: ba.jobType || "Sewa Alat Berat Bulldozer & Grader",
+            unit: ba.volumeUnit || "Hours",
+            volume: vol,
+            unitRateIDR: rate,
+            amount: gross > 0 ? gross : Math.round(vol * rate),
+            amountIDR: gross > 0 ? gross : Math.round(vol * rate),
+            notes: ba.workPeriod || "-"
+          }
+        ];
+      }
+      return [
+        { id: "abn_inv_1", section: "A", description: "Bulldozer D85ESS Rental", unit: "Hours", volume: 420, unitRateIDR: 1950000, amount: 819000000, amountIDR: 819000000 },
+        { id: "abn_inv_2", section: "A", description: "Motor Grader 160K", unit: "Hours", volume: 483.14, unitRateIDR: 1720000, amount: 831000000, amountIDR: 831000000 },
+      ];
+    } else if (code === "SBS") {
+      const sourceBA = (ba?.items && ba.items.length > 0) ? ba : baRows?.find((b: any) => b.baNumber === ba?.baNoReference || b.baNumber === ba?.baNumber || b.id === ba?.baID);
+      const itemsToProcess = sourceBA?.items && Array.isArray(sourceBA.items) && sourceBA.items.length > 0 ? sourceBA.items : ba?.items;
+
+      if (itemsToProcess && Array.isArray(itemsToProcess) && itemsToProcess.length > 0) {
+        const invItems: any[] = [];
+        itemsToProcess.forEach((bi: any, idx: number) => {
+          if (bi.category === "Pengurang Biaya" || bi.category === "Pengurang Pembayaran" || bi.isDeduction) {
+            const amt = Number(bi.rate || bi.subtotalAdjusted || bi.subtotalInitial || bi.amount || 0);
             invItems.push({
               id: bi.id || `sbs_inv_p_${idx}`,
               section: "P",
-              description: bi.material,
+              description: bi.material || bi.description,
               unit: bi.unit || "Lot",
               amount: -Math.abs(amt),
               amountIDR: -Math.abs(amt),
@@ -1330,17 +1539,28 @@ export function useFinanceController({
             return;
           }
           const unit = (bi.unit || "BCM").trim();
-          const isHours = unit.toLowerCase().includes("hour") || unit.toLowerCase() === "jam" || (bi.material || "").toLowerCase().includes("dozer") || (bi.material || "").toLowerCase().includes("excavator") || (bi.material || "").toLowerCase().includes("grader");
+          const matLower = (bi.material || bi.description || "").toLowerCase();
+          const isHours = unit.toLowerCase().includes("hour") || unit.toLowerCase() === "jam" || matLower.includes("dozer") || matLower.includes("excavator") || matLower.includes("grader");
           const section = isHours ? "B" : "A";
-          const vol = Number(bi.adjustedVolume ?? bi.initialVolume ?? 0);
-          const rate = Number(bi.rate || 0);
+          const vol = Number(bi.adjustedVolume ?? bi.initialVolume ?? bi.volume ?? 0);
+          const dist = Number(bi.distanceM ?? bi.distance ?? bi.distanceWeightAvg ?? 0);
+          let rate = Number(bi.rate || bi.unitRateIDR || 0);
+          if (section === "A" && dist > 0) {
+            const bracketTarif = getSBSTarifByDistance(dist);
+            if (bracketTarif.rate > 0) rate = bracketTarif.rate;
+          } else if (section === "B" && rate === 0) {
+            if (matLower.includes("d10") || matLower.includes("dozer")) rate = 1980000;
+            else if (matLower.includes("395") || matLower.includes("excavator")) rate = 1425000;
+          }
           invItems.push({
             id: bi.id || `sbs_inv_${section.toLowerCase()}_${idx}`,
             section,
-            description: bi.material || bi.sowDescription || `Pekerjaan SBS ${idx + 1}`,
-            sowDescription: bi.material || bi.sowDescription || `Pekerjaan SBS ${idx + 1}`,
+            description: bi.material || bi.description || bi.sowDescription || `Pekerjaan SBS ${idx + 1}`,
+            sowDescription: bi.material || bi.description || bi.sowDescription || `Pekerjaan SBS ${idx + 1}`,
             unit: isHours ? "Hours" : "BCM",
             volume: vol,
+            distanceM: dist,
+            distance: dist,
             unitRateIDR: rate,
             amount: Math.round(vol * rate),
             amountIDR: Math.round(vol * rate),
@@ -1358,7 +1578,31 @@ export function useFinanceController({
 
         return invItems;
       }
-      return demoSBSItems.map(i => ({ ...i }));
+
+      // If ba itself has volume & rate or revenueGross:
+      if (ba?.volume > 0 || ba?.rate > 0 || ba?.revenueGross > 0 || ba?.workAmount > 0) {
+        const gross = Number(ba.revenueGross || ba.workAmount || 0);
+        const vol = Number(ba.volume || 1079);
+        const rate = Number(ba.rate || (vol > 0 && gross > 0 ? Math.round(gross / vol) : 3392925));
+        const isEquipment = (ba.volumeUnit || "").toLowerCase().includes("jam") || (ba.jobType || "").toLowerCase().includes("equipment");
+
+        return [
+          {
+            id: "sbs_inv_auto_1",
+            section: isEquipment ? "B" : "A",
+            description: ba.jobType || (isEquipment ? "Jasa Penunjang Produksi (Rental Alat Berat)" : "OB REMOVAL (Per Area Kerja)"),
+            unit: ba.volumeUnit || (isEquipment ? "Hours" : "BCM"),
+            volume: vol,
+            unitRateIDR: rate,
+            amount: gross > 0 ? gross : Math.round(vol * rate),
+            amountIDR: gross > 0 ? gross : Math.round(vol * rate),
+            notes: ba.workPeriod || "-"
+          },
+          ...blankSBSItems.filter((it: any) => it.section === "P")
+        ];
+      }
+
+      return (demoSBSItems.length > 0 ? demoSBSItems : blankSBSItems).map(i => ({ ...i }));
     }
 
     return [];
@@ -1372,12 +1616,15 @@ export function useFinanceController({
     subtotalE, subtotalF
   };
   const exportPaymentDetailPDF = (itemData: any) => exportPaymentDetailPDFImpl(exportCtx, itemData);
+  const exportBADocumentPDF = (baData: any) => exportBADocumentPDFImpl(exportCtx, baData);
   const exportARBAIMonitoringExcel = () => exportARBAIMonitoringExcelImpl(exportCtx);
   const exportARBAIMonitoringPDF = () => exportARBAIMonitoringPDFImpl(exportCtx);
   const exportBAOnlyExcel = () => exportBAOnlyExcelImpl(exportCtx);
   const exportBAOnlyPDF = () => exportBAOnlyPDFImpl(exportCtx);
   const exportAROnlyExcel = () => exportAROnlyExcelImpl(exportCtx);
   const exportAROnlyPDF = () => exportAROnlyPDFImpl(exportCtx);
+  const exportCoretaxEFakturCSV = (itemData?: any) => exportCoretaxEFakturCSVImpl(exportCtx, itemData);
+  const exportEBupotPPh23CSV = (itemData?: any) => exportEBupotPPh23CSVImpl(exportCtx, itemData);
 
   const handleBASelect = (baNumber: string) => {
     if (!baNumber) {
@@ -1445,6 +1692,7 @@ export function useFinanceController({
 
     setEditItem(null);
     setFormData({
+      baID: ba.id,
       customerCode: code,
       workPeriod: period,
       invoiceNo: autoInvNo,
@@ -1690,7 +1938,7 @@ export function useFinanceController({
         baSubmittedDate: todayStr,
         workPeriod: defaultPeriod,
         customerCode: cust,
-        picAAP: "Operations / Site Engineer",
+        picAAP: initialData?.picAAP || user?.name || "Operations / Site Engineer",
         step1Locked: false,
         draftBARefNo: "",
         signedBANumber: "",
@@ -1751,13 +1999,13 @@ export function useFinanceController({
         BGG: "PT Budi Gema Gempita Site",
         POS: "POS PROJECT",
         SBS: "SBS - Tanjung Enim",
-        DBK: "DBK MINING PROJECT"
+        PTRO: "PT Petrosea Site",
       };
       const defaultContracts: Record<string, string> = {
         BGG: "09/BGG-AAP/VIII/2018",
         POS: "002/POS-AAP/2025",
         SBS: "230/AAP-SBS/EXT/XII/24",
-        DBK: "001/DBK-AAP/2024"
+        PTRO: "001/PTRO-AAP/2024",
       };
       setFormData({
         customerCode: defaultCompany,
@@ -1767,15 +2015,15 @@ export function useFinanceController({
         projectSite: initialData?.projectSite || cInfo?.project || defaultSites[defaultCompany] || "POS PROJECT",
         contractNo: initialData?.contractNo || cInfo?.contract || defaultContracts[defaultCompany] || "002/POS-AAP/2025",
         noPO: initialData?.noPO || (defaultCompany === "SBS" ? "SPPH-05852" : `PO-${defaultCompany}-2026-001`),
-        bankName: cInfo?.bankName || (defaultCompany === "BGG" ? "Bank Mandiri" : defaultCompany === "DBK" || defaultCompany === "SBS" ? "Bank BRI" : "Bank BNI"),
-        bankAccountNo: cInfo?.bankAccountNo || (defaultCompany === "BGG" ? "070-00-2888000-8" : defaultCompany === "DBK" || defaultCompany === "SBS" ? "0417-01-880088-30-8" : "8188788882"),
-        bankBranch: cInfo?.bankBranch || (defaultCompany === "BGG" ? "Plaza Mandiri Jakarta" : defaultCompany === "DBK" || defaultCompany === "SBS" ? "S. Parman - Slipi Jakarta" : "Harmoni, Jakarta"),
+        bankName: cInfo?.bankName || (defaultCompany === "BGG" ? "Bank Mandiri" : (defaultCompany === "PTRO" || defaultCompany === "SBS") ? "Bank BRI" : "Bank BNI"),
+        bankAccountNo: cInfo?.bankAccountNo || (defaultCompany === "BGG" ? "070-00-2888000-8" : (defaultCompany === "PTRO" || defaultCompany === "SBS") ? "0417-01-880088-30-8" : "8188788882"),
+        bankBranch: cInfo?.bankBranch || (defaultCompany === "BGG" ? "Plaza Mandiri Jakarta" : (defaultCompany === "PTRO" || defaultCompany === "SBS") ? "S. Parman - Slipi Jakarta" : "Harmoni, Jakarta"),
         directorName: cInfo?.directorName || "GAHARI CHRISTINE",
         directorTitle: cInfo?.directorTitle || (defaultCompany === "SBS" ? "DIREKTUR UTAMA" : "DIRECTOR"),
         ...initialData,
       });
       if (defaultCompany === "BGG") setInvLineItems(blankBGGItems.map(i => ({ ...i })));
-      else if (defaultCompany === "DBK") setInvLineItems(blankDBKItems.map(i => ({ ...i })));
+      else if (defaultCompany === "PTRO" || defaultCompany === "DBK") setInvLineItems(blankPTROItems.map(i => ({ ...i })));
       else if (defaultCompany === "SBS") setInvLineItems(blankSBSItems.map(i => ({ ...i })));
       else setInvLineItems(blankPOSItems.map(i => ({ ...i })));
     }
@@ -1962,8 +2210,9 @@ export function useFinanceController({
           ppn11: vat12Calc,
           pph23: pph23Calc,
           totalInvoice: netTotalInvoiceCalc,
+          totalDibayar: (formData.customerCode === "SBS") ? calcs.totalDibayar : netTotalInvoiceCalc,
           invoiceDate: formData.invoiceDate ? new Date(formData.invoiceDate).toISOString() : new Date().toISOString(),
-          notes: `PAYMENT DETAIL (RF Index: ${rfIndexCalculated.toFixed(3)})`
+          notes: formData.customerCode === "SBS" ? "PAYMENT DETAIL (PPN & PPh Dikenakan Sebelum Pengurang Pembayaran)" : `PAYMENT DETAIL (RF Index: ${rfIndexCalculated.toFixed(3)})`
         };
       }
 
@@ -2216,22 +2465,24 @@ export function useFinanceController({
     setFinanceTemplates, templatesLoaded, setTemplatesLoaded, templateRows, masterBankAccounts,
     
     rfIndexCalculated, defaultMasterVariableOptions, masterVariableOptions, activeSOWCatalog, applyRateLookup,
-    blankPOSItems, demoPOSItems, blankBGGItems, demoBGGItems, blankDBKItems,
-    demoDBKItems, blankSBSItems, demoSBSItems, defaultPOSBAOperatingItems, defaultPOSBAMDOItems,
-    defaultBGGBAItems, defaultDBKBAItems, defaultSBSBAOperatingItems, defaultSBSBAMDOItems, defaultSBSBADeductionItems, latestKursBI, coalIndexMaster, getBGGActiveCoalTier, baOperatingItems, setBaOperatingItems, baMDOItems, setBaMDOItems, baDeductionItems, setBaDeductionItems,
+    blankPOSItems, demoPOSItems, blankBGGItems, demoBGGItems, blankPTROItems, blankDBKItems,
+    demoPTROItems, demoDBKItems, blankSBSItems, demoSBSItems, defaultPOSBAOperatingItems, defaultPOSBAMDOItems,
+    defaultBGGBAItems, defaultPTROBAItems, defaultDBKBAItems, defaultSBSBAOperatingItems, defaultSBSBAMDOItems, defaultSBSBADeductionItems, latestKursBI, coalIndexMaster, getBGGActiveCoalTier, baOperatingItems, setBaOperatingItems, baMDOItems, setBaMDOItems, baDeductionItems, setBaDeductionItems,
     activeBAStep, setActiveBAStep, showAddRowDropdown, setShowAddRowDropdown, posInvoiceCategory,
     setPosInvoiceCategory, invLineItems, setInvLineItems, selectedVarA, setSelectedVarA,
     selectedVarB, setSelectedVarB, selectedVarC, setSelectedVarC, selectedVarD,
     setSelectedVarD, selectedVarE, setSelectedVarE, selectedVarF, setSelectedVarF,
     selectedVarP, setSelectedVarP, addVariableToSection, customerContractMap, handleCompanySelect,
-    loadDemoPOSData, loadDemoBGGData, loadDemoDBKData, loadDemoSBSData, removeInvLineItem,
+    loadDemoPOSData, loadDemoBGGData, loadDemoPTROData, loadDemoDBKData, loadDemoSBSData, removeInvLineItem,
+    addInvLineItem, updateInvItemField, reorderInvLineItems,
     updateInvItemVolume, updateInvItemOverhaul, updateInvItemRateIDR, updateInvItemRateUSD, updateInvItemKurs,
     updateInvItemAmount, getItemEffectiveVolume, getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations,
+    getSBSTarifByDistance, SBS_DISTANCE_TIERS,
     calcs, subtotalA, subtotalB, subtotalC, subtotalD,
     subtotalE, subtotalF, subtotalP, totalGrossCalc, dpp11_12Calc,
-    vat12Calc, pph23Calc, netTotalInvoiceCalc, totalDibayarCalc, exportPaymentDetailPDF,
+    vat12Calc, pph23Calc, netTotalInvoiceCalc, totalDibayarCalc, exportPaymentDetailPDF, exportBADocumentPDF,
     exportARBAIMonitoringExcel, exportARBAIMonitoringPDF, exportBAOnlyExcel, exportBAOnlyPDF, exportAROnlyExcel,
-    exportAROnlyPDF, loadData, handleSavePartialPayment, handleVerifyPartialPayment, buildInvoiceItemsFromBA,
+    exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV, loadData, handleSavePartialPayment, handleVerifyPartialPayment, buildInvoiceItemsFromBA,
     handleBASelect, createInvoiceFromBA, openBAModal, openCreateModal, openEditModal,
     handleFileUpload, handleSave, handleVerifyBA, handleApproveBA, handleSaveBGGBA,
     handleGenerateInvoiceFromBA, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, handleDelete,

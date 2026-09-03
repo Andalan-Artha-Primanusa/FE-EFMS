@@ -33,12 +33,12 @@ const formatIDR = (val: number) => {
 
 export const SOW_OPERATIONAL_SITES = [
   { code: "BGG", name: "PT Budi Gema Gempita", fullName: "PT Budi Gema Gempita (BGG)", contractNo: "09/BGG-AAP/VIII/2018" },
-  { code: "POS", name: "PT Prima Orbit Sejahtera", fullName: "PT Prima Orbit Sejahtera (POS)", contractNo: "002/POS-AAP/2025" },
-  { code: "SBS", name: "PT Sumber Bara Sejahtera", fullName: "PT Sumber Bara Sejahtera (SBS)", contractNo: "230/AAP-SBS/EXT/XII/24" },
-  { code: "DBK", name: "PT Duta Bara Kaltim", fullName: "PT Duta Bara Kaltim (DBK)", contractNo: "001/DBK-AAP/2024" },
+  { code: "POS", name: "PT Position", fullName: "PT Position (POS)", contractNo: "002/POS-AAP/2025" },
+  { code: "SBS", name: "PT Satria Bahana Sarana", fullName: "PT Satria Bahana Sarana (SBS)", contractNo: "230/AAP-SBS/EXT/XII/24" },
+  { code: "PTRO", name: "PT Petrosea", fullName: "PT Petrosea (PTRO)", contractNo: "001/PTRO-AAP/2024" },
 ];
 
-export const VALID_SOW_SITE_CODES = new Set(["BGG", "POS", "SBS", "DBK"]);
+export const VALID_SOW_SITE_CODES = new Set(["BGG", "POS", "SBS", "PTRO"]);
 
 export const defaultBGGSOWTemplate = [
   { category: "OB Removal", itemName: "OVER BURDEN REMOVAL 1 (75%)", tier1Rate: 27000, tier2Rate: 27250, tier3Rate: 29500, splitPercentage: 75, baseDistanceMeters: 1000, unit: "Bcm", rateIDR: 29500, rateUSD: 0 },
@@ -75,38 +75,37 @@ export const defaultSOWTemplate = [
 ];
 
 export const defaultSBSSOWTemplate = [
-  // Operation & Mining
-  { category: "Operation & Mining", itemName: "PIT E - DISPOSAL SEKATAN", unit: "BCM", rateIDR: 22654, rateUSD: 0 },
-  { category: "Operation & Mining", itemName: "PIT E - RENCANA JALAN", unit: "BCM", rateIDR: 12638, rateUSD: 0 },
-  { category: "Operation & Mining", itemName: "PIT E - RENCANA CSA", unit: "BCM", rateIDR: 8346, rateUSD: 0 },
-  { category: "Operation & Mining", itemName: "PIT E - JALAN BARITO", unit: "BCM", rateIDR: 15500, rateUSD: 0 },
-  { category: "Operation & Mining", itemName: "PIT E - SEKATAN", unit: "BCM", rateIDR: 16931, rateUSD: 0 },
-  { category: "Operation & Mining", itemName: "PIT E - TS MAHONI", unit: "BCM", rateIDR: 22654, rateUSD: 0 },
-  { category: "Operation & Mining", itemName: "PIT E - IPD WARWEFILL", unit: "BCM", rateIDR: 8346, rateUSD: 0 },
-  { category: "Operation & Mining", itemName: "PIT E - SEKATAN (High Rate)", unit: "BCM", rateIDR: 19375, rateUSD: 0 },
+  // OB Removal (Per Area Kerja)
+  { category: "OB Removal", itemName: "PIT E - DISPOSAL SEKATAN", unit: "BCM", rateIDR: 22654, rateUSD: 0 },
+  { category: "OB Removal", itemName: "PIT E - RENCANA JALAN", unit: "BCM", rateIDR: 12638, rateUSD: 0 },
+  { category: "OB Removal", itemName: "PIT E - RENCANA CSA", unit: "BCM", rateIDR: 8346, rateUSD: 0 },
+  { category: "OB Removal", itemName: "PIT E - JALAN BARITO", unit: "BCM", rateIDR: 15500, rateUSD: 0 },
+  { category: "OB Removal", itemName: "PIT E - SEKATAN", unit: "BCM", rateIDR: 16931, rateUSD: 0 },
+  { category: "OB Removal", itemName: "PIT E - TS MAHONI", unit: "BCM", rateIDR: 22654, rateUSD: 0 },
+  { category: "OB Removal", itemName: "PIT E - IPD WARWEFILL", unit: "BCM", rateIDR: 8346, rateUSD: 0 },
+  { category: "OB Removal", itemName: "PIT E - SEKATAN (High Rate)", unit: "BCM", rateIDR: 19375, rateUSD: 0 },
 
-  // Jasa Penunjang Produksi (Rental Alat)
-  { category: "Penunjang", itemName: "Bulldozer DZ709", unit: "Hours", rateIDR: 1980000, rateUSD: 0 },
-  { category: "Penunjang", itemName: "Bulldozer DZ716", unit: "Hours", rateIDR: 1980000, rateUSD: 0 },
-  { category: "Penunjang", itemName: "Excavator EX815", unit: "Hours", rateIDR: 1425000, rateUSD: 0 },
-  { category: "Penunjang", itemName: "Excavator EX816", unit: "Hours", rateIDR: 1425000, rateUSD: 0 },
-  { category: "Penunjang", itemName: "Excavator EX817", unit: "Hours", rateIDR: 1425000, rateUSD: 0 },
-  { category: "Penunjang", itemName: "Motor Grader MG607", unit: "Hours", rateIDR: 1250000, rateUSD: 0 },
-  { category: "Penunjang", itemName: "Motor Grader MG608", unit: "Hours", rateIDR: 1250000, rateUSD: 0 },
+  // Jasa Penunjang Produksi (Rental Alat Berat - Kontrak SPPH-05852)
+  { category: "Jasa Penunjang Produksi", itemName: "Dozer CAT D10 - BDCT 1001", unit: "Hours", rateIDR: 1980000, rateUSD: 0 },
+  { category: "Jasa Penunjang Produksi", itemName: "Dozer CAT D10 - BDCT 1002", unit: "Hours", rateIDR: 1980000, rateUSD: 0 },
+  { category: "Jasa Penunjang Produksi", itemName: "Excavator CAT 395 - EXCT 3901", unit: "Hours", rateIDR: 1425000, rateUSD: 0 },
+  { category: "Jasa Penunjang Produksi", itemName: "Excavator CAT 395 - EXCT 3902", unit: "Hours", rateIDR: 1425000, rateUSD: 0 },
 
-  // Pengurang Biaya
-  { category: "Pengurang Biaya", itemName: "Denda ketidaktercapaian MA", unit: "Lot", rateIDR: 0, rateUSD: 0 },
-  { category: "Pengurang Biaya", itemName: "Kelebihan Pemakaian BBM Loader", unit: "Lot", rateIDR: 0, rateUSD: 0 },
-  { category: "Pengurang Biaya", itemName: "Kelebihan Pemakaian BBM Hauler", unit: "Lot", rateIDR: 0, rateUSD: 0 },
-  { category: "Pengurang Biaya", itemName: "Denda ketidakcapaian Volume", unit: "Lot", rateIDR: 0, rateUSD: 0 },
+  // Pengurang Pembayaran (Denda Operasional & BBM)
+  { category: "Pengurang Pembayaran", itemName: "1. Denda Ketidaktercapaian MA", unit: "Hours", rateIDR: 0, rateUSD: 0 },
+  { category: "Pengurang Pembayaran", itemName: "2. Kelebihan Pemakaian BBM Loader", unit: "Lot", rateIDR: 0, rateUSD: 0 },
+  { category: "Pengurang Pembayaran", itemName: "3. Kelebihan Pemakaian BBM Hauler", unit: "Lot", rateIDR: 0, rateUSD: 0 },
+  { category: "Pengurang Pembayaran", itemName: "4. Denda ketidakcapaian volume", unit: "Lot", rateIDR: 0, rateUSD: 0 },
 ];
 
-export const defaultDBKSOWTemplate = [
-  { category: "Operating & Mining", itemName: "OVER BURDEN REMOVAL", unit: "BCM", rateUSD: 1.490, rateIDR: 0 },
-  { category: "Operating & Mining", itemName: "COAL WINNING", unit: "Ton", rateUSD: 0.840, rateIDR: 0 },
-  { category: "Over Distance", itemName: "Overhaul OB (Pit Sapan)", unit: "BCM", rateUSD: 0.028, rateIDR: 0, baseDistanceMeters: 1000 },
-  { category: "Over Distance", itemName: "Overhaul Coal Getting (Pit Sapan)", unit: "Ton", rateUSD: 0, rateIDR: 230, baseDistanceMeters: 3000 },
+export const defaultPTROSOWTemplate = [
+  { category: "Operating & Mining", itemName: "OVER BURDEN", unit: "USD/Bcm", rateUSD: 1.490, rateIDR: 0 },
+  { category: "Operating & Mining", itemName: "COAL GETTING", unit: "USD/MT", rateUSD: 0.840, rateIDR: 0 },
+  { category: "Over Distance", itemName: "OVERHAUL OB", unit: "USD/BCM/100 Mtr", rateUSD: 0.028, rateIDR: 0, baseDistanceMeters: 1000 },
+  { category: "Over Distance", itemName: "OVERHAUL COAL GETTING", unit: "IDR/TON/100 Mtr", rateUSD: 0, rateIDR: 230, baseDistanceMeters: 3000 },
 ];
+
+export const defaultDBKSOWTemplate = defaultPTROSOWTemplate;
 
 export function VariableSOWPage({
   viewTitle,
@@ -162,8 +161,8 @@ export function VariableSOWPage({
           template = defaultBGGSOWTemplate;
         } else if (site.code === "SBS") {
           template = defaultSBSSOWTemplate;
-        } else if (site.code === "DBK") {
-          template = defaultDBKSOWTemplate;
+        } else if (site.code === "PTRO") {
+          template = defaultPTROSOWTemplate;
         }
         groupedMap[site.code] = {
           companyName: site.name,

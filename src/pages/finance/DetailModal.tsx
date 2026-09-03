@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, TrendingDown, Archive, Scale } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, User as UserType } from "../../lib/api";
@@ -20,7 +20,7 @@ export function DetailModal({ c }: { c: any }) {
     detailViewItem, setDetailViewItem, showAddPartialPayment, setShowAddPartialPayment, partialPaymentForm,
     setPartialPaymentForm, rfIndexCalculated, invLineItems, formData, buildInvoiceItemsFromBA, customerContractMap, getItemEffectiveVolume,
     getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations, subtotalA, subtotalB,
-    subtotalC, subtotalD, subtotalE, subtotalF, exportPaymentDetailPDF,
+    subtotalC, subtotalD, subtotalE, subtotalF, exportPaymentDetailPDF, exportBADocumentPDF,
     handleSavePartialPayment, handleVerifyPartialPayment, createInvoiceFromBA, handleVerifyBA, handleApproveBA,
     handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, openEditModal, user
   } = (c || {}) as Record<string, any>;
@@ -31,15 +31,15 @@ export function DetailModal({ c }: { c: any }) {
   if (!detailViewItem || !detailViewItem.data) return null;
 
   return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4">
-          <div className={`bg-white border border-slate-200 rounded-2xl p-6 sm:p-7 w-full ${detailViewItem.type === "invoice" ? "max-w-[95vw]" : "max-w-5xl"} shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto transition-all`}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-2 sm:p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 w-full max-w-[96vw] 2xl:max-w-[1550px] shadow-2xl space-y-4 max-h-[94vh] overflow-y-auto transition-all">
             {/* Modal Header */}
-            <div className="flex justify-between items-start border-b border-slate-200 pb-4">
+            <div className="flex justify-between items-start border-b border-slate-200 pb-3">
               <div>
-                <span className="inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-cyan-800 bg-cyan-50 px-2.5 py-1 rounded-md border border-cyan-200">
-                  <FileText size={14} /> Detail View & Audit Log Tracking
+                <span className="inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-cyan-800 bg-cyan-50 px-2 py-0.5 rounded-md border border-cyan-200">
+                  <FileText size={13} /> Detail View & Audit Log Tracking
                 </span>
-                <h3 className="text-2xl font-black text-slate-900 mt-1">
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
                   {detailViewItem.type === "ba" ? `Berita Acara: ${detailViewItem.data.baNumber}` : detailViewItem.type === "invoice" ? `Invoice Master: ${detailViewItem.data.invoiceNo}` : detailViewItem.type === "payment" ? `Payment Log: ${detailViewItem.data.invoiceNo}` : `Customer: ${detailViewItem.data.fullName}`}
                 </h3>
               </div>
@@ -54,22 +54,22 @@ export function DetailModal({ c }: { c: any }) {
                       openEditModal(typeToEdit, itemToEdit);
                     }
                   }}
-                  className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer"
                   title="Buka Form Modal Edit untuk Mengubah Data"
                 >
-                  <Edit2 size={14} />
+                  <Edit2 size={13} />
                   <span>Edit Data</span>
                 </button>
-                <button className="p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition" onClick={() => setDetailViewItem(null)}>
-                  <X size={20} />
+                <button className="p-1.5 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition" onClick={() => setDetailViewItem(null)}>
+                  <X size={18} />
                 </button>
               </div>
             </div>
 
-            {/* 2-COLUMN LAYOUT (WIDE DISPLAY FOR PAYMENT DETAIL) */}
-            <div className={`grid grid-cols-1 ${detailViewItem.type === "invoice" ? "md:grid-cols-12" : "md:grid-cols-5"} gap-6`}>
-              {/* LEFT COLUMN (WIDE FOR INVOICE): Structured Record Summary & PDF Preview */}
-              <div className={`${detailViewItem.type === "invoice" ? "md:col-span-8" : "md:col-span-3"} space-y-5 border-b md:border-b-0 md:border-r border-slate-200 pb-6 md:pb-0 md:pr-6`}>
+            {/* 2-COLUMN LAYOUT: 8 cols Left (Tables/Data) + 4 cols Right (Summaries/Timeline/Audit) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              {/* LEFT COLUMN: 8 cols */}
+              <div className="lg:col-span-8 space-y-4 border-b lg:border-b-0 lg:border-r border-slate-200 pb-4 lg:pb-0 lg:pr-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2">
                   <div className="flex items-center gap-2">
                     <h4 className="text-xs font-black uppercase tracking-wider text-slate-500">Rincian Dokumen & Nilai Transaksi</h4>
@@ -85,37 +85,78 @@ export function DetailModal({ c }: { c: any }) {
                       <FileText size={13} /> Cetak / Simpan PDF
                     </button>
                   )}
+                  {detailViewItem.type === "ba" && (
+                    <button
+                      onClick={() => exportBADocumentPDF(detailViewItem.data)}
+                      className="px-3 py-1.5 rounded-lg bg-cyan-700 hover:bg-cyan-800 text-white font-bold text-xs transition flex items-center gap-1 shadow-xs cursor-pointer"
+                    >
+                      <FileText size={13} /> Cetak Dokumen BA (PDF)
+                    </button>
+                  )}
                 </div>
 
                 {/* BA Detail Summary */}
                 {detailViewItem.type === "ba" && (
                   <div className="space-y-4">
                     {/* Quick 1-Click Invoice Callout if Ready */}
-                    {(detailViewItem.data.statusBA === "Ready to Invoice" || Boolean(detailViewItem.data.verifiedBy)) && !detailViewItem.data.invoiceNoLinked && (
-                      <div className="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-emerald-600 text-white rounded-xl">
-                            <Zap size={20} className="fill-amber-300 text-amber-300" />
+                    {/* Quick 1-Click Invoice Callout if Ready or Linked */}
+                    {(() => {
+                      const baInvStatus = getBAInvoiceStatus(detailViewItem.data, invoiceRows);
+                      const linkedNo = (detailViewItem.data.invoiceNoLinked || "").trim();
+                      const isLinked = Boolean(linkedNo && linkedNo !== "-") || baInvStatus.isFullyInvoiced;
+
+                      if (isLinked) {
+                        const displayInvNo = linkedNo || baInvStatus.createdInvoices[0]?.invoiceNo || "Terbit";
+                        return (
+                          <div className="bg-purple-50 border border-purple-300 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                            <div className="flex items-center gap-2.5">
+                              <Archive size={16} className="text-purple-700 shrink-0" />
+                              <span className="text-xs font-black text-purple-950">
+                                Arsip: Telah Terbit Invoice #{displayInvNo}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const targetInv = baInvStatus.createdInvoices[0] || invoiceRows.find((inv: any) => inv.invoiceNo === displayInvNo || inv.baNoReference === detailViewItem.data.baNumber || inv.baID === detailViewItem.data.id);
+                                if (targetInv) {
+                                  setDetailViewItem({ type: "invoice", data: targetInv });
+                                } else {
+                                  alert(`Invoice #${displayInvNo} telah resmi diterbitkan.`);
+                                }
+                              }}
+                              className="px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                            >
+                              <ExternalLink size={12} />
+                              <span>Lihat Invoice</span>
+                            </button>
                           </div>
-                          <div>
-                            <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wider">
-                              BA Terverifikasi — Siap Diproses Invoice!
-                            </h4>
-                            <p className="text-[11px] text-emerald-800 font-medium">
-                              Volume telah diverifikasi Finance Specialist. Klik tombol untuk membuka Form Invoice dan periksa rincian sebelum disimpan.
-                            </p>
+                        );
+                      }
+
+                      if ((detailViewItem.data.statusBA === "Ready to Invoice" || Boolean(detailViewItem.data.verifiedBy))) {
+                        return (
+                          <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                            <div className="flex items-center gap-2.5">
+                              <CheckCircle2 size={16} className="text-emerald-700 shrink-0" />
+                              <span className="text-xs font-black text-emerald-950">
+                                BA Terverifikasi — Siap Diterbitkan Invoice
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => createInvoiceFromBA(detailViewItem.data)}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                            >
+                              <Zap size={13} className="fill-amber-300 text-amber-300" />
+                              <span>+ Terbitkan Invoice</span>
+                            </button>
                           </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => createInvoiceFromBA(detailViewItem.data)}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-sm flex items-center gap-1.5 transition cursor-pointer shrink-0"
-                        >
-                          <Zap size={14} className="fill-amber-300 text-amber-300" />
-                          <span>+ Buat Draf Invoice</span>
-                        </button>
-                      </div>
-                    )}
+                        );
+                      }
+
+                      return null;
+                    })()}
 
                     <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 text-xs text-slate-800">
                       <div className="grid grid-cols-2 gap-3 pb-3 border-b border-slate-200">
@@ -166,7 +207,7 @@ export function DetailModal({ c }: { c: any }) {
                       </div>
 
                       {/* Draft BA Preview Card */}
-                      <div className="p-3 bg-slate-900 text-white rounded-xl space-y-2">
+                      <div className="p-3 bg-slate-900 text-white rounded-xl space-y-2.5 shadow-sm">
                         <div className="flex justify-between items-center">
                           <span className="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
                             <Upload size={14} /> Draft BA PDF Document
@@ -176,7 +217,7 @@ export function DetailModal({ c }: { c: any }) {
                               href={resolveDocumentUrl(detailViewItem.data.draftBAPath)}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-[11px] px-2.5 py-1 rounded bg-cyan-700 hover:bg-cyan-600 text-white font-bold inline-flex items-center gap-1"
+                              className="text-[11px] px-2.5 py-1 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white font-bold inline-flex items-center gap-1 transition shadow-xs"
                             >
                               <ExternalLink size={12} /> Buka PDF Tab Baru
                             </a>
@@ -185,8 +226,20 @@ export function DetailModal({ c }: { c: any }) {
                           )}
                         </div>
                         {detailViewItem.data.draftBAPath ? (
-                          <div className="w-full h-44 rounded-lg overflow-hidden border border-slate-700 bg-slate-800">
-                            <iframe src={resolveDocumentUrl(detailViewItem.data.draftBAPath)} className="w-full h-full" title="Draft BA PDF Preview" />
+                          <div className="p-3.5 bg-slate-800/90 rounded-lg border border-slate-700 flex items-center gap-3">
+                            <div className="p-2.5 bg-cyan-950 border border-cyan-700/50 rounded-lg text-cyan-400 shrink-0">
+                              <FileText size={22} />
+                            </div>
+                            <div className="min-w-0 flex-1 text-xs">
+                              <span className="font-mono font-bold text-slate-200 block truncate">
+                                {detailViewItem.data.draftBARefNo ? `Draft-${detailViewItem.data.draftBARefNo.replace(/\//g, '_')}.pdf` : detailViewItem.data.draftBAPath.split('/').pop() || "draft_berita_acara.pdf"}
+                              </span>
+                              <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
+                                <span>Site: <strong className="text-cyan-300">{detailViewItem.data.customerCode || "POS"}</strong></span>
+                                <span>•</span>
+                                <span>Routing: <strong className="text-slate-300">{detailViewItem.data.internalRoutingDate || "Tercatat"}</strong></span>
+                              </div>
+                            </div>
                           </div>
                         ) : (
                           <div className="p-4 text-center text-xs text-slate-400 bg-slate-800/50 rounded-lg border border-dashed border-slate-700">
@@ -196,7 +249,7 @@ export function DetailModal({ c }: { c: any }) {
                       </div>
 
                       {/* Final BA Preview Card */}
-                      <div className="p-3 bg-slate-900 text-white rounded-xl space-y-2">
+                      <div className="p-3 bg-slate-900 text-white rounded-xl space-y-2.5 shadow-sm">
                         <div className="flex justify-between items-center">
                           <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
                             <CheckCircle size={14} /> Final Signed BA PDF Document
@@ -206,7 +259,7 @@ export function DetailModal({ c }: { c: any }) {
                               href={resolveDocumentUrl(detailViewItem.data.finalBAPath)}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-[11px] px-2.5 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white font-bold inline-flex items-center gap-1"
+                              className="text-[11px] px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-bold inline-flex items-center gap-1 transition shadow-xs"
                             >
                               <ExternalLink size={12} /> Buka PDF Tab Baru
                             </a>
@@ -215,8 +268,20 @@ export function DetailModal({ c }: { c: any }) {
                           )}
                         </div>
                         {detailViewItem.data.finalBAPath ? (
-                          <div className="w-full h-44 rounded-lg overflow-hidden border border-slate-700 bg-slate-800">
-                            <iframe src={resolveDocumentUrl(detailViewItem.data.finalBAPath)} className="w-full h-full" title="Final BA PDF Preview" />
+                          <div className="p-3.5 bg-slate-800/90 rounded-lg border border-slate-700 flex items-center gap-3">
+                            <div className="p-2.5 bg-emerald-950 border border-emerald-700/50 rounded-lg text-emerald-400 shrink-0">
+                              <CheckCircle size={22} />
+                            </div>
+                            <div className="min-w-0 flex-1 text-xs">
+                              <span className="font-mono font-bold text-emerald-200 block truncate">
+                                {detailViewItem.data.signedBANumber ? `Signed-${detailViewItem.data.signedBANumber.replace(/\//g, '_')}.pdf` : detailViewItem.data.baNumber ? `BA-${detailViewItem.data.baNumber.replace(/\//g, '_')}.pdf` : detailViewItem.data.finalBAPath.split('/').pop() || "signed_berita_acara.pdf"}
+                              </span>
+                              <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
+                                <span>TTD: <strong className="text-emerald-300">{detailViewItem.data.baSignedDate || "Selesai"}</strong></span>
+                                <span>•</span>
+                                <span className="text-emerald-400 font-bold">Terverifikasi & Sah ✓</span>
+                              </div>
+                            </div>
                           </div>
                         ) : (
                           <div className="p-4 text-center text-xs text-slate-400 bg-slate-800/50 rounded-lg border border-dashed border-slate-700">
@@ -231,28 +296,55 @@ export function DetailModal({ c }: { c: any }) {
                 {/* Invoice Detail Summary — Official INVOICE Document Sheet (Dynamic Layout per Customer) */}
                 {detailViewItem.type === "invoice" && (() => {
                   const viewCustCode = (detailViewItem.data.customerCode || "").toUpperCase();
-                  const activeItems = (detailViewItem.data.items && Array.isArray(detailViewItem.data.items) && detailViewItem.data.items.length > 0)
+                  const targetBA = baRows?.find((b: any) => b.baNumber === detailViewItem.data.baNoReference || b.baNumber === detailViewItem.data.baNumber || b.id === detailViewItem.data.baID);
+                  let activeItems = (detailViewItem.data.items && Array.isArray(detailViewItem.data.items) && detailViewItem.data.items.length > 0)
                     ? detailViewItem.data.items
                     : (invLineItems && invLineItems.length > 0 && formData?.invoiceNo === detailViewItem.data.invoiceNo
                         ? invLineItems
                         : (typeof buildInvoiceItemsFromBA === "function"
-                            ? buildInvoiceItemsFromBA(baRows?.find((b: any) => b.baNumber === detailViewItem.data.baNoReference) || detailViewItem.data, viewCustCode, detailViewItem.data.invoiceCategory)
+                            ? buildInvoiceItemsFromBA(targetBA || detailViewItem.data, viewCustCode, detailViewItem.data.invoiceCategory)
                             : (detailViewItem.data.items || []))
                       );
-                  const cCalc = getCustomerCalculations(activeItems, viewCustCode);
+
+                  if ((!activeItems || activeItems.length === 0 || activeItems.every((i: any) => !(i.volume > 0 || i.amount > 0 || i.unitRateIDR > 0))) && typeof buildInvoiceItemsFromBA === "function") {
+                    activeItems = buildInvoiceItemsFromBA(detailViewItem.data, viewCustCode, detailViewItem.data.invoiceCategory);
+                  }
+
+                  let cCalc = getCustomerCalculations(activeItems, viewCustCode);
+
+                  // Failsafe: Ensure cCalc displays correct financial totals if activeItems sum is 0
+                  if (cCalc.totalGross === 0 && (detailViewItem.data.revenueGross > 0 || detailViewItem.data.subTotalDPP > 0 || detailViewItem.data.totalInvoice > 0)) {
+                    const gross = Number(detailViewItem.data.revenueGross || detailViewItem.data.subTotalDPP || 0);
+                    const dpp = Number(detailViewItem.data.subTotalDPP || Math.round(gross * 11 / 12));
+                    const vat = Number(detailViewItem.data.ppn11 || Math.round(dpp * 0.12));
+                    const pph = Number(detailViewItem.data.pph23 || Math.round(gross * 0.02));
+                    const totInv = Number(detailViewItem.data.totalInvoice || (gross + vat - pph));
+                    const totPay = Number(detailViewItem.data.totalReceipt || detailViewItem.data.outstanding || totInv);
+                    cCalc = {
+                      ...cCalc,
+                      totalGross: gross,
+                      subtotalA: gross,
+                      dpp11_12: dpp,
+                      vat12: vat,
+                      pph23: pph,
+                      totalInvoice: totInv,
+                      totalDibayar: totPay,
+                    };
+                  }
+
                   const cInfo = customerContractMap[viewCustCode];
                   const isMDO = detailViewItem.data.invoiceCategory === "MDO" || (detailViewItem.data.activityGroup || "").includes("MDO") || (detailViewItem.data.invoiceNo || "").includes("MDO");
                   const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
 
                   return (
-                    <div className="p-4 bg-white border border-slate-300 rounded-xl space-y-4 shadow-sm text-xs text-slate-800">
+                    <div className="p-4 sm:p-6 bg-white border-2 border-slate-900 rounded-none space-y-4 shadow-xs text-xs text-slate-900">
                       {/* Official ANDALAN Logo Header */}
-                      <div className="text-center pb-2 border-b border-slate-200">
+                      <div className="text-center pb-2 border-b-2 border-slate-900">
                         <img src="/andalan-logo.png" alt="ANDALAN Logo" className="h-10 w-auto object-contain mx-auto" />
                       </div>
 
                       {/* Header Info Block */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-3 border-b border-slate-200 text-[11px]">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-3 border-b border-slate-300 text-[11px]">
                         <div className="space-y-1">
                           <div className="flex">
                             <span className="w-24 font-bold text-slate-500">Company</span>
@@ -284,33 +376,190 @@ export function DetailModal({ c }: { c: any }) {
                           </div>
                           <div className="flex">
                             <span className="w-32 font-bold text-slate-500">Activity Group</span>
-                            <span className="font-extrabold text-cyan-900">: {(detailViewItem.data.activityGroup || detailViewItem.data.jobType || (isMDO ? "MINE DEVELOPMENT OPERATION (MDO)" : "OPERATION & MINING")).toUpperCase()}</span>
+                            <span className="font-extrabold text-slate-900">: {detailViewItem.data.activityGroup || (viewCustCode === "SBS" ? "OB REMOVAL + HEAVY EQUIPMENT RENTAL" : "MINING OPERATIONS")}</span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="text-center py-1.5 border-b border-slate-200">
-                        <h4 className="text-base font-black text-slate-900 uppercase tracking-widest underline decoration-2 underline-offset-4">
-                          INVOICE
-                        </h4>
-                        {viewCustCode === "SBS" ? (
-                          <p className="text-xs font-bold text-slate-700 mt-1">
-                            (NO KONTRAK : <strong className="font-extrabold text-slate-900">{detailViewItem.data.contractNo || "SPPH-05852"}</strong>)
-                          </p>
-                        ) : (
-                          <p className="text-xs font-bold text-slate-700 mt-1">
-                            Contract Number : <strong className="font-extrabold text-slate-900">{detailViewItem.data.contractNo || cInfo?.contract || "002/POS-AAP/2025"}</strong>
-                          </p>
-                        )}
+                      {/* Title */}
+                      <div className="text-center py-1">
+                        <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 underline">INVOICE</h3>
+                        <p className="text-[11px] text-slate-600 font-semibold mt-0.5">(NO KONTRAK : {detailViewItem.data.contractNo || cInfo?.contract || "SPPH-05852"})</p>
                       </div>
 
-                      {/* Official INVOICE Table (Dynamic Layout per Customer) */}
-                      <div className="overflow-x-auto rounded-xl border border-slate-300 shadow-xs">
+                      {/* MAIN INVOICE TABLE — DYNAMIC PER CUSTOMER */}
+                      {viewCustCode === "SBS" ? (
+                        <div className="space-y-3">
+                          {/* TABEL UTAMA INVOICE PEKERJAAN (NILAI JKP) */}
+                          <div className="rounded-none border border-slate-900 bg-white overflow-hidden">
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs text-left border-collapse">
+                                <thead>
+                                  <tr className="bg-slate-100 text-slate-900 font-extrabold text-[11px] uppercase border-b border-slate-900">
+                                    <th className="p-2.5 border-r border-slate-300">DESCRIPTION</th>
+                                    <th className="p-2.5 text-center w-28 border-r border-slate-300">JARAK (M)</th>
+                                    <th className="p-2.5 text-center w-36 border-r border-slate-300">CLAIMED UNIT</th>
+                                    <th className="p-2.5 text-right w-36 border-r border-slate-300">UNIT RATE (IDR)</th>
+                                    <th className="p-2.5 text-right w-44 font-extrabold">AMOUNT (IDR)</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200 text-[11px] font-medium text-slate-900">
+                                  {/* Seksi A: OB Removal */}
+                                  <tr className="bg-slate-100/80 font-extrabold text-slate-900 border-t border-b border-slate-300">
+                                    <td className="p-2 underline font-extrabold border-r border-slate-200">OB REMOVAL (Per Area Kerja)</td>
+                                    <td className="p-2 text-center text-slate-400 font-mono border-r border-slate-200">-</td>
+                                    <td className="p-2 text-center font-mono text-slate-900 font-black border-r border-slate-200">
+                                      {activeItems.filter((i: any) => i.section === "A").reduce((s: number, i: any) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} BCM
+                                    </td>
+                                    <td className="p-2 text-right border-r border-slate-200"></td>
+                                    <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalA)}</td>
+                                  </tr>
+                                  {activeItems.filter((i: any) => i.section === "A").map((i: any) => {
+                                    const dist = i.distanceM ?? i.overhaulMtr;
+                                    const unitRate = i.unitRateIDR || (i.volume > 0 ? Math.round((i.amount || 0) / i.volume) : 0);
+                                    const amount = i.amount !== undefined && i.amount !== null && i.amount !== 0 ? i.amount : Math.round((i.volume || 0) * unitRate);
+                                    return (
+                                      <tr key={i.id} className="hover:bg-slate-50/80 border-b border-slate-200">
+                                        <td className="p-2 pl-4 font-bold text-slate-800 border-r border-slate-200">{i.description}</td>
+                                        <td className="p-2 text-center font-mono font-bold text-slate-700 border-r border-slate-200">
+                                          {dist ? `${Number(dist).toLocaleString("id-ID")} m` : "-"}
+                                        </td>
+                                        <td className="p-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200">
+                                          {(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} {i.unit || "BCM"}
+                                        </td>
+                                        <td className="p-2 text-right font-mono text-slate-700 border-r border-slate-200">
+                                          {unitRate.toLocaleString("id-ID")}
+                                        </td>
+                                        <td className="p-2 text-right font-mono font-extrabold text-slate-900">
+                                          {formatIDR(amount)}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+
+                                  {/* Seksi B: Jasa Penunjang Produksi */}
+                                  <tr className="bg-slate-100/80 font-extrabold text-slate-900 border-t border-b border-slate-300">
+                                    <td className="p-2 underline font-extrabold border-r border-slate-200">JASA PENUNJANG PRODUKSI (Rental Alat)</td>
+                                    <td className="p-2 text-center text-slate-400 font-mono border-r border-slate-200">-</td>
+                                    <td className="p-2 text-center font-mono text-slate-900 font-black border-r border-slate-200">
+                                      {activeItems.filter((i: any) => i.section === "B").reduce((s: number, i: any) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} Hours
+                                    </td>
+                                    <td className="p-2 text-right border-r border-slate-200"></td>
+                                    <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalB)}</td>
+                                  </tr>
+                                  {activeItems.filter((i: any) => i.section === "B").map((i: any) => {
+                                    const unitRate = i.unitRateIDR || (i.volume > 0 ? Math.round((i.amount || 0) / i.volume) : 0);
+                                    const amount = i.amount !== undefined && i.amount !== null && i.amount !== 0 ? i.amount : Math.round((i.volume || 0) * unitRate);
+                                    return (
+                                      <tr key={i.id} className="hover:bg-slate-50/80 border-b border-slate-200">
+                                        <td className="p-2 pl-4 font-bold text-slate-800 border-r border-slate-200">{i.description}</td>
+                                        <td className="p-2 text-center text-slate-400 font-mono border-r border-slate-200">-</td>
+                                        <td className="p-2 text-center font-mono font-bold text-slate-800 border-r border-slate-200">
+                                          {(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} {i.unit || "Hours"}
+                                        </td>
+                                        <td className="p-2 text-right font-mono text-slate-700 border-r border-slate-200">
+                                          {unitRate.toLocaleString("id-ID")}
+                                        </td>
+                                        <td className="p-2 text-right font-mono font-extrabold text-slate-900">
+                                          {formatIDR(amount)}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+
+                                {/* Footer Tabel Utama: Kalkulasi Pajak Bruto */}
+                                <tfoot className="border-t-2 border-slate-900 bg-slate-50 font-bold text-xs">
+                                  <tr className="border-b border-slate-200">
+                                    <td colSpan={3} className="p-2.5 text-right font-black uppercase text-slate-700 border-r border-slate-200">TOTAL (NILAI PEKERJAAN BRUTO):</td>
+                                    <td colSpan={2} className="p-2.5 text-right font-mono text-sm font-black text-slate-900">{formatIDR(cCalc.totalGross)}</td>
+                                  </tr>
+                                  <tr className="border-b border-slate-200">
+                                    <td colSpan={3} className="p-2.5 text-right uppercase text-slate-600 font-bold border-r border-slate-200">DPP PPN 11/12:</td>
+                                    <td colSpan={2} className="p-2.5 text-right font-mono font-bold text-slate-800">{formatIDR(cCalc.dpp11_12)}</td>
+                                  </tr>
+                                  <tr className="border-b border-slate-200">
+                                    <td colSpan={3} className="p-2.5 text-right uppercase text-slate-800 font-bold border-r border-slate-200">VAT ( 12% ) (+):</td>
+                                    <td colSpan={2} className="p-2.5 text-right font-mono font-bold text-slate-900">{formatIDR(cCalc.vat12)}</td>
+                                  </tr>
+                                  <tr className="border-b border-slate-200">
+                                    <td colSpan={3} className="p-2.5 text-right uppercase text-slate-800 font-bold border-r border-slate-200">WITH HOLDING TAX ART 23 (2%) (-):</td>
+                                    <td colSpan={2} className="p-2.5 text-right font-mono font-bold text-slate-900">({formatIDR(cCalc.pph23)})</td>
+                                  </tr>
+                                  <tr className="bg-slate-100 text-slate-950 font-black text-xs sm:text-sm border-t-2 border-b-2 border-slate-900">
+                                    <td colSpan={3} className="p-3 text-right uppercase tracking-wider text-slate-950 font-black border-r border-slate-300">TOTAL INVOICE:</td>
+                                    <td colSpan={2} className="p-3 text-right font-mono text-base font-black text-slate-950 underline">{formatIDR(cCalc.totalInvoice)}</td>
+                                  </tr>
+                                </tfoot>
+                              </table>
+                            </div>
+                          </div>
+
+                          {/* TABEL KHUSUS PENGURANG PEMBAYARAN */}
+                          <div className="rounded-none border border-slate-900 bg-white overflow-hidden">
+                            <div className="bg-slate-100 border-b border-slate-900 px-3 py-2 flex items-center justify-between">
+                              <h4 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                                BLOK 2: TABEL KHUSUS PENGURANG PEMBAYARAN (DENDA & BBM)
+                              </h4>
+                              <span className="text-[10px] text-slate-500 font-medium">
+                                Sesuai SPPH-05852
+                              </span>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-xs text-left border-collapse">
+                                <thead>
+                                  <tr className="bg-slate-50 text-slate-900 font-extrabold text-[11px] uppercase border-b border-slate-300">
+                                    <th className="p-2 border-r border-slate-200">PENGURANG PEMBAYARAN</th>
+                                    <th className="p-2 text-center w-36 border-r border-slate-200">CLAIMED UNIT</th>
+                                    <th className="p-2 text-right w-36 border-r border-slate-200">UNIT RATE (IDR)</th>
+                                    <th className="p-2 text-right w-44 font-extrabold">AMOUNT (IDR)</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200 text-[11px] font-medium text-slate-900">
+                                  {activeItems.filter((i: any) => i.section === "P").map((p: any) => (
+                                    <tr key={p.id} className="hover:bg-slate-50/70 border-b border-slate-200">
+                                      <td className="p-2 pl-4 font-semibold text-slate-800 border-r border-slate-200">{p.description}</td>
+                                      <td className="p-2 text-center font-bold text-slate-600 border-r border-slate-200">{p.unit || "-"}</td>
+                                      <td className="p-2 text-right font-mono text-slate-400 border-r border-slate-200">-</td>
+                                      <td className="p-2 text-right font-mono font-bold text-slate-900">
+                                        {p.amount ? `(${formatIDR(Math.abs(p.amount))})` : "-"}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                                <tfoot className="border-t-2 border-slate-900 bg-slate-50 font-bold text-xs">
+                                  <tr>
+                                    <td colSpan={3} className="p-2.5 text-right font-black uppercase text-slate-800 border-r border-slate-200">TOTAL PENGURANG PEMBAYARAN:</td>
+                                    <td className="p-2.5 text-right font-mono text-sm font-black text-slate-900">({formatIDR(Math.abs(cCalc.subtotalP))})</td>
+                                  </tr>
+                                </tfoot>
+                              </table>
+                            </div>
+                          </div>
+
+                          {/* TOTAL DIBAYAR (SETTLEMENT BERSIH) */}
+                          <div className="rounded-none border-2 border-slate-900 bg-slate-50 p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-slate-900">
+                            <div>
+                              <h4 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+                                BLOK 3: TOTAL DIBAYAR (KAS BERSIH DITERIMA)
+                              </h4>
+                              <p className="text-[10px] text-slate-600 mt-0.5">
+                                TOTAL INVOICE ({formatIDR(cCalc.totalInvoice)}) - PENGURANG PEMBAYARAN ({formatIDR(Math.abs(cCalc.subtotalP))})
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-mono text-lg font-black text-slate-950">{formatIDR(cCalc.totalDibayar)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto rounded-none border border-slate-900">
                         <table className="w-full text-xs text-left border-collapse">
                           <thead>
                             <tr className="bg-slate-100/90 text-slate-900 font-extrabold text-[11px] uppercase border-b border-slate-300">
                               <th className="p-2.5 border-r border-slate-300">DESCRIPTION</th>
-                              <th className="p-2.5 text-center border-r border-slate-300">{viewCustCode === "SBS" ? "CLAIMED UNIT" : "CLAIMED VOLUME"}</th>
+                              <th className="p-2.5 text-center border-r border-slate-300">CLAIMED VOLUME</th>
                               <th className="p-2.5 text-center border-r border-slate-300">UoM</th>
                               {viewCustCode === "DBK" ? (
                                 <>
@@ -547,49 +796,6 @@ export function DetailModal({ c }: { c: any }) {
                               </>
                             )}
 
-                            {/* SBS LAYOUT (OB Area Kerja + Jasa Penunjang Hours) */}
-                            {viewCustCode === "SBS" && (
-                              <>
-                                <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
-                                  <td className="p-2 underline border-r border-slate-200">OB REMOVAL</td>
-                                  <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
-                                    {activeItems.filter((i: any) => i.section === "A").reduce((s: number, i: any) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
-                                  </td>
-                                  <td className="p-2 text-center border-r border-slate-200 font-bold">UoM</td>
-                                  <td className="p-2 text-right border-r border-slate-200"></td>
-                                  <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalA)}</td>
-                                </tr>
-                                {activeItems.filter((i: any) => i.section === "A").map((i: any) => (
-                                  <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
-                                    <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">{i.description}</td>
-                                    <td className="p-2 text-center font-mono border-r border-slate-200">{(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-                                    <td className="p-2 text-center border-r border-slate-200">{i.unit || "BCM"}</td>
-                                    <td className="p-2 text-right font-mono border-r border-slate-200">{(i.unitRateIDR || 0).toLocaleString("id-ID")}</td>
-                                    <td className="p-2 text-right font-mono font-extrabold">{formatIDR(Math.round((i.volume || 0) * (i.unitRateIDR || 0)))}</td>
-                                  </tr>
-                                ))}
-
-                                <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
-                                  <td className="p-2 underline border-r border-slate-200">JASA PENUNJANG PRODUKSI</td>
-                                  <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
-                                    {activeItems.filter((i: any) => i.section === "B").reduce((s: number, i: any) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
-                                  </td>
-                                  <td className="p-2 text-center border-r border-slate-200 font-bold">UoM</td>
-                                  <td className="p-2 text-right border-r border-slate-200"></td>
-                                  <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalB)}</td>
-                                </tr>
-                                {activeItems.filter((i: any) => i.section === "B").map((i: any) => (
-                                  <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
-                                    <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">{i.description}</td>
-                                    <td className="p-2 text-center font-mono border-r border-slate-200">{(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-                                    <td className="p-2 text-center border-r border-slate-200">{i.unit || "Hours"}</td>
-                                    <td className="p-2 text-right font-mono border-r border-slate-200">{(i.unitRateIDR || 0).toLocaleString("id-ID")}</td>
-                                    <td className="p-2 text-right font-mono font-extrabold">{formatIDR(Math.round((i.volume || 0) * (i.unitRateIDR || 0)))}</td>
-                                  </tr>
-                                ))}
-                              </>
-                            )}
-
                             {/* POS DEFAULT LAYOUT */}
                             {viewCustCode === "POS" && (() => {
                               const secAItems = activeItems.filter((i: any) => i.section === "A");
@@ -602,25 +808,29 @@ export function DetailModal({ c }: { c: any }) {
                                   {secAItems.length > 0 && (
                                     <>
                                       <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
-                                        <td className="p-2 underline border-r border-slate-200">{isMDO ? "A. MINE DEVELOPMENT (MDO)" : "A. PRODUCTION"}</td>
+                                        <td className="p-2 underline border-r border-slate-200">
+                                          {(detailViewItem.data.jobType || "").toLowerCase().includes("mess") || (detailViewItem.data.jobType || "").toLowerCase().includes("mob") || (detailViewItem.data.invoiceNo || "").toLowerCase().includes("bc-") ? "A. PEKERJAAN FASILITAS / KLAIM PROYEK" : isMDO ? "A. MINE DEVELOPMENT (MDO)" : "A. PRODUCTION"}
+                                        </td>
                                         <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
                                           {secAItems.reduce((sum: number, i: any) => sum + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                                         </td>
-                                        <td className="p-2 text-center border-r border-slate-200 font-bold">{isMDO ? "" : "Bcm"}</td>
+                                        <td className="p-2 text-center border-r border-slate-200 font-bold">{isMDO ? "" : (secAItems[0]?.unit || "Bcm")}</td>
                                         <td className="p-2 text-right border-r border-slate-200"></td>
                                         <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalA)}</td>
                                       </tr>
                                       {secAItems.map((item: any) => {
                                         const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
+                                        const effUnitRate = unitRate > 0 ? unitRate : Number(item.unitRateIDR || (item.volume > 0 ? Math.round(item.amount / item.volume) : 0));
+                                        const effAmount = amount !== 0 ? amount : Number(item.amount || Math.round((item.volume || 0) * effUnitRate));
                                         return (
                                           <tr key={item.id} className="hover:bg-slate-50 border-b border-slate-200">
                                             <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">{item.description}</td>
                                             <td className="p-2 text-center font-mono font-bold border-r border-slate-200">
                                               {(item.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                                             </td>
-                                            <td className="p-2 text-center border-r border-slate-200 text-slate-500 font-normal">{item.unit}</td>
-                                            <td className="p-2 text-right font-mono border-r border-slate-200">{unitRate.toLocaleString("id-ID")}</td>
-                                            <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
+                                            <td className="p-2 text-center border-r border-slate-200 text-slate-500 font-normal">{item.unit || "Bcm"}</td>
+                                            <td className="p-2 text-right font-mono border-r border-slate-200">{effUnitRate.toLocaleString("id-ID")}</td>
+                                            <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(effAmount)}</td>
                                           </tr>
                                         );
                                       })}
@@ -742,58 +952,92 @@ export function DetailModal({ c }: { c: any }) {
                           </tfoot>
                         </table>
                       </div>
+                      )}
 
-                      {/* SBS Special Deductions Table (Gambar 4) */}
-                      {viewCustCode === "SBS" && (
-                        <div className="pt-1">
-                          <div className="overflow-x-auto rounded-xl border border-slate-300 shadow-xs">
-                            <table className="w-full text-xs text-left border-collapse">
-                              <thead>
-                                <tr className="bg-slate-100/90 text-slate-900 font-extrabold text-[11px] uppercase border-b border-slate-300">
-                                  <th className="p-2.5 border-r border-slate-300" style={{ width: "45%" }}>Pengurang Pembayaran</th>
-                                  <th className="p-2.5 text-center border-r border-slate-300" style={{ width: "20%" }}>Claimed Unit</th>
-                                  <th className="p-2.5 text-right border-r border-slate-300" style={{ width: "15%" }}>Unit Rate (IDR)</th>
-                                  <th className="p-2.5 text-right font-extrabold" style={{ width: "20%" }}>Amount (IDR)</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-200 text-[11px] font-medium text-slate-900">
-                                {invLineItems.filter(i => i.section === "P").map(p => (
-                                  <tr key={p.id} className="hover:bg-slate-50 border-b border-slate-200">
-                                    <td className="p-2 font-bold text-slate-800 border-r border-slate-200">{p.description}</td>
-                                    <td className="p-2 text-center border-r border-slate-200">{p.unit || ""}</td>
-                                    <td className="p-2 text-right border-r border-slate-200"></td>
-                                    <td className="p-2 text-right font-mono font-bold text-rose-800 border-r border-slate-200">{p.amount ? `(${formatIDR(Math.abs(p.amount))})` : "-"}</td>
-                                  </tr>
-                                ))}
-                                <tr className="bg-emerald-50 text-emerald-950 font-black text-sm border-t-2 border-emerald-400">
-                                  <td colSpan={3} className="p-3 text-left uppercase tracking-wider text-emerald-950 font-black border-r border-emerald-300">TOTAL DIBAYAR:</td>
-                                  <td className="p-3 text-right font-black text-base text-emerald-900 underline">{formatIDR(cCalc.totalDibayar)}</td>
-                                </tr>
-                              </tbody>
-                            </table>
+                      {/* Commercial Revenue Decomposition Card (R&F Escalation vs Core Mining) */}
+                      {(viewCustCode === "BGG" || viewCustCode === "POS") ? (
+                        <div className="p-3.5 bg-gradient-to-br from-slate-900 via-slate-850 to-slate-900 text-white rounded-xl border border-slate-700/80 shadow-md space-y-3">
+                          <div className="flex flex-wrap justify-between items-center gap-2 border-b border-slate-800 pb-2.5">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                                <TrendingUp size={16} />
+                              </div>
+                              <div>
+                                <h5 className="text-xs font-black uppercase tracking-wider text-slate-100 flex items-center gap-1.5">
+                                  Dekomposisi Pendapatan Komersial ({viewCustCode})
+                                </h5>
+                                <p className="text-[10px] text-slate-400">Pemisahan Nilai Kontrak Pokok (Core Mining) & Penyesuaian Eskalasi (Raise & Fall)</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-900/60 text-cyan-300 border border-cyan-700/50">
+                                Index: {viewCustCode === "BGG" ? "1,560x (+56,0%)" : `${rfIndexCalculated.toFixed(3)}x (+${((rfIndexCalculated - 1) * 100).toFixed(1)}%)`}
+                              </span>
+                              {detailViewItem.data.rfSnapshot && (
+                                <div className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-700/60 px-2 py-0.5 rounded-full">
+                                  <ShieldCheck size={12} className="text-emerald-400" />
+                                  <span>Terkunci</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* 2 Big Metric Pills */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="p-2.5 rounded-lg bg-slate-800/80 border border-slate-700/70">
+                              <span className="text-[10px] font-extrabold uppercase text-slate-400 block tracking-wider">
+                                1. Core Mining Revenue (Pokok)
+                              </span>
+                              <div className="text-sm font-black font-mono text-cyan-300 mt-0.5">
+                                {formatIDR(
+                                  viewCustCode === "BGG"
+                                    ? (cCalc.subtotalA || 0) + (cCalc.subtotalB || 0) + (cCalc.subtotalC || 0) + (cCalc.subtotalE || 0) + (cCalc.subtotalF || 0)
+                                    : (cCalc.subtotalA || 0) + (cCalc.subtotalB || 0) + (cCalc.subtotalC || 0)
+                                )}
+                              </div>
+                              <span className="text-[9px] text-slate-400">
+                                {viewCustCode === "BGG" ? "Volume OB, Coal, Overdistance & Potongan" : "Volume Produksi, Overdistance & Land Clearing"}
+                              </span>
+                            </div>
+
+                            <div className="p-2.5 rounded-lg bg-cyan-950/40 border border-cyan-800/60">
+                              <span className="text-[10px] font-extrabold uppercase text-cyan-300 block tracking-wider">
+                                2. Escalation Recovery (Raise & Fall)
+                              </span>
+                              <div className="text-sm font-black font-mono text-amber-300 mt-0.5">
+                                {formatIDR(cCalc.subtotalD || 0)}
+                              </div>
+                              <span className="text-[9px] text-cyan-200/70">
+                                {viewCustCode === "BGG" ? "Seksi D: Kompensasi Indeks Solar Fn/Fo" : "Seksi D: Kompensasi 3-Faktor (Solar, Upah, M-Rate)"}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Detail Formula Breakdown */}
+                          <div className="p-2 bg-slate-950/60 rounded-lg border border-slate-800 font-mono text-[10px] text-slate-300">
+                            {viewCustCode === "BGG" ? (
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                                <span>Rumus: <code>0,60 + 0,40 × (Fn / Fo)</code></span>
+                                <span className="text-slate-400">Fo = Rp 9.000 | Fn = Rp 21.601,53 (Solar Industri)</span>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                                <span>Rumus: <code>RF = D + L + F</code></span>
+                                <span className="text-slate-400">D (Solar 34%) = 0,810 | L (Upah 25%) = 0,301 | F (Tetap 41%) = 0,410</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="pt-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px]">
+                          <div className="font-mono text-slate-600 space-y-0.5">
+                            <span className="font-bold text-slate-800 flex items-center gap-1">
+                              <Calculator size={12} className="text-cyan-700" /> Parameter Acuan & Basis Tagihan:
+                            </span>
+                            <p className="text-[10px] text-slate-600">Site: <strong>{viewCustCode}</strong> | Basis Kontrak: <strong>{cInfo?.contractNo || "Kontrak Aktif"}</strong> | Overhaul Basis: <strong>{cInfo?.overhaulBasis || "1.000m"}</strong></p>
                           </div>
                         </div>
                       )}
-
-                      {/* Notes & Calculation Explainer Snapshot Footer */}
-                      <div className="pt-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px]">
-                        <div className="font-mono text-slate-600 space-y-0.5">
-                          <span className="font-bold text-slate-800 flex items-center gap-1">
-                            <Calculator size={12} className="text-cyan-700" /> Parameter Acuan & Jejak Snapshot:
-                          </span>
-                          {viewCustCode === "BGG" ? (
-                            <p className="text-[10px] text-slate-600">Formula RF 1-Faktor BBM: <code className="bg-white px-1 py-0.5 rounded border border-slate-200 text-cyan-900">0,60 + 0,40 × (Fn/Fo)</code> | Index: <strong>1,560x</strong></p>
-                          ) : (
-                            <p className="text-[10px] text-slate-600">Raise & Fall Factor: <strong>{rfIndexCalculated.toFixed(3)}x</strong> | Basis Overhaul: <strong>{cInfo?.overhaulBasis || "1.000m"}</strong></p>
-                          )}
-                        </div>
-                        {detailViewItem.data.rfSnapshot && (
-                          <div className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 px-2 py-1 rounded-lg">
-                            <ShieldCheck size={13} className="text-emerald-600" />
-                            <span>Snapshot Terkunci (Audit Ready)</span>
-                          </div>
-                        )}
-                      </div>
 
                       {/* Bottom Info Grid: Bank Account from Master Data & Blank Signature Area */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t-2 border-slate-900 text-[11px]">
@@ -868,8 +1112,8 @@ export function DetailModal({ c }: { c: any }) {
                 )}
               </div>
 
-              {/* RIGHT COLUMN (DYNAMIC SPAN FOR INVOICE): Vertical Audit Trail & Payment Tracker */}
-              <div className={`${detailViewItem.type === "invoice" ? "md:col-span-4" : "md:col-span-2"} space-y-4`}>
+              {/* RIGHT COLUMN: 4 cols out of 12 for vertical Audit Trail & Summary */}
+              <div className="lg:col-span-4 space-y-4">
                 {/* PAYMENT TRACKER FOR INVOICE */}
                 {detailViewItem.type === "invoice" && (
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-xs space-y-3.5">
