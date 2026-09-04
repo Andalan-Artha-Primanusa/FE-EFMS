@@ -174,14 +174,14 @@ export function BATrackerView({ c }: { c: any }) {
                       title="Tambah BA Baru atau Input Pending Volume"
                     >
                       <Plus size={15} />
-                      <span>+ Input / Tambah BA</span>
+                      <span>Input / Tambah BA</span>
                       <ChevronDown size={13} className="text-cyan-200" />
                     </button>
 
                     {showInputBADropdown && (
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setShowInputBADropdown(false)} />
-                        <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-20 text-xs font-bold divide-y divide-slate-100">
+                        <div className="absolute right-0 mt-1 w-64 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-20 text-xs font-bold divide-y divide-slate-100">
                           <button
                             className="w-full px-3 py-2 text-left text-slate-800 hover:bg-amber-50 hover:text-amber-950 flex items-center gap-2 transition cursor-pointer"
                             onClick={() => {
@@ -189,58 +189,68 @@ export function BATrackerView({ c }: { c: any }) {
                               setShowInputBADropdown(false);
                             }}
                           >
-                            <Scale size={14} className="text-amber-600 shrink-0" />
-                            <span>+ Buat BA BGG (PT Budi Gema Gempita)</span>
+                            <Building2 size={14} className="text-[#a57c50] shrink-0" />
+                            <span>Buat BA BGG (PT Budi Gema Gempita)</span>
                           </button>
                           <button
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-cyan-50 hover:text-cyan-900 flex items-center gap-2 transition cursor-pointer"
+                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-amber-50 hover:text-amber-950 flex items-center gap-2 transition cursor-pointer"
                             onClick={() => {
                               openCreateModal("ba", { customerCode: "POS" });
                               setShowInputBADropdown(false);
                             }}
                           >
-                            <Plus size={14} className="text-cyan-700 shrink-0" />
-                            <span>+ Buat BA POS (PT Position)</span>
+                            <Building2 size={14} className="text-[#a57c50] shrink-0" />
+                            <span>Buat BA POS (PT Position)</span>
                           </button>
                           <button
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-emerald-50 hover:text-emerald-900 flex items-center gap-2 transition cursor-pointer"
+                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-amber-50 hover:text-amber-950 flex items-center gap-2 transition cursor-pointer"
                             onClick={() => {
                               openCreateModal("ba", { customerCode: "PTRO" });
                               setShowInputBADropdown(false);
                             }}
                           >
-                            <Pickaxe size={14} className="text-emerald-600 shrink-0" />
-                            <span>+ Buat BA PTRO (PT Petrosea)</span>
+                            <Building2 size={14} className="text-[#a57c50] shrink-0" />
+                            <span>Buat BA PTRO (PT Petrosea)</span>
                           </button>
                           <button
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-orange-50 hover:text-orange-950 flex items-center gap-2 transition cursor-pointer"
+                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-amber-50 hover:text-amber-950 flex items-center gap-2 transition cursor-pointer"
                             onClick={() => {
                               openCreateModal("ba", { customerCode: "SBS" });
                               setShowInputBADropdown(false);
                             }}
                           >
-                            <Truck size={14} className="text-orange-600 shrink-0" />
-                            <span>+ Buat BA SBS (PT Satria Bahana Sarana)</span>
+                            <Building2 size={14} className="text-[#a57c50] shrink-0" />
+                            <span>Buat BA SBS (PT Satria Bahana Sarana)</span>
                           </button>
                           <button
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-teal-50 hover:text-teal-950 flex items-center gap-2 transition cursor-pointer"
+                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-amber-50 hover:text-amber-950 flex items-center gap-2 transition cursor-pointer"
                             onClick={() => {
-                              openCreateModal("ba", { customerCode: "ABN" });
+                              openCreateModal("ba", { customerCode: "IBP" });
                               setShowInputBADropdown(false);
                             }}
                           >
-                            <Building2 size={14} className="text-teal-600 shrink-0" />
-                            <span>+ Buat BA ABN (PT Andalan Bhumi Nusantara)</span>
+                            <Building2 size={14} className="text-[#a57c50] shrink-0" />
+                            <span>Buat BA IBP</span>
                           </button>
                           <button
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-indigo-50 hover:text-indigo-900 flex items-center gap-2 transition cursor-pointer"
+                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-amber-50 hover:text-amber-950 flex items-center gap-2 transition cursor-pointer"
+                            onClick={() => {
+                              openCreateModal("ba", { customerCode: "BBA" });
+                              setShowInputBADropdown(false);
+                            }}
+                          >
+                            <Building2 size={14} className="text-[#a57c50] shrink-0" />
+                            <span>Buat BA BBA</span>
+                          </button>
+                          <button
+                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-amber-50 hover:text-amber-950 flex items-center gap-2 transition cursor-pointer"
                             onClick={() => {
                               openCreateModal("pending_volume");
                               setShowInputBADropdown(false);
                             }}
                           >
-                            <Layers size={14} className="text-indigo-600 shrink-0" />
-                            <span>+ Input Pending Volume</span>
+                            <Layers size={14} className="text-[#261a10] shrink-0" />
+                            <span>Input Pending Volume</span>
                           </button>
                         </div>
                       </>
@@ -530,7 +540,7 @@ export function BATrackerView({ c }: { c: any }) {
                       <th className="p-2 text-center whitespace-nowrap min-w-[140px]">Status Siklus BA</th>
                       <th className="p-2 whitespace-nowrap min-w-[100px]">Berkas PDF</th>
                       <th className="p-2 min-w-[180px]">Catatan / Bottleneck</th>
-                      <th className="p-2 text-right whitespace-nowrap min-w-[140px] sticky right-0 bg-slate-100 text-slate-800 border-l border-slate-300 shadow-l">Aksi & Integrasi</th>
+                      <th className="p-2 text-right whitespace-nowrap min-w-[140px] bg-slate-100 text-slate-800">Aksi & Integrasi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white text-slate-900 font-medium">
@@ -685,7 +695,7 @@ export function BATrackerView({ c }: { c: any }) {
                                 </td>
 
                                 {/* Kolom 8: Aksi & Integrasi */}
-                                <td className={`p-2 text-right whitespace-nowrap sticky right-0 bg-white group-hover:bg-slate-50 shadow-l ${isDropdownOpen ? "z-30" : "z-0"}`}>
+                                <td className={`p-2 text-right whitespace-nowrap bg-white group-hover:bg-slate-50 ${isDropdownOpen ? "relative z-30" : ""}`}>
                                   <div className="flex items-center justify-end gap-1.5">
                                     {/* POS: Kondisi 1 dari 2 Invoice Terbit (Parsial) */}
                                     {row.customerCode === "POS" && invStatus.isPartiallyInvoiced && (

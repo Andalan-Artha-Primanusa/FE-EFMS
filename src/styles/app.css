@@ -235,7 +235,7 @@ input:focus, select:focus, textarea:focus {
 }
 textarea { min-height: 80px; resize: vertical; }
 
-.login-form button, .primary {
+.login-form button:not(.btn-icon), .primary {
   border: 0;
   border-radius: 6px;
   min-height: var(--app-control-height, 2.5rem);
@@ -245,10 +245,26 @@ textarea { min-height: 80px; resize: vertical; }
   justify-content: center;
   gap: 8px;
   color: #ffffff;
-  background: #1e2b4d;
+  background: #a57c50;
   font-weight: 800;
   font-size: 0.875rem;
-  box-shadow: 0 16px 30px rgba(6,52,95,.18);
+  box-shadow: 0 12px 24px rgba(165,124,80,.25);
+}
+
+.login-form button.btn-icon,
+.login-form .btn-icon {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  min-height: auto !important;
+  padding: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  color: #94a3b8 !important;
+}
+.login-form button.btn-icon:hover {
+  color: #475569 !important;
+  background: transparent !important;
 }
 
 .login-foot {

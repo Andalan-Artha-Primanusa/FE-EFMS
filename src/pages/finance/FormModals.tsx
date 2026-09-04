@@ -894,7 +894,7 @@ export function FormModals({ c }: { c: any }) {
                                             <div className="flex items-center justify-center gap-1">
                                               <FormattedNumberInput
                                                 allowDecimals
-                                                maxDecimals={2}
+                                                maxDecimals={3}
                                                 className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                                 placeholder="0"
                                                 value={item.volume === 0 ? "" : (item.volume ?? "")}
@@ -938,7 +938,7 @@ export function FormModals({ c }: { c: any }) {
                                           <div className="flex items-center justify-center gap-1">
                                             <FormattedNumberInput
                                               allowDecimals
-                                              maxDecimals={2}
+                                              maxDecimals={3}
                                               className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                               placeholder="0"
                                               value={item.volume === 0 ? "" : (item.volume ?? "")}
@@ -1104,7 +1104,7 @@ export function FormModals({ c }: { c: any }) {
                                         <div className="flex items-center justify-center gap-1">
                                           <FormattedNumberInput
                                             allowDecimals
-                                            maxDecimals={2}
+                                            maxDecimals={3}
                                             className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                             placeholder="0"
                                             value={item.volume === 0 ? "" : (item.volume ?? "")}
@@ -1143,7 +1143,7 @@ export function FormModals({ c }: { c: any }) {
                                         <div className="flex items-center justify-center gap-1">
                                           <FormattedNumberInput
                                             allowDecimals
-                                            maxDecimals={2}
+                                            maxDecimals={3}
                                             className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                             placeholder="0"
                                             value={item.volume === 0 ? "" : (item.volume ?? "")}
@@ -1191,7 +1191,7 @@ export function FormModals({ c }: { c: any }) {
                                         <div className="flex items-center justify-center gap-1">
                                           <FormattedNumberInput
                                             allowDecimals
-                                            maxDecimals={2}
+                                            maxDecimals={3}
                                             className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                             placeholder="0"
                                             value={item.volume === 0 ? "" : (item.volume ?? "")}
@@ -1228,7 +1228,7 @@ export function FormModals({ c }: { c: any }) {
                                         <div className="flex items-center justify-center gap-1">
                                           <FormattedNumberInput
                                             allowDecimals
-                                            maxDecimals={2}
+                                            maxDecimals={3}
                                             className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                             placeholder="0"
                                             value={item.volume === 0 ? "" : (item.volume ?? "")}
@@ -1315,7 +1315,7 @@ export function FormModals({ c }: { c: any }) {
                                         <div className="flex items-center justify-center gap-1">
                                           <FormattedNumberInput
                                             allowDecimals
-                                            maxDecimals={2}
+                                            maxDecimals={3}
                                             className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                             placeholder="0"
                                             value={item.volume === 0 ? "" : (item.volume ?? "")}
@@ -1369,7 +1369,7 @@ export function FormModals({ c }: { c: any }) {
                                         <div className="flex items-center justify-center gap-1">
                                           <FormattedNumberInput
                                             allowDecimals
-                                            maxDecimals={2}
+                                            maxDecimals={3}
                                             className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                             placeholder="0"
                                             value={item.volume === 0 ? "" : (item.volume ?? "")}
@@ -1442,7 +1442,7 @@ export function FormModals({ c }: { c: any }) {
                                           <div className="flex items-center justify-center gap-1">
                                             <FormattedNumberInput
                                               allowDecimals
-                                              maxDecimals={2}
+                                              maxDecimals={3}
                                               className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                               placeholder="0"
                                               value={item.volume === 0 ? "" : (item.volume ?? "")}
@@ -1469,7 +1469,7 @@ export function FormModals({ c }: { c: any }) {
                                           {!isCoal ? (
                                             <FormattedNumberInput
                                               allowDecimals
-                                              maxDecimals={2}
+                                              maxDecimals={3}
                                               className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                               placeholder="16.000"
                                               value={item.kursBI === 0 ? "" : (item.kursBI ?? "")}
@@ -1536,7 +1536,7 @@ export function FormModals({ c }: { c: any }) {
                                               <div className="flex items-center justify-center gap-1">
                                                 <FormattedNumberInput
                                                   allowDecimals
-                                                  maxDecimals={2}
+                                                  maxDecimals={3}
                                                   className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                                   placeholder="0"
                                                   value={item.volume === 0 ? "" : (item.volume ?? "")}
@@ -1652,7 +1652,7 @@ export function FormModals({ c }: { c: any }) {
                                               <div className="flex items-center justify-center gap-1">
                                                 <FormattedNumberInput
                                                   allowDecimals
-                                                  maxDecimals={2}
+                                                  maxDecimals={3}
                                                   className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                                   placeholder="0"
                                                   value={item.volume === 0 ? "" : (item.volume ?? "")}
@@ -1705,7 +1705,7 @@ export function FormModals({ c }: { c: any }) {
                                               <div className="flex items-center justify-center gap-1">
                                                 <FormattedNumberInput
                                                   allowDecimals
-                                                  maxDecimals={2}
+                                                  maxDecimals={3}
                                                   className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                                                   placeholder="0"
                                                   value={item.volume === 0 ? "" : (item.volume ?? "")}
@@ -1936,7 +1936,7 @@ export function FormModals({ c }: { c: any }) {
               {/* ================= MODAL BA TRACKER (UNIFIED WIDESCREEN DUAL-MODE WORKFLOW) ================= */}
               {modalType === "ba" && (() => {
                 const isCustomerBGG = (formData.customerCode === "BGG" || formData.customerCode === "PT BGG");
-                const isCustomerPOS = (formData.customerCode === "POS" || !formData.customerCode);
+                const isCustomerPOS = (formData.customerCode === "POS" || formData.customerCode === "IBP" || formData.customerCode === "BBA" || !formData.customerCode);
                 const isCustomerSBS = formData.customerCode === "SBS";
                 const isCustomerDBK = formData.customerCode === "PTRO" || formData.customerCode === "DBK";
 
@@ -2056,8 +2056,8 @@ export function FormModals({ c }: { c: any }) {
 
                 return (
                   <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-                    {/* KOLOM KIRI (LEBAR ~70%-75% / xl:col-span-8 2xl:col-span-9): Workflow Stepper, SOW Tables, Survey & Signatures */}
-                    <div className="xl:col-span-8 2xl:col-span-9 space-y-4 border-b xl:border-b-0 xl:border-r border-slate-200 pb-6 xl:pb-0 xl:pr-6">
+                    {/* KOLOM KIRI (LEBAR ~75% / xl:col-span-9 2xl:col-span-9): Workflow Stepper, SOW Tables, Survey & Signatures */}
+                    <div className="xl:col-span-9 2xl:col-span-9 space-y-4 border-b xl:border-b-0 xl:border-r border-slate-200 pb-6 xl:pb-0 xl:pr-6">
                       
                       {/* Stepper Navigation Bar */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200 text-xs font-bold">
@@ -2133,6 +2133,8 @@ export function FormModals({ c }: { c: any }) {
                                 }}
                               >
                                 <option value="POS">POS – PT Position</option>
+                                <option value="IBP">IBP – PT Indo Bhumi Pasifik</option>
+                                <option value="BBA">BBA – PT Bara Batubara Aditama</option>
                                 <option value="SBS">SBS – PT Satria Bahana Sarana</option>
                                 <option value="BGG">BGG – PT Budi Gema Gempita</option>
                                 <option value="PTRO">PTRO – PT Petrosea</option>
@@ -2178,13 +2180,7 @@ export function FormModals({ c }: { c: any }) {
 
                       {/* Commercial Engine Status Badge */}
                       <div className="flex items-center gap-2 flex-wrap text-xs">
-                        {isCustomerBGG && (
-                          <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-300 rounded-xl text-amber-950 font-bold">
-                            <Sparkles size={13} className="text-amber-600" />
-                            <span>Coal Index Status: <strong>{getBGGActiveCoalTier?.(formData.workPeriod) || "Tier 3"}</strong> (Sinkronisasi Otomatis Tarif OB 1, OB 2 & Coal Winning)</span>
-                          </div>
-                        )}
-                        {(formData.customerCode === "POS" || !formData.customerCode || isCustomerDBK) && (
+                        {(formData.customerCode === "POS" || formData.customerCode === "IBP" || formData.customerCode === "BBA" || !formData.customerCode || isCustomerDBK) && (
                           <div className="flex items-center gap-1.5 px-3 py-1 bg-cyan-50 border border-cyan-300 rounded-xl text-cyan-950 font-bold">
                             <DollarSign size={13} className="text-cyan-700" />
                             <span>Kurs BI M-Rate: <strong>Rp {formatThousand(latestKursBI || 17923.30)} / USD</strong> (Live Pricing Engine Sync)</span>
@@ -2208,42 +2204,6 @@ export function FormModals({ c }: { c: any }) {
                                   <Pickaxe size={14} className="text-cyan-700" /> {isCustomerBGG ? "Kategori: Penambangan Batubara & OB Removal (BGG)" : isCustomerSBS ? "Kategori 1: Operating & Mining (OB Removal)" : "Kategori 1: Operating & Mining"}
                                 </span>
                                 <div className="flex items-center gap-2">
-                                  {isInlineEditingBA && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        const curPer = formData.workPeriod || "Agustus 2026";
-                                        if (isCustomerBGG) {
-                                          setBaOperatingItems([
-                                            { id: `bgg_ob1_${Date.now()}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 1 (75%)", period: curPer, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 29500, subtotalInitial: 0, subtotalAdjusted: 0 },
-                                            { id: `bgg_ob2_${Date.now() + 1}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 2 (25%)", period: curPer, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 28750, subtotalInitial: 0, subtotalAdjusted: 0 },
-                                            { id: `bgg_cw_${Date.now() + 2}`, category: "Operating & Mining", area: "", material: "Coal Winning", period: curPer, notes: "", keterangan: "", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: 17500, subtotalInitial: 0, subtotalAdjusted: 0 },
-                                            { id: `bgg_od_ob_${Date.now() + 3}`, category: "Over Distance", area: "", material: "Over Distance For OB Removal", period: curPer, notes: "", keterangan: "", unit: "BCM", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 1550, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
-                                            { id: `bgg_od_cw_${Date.now() + 4}`, category: "Over Distance", area: "", material: "Over Distance For Coal Winning", period: curPer, notes: "", keterangan: "", unit: "Ton", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 19700, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
-                                          ]);
-                                          setBaMDOItems([]);
-                                          setBaDeductionItems([]);
-                                        } else if (isCustomerSBS) {
-                                          setBaOperatingItems((defaultSBSBAOperatingItems || []).map((it: any) => ({ ...it, period: curPer, notes: "", keterangan: "" })));
-                                          setBaMDOItems((defaultSBSBAMDOItems || []).map((it: any) => ({ ...it, period: curPer, notes: "", keterangan: "" })));
-                                          setBaDeductionItems((defaultSBSBADeductionItems || []).map((it: any) => ({ ...it, period: curPer, notes: "", keterangan: "", material: it.material === "Denda ketidakcapaian Volume" ? `Denda ketidakcapaian Volume ${curPer}` : it.material })));
-                                        } else if (isCustomerDBK) {
-                                          setBaOperatingItems((defaultDBKBAItems || []).map((it: any) => ({ ...it, period: curPer, notes: "", keterangan: "" })));
-                                          setBaMDOItems([]);
-                                          setBaDeductionItems([]);
-                                        } else {
-                                          setBaOperatingItems(defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", period: curPer, notes: "", keterangan: "" })));
-                                          setBaMDOItems(defaultPOSBAMDOItems.map(it => ({ ...it, area: "", period: curPer, notes: "", keterangan: "" })));
-                                          setBaDeductionItems([]);
-                                        }
-                                      }}
-                                      className="text-[11px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer border border-slate-300 shadow-2xs"
-                                      title="Muat Ulang Item SOW Standar Kontrak"
-                                    >
-                                      <RefreshCw size={12} />
-                                      <span>Muat Template SOW</span>
-                                    </button>
-                                  )}
                                   {isInlineEditingBA && (
                                     <div className="relative inline-block text-left">
                                       <button
@@ -2362,15 +2322,15 @@ export function FormModals({ c }: { c: any }) {
                               <table className="w-full text-xs text-left">
                                 <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
                                   <tr>
-                                    <th className="p-2 w-20">Area / Lokasi</th>
-                                    <th className="p-2 min-w-[170px]">Material / Pekerjaan (Master SOW)</th>
-                                    {isCustomerBGG && <th className="p-2 w-24 text-center">Bulan</th>}
-                                    <th className="p-2 text-center w-14">Satuan</th>
-                                    <th className="p-2 text-right w-24">Volume TC</th>
-                                    {isCustomerSBS && <th className="p-2 text-right w-24 text-indigo-900 bg-indigo-50/70 border-x border-indigo-200">Jarak (M)</th>}
-                                    <th className="p-2 text-right w-24">SOW Rate (Rp)</th>
-                                    <th className="p-2 text-right w-28">Subtotal (Rp)</th>
-                                    {isInlineEditingBA && <th className="p-2 text-center w-8">#</th>}
+                                    <th className="p-2 w-16 sm:w-20">Area / Lokasi</th>
+                                    <th className="p-2 min-w-[140px]">Material / Pekerjaan (Master SOW)</th>
+                                    {isCustomerBGG && <th className="p-2 w-20 text-center">Bulan</th>}
+                                    <th className="p-2 text-center w-12">Satuan</th>
+                                    <th className="p-2 text-right w-20 sm:w-24">Volume TC</th>
+                                    {isCustomerSBS && <th className="p-2 text-right w-20 sm:w-24 text-indigo-900 bg-indigo-50/70 border-x border-indigo-200">Jarak (M)</th>}
+                                    <th className="p-2 text-right w-20 sm:w-24">SOW Rate (Rp)</th>
+                                    <th className="p-2 text-right w-24 sm:w-28">Subtotal (Rp)</th>
+                                    {isInlineEditingBA && <th className="p-2 text-center w-7">#</th>}
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -2382,12 +2342,12 @@ export function FormModals({ c }: { c: any }) {
 
                                     return (
                                       <tr key={item.id || idx} className={`hover:bg-slate-50/80 transition ${isDPFuel ? "bg-rose-50/30" : isDistance ? "bg-amber-50/20" : ""}`}>
-                                        <td className="p-2.5 font-bold text-slate-800 align-top">
+                                        <td className="p-2 font-bold text-slate-800 align-top">
                                           {!isInlineEditingBA ? (
                                             <span className="pt-1 block">{item.area || (isCustomerBGG ? "Pit KKL" : "WM1")}</span>
                                           ) : (
                                             <input
-                                              className="w-20 bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs font-bold focus:border-cyan-700 outline-none"
+                                              className="w-16 sm:w-20 bg-slate-50 border border-slate-300 rounded px-1.5 py-1 text-xs font-bold focus:border-cyan-700 outline-none"
                                               value={item.area || ""}
                                               placeholder={isCustomerBGG ? "Pit KKL" : "WM1"}
                                               onChange={(e) => {
@@ -2398,7 +2358,7 @@ export function FormModals({ c }: { c: any }) {
                                             />
                                           )}
                                         </td>
-                                        <td className="p-2.5 font-medium text-slate-900 align-top">
+                                        <td className="p-2 font-medium text-slate-900 align-top">
                                           {isDPFuel ? (
                                             <div>
                                               {!isInlineEditingBA ? (
@@ -2480,15 +2440,17 @@ export function FormModals({ c }: { c: any }) {
                                                   const diffMtr = Math.max(0, distVal - baseDist);
                                                   const diffKm = diffMtr / 1000;
                                                   return (
-                                                    <div className="flex items-center gap-1.5 mt-1 text-[11px] font-mono text-slate-700 whitespace-nowrap bg-amber-50/80 border border-amber-200 px-2.5 py-1 rounded-md w-fit">
+                                                    <div className="flex items-center gap-1 mt-1 text-[10px] font-mono text-slate-700 bg-amber-50/80 border border-amber-200 px-2 py-0.5 rounded-md w-fit flex-wrap sm:flex-nowrap">
                                                       <span className="font-bold text-amber-900">Jarak (Meter):</span>
                                                       {!isInlineEditingBA ? (
                                                         <span className="font-bold text-slate-900 bg-white border border-amber-300 px-1.5 py-0.5 rounded font-mono">
-                                                          {item.distanceWeightAvg ?? baseDist}
+                                                          {item.distanceWeightAvg !== undefined && item.distanceWeightAvg !== null && item.distanceWeightAvg !== "" ? Number(item.distanceWeightAvg).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : formatThousand(baseDist)}
                                                         </span>
                                                       ) : (
                                                         <FormattedNumberInput
-                                                          className="w-20 bg-white border border-amber-400 rounded px-2 py-0.5 text-right font-mono font-bold text-amber-950 text-xs focus:border-amber-600 outline-none"
+                                                          allowDecimals
+                                                          maxDecimals={3}
+                                                          className="w-20 bg-white border border-amber-400 rounded px-1.5 py-0.5 text-right font-mono font-bold text-amber-950 text-xs focus:border-amber-600 outline-none"
                                                           value={item.distanceWeightAvg === 0 ? "" : (item.distanceWeightAvg ?? "")}
                                                           placeholder={formatThousand(baseDist)}
                                                           onChange={(val) => {
@@ -2499,8 +2461,8 @@ export function FormModals({ c }: { c: any }) {
                                                         />
                                                       )}
                                                       <span className="text-slate-500 font-sans text-[10px]">
-                                                        mtr - {formatThousand(baseDist)} mtr = <strong className={diffMtr > 0 ? "text-emerald-700" : "text-slate-500"}>{formatThousand(diffMtr)} mtr</strong>
-                                                        {" "}(<span className="font-semibold">{diffKm.toLocaleString('id-ID', {minimumFractionDigits: 3, maximumFractionDigits: 3})} Km</span>)
+                                                        mtr - {formatThousand(baseDist)} mtr = <strong className={diffMtr > 0 ? "text-emerald-700" : "text-slate-500"}>{diffMtr.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 })} mtr</strong>
+                                                        {" "}(<span className="font-semibold">{diffKm.toLocaleString('id-ID', {minimumFractionDigits: 0, maximumFractionDigits: 3})} Km</span>)
                                                       </span>
                                                     </div>
                                                   );
@@ -2512,7 +2474,7 @@ export function FormModals({ c }: { c: any }) {
                                           <td className="p-2 font-medium text-slate-800 align-top text-center">
                                             {!isInlineEditingBA ? (
                                               (item.period || item.keterangan || item.notes) ? (
-                                                <span className="px-2 py-1 bg-amber-50 border border-amber-200 rounded text-xs font-bold text-amber-950 inline-block text-center min-w-[55px] mt-0.5 font-mono">
+                                                <span className="px-1.5 py-0.5 bg-amber-50 border border-amber-200 rounded text-[11px] font-bold text-amber-950 inline-block text-center min-w-[50px] mt-0.5 font-mono">
                                                   {item.period || item.keterangan || item.notes}
                                                 </span>
                                               ) : null
@@ -2527,21 +2489,21 @@ export function FormModals({ c }: { c: any }) {
                                                   setBaOperatingItems(updated);
                                                 }}
                                                 format="short"
-                                                className="w-24 bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 rounded px-1.5 py-1 text-xs font-bold text-slate-900 text-center focus:border-cyan-700 outline-none shadow-2xs font-mono"
+                                                className="w-20 sm:w-22 bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 rounded px-1 py-1 text-xs font-bold text-slate-900 text-center focus:border-cyan-700 outline-none shadow-2xs font-mono"
                                               />
                                             )}
                                           </td>
                                         )}
-                                        <td className="p-2.5 text-center font-mono font-bold text-slate-800 align-top">
+                                        <td className="p-2 text-center font-mono font-bold text-slate-800 align-top">
                                           {isDPFuel ? (
                                             <span className="text-slate-400 font-bold pt-1 block">-</span>
                                           ) : !isInlineEditingBA ? (
-                                            <span className="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs inline-block text-center min-w-[45px] mt-0.5">
+                                            <span className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-xs inline-block text-center min-w-[38px] mt-0.5">
                                               {item.unit || "BCM"}
                                             </span>
                                           ) : (
                                             <input
-                                              className="w-16 bg-slate-50 border border-slate-300 rounded px-1.5 py-1 text-xs font-mono font-bold text-center focus:border-cyan-700 outline-none"
+                                              className="w-12 bg-slate-50 border border-slate-300 rounded px-1 py-1 text-xs font-mono font-bold text-center focus:border-cyan-700 outline-none"
                                               value={item.unit || ""}
                                               placeholder="BCM"
                                               onChange={(e) => {
@@ -2553,15 +2515,15 @@ export function FormModals({ c }: { c: any }) {
                                           )}
                                         </td>
 
-                                        {/* Volume Awal & SOW Rate (Merged to single nominal input with thousand separator if DP Fuel) */}
+                                        {/* Volume Awal & SOW Rate */}
                                         {isDPFuel ? (
-                                          <td colSpan={2} className="p-2.5 text-right font-mono align-top">
+                                          <td colSpan={2} className="p-2 text-right font-mono align-top">
                                             {!isInlineEditingBA ? (
                                               <span className="font-bold text-slate-900 pt-1 block">{item.rate ? formatThousand(item.rate) : "0"}</span>
                                             ) : (
                                               <div className="flex justify-end pt-0.5">
                                                 <FormattedNumberInput
-                                                  className="w-40 bg-slate-50 hover:bg-white border border-slate-300 rounded px-2.5 py-1 text-right font-mono font-bold text-xs text-slate-900 focus:bg-white focus:border-cyan-700 outline-none"
+                                                  className="w-36 bg-slate-50 hover:bg-white border border-slate-300 rounded px-2 py-1 text-right font-mono font-bold text-xs text-slate-900 focus:bg-white focus:border-cyan-700 outline-none"
                                                   value={item.rate}
                                                   placeholder="0"
                                                   onChange={(num) => {
@@ -2579,17 +2541,17 @@ export function FormModals({ c }: { c: any }) {
                                           </td>
                                         ) : (
                                           <>
-                                            <td className="p-2.5 text-right font-mono align-top">
+                                            <td className="p-2 text-right font-mono align-top">
                                               {!isDistance ? (
                                                 !isInlineEditingBA ? (
-                                                  <span className="font-bold text-slate-900 pt-1 block">{item.initialVolume ? Number(item.initialVolume).toLocaleString("id-ID", { minimumFractionDigits: 3 }) : "0.000"}</span>
+                                                  <span className="font-bold text-slate-900 pt-1 block">{item.initialVolume ? Number(item.initialVolume).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "0,000"}</span>
                                                 ) : (
                                                   <FormattedNumberInput
                                                     allowDecimals
                                                     maxDecimals={3}
-                                                    className="w-24 bg-white border border-slate-300 rounded px-2 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
+                                                    className="w-20 sm:w-24 bg-white border border-slate-300 rounded px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
                                                     value={item.initialVolume ? item.initialVolume : ""}
-                                                    placeholder="0.000"
+                                                    placeholder="0,000"
                                                     onChange={(val) => {
                                                       const updated = [...baOperatingItems];
                                                       updated[idx].initialVolume = val;
@@ -2600,8 +2562,8 @@ export function FormModals({ c }: { c: any }) {
                                                 )
                                               ) : (
                                                 <div className="flex flex-col items-end pt-0.5">
-                                                  <div className="px-2.5 py-1 bg-amber-50/90 border border-amber-300 rounded font-mono font-black text-amber-950 text-xs shadow-2xs">
-                                                    {effVol.toLocaleString("id-ID", { minimumFractionDigits: 3 })}
+                                                  <div className="px-2 py-0.5 bg-amber-50/90 border border-amber-300 rounded font-mono font-black text-amber-950 text-xs shadow-2xs">
+                                                    {effVol.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
                                                   </div>
                                                   <span className="text-[9px] text-amber-800 font-semibold italic mt-0.5 whitespace-nowrap">
                                                     Auto-sync {item.parentMaterial ? item.parentMaterial.replace("Volume ", "") : "Produksi"}
@@ -2610,7 +2572,7 @@ export function FormModals({ c }: { c: any }) {
                                               )}
                                             </td>
                                               {isCustomerSBS && (
-                                                <td className="p-2.5 text-right font-mono align-top bg-indigo-50/30 border-x border-indigo-100">
+                                                <td className="p-2 text-right font-mono align-top bg-indigo-50/30 border-x border-indigo-100">
                                                   {!isInlineEditingBA ? (
                                                     <div className="pt-1">
                                                       <span className="font-bold text-slate-900 font-mono">{item.distance ? formatThousand(item.distance) : "-"}</span>
@@ -2626,7 +2588,9 @@ export function FormModals({ c }: { c: any }) {
                                                   ) : (
                                                     <div className="flex flex-col items-end">
                                                       <FormattedNumberInput
-                                                        className="w-24 bg-white border border-indigo-300 rounded px-2 py-1 text-right font-mono font-bold text-xs text-indigo-950 focus:border-indigo-600 outline-none"
+                                                        allowDecimals
+                                                        maxDecimals={3}
+                                                        className="w-20 sm:w-24 bg-white border border-indigo-300 rounded px-1.5 py-1 text-right font-mono font-bold text-xs text-indigo-950 focus:border-indigo-600 outline-none"
                                                         value={item.distance === 0 ? "" : (item.distance ?? "")}
                                                         placeholder="0"
                                                         onChange={(distVal) => {
@@ -2656,12 +2620,14 @@ export function FormModals({ c }: { c: any }) {
                                                   )}
                                                 </td>
                                               )}
-                                            <td className="p-2.5 text-right font-mono align-top">
+                                            <td className="p-2 text-right font-mono align-top">
                                                 {!isInlineEditingBA ? (
                                                   <span className="pt-1 block">{formatIDR(item.rate || 0)}</span>
                                                 ) : (
                                                   <FormattedNumberInput
-                                                    className="w-24 bg-slate-50 hover:bg-white border border-slate-300 rounded px-2 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
+                                                    allowDecimals
+                                                    maxDecimals={3}
+                                                    className="w-20 sm:w-24 bg-slate-50 hover:bg-white border border-slate-300 rounded px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
                                                     value={item.rate === 0 ? "" : (item.rate ?? "")}
                                                     placeholder="0"
                                                     onChange={(val) => {
@@ -2679,11 +2645,11 @@ export function FormModals({ c }: { c: any }) {
                                           </>
                                         )}
 
-                                        <td className="p-2.5 text-right font-mono font-extrabold align-top">
+                                        <td className="p-2 text-right font-mono font-extrabold align-top">
                                           <div className={`pt-1 ${subtotal < 0 ? "text-rose-700 font-black" : "text-slate-900"}`}>{formatIDR(subtotal)}</div>
                                         </td>
                                         {isInlineEditingBA && (
-                                          <td className="p-2.5 text-center align-top">
+                                          <td className="p-2 text-center align-top">
                                             <div className="pt-0.5">
                                               <button
                                                 type="button"
@@ -2802,7 +2768,7 @@ export function FormModals({ c }: { c: any }) {
                                               }}
                                             />
                                           )}
-                                        </td>
+                                         </td>
                                         <td className="p-2 text-center font-mono font-bold text-slate-800">
                                           <span className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-xs inline-block text-center min-w-[45px]">
                                             {item.unit || (isCustomerSBS ? "Hours" : "Ha")}
@@ -2810,14 +2776,14 @@ export function FormModals({ c }: { c: any }) {
                                         </td>
                                         <td className="p-2 text-right font-mono">
                                           {!isInlineEditingBA ? (
-                                            <span className="font-bold text-slate-900">{item.initialVolume ? item.initialVolume.toLocaleString("id-ID") : "0"}</span>
+                                            <span className="font-bold text-slate-900">{item.initialVolume ? Number(item.initialVolume).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "0"}</span>
                                           ) : (
                                             <FormattedNumberInput
                                               allowDecimals
-                                              maxDecimals={2}
+                                              maxDecimals={3}
                                               className="w-24 bg-white border border-slate-300 rounded px-2 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
                                               value={item.initialVolume ? item.initialVolume : ""}
-                                              placeholder="0.00"
+                                              placeholder="0,000"
                                               onChange={(val) => {
                                                 const updated = [...baMDOItems];
                                                 updated[idx].initialVolume = val;
@@ -2835,6 +2801,8 @@ export function FormModals({ c }: { c: any }) {
                                             <span>{formatIDR(item.rate || 0)}</span>
                                           ) : (
                                             <FormattedNumberInput
+                                              allowDecimals
+                                              maxDecimals={3}
                                               className="w-24 bg-slate-50 hover:bg-white border border-slate-300 rounded px-2 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
                                               value={item.rate === 0 ? "" : (item.rate ?? "")}
                                               placeholder="0"
@@ -2983,6 +2951,8 @@ export function FormModals({ c }: { c: any }) {
                                             <span className="font-extrabold text-rose-700">({formatIDR(Math.abs(item.rate || 0))})</span>
                                           ) : (
                                             <FormattedNumberInput
+                                              allowDecimals
+                                              maxDecimals={3}
                                               className="w-32 bg-white border border-rose-300 rounded px-2 py-1 text-right font-mono font-bold text-xs text-rose-900 focus:border-rose-700 outline-none"
                                               value={item.rate === 0 ? "" : Math.abs(item.rate ?? 0)}
                                               placeholder="0"
@@ -3029,16 +2999,16 @@ export function FormModals({ c }: { c: any }) {
                           )}
 
                           {/* Estimasi Unbilled Revenue Box */}
-                          <div className="bg-slate-900 text-emerald-400 p-3.5 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border border-slate-800 shadow-md">
+                          <div className="bg-gradient-to-r from-[#4E2F16] via-[#613B1C] to-[#7A4B24] text-amber-100 p-3.5 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border border-[#8B5A2B]/50 shadow-md">
                             <div>
-                              <div className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
+                              <div className="text-[11px] font-bold text-amber-200 uppercase tracking-wider">
                                 Estimasi Nilai Pengakuan Awal (Unbilled Revenue):
                               </div>
-                              <div className="text-[10px] text-cyan-300">
+                              <div className="text-[10px] text-amber-100/80 font-medium">
                                 Akun: (Dr) 11300 Pendapatan Belum Ditagih / (Cr) 41100 Pendapatan Operasional
                               </div>
                             </div>
-                            <div className="text-xl sm:text-2xl font-black font-mono text-emerald-400">
+                            <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
                               {formatIDR(sumInitial)}
                             </div>
                           </div>
@@ -3122,52 +3092,52 @@ export function FormModals({ c }: { c: any }) {
                                         )}
                                       </td>
                                       <td className="p-2.5 text-right font-mono text-slate-600 align-top">
-                                        <span className="pt-1 block">{isDPFuel ? "-" : volAwal.toLocaleString("id-ID", { minimumFractionDigits: 3 })}</span>
-                                      </td>
-                                      <td className="p-2.5 text-right font-mono align-top">
-                                        {isDPFuel ? (
-                                          <span className="pt-1 block text-slate-400 font-mono">-</span>
-                                        ) : !isDistance ? (
-                                          !isInlineEditingBA ? (
-                                            <span className="font-bold text-slate-900 pt-1 block">{volAdj.toLocaleString("id-ID", { minimumFractionDigits: 3 })}</span>
-                                          ) : (
-                                            <FormattedNumberInput
-                                              allowDecimals
-                                              maxDecimals={3}
-                                              className="w-24 bg-cyan-50 border border-cyan-300 rounded px-2 py-1 text-right font-mono font-bold text-xs text-cyan-950 focus:border-cyan-700 outline-none"
-                                              value={item.adjustedVolume !== undefined ? item.adjustedVolume : ""}
-                                              placeholder="0.000"
-                                              onChange={(val) => {
-                                                if (item.isDeduction || item.category === "Pengurang Biaya") {
-                                                  const deds = [...(baDeductionItems || [])];
-                                                  const dIdx = deds.findIndex(d => d.id === item.id);
-                                                  if (dIdx >= 0) {
-                                                    deds[dIdx].adjustedVolume = val;
-                                                    setBaDeductionItems(deds);
-                                                  }
-                                                } else if (isOp) {
-                                                  const ops = [...baOperatingItems];
-                                                  const opIdx = ops.findIndex(o => o.id === item.id);
-                                                  if (opIdx >= 0) {
-                                                    ops[opIdx].adjustedVolume = val;
-                                                    setBaOperatingItems(ops);
-                                                  }
-                                                } else {
-                                                  const mdos = [...baMDOItems];
-                                                  const mIdx = mdos.findIndex(m => m.id === item.id);
-                                                  if (mIdx >= 0) {
-                                                    mdos[mIdx].adjustedVolume = val;
-                                                    setBaMDOItems(mdos);
-                                                  }
-                                                }
-                                              }}
-                                            />
-                                          )
-                                        ) : (
-                                          <div className="flex flex-col items-end pt-0.5">
-                                            <span className="font-mono font-bold text-amber-950 bg-amber-50 border border-amber-300 px-2.5 py-1 rounded text-xs shadow-2xs">
-                                              {volAdj.toLocaleString("id-ID", { minimumFractionDigits: 3 })}
-                                            </span>
+                                         <span className="pt-1 block">{isDPFuel ? "-" : volAwal.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 })}</span>
+                                       </td>
+                                       <td className="p-2.5 text-right font-mono align-top">
+                                         {isDPFuel ? (
+                                           <span className="pt-1 block text-slate-400 font-mono">-</span>
+                                         ) : !isDistance ? (
+                                           !isInlineEditingBA ? (
+                                             <span className="font-bold text-slate-900 pt-1 block">{volAdj.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 })}</span>
+                                           ) : (
+                                             <FormattedNumberInput
+                                               allowDecimals
+                                               maxDecimals={3}
+                                               className="w-24 bg-cyan-50 border border-cyan-300 rounded px-2 py-1 text-right font-mono font-bold text-xs text-cyan-950 focus:border-cyan-700 outline-none"
+                                               value={item.adjustedVolume !== undefined ? item.adjustedVolume : ""}
+                                               placeholder="0,000"
+                                               onChange={(val) => {
+                                                 if (item.isDeduction || item.category === "Pengurang Biaya") {
+                                                   const deds = [...(baDeductionItems || [])];
+                                                   const dIdx = deds.findIndex(d => d.id === item.id);
+                                                   if (dIdx >= 0) {
+                                                     deds[dIdx].adjustedVolume = val;
+                                                     setBaDeductionItems(deds);
+                                                   }
+                                                 } else if (isOp) {
+                                                   const ops = [...baOperatingItems];
+                                                   const opIdx = ops.findIndex(o => o.id === item.id);
+                                                   if (opIdx >= 0) {
+                                                     ops[opIdx].adjustedVolume = val;
+                                                     setBaOperatingItems(ops);
+                                                   }
+                                                 } else {
+                                                   const mdos = [...baMDOItems];
+                                                   const mIdx = mdos.findIndex(m => m.id === item.id);
+                                                   if (mIdx >= 0) {
+                                                     mdos[mIdx].adjustedVolume = val;
+                                                     setBaMDOItems(mdos);
+                                                   }
+                                                 }
+                                               }}
+                                             />
+                                           )
+                                         ) : (
+                                           <div className="flex flex-col items-end pt-0.5">
+                                             <span className="font-mono font-bold text-amber-950 bg-amber-50 border border-amber-300 px-2.5 py-1 rounded text-xs shadow-2xs">
+                                               {volAdj.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
+                                             </span>
                                             <span className="text-[9px] text-amber-800 font-semibold italic mt-0.5 whitespace-nowrap">
                                               Auto-sync survey
                                             </span>
@@ -3532,8 +3502,8 @@ export function FormModals({ c }: { c: any }) {
                       </div>
                     </div>
 
-                    {/* KOLOM KANAN (LEBAR ~25%-30% / xl:col-span-4 2xl:col-span-3): Document Viewer & Quick Intelligence Hub */}
-                    <div className="xl:col-span-4 2xl:col-span-3 space-y-4">
+                    {/* KOLOM KANAN (LEBAR ~25% / xl:col-span-3 2xl:col-span-3): Document Viewer & Quick Intelligence Hub */}
+                    <div className="xl:col-span-3 2xl:col-span-3 space-y-4">
                       {/* Ringkasan Dokumen Card */}
                       <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
                         <div className="flex items-center justify-between border-b border-slate-200 pb-2">
@@ -3700,12 +3670,12 @@ export function FormModals({ c }: { c: any }) {
                               </p>
                             </div>
 
-                            {/* 2. Verifikasi Finance Specialist */}
+                            {/* 2. Verifikasi Finance Supervisor */}
                             <div className="p-2.5 bg-white border border-slate-200 rounded-xl space-y-1">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-1.5 font-bold text-slate-900">
                                   <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-black ${formData.verifiedBy ? "bg-emerald-100 text-emerald-800" : formData.statusBA === "Revisi" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}>2</span>
-                                  <span>Verifikasi Finance Specialist</span>
+                                  <span>Verifikasi Finance Supervisor</span>
                                 </div>
                                 {formData.verifiedBy ? (
                                   <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-0.5">
@@ -3722,7 +3692,7 @@ export function FormModals({ c }: { c: any }) {
                                 )}
                               </div>
                               <p className="text-slate-600 text-[11px] leading-relaxed">
-                                {formData.verifiedBy ? `Volume & nilai klaim diverifikasi oleh ${formData.verifiedBy}.` : "Menunggu verifikasi keabsahan volume bersama oleh Finance Specialist."}
+                                {formData.verifiedBy ? `Volume & nilai klaim diverifikasi oleh ${formData.verifiedBy}.` : "Menunggu verifikasi keabsahan volume bersama oleh Finance Supervisor."}
                               </p>
                             </div>
 
@@ -3752,7 +3722,7 @@ export function FormModals({ c }: { c: any }) {
                                   ? `Invoice #${formData.invoiceNoLinked} telah diterbitkan dan diajukan ke FATB Manager.`
                                   : (formData.statusBA === "Ready to Invoice" || formData.verifiedBy)
                                   ? "BA telah diverifikasi. Finance Site dapat men-generate invoice untuk diapprove FATB Manager."
-                                  : "Invoice akan digenerate oleh Finance site setelah BA diverifikasi oleh Finance Specialist."}
+                                  : "Invoice akan digenerate oleh Finance site setelah BA diverifikasi oleh Finance Supervisor."}
                               </p>
                             </div>
                           </div>

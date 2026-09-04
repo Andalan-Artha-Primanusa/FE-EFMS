@@ -7,6 +7,45 @@ export function isSuperAdminRole(role: string) {
   return normalized === "super admin" || normalized === "super_admin" || normalized === "system administrator" || normalized === "erp super admin" || normalized.includes("super admin") || normalized.includes("super_admin");
 }
 
+// RBAC check for Coal Index: Hanya Finance SPV, FATB Manager, dan Direktur (+ Super Admin)
+export function canManageCoalIndex(user?: User): boolean {
+  if (!user) return false;
+  const role = (user.role ?? "").toLowerCase().trim();
+  if (isSuperAdminRole(role)) return true;
+
+  // Finance SPV / Supervisor
+  if (
+    role.includes("spv") ||
+    role.includes("supervisor") ||
+    role.includes("superintendent") ||
+    role.includes("finance specialist")
+  ) {
+    return true;
+  }
+
+  // FATB Manager / Finance Manager / Department Head FATB
+  if (
+    role.includes("manager") ||
+    role.includes("fatb")
+  ) {
+    return true;
+  }
+
+  // Direktur / Director / C-Level / General Manager
+  if (
+    role.includes("director") ||
+    role.includes("direktur") ||
+    role.includes("c-level") ||
+    role.includes("general manager") ||
+    role.includes("cfo") ||
+    role.includes("ceo")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 // Audit Trail (dan Notification) access driven by permission/T-Code — backend module
 // "audit_trail" (read) dengan T-Code GOV_AUDIT / GOV_NOTIF. Bukan dari nama role.
 // Fail-closed: tanpa permission/T-Code yang relevan, tidak dapat melihat.

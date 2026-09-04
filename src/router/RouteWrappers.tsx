@@ -103,10 +103,10 @@ export function GeneralJournalRoute({ viewTitle }: { viewTitle: string }) {
 }
 
 export function CoalIndexRoute() {
-  const { query, setNotice } = useOutletContext<any>();
+  const { query, setNotice, user } = useOutletContext<any>();
   return (
     <Suspense fallback={<RouteLoading />}>
-      <CoalIndexPage viewTitle="Coal Index" query={query} onNotice={setNotice} />
+      <CoalIndexPage viewTitle="Coal Index" query={query} onNotice={setNotice} user={user} />
     </Suspense>
   );
 }

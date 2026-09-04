@@ -1378,8 +1378,8 @@ export function exportARBAIMonitoringPDFImpl(ctx: any) {
           </thead>
           <tbody>
             <tr>
-              <td><u>Finance Specialist</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance & Verification Specialist</span></td>
-              <td><u>FATB Manager</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance, Accounting, Tax & Budgeting</span></td>
+              <td><u>Lambang Hermawan</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance Supervisor</span></td>
+              <td><u>M Axel Valentino</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">FATB Manager</span></td>
               <td><u>Direktur</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Board of Directors</span></td>
             </tr>
           </tbody>
@@ -1650,8 +1650,8 @@ export function exportBAOnlyPDFImpl(ctx: any) {
           </thead>
           <tbody>
             <tr>
-              <td><u>Finance Specialist</u><br/><span style="font-size: 8px; color: #64748b;">Finance & Verification Specialist</span></td>
-              <td><u>FATB Manager</u><br/><span style="font-size: 8px; color: #64748b;">Finance, Accounting, Tax & Budgeting</span></td>
+              <td><u>Lambang Hermawan</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance Supervisor</span></td>
+              <td><u>M Axel Valentino</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">FATB Manager</span></td>
             </tr>
           </tbody>
         </table>
@@ -1937,8 +1937,8 @@ export function exportAROnlyPDFImpl(ctx: any) {
           </thead>
           <tbody>
             <tr>
-              <td><u>Finance Specialist</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance & Verification Specialist</span></td>
-              <td><u>FATB Manager</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance, Accounting, Tax & Budgeting</span></td>
+              <td><u>Lambang Hermawan</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance Supervisor</span></td>
+              <td><u>M Axel Valentino</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">FATB Manager</span></td>
               <td><u>Direktur</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Board of Directors</span></td>
             </tr>
           </tbody>

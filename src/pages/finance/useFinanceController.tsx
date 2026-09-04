@@ -297,7 +297,7 @@ export function useFinanceController({
       const custUpper = (formData.customerCode || "").toUpperCase();
       const filtered = dynamicSowOptions.filter((s) => {
         const sCust = (s.customer || s.customerCode || "").toUpperCase();
-        return !sCust || sCust === custUpper || (custUpper === "POS" && (!sCust || sCust === "POS"));
+        return !sCust || sCust === custUpper || ((custUpper === "POS" || custUpper === "IBP" || custUpper === "BBA") && (!sCust || sCust === "POS"));
       });
       if (filtered.length > 0) {
         return filtered.map((s) => {
@@ -644,12 +644,16 @@ export function useFinanceController({
       const defaultSites: Record<string, string> = {
         BGG: "PT Budi Gema Gempita Site",
         POS: "POS PROJECT",
+        IBP: "PT Indo Bhumi Pasifik Site",
+        BBA: "PT Bara Batubara Aditama Site",
         SBS: "SBS - Tanjung Enim",
         PTRO: "PT Petrosea Site",
       };
       const defaultContracts: Record<string, string> = {
         BGG: "09/BGG-AAP/VIII/2018",
         POS: "002/POS-AAP/2025",
+        IBP: "001/IBP-AAP/2026",
+        BBA: "001/BBA-AAP/2026",
         SBS: "230/AAP-SBS/EXT/XII/24",
         PTRO: "001/PTRO-AAP/2024",
       };
@@ -985,8 +989,8 @@ export function useFinanceController({
   const buildInvoiceItemsFromBA = (ba: any, custCode?: string, category: "Operation & Mining" | "MDO" = "Operation & Mining") => {
     const code = custCode || ba?.customerCode || "";
 
-    // If POS and Category is MDO (Mine Development Operation)
-    if (code === "POS" && category === "MDO") {
+    // If POS/IBP/BBA and Category is MDO (Mine Development Operation)
+    if ((code === "POS" || code === "IBP" || code === "BBA") && category === "MDO") {
       const mdo1 = ba?.items?.find((i: any) => (i.material || "").toLowerCase().includes("mine dev") || (i.material || "").toLowerCase().includes("mdo")) || baMDOItems?.[0];
       const mdo2 = ba?.items?.find((i: any) => (i.material || "").toLowerCase().includes("rock") || (i.material || "").toLowerCase().includes("konstruksi")) || baMDOItems?.[1];
 
@@ -999,8 +1003,8 @@ export function useFinanceController({
       ];
     }
 
-    // If POS Facility / Backcharge / Non-Mining (e.g. Mess Facility, Mobilization)
-    const isPOSFacility = code === "POS" && ((ba?.jobType || "").toLowerCase().includes("mess") || (ba?.jobType || "").toLowerCase().includes("mob") || (ba?.jobType || "").toLowerCase().includes("facility") || (ba?.invoiceNo || "").toLowerCase().includes("bc-"));
+    // If POS/IBP/BBA Facility / Backcharge / Non-Mining (e.g. Mess Facility, Mobilization)
+    const isPOSFacility = (code === "POS" || code === "IBP" || code === "BBA") && ((ba?.jobType || "").toLowerCase().includes("mess") || (ba?.jobType || "").toLowerCase().includes("mob") || (ba?.jobType || "").toLowerCase().includes("facility") || (ba?.invoiceNo || "").toLowerCase().includes("bc-"));
     if (isPOSFacility) {
       const gross = Number(ba.revenueGross || ba.workAmount || 2313397963);
       const vol = Number(ba.volume || 1);
@@ -1023,7 +1027,7 @@ export function useFinanceController({
 
     // 1. If BA has explicit item array from Step 1 / Step 2
     if (ba?.items && Array.isArray(ba.items) && ba.items.length > 0) {
-      if (code === "POS") {
+      if (code === "POS" || code === "IBP" || code === "BBA") {
         return blankPOSItems.map((invItem) => {
           const itemCopy: any = { ...invItem };
           const matched = ba.items.find((bi: any) => {
@@ -1061,7 +1065,7 @@ export function useFinanceController({
     }
 
     // 2. Map realistic data by customer and BA details
-    if (code === "POS") {
+    if (code === "POS" || code === "IBP" || code === "BBA") {
       if (ba?.baNumber?.includes("053") || (ba?.workAmount && ba.workAmount < 5000000000 && !ba.baNumber?.includes("052"))) {
         return [
           { id: "A1", section: "A", code: "A1", description: "OVER BURDEN REMOVAL", volume: 15420.50, unit: "Bcm", baseRateUSD: 3.327 },
@@ -1998,12 +2002,16 @@ export function useFinanceController({
       const defaultSites: Record<string, string> = {
         BGG: "PT Budi Gema Gempita Site",
         POS: "POS PROJECT",
+        IBP: "PT Indo Bhumi Pasifik Site",
+        BBA: "PT Bara Batubara Aditama Site",
         SBS: "SBS - Tanjung Enim",
         PTRO: "PT Petrosea Site",
       };
       const defaultContracts: Record<string, string> = {
         BGG: "09/BGG-AAP/VIII/2018",
         POS: "002/POS-AAP/2025",
+        IBP: "001/IBP-AAP/2026",
+        BBA: "001/BBA-AAP/2026",
         SBS: "230/AAP-SBS/EXT/XII/24",
         PTRO: "001/PTRO-AAP/2024",
       };

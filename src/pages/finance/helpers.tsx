@@ -40,6 +40,10 @@ export const getCustomerOfficialName = (code: string | undefined | null): string
   switch (c) {
     case "POS":
       return "PT Position";
+    case "IBP":
+      return "PT Indo Bhumi Pasifik";
+    case "BBA":
+      return "PT Bara Batubara Aditama";
     case "SBS":
       return "PT Satria Bahana Sarana";
     case "BGG":
@@ -529,6 +533,59 @@ export function RupiahInput({
   );
 }
 
+export const parseDecimalNumber = (val: any): number => {
+  if (val === undefined || val === null || val === "") return 0;
+  if (typeof val === "number") return isNaN(val) ? 0 : val;
+  const str = String(val).trim();
+  if (!str) return 0;
+
+  const isNegative = str.startsWith("-");
+  const clean = str.replace(/[^0-9.,]/g, "");
+  if (!clean) return 0;
+
+  let num = 0;
+  if (clean.includes(",")) {
+    // Koma adalah pemisah desimal standar Indonesia (contoh: "12.511,250", "0,250", "12511,25")
+    const [intPart, ...decParts] = clean.split(",");
+    const decPart = decParts.join("").slice(0, 3);
+    const cleanInt = intPart.replace(/\./g, "") || "0";
+    num = parseFloat(decPart.length > 0 ? `${cleanInt}.${decPart}` : cleanInt);
+  } else if (clean.includes(".")) {
+    const dotParts = clean.split(".");
+    if (dotParts.length === 2) {
+      const [intPart, decPart] = dotParts;
+      // Jika 1 titik dengan tepat 3 digit dan integer <= 3 digit serta bukan "0" -> diasumsikan titik ribuan ("12.511", "1.000")
+      if (decPart.length === 3 && intPart.length <= 3 && intPart !== "0") {
+        num = parseFloat(`${intPart}${decPart}`);
+      } else {
+        // Jika tidak, diasumsikan titik desimal ("12.5", "0.25", "12511.250")
+        num = parseFloat(`${intPart}.${decPart.slice(0, 3)}`);
+      }
+    } else {
+      // Lebih dari 1 titik -> titik ribuan ("1.234.567")
+      num = parseFloat(clean.replace(/\./g, ""));
+    }
+  } else {
+    num = parseFloat(clean);
+  }
+
+  if (isNaN(num)) return 0;
+  return isNegative ? -num : num;
+};
+
+export const formatDecimalDisplay = (val: any, allowDecimals: boolean = true, maxDecimals: number = 3): string => {
+  if (val === undefined || val === null || val === "") return "";
+  const num = typeof val === "number" ? val : parseDecimalNumber(val);
+  if (isNaN(num) || num === 0) return "";
+  if (!allowDecimals) {
+    return Math.round(num).toLocaleString("id-ID");
+  }
+  return num.toLocaleString("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maxDecimals,
+  });
+};
+
 // Component helper input Volume dengan Auto Thousand Separator (.) & Desimal (,)
 export function VolumeInput({
   label,
@@ -549,37 +606,42 @@ export function VolumeInput({
 }) {
   const [localStr, setLocalStr] = React.useState<string>(() => {
     if (value === 0 || value === "0" || !value) return "";
-    const n = typeof value === "number" ? value : parseFloat(String(value));
-    if (isNaN(n)) return "";
-    return n.toLocaleString("id-ID", { maximumFractionDigits: 2 });
+    const n = typeof value === "number" ? value : parseDecimalNumber(value);
+    if (isNaN(n) || n === 0) return "";
+    return n.toLocaleString("id-ID", { maximumFractionDigits: 3 });
   });
 
   React.useEffect(() => {
     if (value === 0 || value === "0" || !value) {
       if (localStr === "" || localStr === "0") return;
     }
-    const currentNum = parseFloat(localStr.replace(/\./g, "").replace(",", "."));
-    const propNum = typeof value === "number" ? value : parseFloat(String(value));
+    const currentNum = parseDecimalNumber(localStr);
+    const propNum = typeof value === "number" ? value : parseDecimalNumber(value);
     if (currentNum !== propNum && !isNaN(propNum)) {
-      setLocalStr(propNum.toLocaleString("id-ID", { maximumFractionDigits: 2 }));
+      setLocalStr(propNum.toLocaleString("id-ID", { maximumFractionDigits: 3 }));
     }
   }, [value]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
-    // Allow digits, dots and comma
-    const clean = raw.replace(/[^0-9.,]/g, "");
+    let clean = e.target.value.replace(/[^0-9.,]/g, "");
+    const commaCount = (clean.match(/,/g) || []).length;
+    if (commaCount > 1) {
+      const firstIdx = clean.indexOf(",");
+      clean = clean.slice(0, firstIdx + 1) + clean.slice(firstIdx + 1).replace(/,/g, "");
+    }
+    if (clean.includes(",")) {
+      const [i, d] = clean.split(",");
+      clean = `${i},${d.slice(0, 3)}`;
+    }
     setLocalStr(clean);
-    const normalized = clean.replace(/\./g, "").replace(",", ".");
-    const num = parseFloat(normalized);
-    onChange(isNaN(num) ? 0 : num);
+    const num = parseDecimalNumber(clean);
+    onChange(num);
   };
 
   const handleBlur = () => {
-    const normalized = localStr.replace(/\./g, "").replace(",", ".");
-    const num = parseFloat(normalized);
+    const num = parseDecimalNumber(localStr);
     if (!isNaN(num) && num > 0) {
-      setLocalStr(num.toLocaleString("id-ID", { maximumFractionDigits: 2 }));
+      setLocalStr(num.toLocaleString("id-ID", { maximumFractionDigits: 3 }));
     } else if (isNaN(num) || num === 0) {
       setLocalStr("");
     }
@@ -594,7 +656,7 @@ export function VolumeInput({
         <input
           type="text"
           className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 pr-14 text-slate-900 font-mono font-bold focus:border-cyan-700 focus:bg-white outline-none text-xs"
-          placeholder={placeholder || "0,00"}
+          placeholder={placeholder || "0,000"}
           value={localStr}
           onChange={handleChange}
           onBlur={handleBlur}
@@ -616,7 +678,7 @@ export function FormattedNumberInput({
   value,
   onChange,
   placeholder = "0",
-  allowDecimals = false,
+  allowDecimals = true,
   maxDecimals = 3,
   className = "",
   onFocus,
@@ -631,39 +693,30 @@ export function FormattedNumberInput({
   onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
 }) {
-  const formatVal = (v: any): string => {
-    if (v === undefined || v === null || v === "") return "";
-    const n = typeof v === "number" ? v : parseFloat(String(v).replace(/\./g, "").replace(",", "."));
-    if (isNaN(n) || n === 0) return "";
-    if (allowDecimals) {
-      return n.toLocaleString("id-ID", { maximumFractionDigits: maxDecimals });
-    }
-    return Math.round(n).toLocaleString("id-ID");
-  };
-
-  const [localStr, setLocalStr] = React.useState<string>(() => formatVal(value));
+  const [localStr, setLocalStr] = React.useState<string>(() => formatDecimalDisplay(value, allowDecimals, maxDecimals));
   const [isFocused, setIsFocused] = React.useState(false);
 
   React.useEffect(() => {
     if (!isFocused) {
-      setLocalStr(formatVal(value));
+      setLocalStr(formatDecimalDisplay(value, allowDecimals, maxDecimals));
     }
-  }, [value, isFocused]);
-
-  const parseVal = (str: string): number => {
-    if (!str || !str.trim()) return 0;
-    const clean = str.replace(/[^0-9.,-]/g, "");
-    const normalized = clean.replace(/\./g, "").replace(",", ".");
-    const num = parseFloat(normalized);
-    return isNaN(num) ? 0 : num;
-  };
+  }, [value, isFocused, allowDecimals, maxDecimals]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
     if (allowDecimals) {
-      const clean = raw.replace(/[^0-9.,-]/g, "");
+      let clean = raw.replace(/[^0-9.,-]/g, "");
+      const commaCount = (clean.match(/,/g) || []).length;
+      if (commaCount > 1) {
+        const firstIdx = clean.indexOf(",");
+        clean = clean.slice(0, firstIdx + 1) + clean.slice(firstIdx + 1).replace(/,/g, "");
+      }
+      if (clean.includes(",")) {
+        const [i, d] = clean.split(",");
+        clean = `${i},${d.slice(0, maxDecimals)}`;
+      }
       setLocalStr(clean);
-      onChange(parseVal(clean));
+      onChange(parseDecimalNumber(clean));
     } else {
       const cleanDigits = raw.replace(/[^0-9-]/g, "");
       if (!cleanDigits || cleanDigits === "-") {
@@ -686,9 +739,9 @@ export function FormattedNumberInput({
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     setIsFocused(false);
-    const parsed = parseVal(localStr);
+    const parsed = parseDecimalNumber(localStr);
     onChange(parsed);
-    setLocalStr(formatVal(parsed));
+    setLocalStr(formatDecimalDisplay(parsed, allowDecimals, maxDecimals));
     onBlur?.(e);
   };
 
@@ -696,17 +749,17 @@ export function FormattedNumberInput({
     <input
       type="text"
       className={className}
-      value={isFocused ? localStr : formatVal(value)}
+      value={isFocused ? localStr : formatDecimalDisplay(value, allowDecimals, maxDecimals)}
       placeholder={placeholder}
       onFocus={(e) => {
         setIsFocused(true);
-        const curNum = typeof value === "number" ? value : parseVal(String(value || ""));
-        if (!curNum) {
+        const curNum = typeof value === "number" ? value : parseDecimalNumber(value);
+        if (!curNum && curNum !== 0) {
           setLocalStr("");
-        } else if (allowDecimals) {
-          setLocalStr(String(curNum).replace(".", ","));
+        } else if (curNum === 0) {
+          setLocalStr("");
         } else {
-          setLocalStr(Math.round(curNum).toLocaleString("id-ID"));
+          setLocalStr(formatDecimalDisplay(curNum, allowDecimals, maxDecimals));
         }
         e.target.select();
         onFocus?.(e);

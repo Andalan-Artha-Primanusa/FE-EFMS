@@ -24,7 +24,8 @@ import {
 } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
-import { api } from "../lib/api";
+import { api, type User } from "../lib/api";
+import { canManageCoalIndex } from "../lib/auth";
 import { MonthPickerInput } from "./finance/helpers";
 
 export interface CoalIndexWeekly {
@@ -121,15 +122,20 @@ export function getFridaysForPeriod(periodStr: string): string[] {
 export function CoalIndexPage({
   viewTitle,
   query,
-  onNotice
+  onNotice,
+  user
 }: {
   viewTitle: string;
   query: string;
   onNotice: (msg: string) => void;
+  user?: User;
 }) {
   const [loading, setLoading] = useState(true);
   const [indexList, setIndexList] = useState<CoalIndexMonthly[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState("Juni 2026");
+
+  // RBAC permission check: Finance SPV, FATB Manager, Direktur (+ Super Admin)
+  const canEdit = canManageCoalIndex(user);
 
   // Modal / Form state
   const [modalOpen, setModalOpen] = useState(false);
@@ -140,14 +146,14 @@ export function CoalIndexPage({
     avgIci3: 0,
     avgIci4: 0,
     avgR3: 0,
-    activeTier: "Tier 3",
+    activeTier: "Tier 1",
     status: "Draft",
     notes: "",
     weeks: [
-      { weekNumber: 1, releaseDate: "2026-06-05", ici3Price: 92.50, ici4Price: 61.20, r3Price: 76.85 },
-      { weekNumber: 2, releaseDate: "2026-06-12", ici3Price: 91.80, ici4Price: 60.50, r3Price: 76.15 },
-      { weekNumber: 3, releaseDate: "2026-06-19", ici3Price: 93.00, ici4Price: 61.00, r3Price: 77.00 },
-      { weekNumber: 4, releaseDate: "2026-06-26", ici3Price: 91.30, ici4Price: 60.15, r3Price: 75.725 },
+      { weekNumber: 1, releaseDate: "2026-06-05", ici3Price: 0, ici4Price: 0, r3Price: 0 },
+      { weekNumber: 2, releaseDate: "2026-06-12", ici3Price: 0, ici4Price: 0, r3Price: 0 },
+      { weekNumber: 3, releaseDate: "2026-06-19", ici3Price: 0, ici4Price: 0, r3Price: 0 },
+      { weekNumber: 4, releaseDate: "2026-06-26", ici3Price: 0, ici4Price: 0, r3Price: 0 },
     ]
   });
 
@@ -192,31 +198,43 @@ export function CoalIndexPage({
   };
 
   const handleOpenCreateModal = () => {
+    if (!canEdit) {
+      onNotice("Akses ditolak: Pengisian Coal Index hanya dapat dilakukan oleh Finance SPV, FATB Manager, dan Direktur.");
+      return;
+    }
     setIsEditing(false);
     const targetPeriod = "Agustus 2026";
     const fridays = getFridaysForPeriod(targetPeriod);
     setFormData({
       id: 0,
       period: targetPeriod,
-      avgIci3: 91.5,
-      avgIci4: 60.5,
-      avgR3: 76.0,
-      activeTier: "Tier 3",
+      avgIci3: 0,
+      avgIci4: 0,
+      avgR3: 0,
+      activeTier: "Tier 1",
       status: "Draft",
-      notes: "Publikasi mingguan Argus / Coalindo",
+      notes: "",
       weeks: [
-        { weekNumber: 1, releaseDate: fridays[0] || "2026-08-07", ici3Price: 91.8, ici4Price: 60.8, r3Price: 76.3 },
-        { weekNumber: 2, releaseDate: fridays[1] || "2026-08-14", ici3Price: 91.2, ici4Price: 60.4, r3Price: 75.8 },
-        { weekNumber: 3, releaseDate: fridays[2] || "2026-08-21", ici3Price: 92.0, ici4Price: 61.0, r3Price: 76.5 },
-        { weekNumber: 4, releaseDate: fridays[3] || "2026-08-28", ici3Price: 91.0, ici4Price: 59.8, r3Price: 75.4 },
+        { weekNumber: 1, releaseDate: fridays[0] || "2026-08-07", ici3Price: 0, ici4Price: 0, r3Price: 0 },
+        { weekNumber: 2, releaseDate: fridays[1] || "2026-08-14", ici3Price: 0, ici4Price: 0, r3Price: 0 },
+        { weekNumber: 3, releaseDate: fridays[2] || "2026-08-21", ici3Price: 0, ici4Price: 0, r3Price: 0 },
+        { weekNumber: 4, releaseDate: fridays[3] || "2026-08-28", ici3Price: 0, ici4Price: 0, r3Price: 0 },
       ]
     });
     setModalOpen(true);
   };
 
   const handleOpenEditModal = (item: CoalIndexMonthly) => {
+    if (!canEdit) {
+      onNotice("Akses ditolak: Pengubahan Coal Index hanya dapat dilakukan oleh Finance SPV, FATB Manager, dan Direktur.");
+      return;
+    }
     setIsEditing(true);
-    setFormData(JSON.parse(JSON.stringify(item)));
+    const itemCopy = JSON.parse(JSON.stringify(item));
+    if (itemCopy.status === "Locked" || itemCopy.status === "Verified") {
+      itemCopy.status = "Final";
+    }
+    setFormData(itemCopy);
     setModalOpen(true);
   };
 
@@ -225,9 +243,11 @@ export function CoalIndexPage({
     if (field === "releaseDate") {
       updatedWeeks[index].releaseDate = val;
     } else {
-      const numVal = parseFloat(val) || 0;
+      const numVal = val === "" ? 0 : parseFloat(val) || 0;
       updatedWeeks[index][field] = numVal;
-      updatedWeeks[index].r3Price = (updatedWeeks[index].ici3Price + updatedWeeks[index].ici4Price) / 2.0;
+      const p3 = updatedWeeks[index].ici3Price || 0;
+      const p4 = updatedWeeks[index].ici4Price || 0;
+      updatedWeeks[index].r3Price = (p3 > 0 || p4 > 0) ? (p3 + p4) / 2.0 : 0;
     }
 
     // Recalculate summary averages
@@ -261,6 +281,10 @@ export function CoalIndexPage({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEdit) {
+      onNotice("Akses ditolak: Anda tidak memiliki izin untuk menyimpan data Coal Index.");
+      return;
+    }
     try {
       await api("/api/master-data/coal-index", {
         method: "POST",
@@ -275,7 +299,12 @@ export function CoalIndexPage({
   };
 
   const handleToggleLock = async (item: CoalIndexMonthly) => {
-    const nextStatus = item.status === "Locked" ? "Verified" : "Locked";
+    if (!canEdit) {
+      onNotice("Akses ditolak: Hanya Finance SPV, FATB Manager, dan Direktur yang dapat mengubah status Coal Index.");
+      return;
+    }
+    const currentIsFinal = item.status === "Final" || item.status === "Locked" || item.status === "Verified";
+    const nextStatus = currentIsFinal ? "Draft" : "Final";
     try {
       await api("/api/master-data/coal-index/lock", {
         method: "POST",
@@ -292,14 +321,33 @@ export function CoalIndexPage({
   const r3Val = currentIndex?.avgR3 || 0;
   const tierPercentage = Math.min(100, Math.max(0, ((r3Val - 30) / (100 - 30)) * 100));
 
+  const isCurrentFinal = currentIndex?.status === "Final" || currentIndex?.status === "Locked" || currentIndex?.status === "Verified";
+
   return (
     <div className="space-y-5 max-w-[1600px] mx-auto pb-12">
       {/* Top Header */}
       <PageHeader
         title="Master Benchmark Coal Index"
-        description="Acuan harga bulanan ICI-3 dan ICI-4 untuk penentuan tarif berjenjang (Tier 1/2/3) PT BGG."
       >
         <div className="flex items-center gap-2">
+          {/* History Coal Index Dropdown */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white shadow-2xs hover:border-slate-300 transition">
+            <Calendar size={13} className="text-slate-500 shrink-0" />
+            <select
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer pr-1"
+              title="Pilih Riwayat Periode Coal Index"
+            >
+              {indexList.map((idx) => (
+                <option key={idx.id || idx.period} value={idx.period}>
+                  Periode: {idx.period} [{idx.activeTier || "Tier 1"}]
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Refresh Button */}
           <button
             onClick={() => loadData()}
             className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition shadow-2xs active:scale-95 cursor-pointer"
@@ -307,44 +355,24 @@ export function CoalIndexPage({
           >
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
           </button>
-          <button
-            onClick={handleOpenCreateModal}
-            className="px-3.5 py-2 rounded-lg bg-cyan-800 hover:bg-cyan-900 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition active:scale-95 cursor-pointer"
-          >
-            <Plus size={15} />
-            <span>Input Periode Baru</span>
-          </button>
+
+          {/* Action Button: Input Periode Baru */}
+          {canEdit ? (
+            <button
+              onClick={handleOpenCreateModal}
+              className="px-3.5 py-2 rounded-lg bg-cyan-800 hover:bg-cyan-900 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition active:scale-95 cursor-pointer whitespace-nowrap"
+            >
+              <Plus size={15} />
+              <span>Input Periode Baru</span>
+            </button>
+          ) : (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 text-xs font-medium whitespace-nowrap">
+              <Lock size={13} className="text-slate-400" />
+              <span>Mode Lihat (Read-Only)</span>
+            </div>
+          )}
         </div>
       </PageHeader>
-
-      {/* Period Selection Pill Navigation */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {indexList.map((idx) => {
-          const isSelected = idx.period === selectedPeriod;
-          const isTier3 = idx.activeTier === "Tier 3";
-          return (
-            <button
-              key={idx.id || idx.period}
-              onClick={() => setSelectedPeriod(idx.period)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap border cursor-pointer ${
-                isSelected
-                  ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
-                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-              }`}
-            >
-              <Calendar size={13} className={isSelected ? "text-slate-200" : "text-slate-400"} />
-              <span>{idx.period}</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
-                isTier3
-                  ? isSelected ? "bg-amber-400 text-slate-950 font-bold" : "bg-amber-50 text-amber-900 border border-amber-200"
-                  : isSelected ? "bg-slate-700 text-white" : "bg-slate-100 text-slate-700"
-              }`}>
-                {idx.activeTier}
-              </span>
-            </button>
-          );
-        })}
-      </div>
 
       {/* KPI Cards Grid */}
       {currentIndex && (
@@ -356,11 +384,11 @@ export function CoalIndexPage({
                 Active Pricing Tier
               </span>
               <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                currentIndex.status === "Locked"
-                  ? "bg-slate-900 text-white border-slate-800"
-                  : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                isCurrentFinal
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                  : "bg-amber-50 text-amber-800 border-amber-200"
               }`}>
-                {currentIndex.status || "Verified"}
+                {isCurrentFinal ? "Final" : "Draft"}
               </span>
             </div>
 
@@ -414,7 +442,7 @@ export function CoalIndexPage({
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-col justify-between space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                ICI 3 (6.000 GAR)
+                ICI 3 (5.000 GAR)
               </span>
               <span className="p-1 bg-slate-100 rounded text-slate-600">
                 <TrendingUp size={14} />
@@ -430,7 +458,7 @@ export function CoalIndexPage({
               </p>
             </div>
             <div className="text-[11px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-              Kualitas 6.000 kcal/kg
+              Kualitas 5.000 kcal/kg
             </div>
           </div>
 
@@ -510,46 +538,43 @@ export function CoalIndexPage({
       {currentIndex && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
           <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-slate-900 text-sm">
-                  Rincian Publikasi Mingguan — {currentIndex.period}
-                </h3>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                  {currentIndex.weeks ? currentIndex.weeks.length : 0} Minggu Rilis
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Data laporan Indonesian Coal Index setiap hari Jumat sebagai dasar penagihan.
-              </p>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-slate-900 text-sm">
+                Rincian Publikasi Mingguan — {currentIndex.period}
+              </h3>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                {currentIndex.weeks ? currentIndex.weeks.length : 0} Minggu Rilis
+              </span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleToggleLock(currentIndex)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border transition shadow-2xs cursor-pointer ${
-                  currentIndex.status === "Locked"
-                    ? "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200"
-                    : "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
-                }`}
-              >
-                {currentIndex.status === "Locked" ? (
-                  <>
-                    <Unlock size={13} /> Buka Kunci
-                  </>
-                ) : (
-                  <>
-                    <Lock size={13} /> Kunci Periode
-                  </>
-                )}
-              </button>
-              <button
-                onClick={() => handleOpenEditModal(currentIndex)}
-                className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-2xs cursor-pointer"
-              >
-                Edit Mingguan
-              </button>
-            </div>
+            {canEdit && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleToggleLock(currentIndex)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border transition shadow-2xs cursor-pointer ${
+                    isCurrentFinal
+                      ? "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200"
+                      : "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
+                  }`}
+                >
+                  {isCurrentFinal ? (
+                    <>
+                      <Unlock size={13} /> Ubah ke Draft
+                    </>
+                  ) : (
+                    <>
+                      <Lock size={13} /> Finalisasi (Kunci)
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => handleOpenEditModal(currentIndex)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-2xs cursor-pointer"
+                >
+                  Edit Mingguan
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="overflow-x-auto">
@@ -587,9 +612,13 @@ export function CoalIndexPage({
                         ${week.r3Price ? week.r3Price.toFixed(3) : "0.000"}
                       </td>
                       <td className="p-3 pr-4 text-center">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                          <CheckCircle2 size={11} className="text-emerald-700" />
-                          Tervalidasi
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
+                          isCurrentFinal
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                            : "bg-amber-50 text-amber-800 border-amber-200"
+                        }`}>
+                          <CheckCircle2 size={11} className={isCurrentFinal ? "text-emerald-700" : "text-amber-600"} />
+                          {isCurrentFinal ? "Final" : "Draft"}
                         </span>
                       </td>
                     </tr>
@@ -661,13 +690,12 @@ export function CoalIndexPage({
                     Status Validasi
                   </label>
                   <select
-                    value={formData.status}
+                    value={formData.status === "Locked" || formData.status === "Verified" ? "Final" : (formData.status || "Draft")}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                     className="w-full p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-bold outline-none focus:border-cyan-700 focus:bg-white transition"
                   >
                     <option value="Draft">Draft</option>
-                    <option value="Verified">Verified</option>
-                    <option value="Locked">Locked (Final)</option>
+                    <option value="Final">Final</option>
                   </select>
                 </div>
               </div>
@@ -712,7 +740,7 @@ export function CoalIndexPage({
                           type="number"
                           step="0.01"
                           placeholder="0.00"
-                          value={w.ici3Price || ""}
+                          value={w.ici3Price > 0 ? w.ici3Price : ""}
                           onChange={(e) => handleWeekPriceChange(idx, "ici3Price", e.target.value)}
                           className="w-full p-1.5 rounded-lg bg-white border border-slate-200 text-xs font-mono font-bold text-slate-900 shadow-2xs focus:border-cyan-700 outline-none"
                         />
@@ -722,7 +750,7 @@ export function CoalIndexPage({
                           type="number"
                           step="0.01"
                           placeholder="0.00"
-                          value={w.ici4Price || ""}
+                          value={w.ici4Price > 0 ? w.ici4Price : ""}
                           onChange={(e) => handleWeekPriceChange(idx, "ici4Price", e.target.value)}
                           className="w-full p-1.5 rounded-lg bg-white border border-slate-200 text-xs font-mono font-bold text-slate-900 shadow-2xs focus:border-cyan-700 outline-none"
                         />
@@ -757,7 +785,8 @@ export function CoalIndexPage({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-lg bg-cyan-800 hover:bg-cyan-900 text-white font-bold text-xs shadow-2xs transition active:scale-95 cursor-pointer"
+                  disabled={!canEdit}
+                  className="px-4 py-2 rounded-lg bg-cyan-800 hover:bg-cyan-900 disabled:opacity-50 text-white font-bold text-xs shadow-2xs transition active:scale-95 cursor-pointer"
                 >
                   Simpan Data Index
                 </button>
