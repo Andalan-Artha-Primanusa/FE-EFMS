@@ -19,31 +19,31 @@
 
 /* Global Proportional Ratio Scaling Engine */
 html {
-  font-size: 15px;
+  font-size: 13.5px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
-/* Large Screens (>= 1680px) */
-@media (min-width: 1680px) {
+/* Base / Tablet & Compact Screens (<1024px) */
+@media (max-width: 1023px) {
   :root {
-    --app-sidebar-width: 270px;
-    --app-topbar-min-height: 62px;
-    --app-workspace-padding: 1.5rem;
-    --app-card-padding: 1.25rem;
-    --app-control-height: 2.5rem;
+    --app-sidebar-width: 240px;
+    --app-topbar-min-height: 48px;
+    --app-workspace-padding: 0.85rem;
+    --app-card-padding: 0.75rem;
+    --app-control-height: 2.2rem;
   }
   html {
-    font-size: 15.5px;
+    font-size: 13px;
   }
 }
 
-/* 1366px - 1679px screens (Standard 14"/15.6" Laptops / 1080p at 125% OS scaling / 1440x900) */
-@media (max-width: 1600px) {
+/* HD Screens (1024px - 1439px: 13"/14" Laptops / 1366x768 / 1080p @ 125%-150% scaling) */
+@media (min-width: 1024px) and (max-width: 1439px) {
   :root {
-    --app-sidebar-width: 236px;
-    --app-topbar-min-height: 52px;
+    --app-sidebar-width: 224px;
+    --app-topbar-min-height: 50px;
     --app-workspace-padding: 1rem;
     --app-card-padding: 0.875rem;
     --app-control-height: 2.25rem;
@@ -53,45 +53,31 @@ html {
   }
 }
 
-/* 1180px - 1365px screens (13" Laptops / 1366x768 / 1080p at 150% OS scaling) */
-@media (max-width: 1365px) {
+/* FHD Screens (1440px - 1920px: Standard 1080p Desktop Monitor / 15.6" Laptop @ 100%) */
+@media (min-width: 1440px) and (max-width: 1920px) {
   :root {
-    --app-sidebar-width: 216px;
-    --app-topbar-min-height: 48px;
-    --app-workspace-padding: 0.85rem;
-    --app-card-padding: 0.75rem;
-    --app-control-height: 2.15rem;
+    --app-sidebar-width: 250px;
+    --app-topbar-min-height: 56px;
+    --app-workspace-padding: 1.35rem;
+    --app-card-padding: 1.1rem;
+    --app-control-height: 2.45rem;
   }
   html {
-    font-size: 12.5px;
+    font-size: 14.5px;
   }
 }
 
-/* <= 1180px screens (Compact Laptop screens & Lower resolutions) */
-@media (max-width: 1180px) {
+/* 2K / QHD / Ultrawide Screens (>= 1921px s.d. 2560px+) */
+@media (min-width: 1921px) {
   :root {
-    --app-sidebar-width: 200px;
-    --app-topbar-min-height: 46px;
-    --app-workspace-padding: 0.75rem;
-    --app-card-padding: 0.65rem;
-    --app-control-height: 2rem;
+    --app-sidebar-width: 270px;
+    --app-topbar-min-height: 62px;
+    --app-workspace-padding: 1.85rem;
+    --app-card-padding: 1.35rem;
+    --app-control-height: 2.65rem;
   }
   html {
-    font-size: 12px;
-  }
-}
-
-/* Tablet & Mobile Breakpoints */
-@media (max-width: 1024px) {
-  :root {
-    --app-sidebar-width: 260px;
-    --app-topbar-min-height: 48px;
-    --app-workspace-padding: 0.75rem;
-    --app-card-padding: 0.75rem;
-    --app-control-height: 2.25rem;
-  }
-  html {
-    font-size: 13px;
+    font-size: 16px;
   }
 }
 
@@ -494,6 +480,8 @@ textarea { min-height: 80px; resize: vertical; }
 .app-shell {
   @apply flex min-h-screen bg-finance-canvas text-finance-ink;
   background: #f8fafc;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 .sidebar {
   @apply sticky top-0 h-screen overflow-y-auto border-r border-slate-200 bg-white px-3 py-3.5 shadow-[8px_0_26px_rgba(15,23,42,.045)] backdrop-blur-xl;
@@ -592,35 +580,50 @@ details button.active {
 
 .workspace { 
   @apply min-w-0 flex-1 pb-6 pt-0; 
-  padding-left: var(--app-workspace-padding, 1.5rem);
-  padding-right: var(--app-workspace-padding, 1.5rem);
+  padding-left: var(--app-workspace-padding, 1.35rem);
+  padding-right: var(--app-workspace-padding, 1.35rem);
+  width: 100%;
+  max-width: 2280px;
+}
+.workspace-body {
+  width: 100%;
+  max-width: 2200px;
 }
 .topbar {
-  @apply mb-5 flex items-center justify-between gap-4 border-b border-slate-200 bg-white shadow-[0_4px_16px_rgba(15,23,42,.035)];
-  min-height: var(--app-topbar-min-height, 64px);
-  margin-left: calc(-1 * var(--app-workspace-padding, 1.5rem));
-  margin-right: calc(-1 * var(--app-workspace-padding, 1.5rem));
-  padding-left: var(--app-workspace-padding, 1.5rem);
-  padding-right: var(--app-workspace-padding, 1.5rem);
+  @apply mb-5 flex items-center justify-between gap-3 border-b border-slate-200 bg-white shadow-[0_4px_16px_rgba(15,23,42,.035)];
+  min-height: var(--app-topbar-min-height, 56px);
+  margin-left: calc(-1 * var(--app-workspace-padding, 1.35rem));
+  margin-right: calc(-1 * var(--app-workspace-padding, 1.35rem));
+  padding-left: var(--app-workspace-padding, 1.35rem);
+  padding-right: var(--app-workspace-padding, 1.35rem);
   padding-top: 0.45rem;
   padding-bottom: 0.45rem;
 }
 .topbar-main {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 .topbar-title {
   min-width: 0;
   display: grid;
   gap: 2px;
 }
-.top-actions { display: flex; align-items: center; gap: 8px; }
+.topbar-title h2 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: clamp(0.95rem, 1.25vw, 1.35rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.top-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .search {
   @apply flex items-center gap-2 rounded-enterprise border border-slate-200 bg-slate-50 px-2.5 transition focus-within:border-finance-teal focus-within:bg-white focus-within:shadow-sm;
   min-height: var(--app-control-height, 2.5rem);
-  width: min(380px, 32vw);
+  width: min(340px, 28vw);
   font-size: 0.85rem;
 }
 .search input { border: 0; padding: 0; min-height: auto; width: 100%; outline: 0; font-size: 0.85rem; }
@@ -636,21 +639,25 @@ details button.active {
   height: 1.15rem;
 }
 .user-pill {
-  min-width: 160px;
+  min-width: 120px;
+  max-width: 210px;
 }
 .user-pill span,
 .user-pill small {
   display: block;
   line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .user-pill span {
   font-weight: 850;
   color: #1e2b4d;
-  font-size: 0.85rem;
+  font-size: 0.825rem;
 }
 .user-pill small {
   color: #64748b;
-  font-size: 0.725rem;
+  font-size: 0.7rem;
   font-weight: 700;
 }
 .icon-btn { width: var(--app-control-height, 2.5rem); padding: 0; }
@@ -1057,11 +1064,15 @@ th { color: #5A5046; font-size: 0.7rem; text-transform: uppercase; letter-spacin
   background: rgba(15,23,42,.38);
   display: grid;
   place-items: center;
-  padding: 20px;
+  padding: 16px;
   z-index: 40;
+  overflow-y: auto;
 }
 .modal {
-  width: min(540px, 100%);
+  width: min(560px, 95vw);
+  max-height: calc(100vh - 36px);
+  max-height: calc(100dvh - 36px);
+  overflow-y: auto;
   background: #ffffff;
   border-radius: 8px;
   padding: 18px;

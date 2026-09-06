@@ -33,7 +33,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   const [viewRows, setViewRows] = useState<any[]>([]);
   const [viewLoading, setViewLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => (typeof window !== "undefined" && window.innerWidth > 820 && window.innerWidth <= 1280));
   const query = "";
   const [notifications, setNotifications] = useState<AuditLog[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);

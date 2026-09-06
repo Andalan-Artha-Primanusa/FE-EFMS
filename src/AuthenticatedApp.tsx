@@ -43,6 +43,8 @@ export function AuthenticatedApp({ user, onLogout }: { user: User; onLogout: () 
         <Route path="journal-posting" element={<ProtectedRoute requiredView="Journal Posting"><GeneralJournalRoute viewTitle="Journal Posting" /></ProtectedRoute>} />
         <Route path="general-ledger" element={<ProtectedRoute requiredView="General Ledger"><GeneralJournalRoute viewTitle="General Ledger" /></ProtectedRoute>} />
         <Route path="trial-balance" element={<ProtectedRoute requiredView="Trial Balance"><GeneralJournalRoute viewTitle="Trial Balance" /></ProtectedRoute>} />
+        <Route path="profit-loss" element={<ProtectedRoute requiredView="General Journal"><GeneralJournalRoute viewTitle="Profit & Loss" /></ProtectedRoute>} />
+        <Route path="balance-sheet" element={<ProtectedRoute requiredView="General Journal"><GeneralJournalRoute viewTitle="Balance Sheet" /></ProtectedRoute>} />
         <Route path="closing-period" element={<ProtectedRoute requiredView="Closing Period"><ClosingPeriodRoute viewTitle="Closing Period" /></ProtectedRoute>} />
 
         <Route path="annual-budget" element={<ProtectedRoute requiredView="Annual Budget"><BudgetManagementRoute viewTitle="Annual Budget" /></ProtectedRoute>} />

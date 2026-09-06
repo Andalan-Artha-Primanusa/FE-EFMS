@@ -96,11 +96,25 @@ export const SBS_DISTANCE_TIERS: SBSDistanceTier[] = [
   { min: 9751, max: 10000, rangeLabel: "9751-10000", rate: 61285 },
 ];
 
-export function getSBSTarifByDistance(distance: number): { rate: number; tier: SBSDistanceTier | null } {
+export function getSBSTarifByDistance(distance: number, dynamicSowRows?: any[]): { rate: number; tier: SBSDistanceTier | null } {
   if (distance === undefined || distance === null || distance < 0) {
     return { rate: 0, tier: null };
   }
   const dist = Number(distance);
+
+  // Prioritaskan baris tarif dari Master Data Variable SOW jika tersedia
+  if (dynamicSowRows && dynamicSowRows.length > 0) {
+    const sbsSows = dynamicSowRows.filter(s => (s.customer === "SBS" || s.customerCode === "SBS") && (s.rateIDR > 0 || s.tier1Rate > 0));
+    for (const sow of sbsSows) {
+      const min = sow.baseDistanceMeters || 0;
+      const max = sow.maxDistanceMeters || (min > 0 ? min + 250 : 0);
+      if (max > 0 && dist >= min && dist <= max) {
+        const r = sow.rateIDR || sow.tier1Rate || 0;
+        return { rate: r, tier: { min, max, rangeLabel: `${min}-${max}`, rate: r } };
+      }
+    }
+  }
+
   const matched = SBS_DISTANCE_TIERS.find((t) => dist >= t.min && dist <= t.max);
   if (matched) {
     return { rate: matched.rate, tier: matched };

@@ -659,16 +659,67 @@ export interface TrialBalanceRow {
   neracaKredit: number;
 }
 
+export interface ProfitLossProductionMetric {
+  metricName: string;
+  unit: string;
+  actual: number;
+  budget: number;
+}
+
+export interface ProfitLossItem {
+  accountCode: string;
+  accountName: string;
+  actual: number;
+  budget: number;
+  percentage: number;
+}
+
 export interface ProfitLossData {
-  revenue: Array<{ accountCode: string; accountName: string; amount: number }>;
-  expenses: Array<{ accountCode: string; accountName: string; amount: number }>;
-  netProfit: number;
+  period?: string;
+  projectCode?: string;
+  productionMetrics?: ProfitLossProductionMetric[];
+  revenueItems?: ProfitLossItem[];
+  totalRevenue?: number;
+  cogsItems?: ProfitLossItem[];
+  totalCOGS?: number;
+  grossProfit?: number;
+  opexItems?: ProfitLossItem[];
+  totalOPEX?: number;
+  netIncome?: number;
+  // Legacy / fallback fields
+  revenue?: Array<{ accountCode: string; accountName: string; amount: number }>;
+  expenses?: Array<{ accountCode: string; accountName: string; amount: number }>;
+  netProfit?: number;
+}
+
+export interface BalanceSheetItem {
+  accountCode: string;
+  accountName: string;
+  amount: number;
 }
 
 export interface BalanceSheetData {
-  assets: Array<{ accountCode: string; accountName: string; amount: number }>;
-  liabilities: Array<{ accountCode: string; accountName: string; amount: number }>;
-  equity: Array<{ accountCode: string; accountName: string; amount: number }>;
+  period?: string;
+  projectCode?: string;
+  currentAssets?: BalanceSheetItem[];
+  totalCurrentAsset?: number;
+  fixedAssets?: BalanceSheetItem[];
+  totalFixedAsset?: number;
+  totalAsset?: number;
+  currentLiabilities?: BalanceSheetItem[];
+  totalCurrentLiab?: number;
+  longTermLiabilities?: BalanceSheetItem[];
+  totalLongTermLiab?: number;
+  totalLiabilities?: number;
+  equityItems?: BalanceSheetItem[];
+  netIncomeYTD?: number;
+  totalEquity?: number;
+  totalLiabAndEquity?: number;
+  isBalanced?: boolean;
+  // Legacy / fallback fields
+  assets?: Array<{ accountCode: string; accountName: string; amount: number }>;
+  liabilities?: Array<{ accountCode: string; accountName: string; amount: number }>;
+  equity?: Array<{ accountCode: string; accountName: string; amount: number }>;
 }
 
 // ─── Accounting — Runs ──────────────────────────────────────

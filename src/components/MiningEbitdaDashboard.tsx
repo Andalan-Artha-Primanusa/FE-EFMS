@@ -3,7 +3,8 @@ import { RefreshCw } from "lucide-react";
 
 export function MiningEbitdaDashboard({ onRefresh }: { onRefresh?: () => void }) {
   return (
-    <div className="bg-white border border-slate-300 rounded shadow-xs p-2.5 text-slate-800 text-xs overflow-x-auto min-w-[1200px] selection:bg-cyan-100">
+    <div className="w-full overflow-x-auto border border-slate-300 rounded shadow-xs bg-white selection:bg-cyan-100">
+      <div className="p-2.5 text-slate-800 text-xs min-w-[980px] xl:min-w-full">
       
       {/* Top Controls Header */}
       <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-200">
@@ -786,5 +787,6 @@ export function MiningEbitdaDashboard({ onRefresh }: { onRefresh?: () => void })
       </div>
 
     </div>
+  </div>
   );
 }

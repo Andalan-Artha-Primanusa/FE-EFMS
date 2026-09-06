@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
-import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, getSBSPenalties, saveSBSPenalty, deleteSBSPenalty, SBSPenaltyItem, User as UserType, generateJournalFromInvoice, generateJournalFromPayment } from "../../lib/api";
+import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, getSBSPenalties, saveSBSPenalty, deleteSBSPenalty, SBSPenaltyItem, User as UserType, generateJournalFromInvoice, generateJournalFromBA, generateJournalFromPayment, getJournals } from "../../lib/api";
 import { authorized } from "../../lib/auth";
 
 import {
@@ -34,6 +34,7 @@ export function useFinanceController({
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [baRows, setBaRows] = useState<any[]>([]);
+  const [accountingJournals, setAccountingJournals] = useState<any[]>([]);
 
   const userRole = user?.role || "Super Admin";
   const isSuper = userRole === "Super Admin" || userRole === "Superadmin";
@@ -861,7 +862,7 @@ export function useFinanceController({
   async function loadData() {
     setLoading(true);
     try {
-      const [dashRes, baRes, invRes, payRes, custRes, pVolRes, sbsPenRes] = await Promise.all([
+      const [dashRes, baRes, invRes, payRes, custRes, pVolRes, sbsPenRes, jrnRes] = await Promise.all([
         (viewTitle === "Finance & AR Dashboard" || viewTitle === "Finance AR Dashboard" || viewTitle.includes("AR Dashboard"))
           ? api<any>("/api/finance/dashboard").catch(() => null)
           : Promise.resolve(null),
@@ -870,7 +871,8 @@ export function useFinanceController({
         api<any[]>("/api/finance/payments").catch(() => []),
         api<any[]>("/api/finance/customers").catch(() => []),
         api<any[]>("/api/finance/pending-volumes").catch(() => []),
-        getSBSPenalties().catch(() => [])
+        getSBSPenalties().catch(() => []),
+        getJournals().catch(() => [])
       ]);
 
       if (dashRes) setDashboardData(dashRes);
@@ -880,6 +882,7 @@ export function useFinanceController({
       if (Array.isArray(custRes)) setCustomerRows(custRes);
       if (Array.isArray(pVolRes)) setPendingVolumeLedgers(pVolRes);
       if (Array.isArray(sbsPenRes)) setSbsPenalties(sbsPenRes);
+      if (Array.isArray(jrnRes)) setAccountingJournals(jrnRes);
     } catch (err: any) {
       onNotice(err?.message || "Gagal memuat data finance");
     } finally {
@@ -2304,6 +2307,16 @@ export function useFinanceController({
     }
   };
 
+  const handleAccrueBA = async (id: number) => {
+    try {
+      await generateJournalFromBA(id);
+      onNotice("Jurnal Akrual Pendapatan (Unbilled AR) berhasil dibukukan ke General Ledger.");
+      await loadData();
+    } catch (err: any) {
+      onNotice(err?.message || "Gagal mengakrualkan Berita Acara");
+    }
+  };
+
   const handleSaveBGGBA = async (baPayload: any, isSubmit = false) => {
     try {
       if (baPayload.id) {
@@ -2350,6 +2363,11 @@ export function useFinanceController({
   const handleApproveInvoice = async (id: number) => {
     try {
       const updated = await approveInvoice(id, "approve", "Persetujuan Invoice oleh Manager FATB");
+      try {
+        await generateJournalFromInvoice(id);
+      } catch (jErr: any) {
+        console.warn("Auto-journal info/warning:", jErr);
+      }
       onNotice("Invoice berhasil disetujui oleh Manager FATB. Status: Disetujui & Jurnal Piutang AR Terbit.");
       await loadData();
       if (detailViewItem && detailViewItem.type === "invoice" && detailViewItem.data.id === id) {
@@ -2492,10 +2510,10 @@ export function useFinanceController({
     exportARBAIMonitoringExcel, exportARBAIMonitoringPDF, exportBAOnlyExcel, exportBAOnlyPDF, exportAROnlyExcel,
     exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV, loadData, handleSavePartialPayment, handleVerifyPartialPayment, buildInvoiceItemsFromBA,
     handleBASelect, createInvoiceFromBA, openBAModal, openCreateModal, openEditModal,
-    handleFileUpload, handleSave, handleVerifyBA, handleApproveBA, handleSaveBGGBA,
+    handleFileUpload, handleSave, handleVerifyBA, handleApproveBA, handleAccrueBA, handleSaveBGGBA,
     handleGenerateInvoiceFromBA, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, handleDelete,
     volPreview, ratePreview, grossPreview, solarPreview, subtotalDPPPreview,
     ppn11Preview, pph23Preview, totalNetInvoicePreview, totalAgingMatrix, viewTitle,
-    query, onNotice, user
+    query, onNotice, user, accountingJournals
   };
 }

@@ -88,6 +88,11 @@ export function GeneralJournalRoute({ viewTitle }: { viewTitle: string }) {
     "Journal Posting": "posting",
     "General Ledger": "general-ledger",
     "Trial Balance": "trial-balance",
+    "Profit & Loss": "profit-loss",
+    "Profit and Loss": "profit-loss",
+    "Laba Rugi": "profit-loss",
+    "Balance Sheet": "balance-sheet",
+    "Neraca": "balance-sheet",
   };
   const initialTab = (tabMap[viewTitle] ?? "journal-entry") as any;
 

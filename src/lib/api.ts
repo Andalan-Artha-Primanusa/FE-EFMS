@@ -561,6 +561,10 @@ export function generateJournalFromInvoice(id: number) {
   return api<any>(`/api/accounting/generate-from-invoice/${id}`, { method: "POST" });
 }
 
+export function generateJournalFromBA(id: number) {
+  return api<any>(`/api/accounting/generate-from-ba/${id}`, { method: "POST" });
+}
+
 export function generateJournalFromPayment(id: number) {
   return api<any>(`/api/accounting/generate-from-payment/${id}`, { method: "POST" });
 }

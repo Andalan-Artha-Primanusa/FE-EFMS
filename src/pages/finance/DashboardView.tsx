@@ -22,7 +22,7 @@ export function DashboardView({ c }: { c: any }) {
   return (
         <>
           {/* Top KPI Cards - Neutral & Clean Corporate Style */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2k:grid-cols-5 gap-3.5">
             {(dashboardData?.kpis ?? []).map((kpi: any, idx: number) => {
               const label = String(kpi?.Label || kpi?.label || "");
               const tone = String(kpi?.Tone || kpi?.tone || "");
@@ -48,10 +48,12 @@ export function DashboardView({ c }: { c: any }) {
               }
 
               return (
-                <div key={idx} className="p-4 rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col justify-between hover:border-slate-300 transition">
+                <div key={idx} className="p-3.5 sm:p-4 rounded-xl border border-slate-200 bg-white shadow-xs flex flex-col justify-between hover:border-slate-300 transition">
                   <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{label}</span>
-                  <div className="my-2.5">
-                    <span className="text-2xl font-black text-slate-900 tracking-tight font-mono">{valStr}</span>
+                  <div className="my-2">
+                    <span className="text-lg sm:text-xl xl:text-2xl 2k:text-3xl font-black text-slate-900 tracking-tight font-mono block truncate" title={valStr}>
+                      {valStr}
+                    </span>
                   </div>
                   <div className={`inline-flex items-center text-[10px] px-2 py-0.5 rounded-full border w-fit font-bold ${badgeStyle}`}>
                     {badgeText}

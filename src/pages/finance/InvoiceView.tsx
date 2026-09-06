@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Truck } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Truck, BookOpen } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, User as UserType } from "../../lib/api";
@@ -22,12 +22,13 @@ export function InvoiceView({ c }: { c: any }) {
     setDetailViewItem, templateRows: rawTemplateRows, exportAROnlyExcel, exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV, openCreateModal,
     openEditModal, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, handleDelete,
     sbsPenalties: rawSbsPenalties, sbsPenaltyModalOpen, sbsPenaltyEditItem, handleSaveSBSPenalty, handleDeleteSBSPenalty, openSBSPenaltyModal, closeSBSPenaltyModal,
-    query = ""
+    query = "", accountingJournals: rawAccountingJournals
   } = (c || {}) as Record<string, any>;
   const templateRows = typeof rawTemplateRows === "function" ? rawTemplateRows : () => [];
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
   const sbsPenalties: any[] = Array.isArray(rawSbsPenalties) ? rawSbsPenalties : [];
+  const accountingJournals: any[] = Array.isArray(rawAccountingJournals) ? rawAccountingJournals : [];
   const safeInvoiceRows: any[] = invoiceRows;
   const safeBaRows: any[] = baRows;
 
@@ -158,9 +159,6 @@ export function InvoiceView({ c }: { c: any }) {
                         <h3 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wider">
                           Master Penagihan & Outstanding AR
                         </h3>
-                        <p className="text-[11px] text-slate-500 font-medium">
-                          Pilih kartu di bawah untuk menyaring sajian tabel sesuai baseline Excel
-                        </p>
                       </div>
                     </div>
 
@@ -387,9 +385,6 @@ export function InvoiceView({ c }: { c: any }) {
                       <span className="text-sm sm:text-base lg:text-lg font-bold font-mono text-slate-900 mt-0.5 block truncate">
                         {formatIDR(totalARAndalan)}
                       </span>
-                      <span className="text-[10px] font-sans text-slate-500 font-medium block truncate mt-0.5">
-                        BGG + PTRO + SBS + POS Outstanding
-                      </span>
                     </div>
 
                     {/* Card 2: Total progress Pinalty yang belum di potong */}
@@ -403,9 +398,6 @@ export function InvoiceView({ c }: { c: any }) {
                       <span className="text-sm sm:text-base lg:text-lg font-bold font-mono text-amber-800 mt-0.5 block truncate">
                         {formatIDR(totalPenaltyUncut)}
                       </span>
-                      <span className="text-[10px] font-sans text-slate-500 font-medium block truncate mt-0.5">
-                        Klaim Penalti Section P (SBS)
-                      </span>
                     </div>
 
                     {/* Card 3: Total Subject To Invoice */}
@@ -418,9 +410,6 @@ export function InvoiceView({ c }: { c: any }) {
                       </span>
                       <span className="text-sm sm:text-base lg:text-lg font-bold font-mono text-emerald-800 mt-0.5 block truncate">
                         {formatIDR(totalSubjectToInvoice)}
-                      </span>
-                      <span className="text-[10px] font-sans text-slate-500 font-medium block truncate mt-0.5">
-                        Total BA Siap Tagih (Ready to Invoice)
                       </span>
                     </div>
                   </div>
@@ -542,6 +531,18 @@ export function InvoiceView({ c }: { c: any }) {
                                         <td className="p-2.5 text-right font-mono font-bold text-rose-700">{formatIDR(row.outstanding)}</td>
                                         <td className="p-2.5 text-center">
                                           {renderInvoiceStatusBadge(row.status)}
+                                          {(() => {
+                                            const matchedJrn = accountingJournals.find((j: any) => j.sourceModule === "INVOICE" && j.sourceReference === row.invoiceNo && j.status !== "Void" && j.status !== "Reversed");
+                                            if (!matchedJrn) return null;
+                                            return (
+                                              <div className="mt-1">
+                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-emerald-50 text-emerald-800 border border-emerald-300 font-semibold" title={`Jurnal Piutang: ${matchedJrn.journalNumber} (${matchedJrn.status})`}>
+                                                  <BookOpen size={10} className="text-emerald-700" />
+                                                  {matchedJrn.journalNumber}
+                                                </span>
+                                              </div>
+                                            );
+                                          })()}
                                         </td>
                                         <td className="p-2.5 text-right whitespace-nowrap sticky right-0 z-10 bg-white group-hover:bg-slate-50 transition-colors shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] border-l border-slate-200">
                                           <div className="flex items-center justify-end gap-1.5 flex-nowrap min-w-[150px]">

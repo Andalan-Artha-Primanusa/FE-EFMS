@@ -3,6 +3,12 @@ export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      screens: {
+        'xs': '480px',
+        'hd': '1280px',
+        'fhd': '1920px',
+        '2k': '2560px'
+      },
       fontFamily: {
         sans: ["'Plus Jakarta Sans'", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["'Plus Jakarta Sans'", "ui-monospace", "Menlo", "monospace"]

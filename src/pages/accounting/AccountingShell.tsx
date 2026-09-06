@@ -7,6 +7,8 @@ import {
   RefreshCw,
   Plus,
   FileText,
+  TrendingUp,
+  Layers,
 } from "lucide-react";
 import {
   getJournals,
@@ -24,10 +26,12 @@ import { JournalEntryView } from "./JournalEntryView";
 import { JournalPostingView } from "./JournalPostingView";
 import { GeneralLedgerView } from "./GeneralLedgerView";
 import { TrialBalanceView } from "./TrialBalanceView";
+import { ProfitLossView } from "./ProfitLossView";
+import { BalanceSheetView } from "./BalanceSheetView";
 
 import type { LucideIcon } from "lucide-react";
 
-type Tab = "journal-entry" | "posting" | "general-ledger" | "trial-balance";
+type Tab = "journal-entry" | "posting" | "general-ledger" | "trial-balance" | "profit-loss" | "balance-sheet";
 
 interface AccountingShellProps {
   initialTab?: Tab;
@@ -40,6 +44,8 @@ const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: "posting", label: "Verifikasi & Posting", icon: ShieldCheck },
   { id: "general-ledger", label: "Buku Besar", icon: BookOpen },
   { id: "trial-balance", label: "Neraca Saldo", icon: Scale },
+  { id: "profit-loss", label: "Laba Rugi", icon: TrendingUp },
+  { id: "balance-sheet", label: "Neraca", icon: Layers },
 ];
 
 export const AccountingShell: React.FC<AccountingShellProps> = ({
@@ -211,6 +217,14 @@ export const AccountingShell: React.FC<AccountingShellProps> = ({
 
         {activeTab === "trial-balance" && (
           <TrialBalanceView onDrillDownToGL={handleDrillDownToGL} />
+        )}
+
+        {activeTab === "profit-loss" && (
+          <ProfitLossView />
+        )}
+
+        {activeTab === "balance-sheet" && (
+          <BalanceSheetView />
         )}
       </div>
     </div>

@@ -20,11 +20,12 @@ export function BATrackerView({ c }: { c: any }) {
     setBaFilter, periodFilter, setPeriodFilter, showExportBADropdown, setShowExportBADropdown,
     showInputBADropdown, setShowInputBADropdown, baRowActionDropdownId, setBaRowActionDropdownId, setDetailViewItem,
     exportBAOnlyExcel, exportBAOnlyPDF, exportBADocumentPDF, createInvoiceFromBA, openBAModal, openCreateModal,
-    handleGenerateInvoiceFromBA, handleDelete, query = "", onNotice
+    handleGenerateInvoiceFromBA, handleDelete, query = "", onNotice, handleAccrueBA, accountingJournals: rawAccountingJournals
   } = (c || {}) as Record<string, any>;
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
   const pendingVolumeLedgers: any[] = Array.isArray(rawPendingVolumeLedgers) ? rawPendingVolumeLedgers : [];
+  const accountingJournals: any[] = Array.isArray(rawAccountingJournals) ? rawAccountingJournals : [];
   const safeBaRows: any[] = baRows;
         const availablePeriods: any[] = Array.from(new Set(safeBaRows.map((r) => r?.workPeriod).filter(Boolean)));
         if (!availablePeriods.includes("Jul-26")) availablePeriods.unshift("Jul-26");
@@ -103,9 +104,6 @@ export function BATrackerView({ c }: { c: any }) {
                     <h3 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">
                       Siklus & Proyeksi Berita Acara ({periodFilter === "All" ? "Semua Periode" : `Periode ${periodFilter}`})
                     </h3>
-                    <p className="text-[11px] text-slate-500 font-medium">
-                      Kelola dokumen klaim produksi tambang dari join survey hingga siap terbit tagihan resmi.
-                    </p>
                   </div>
                 </div>
 
@@ -274,9 +272,6 @@ export function BATrackerView({ c }: { c: any }) {
                   <div className="text-sm sm:text-base lg:text-lg font-bold font-mono text-emerald-950 pt-0.5 truncate">
                     {formatIDR(stageReadyNominal)}
                   </div>
-                  <p className="text-[10px] text-emerald-700 font-medium truncate">
-                    Volume terkonfirmasi siap terbit tagihan resmi
-                  </p>
                 </div>
 
                 {/* Card 2: BA On Progress */}
@@ -292,9 +287,6 @@ export function BATrackerView({ c }: { c: any }) {
                   <div className="text-sm sm:text-base lg:text-lg font-bold font-mono text-amber-950 pt-0.5 truncate">
                     {formatIDR(baOnProgressNominal)}
                   </div>
-                  <p className="text-[10px] text-amber-700 font-medium truncate">
-                    Menunggu finalisasi survey / approval SPV
-                  </p>
                 </div>
 
                 {/* Card 3: Pending Volume (Over Kontrak / Stripping Ratio) */}
@@ -322,10 +314,6 @@ export function BATrackerView({ c }: { c: any }) {
                       <div className="text-sm sm:text-base lg:text-lg font-bold font-mono text-indigo-950 pt-0.5 truncate">
                         {formatIDR(totalPendingDisplay)}
                       </div>
-                      <div className="flex items-center justify-between text-[10px] text-indigo-700 font-medium">
-                        <span className="truncate">Saldo OB di atas rasio SOW</span>
-                        <span className="text-[9px] font-bold underline shrink-0">Buka Kartu ↗</span>
-                      </div>
                     </div>
                   );
                 })()}
@@ -343,20 +331,17 @@ export function BATrackerView({ c }: { c: any }) {
                   <div className="text-sm sm:text-base lg:text-lg font-bold font-mono text-cyan-950 pt-0.5 truncate">
                     {formatIDR(estTotalRevPeriod)}
                   </div>
-                  <p className="text-[10px] text-cyan-700 font-medium truncate">
-                    Proyeksi pendapatan operasional periode
-                  </p>
                 </div>
               </div>
             </div>
 
             {/* Grouped Table Panel */}
-            <Panel title={`Daftar Berita Acara Pekerjaan (Filter: ${baFilter === "All" ? "Semua Status" : baFilter}, Periode: ${periodFilter})`}>
+            <Panel title="Daftar Berita Acara Pekerjaan">
               {/* CHEVRON / ARROW PROCESS STEPPER FILTER (HORIZONTALLY SCROLLABLE & COMPACT) */}
               <div className="space-y-1.5 mb-2.5">
                 <div className="flex justify-between items-center px-0.5">
                   <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1">
-                    <Layers size={13} className="text-cyan-700" /> Alur Siklus Dokumen (Klik Tahap untuk Filter):
+                    <Layers size={13} className="text-cyan-700" /> Alur Siklus Dokumen
                   </span>
                   {baFilter !== "All" && (
                     <button
@@ -370,14 +355,14 @@ export function BATrackerView({ c }: { c: any }) {
                 </div>
                 {/* Connected Arrow / Chevron Process Bar with Horizontal Scrollbar Container */}
                 <div className="w-full overflow-x-auto pb-1.5 scrollbar-thin">
-                  <div className="flex items-stretch min-w-[1100px] bg-slate-200/90 p-1 rounded-xl border border-slate-300 shadow-2xs gap-0">
+                  <div className="flex items-stretch min-w-[900px] bg-slate-200/90 p-1 rounded-xl border border-slate-300 shadow-2xs gap-0">
                     {/* Step 1: Draft & Survey */}
                     <div
                       onClick={() => setBaFilter(baFilter === "Submit" ? "All" : "Submit")}
                       style={{
                         clipPath: "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%)",
                       }}
-                      className={`flex-1 min-w-[210px] py-2 pl-3.5 pr-6 transition-all cursor-pointer select-none relative ${
+                      className={`flex-1 min-w-[170px] py-1.5 pl-3.5 pr-6 transition-all cursor-pointer select-none relative ${
                         baFilter === "Submit"
                           ? "bg-slate-800 text-white shadow-md z-10 brightness-110"
                           : "bg-white hover:bg-slate-50 text-slate-800"
@@ -397,9 +382,6 @@ export function BATrackerView({ c }: { c: any }) {
                       <div className={`mt-0.5 font-mono font-bold text-xs whitespace-nowrap ${baFilter === "Submit" ? "text-white" : "text-slate-900"}`}>
                         {formatIDR(stageDraftNominal)}
                       </div>
-                      <div className={`text-[9px] font-medium mt-0.5 whitespace-nowrap truncate ${baFilter === "Submit" ? "text-slate-300" : "text-slate-500"}`}>
-                        Entri site & survey
-                      </div>
                     </div>
 
                     {/* Step 2: Verifikasi SPV */}
@@ -408,7 +390,7 @@ export function BATrackerView({ c }: { c: any }) {
                       style={{
                         clipPath: "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%)",
                       }}
-                      className={`flex-1 min-w-[210px] py-2 pl-6 pr-6 transition-all cursor-pointer select-none relative ${
+                      className={`flex-1 min-w-[170px] py-1.5 pl-6 pr-6 transition-all cursor-pointer select-none relative ${
                         baFilter === "Pending Berita Acara"
                           ? "bg-amber-600 text-white shadow-md z-10 brightness-105"
                           : "bg-white hover:bg-amber-50/70 text-slate-800"
@@ -428,9 +410,6 @@ export function BATrackerView({ c }: { c: any }) {
                       <div className={`mt-0.5 font-mono font-bold text-xs whitespace-nowrap ${baFilter === "Pending Berita Acara" ? "text-white" : "text-amber-900"}`}>
                         {formatIDR(stageVerifNominal)}
                       </div>
-                      <div className={`text-[9px] font-medium mt-0.5 whitespace-nowrap truncate ${baFilter === "Pending Berita Acara" ? "text-amber-100" : "text-slate-500"}`}>
-                        Pemeriksaan internal
-                      </div>
                     </div>
 
                     {/* Step 3: Revisi / Tertahan */}
@@ -439,7 +418,7 @@ export function BATrackerView({ c }: { c: any }) {
                       style={{
                         clipPath: "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%)",
                       }}
-                      className={`flex-1 min-w-[210px] py-2 pl-6 pr-6 transition-all cursor-pointer select-none relative ${
+                      className={`flex-1 min-w-[170px] py-1.5 pl-6 pr-6 transition-all cursor-pointer select-none relative ${
                         baFilter === "Revisi"
                           ? "bg-rose-600 text-white shadow-md z-10 brightness-105"
                           : "bg-white hover:bg-rose-50/70 text-slate-800"
@@ -459,9 +438,6 @@ export function BATrackerView({ c }: { c: any }) {
                       <div className={`mt-0.5 font-mono font-bold text-xs whitespace-nowrap ${baFilter === "Revisi" ? "text-white" : "text-rose-900"}`}>
                         {formatIDR(stageRevisiNominal)}
                       </div>
-                      <div className={`text-[9px] font-medium mt-0.5 whitespace-nowrap truncate ${baFilter === "Revisi" ? "text-rose-100" : "text-slate-500"}`}>
-                        Perlu perbaikan
-                      </div>
                     </div>
 
                     {/* Step 4: Siap Terbit Invoice */}
@@ -470,7 +446,7 @@ export function BATrackerView({ c }: { c: any }) {
                       style={{
                         clipPath: "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%)",
                       }}
-                      className={`flex-1 min-w-[210px] py-2 pl-6 pr-6 transition-all cursor-pointer select-none relative ${
+                      className={`flex-1 min-w-[170px] py-1.5 pl-6 pr-6 transition-all cursor-pointer select-none relative ${
                         baFilter === "Ready to Invoice"
                           ? "bg-emerald-600 text-white shadow-md z-10 brightness-105"
                           : "bg-white hover:bg-emerald-50/70 text-slate-800"
@@ -490,10 +466,6 @@ export function BATrackerView({ c }: { c: any }) {
                       <div className={`mt-0.5 font-mono font-bold text-xs whitespace-nowrap ${baFilter === "Ready to Invoice" ? "text-white" : "text-emerald-900"}`}>
                         {formatIDR(stageReadyNominal)}
                       </div>
-                      <div className={`text-[9px] font-bold mt-0.5 flex items-center gap-1 whitespace-nowrap truncate ${baFilter === "Ready to Invoice" ? "text-amber-300" : "text-emerald-700"}`}>
-                        <Zap size={10} className={baFilter === "Ready to Invoice" ? "fill-amber-300 text-amber-300" : "fill-amber-500 text-amber-500"} />
-                        1-Click Tagihan
-                      </div>
                     </div>
 
                     {/* Step 5: Arsip (Sudah Terbit Invoice) */}
@@ -502,7 +474,7 @@ export function BATrackerView({ c }: { c: any }) {
                       style={{
                         clipPath: "polygon(0 0, 100% 0, 100% 100%, 0 100%, 14px 50%)",
                       }}
-                      className={`flex-1 min-w-[210px] py-2 pl-6 pr-3.5 transition-all cursor-pointer select-none relative ${
+                      className={`flex-1 min-w-[170px] py-1.5 pl-6 pr-3.5 transition-all cursor-pointer select-none relative ${
                         baFilter === "Arsip"
                           ? "bg-purple-800 text-white shadow-md z-10 brightness-105"
                           : "bg-white hover:bg-purple-50/70 text-slate-800"
@@ -521,9 +493,6 @@ export function BATrackerView({ c }: { c: any }) {
                       </div>
                       <div className={`mt-0.5 font-mono font-bold text-xs whitespace-nowrap ${baFilter === "Arsip" ? "text-white" : "text-purple-900"}`}>
                         {formatIDR(stageArsipNominal)}
-                      </div>
-                      <div className={`text-[9px] font-medium mt-0.5 whitespace-nowrap truncate ${baFilter === "Arsip" ? "text-purple-200" : "text-slate-500"}`}>
-                        Sudah Terbit Invoice
                       </div>
                     </div>
                   </div>
@@ -653,6 +622,19 @@ export function BATrackerView({ c }: { c: any }) {
                                 {/* Kolom 5: Status Siklus BA */}
                                 <td className="p-2 text-center whitespace-nowrap">
                                   {renderBAStatusBadge(row.statusBA, row.invoiceNoLinked, isInvoiced, row, invoiceRows)}
+                                  {(() => {
+                                    const matchedAccrual = accountingJournals.find((j: any) => j.sourceModule === "BA_ACCRUAL" && j.sourceReference === row.baNumber && j.status !== "Void");
+                                    if (!matchedAccrual) return null;
+                                    const isRev = matchedAccrual.status === "Reversed";
+                                    return (
+                                      <div className="mt-1">
+                                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold border ${isRev ? "bg-slate-50 text-slate-500 border-slate-300" : "bg-blue-50 text-blue-800 border-blue-300"}`} title={`Jurnal Akrual: ${matchedAccrual.journalNumber} (${matchedAccrual.status})`}>
+                                          <Scale size={10} className={isRev ? "text-slate-400" : "text-blue-700"} />
+                                          {matchedAccrual.journalNumber} {isRev ? "(Cleared)" : "(Akrual)"}
+                                        </span>
+                                      </div>
+                                    );
+                                  })()}
                                 </td>
 
                                 {/* Kolom 6: Berkas PDF */}
@@ -794,6 +776,19 @@ export function BATrackerView({ c }: { c: any }) {
                                         )}
                                       </div>
                                     )}
+
+                                     {/* Tombol Akrualkan Pendapatan (Unbilled AR) */}
+                                     {(isReady || row.statusBA === "Approved") && !accountingJournals.some((j: any) => j.sourceModule === "BA_ACCRUAL" && j.sourceReference === row.baNumber && j.status !== "Void") && (
+                                       <button
+                                         type="button"
+                                         className="px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-300 font-bold text-[10px] shadow-2xs flex items-center gap-1 transition cursor-pointer"
+                                         onClick={() => handleAccrueBA && handleAccrueBA(row.id)}
+                                         title="Akrualkan Pendapatan (Unbilled AR) ke General Ledger"
+                                       >
+                                         <Scale size={11} className="text-blue-700" />
+                                         <span>Akrual AR</span>
+                                       </button>
+                                     )}
 
                                     {/* Non-POS: Ready to Invoice (1-Click) */}
                                     {row.customerCode !== "POS" && isReady && (
