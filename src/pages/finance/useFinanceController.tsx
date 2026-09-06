@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, getSBSPenalties, saveSBSPenalty, deleteSBSPenalty, SBSPenaltyItem, User as UserType, generateJournalFromInvoice, generateJournalFromBA, generateJournalFromPayment, getJournals } from "../../lib/api";
-import { authorized } from "../../lib/auth";
+import { authorized, filterRowsByCompanyScope } from "../../lib/auth";
 
 import {
   resolveDocumentUrl, formatIDR, parseNumber, formatThousand, formatDateInput,
@@ -876,11 +876,11 @@ export function useFinanceController({
       ]);
 
       if (dashRes) setDashboardData(dashRes);
-      if (Array.isArray(baRes)) setBaRows(baRes);
-      if (Array.isArray(invRes)) setInvoiceRows(invRes);
-      if (Array.isArray(payRes)) setPaymentRows(payRes);
-      if (Array.isArray(custRes)) setCustomerRows(custRes);
-      if (Array.isArray(pVolRes)) setPendingVolumeLedgers(pVolRes);
+      if (Array.isArray(baRes)) setBaRows(user ? filterRowsByCompanyScope(baRes, user) : baRes);
+      if (Array.isArray(invRes)) setInvoiceRows(user ? filterRowsByCompanyScope(invRes, user) : invRes);
+      if (Array.isArray(payRes)) setPaymentRows(user ? filterRowsByCompanyScope(payRes, user) : payRes);
+      if (Array.isArray(custRes)) setCustomerRows(user ? filterRowsByCompanyScope(custRes, user) : custRes);
+      if (Array.isArray(pVolRes)) setPendingVolumeLedgers(user ? filterRowsByCompanyScope(pVolRes, user) : pVolRes);
       if (Array.isArray(sbsPenRes)) setSbsPenalties(sbsPenRes);
       if (Array.isArray(jrnRes)) setAccountingJournals(jrnRes);
     } catch (err: any) {
@@ -1934,7 +1934,8 @@ export function useFinanceController({
     const todayStr = new Date().toISOString().slice(0, 10);
     const curMonth = getCurrentMonthPeriod();
     if (type === "ba") {
-      const cust = initialData.customerCode || "";
+      const userSiteCode = (user?.companyCode && user.companyCode !== "HO") ? user.companyCode : "";
+      const cust = initialData.customerCode || userSiteCode || "";
       const isBGG = cust === "BGG" || cust === "PT BGG";
       const isDBK = cust === "DBK";
       const isSBS = cust === "SBS";
@@ -1998,7 +1999,8 @@ export function useFinanceController({
         ...initialData,
       });
     } else if (type === "invoice") {
-      const defaultCompany = initialData?.customerCode || "POS";
+      const userSiteCode = (user?.companyCode && user.companyCode !== "HO") ? user.companyCode : "";
+      const defaultCompany = initialData?.customerCode || userSiteCode || "POS";
       const defaultPeriod = initialData?.workPeriod || "Juni 2026";
       const autoInvNo = generateInvoiceNumber(defaultCompany, defaultPeriod, invoiceRows.length);
       const cInfo = customerContractMap[defaultCompany];
