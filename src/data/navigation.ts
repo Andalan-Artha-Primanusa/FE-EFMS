@@ -170,7 +170,7 @@ export const menuPermissionMap: Record<string, string[]> = {
   "Currency": ["master_data:read"],
   "Coal Index": ["master_data:read"],
   "Variable SOW": ["master_data:read"],
-  "RAISE & FALL": ["master_data:read"],
+  "RAISE & FALL": ["master_data:read", "raise_fall:read"],
   "Annual Budget": ["budget:read"],
   "Monthly Budget": ["budget:read"],
   "Budget Submission": ["budget:submit"],

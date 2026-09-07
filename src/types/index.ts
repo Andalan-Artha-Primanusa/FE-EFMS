@@ -569,76 +569,157 @@ export interface DailyExchangeRate {
 
 // ─── Accounting ─────────────────────────────────────────────
 
+export interface JournalLine {
+  id?: number;
+  journalId?: number;
+  projectCode?: string;
+  accountCode: string;
+  accountName: string;
+  subAccountCode?: string;
+  description: string;
+  debit: number;
+  credit: number;
+  lineOrder?: number;
+}
+
 export interface JournalEntry {
   id: number;
   journalNumber: string;
   journalDate: string;
-  sourceModule: string;
-  sourceReference: string;
+  sourceModule?: string;
+  sourceReference?: string;
+  customerCode?: string;
   description: string;
-  status: string;
   totalDebit: number;
   totalCredit: number;
+  isBalanced?: boolean;
+  status: string; // "Draft" | "Verified" | "Approved" | "Posted to GL" | "Reversed"
+  createdBy?: string;
+  verifiedBy?: string;
+  approvedBy?: string;
+  postedBy?: string;
+  createdAt?: string;
   lines: JournalLine[];
-  createdAt: string;
-}
-
-export interface JournalLine {
-  id: number;
-  accountCode: string;
-  accountName: string;
-  description: string;
-  debit: number;
-  credit: number;
-  costCenter?: string;
-  project?: string;
-  department?: string;
 }
 
 export interface COAAccount {
-  id: number;
   code: string;
   name: string;
-  type: string;
   parentCode?: string;
+  posSaldo: string; // "Db" | "Kr" | "-"
+  posLaporan: string; // "NRC" | "LR" | "-"
+  level?: number;
+  openingBalanceDb?: number;
+  openingBalanceKr?: number;
   isActive: boolean;
 }
 
-export interface SubLedger {
-  id: number;
+export interface SubLedgerCode {
+  code: string;
+  name: string;
+  parentAccountCode: string;
+  category: string;
+  openingBalance: number;
+  isActive: boolean;
+}
+export type SubLedger = SubLedgerCode;
+
+export interface GeneralLedgerRow {
+  date: string;
+  buktiNo: string;
+  projectCode: string;
+  description: string;
+  debit: number;
+  credit: number;
+  balance: number;
+  journalId?: number;
+}
+
+export interface GeneralLedgerView {
   accountCode: string;
   accountName: string;
-  type: string;
-  balance: number;
+  posSaldo: string;
+  openingBalance: number;
+  endingBalance: number;
+  totalDebit: number;
+  totalCredit: number;
+  rows: GeneralLedgerRow[];
 }
 
 export interface TrialBalanceRow {
   accountCode: string;
   accountName: string;
-  debit: number;
-  credit: number;
-  balance: number;
+  posSaldo: string;
+  posLaporan: string;
+  neracaSaldoDebit: number;
+  neracaSaldoKredit: number;
+  labaRugiDebit: number;
+  labaRugiKredit: number;
+  neracaDebit: number;
+  neracaKredit: number;
 }
 
-export interface GeneralLedgerEntry {
-  date: string;
-  journalNumber: string;
-  description: string;
-  debit: number;
-  credit: number;
-  balance: number;
+export interface ProfitLossProductionMetric {
+  metricName: string;
+  unit: string;
+  actual: number;
+  budget: number;
+}
+
+export interface ProfitLossItem {
+  accountCode: string;
+  accountName: string;
+  actual: number;
+  budget: number;
+  percentage: number;
 }
 
 export interface ProfitLossData {
-  revenue: Array<{ accountCode: string; accountName: string; amount: number }>;
-  expenses: Array<{ accountCode: string; accountName: string; amount: number }>;
-  netProfit: number;
+  period?: string;
+  projectCode?: string;
+  productionMetrics?: ProfitLossProductionMetric[];
+  revenueItems?: ProfitLossItem[];
+  totalRevenue?: number;
+  cogsItems?: ProfitLossItem[];
+  totalCOGS?: number;
+  grossProfit?: number;
+  opexItems?: ProfitLossItem[];
+  totalOPEX?: number;
+  netIncome?: number;
+  // Legacy / fallback fields
+  revenue?: Array<{ accountCode: string; accountName: string; amount: number }>;
+  expenses?: Array<{ accountCode: string; accountName: string; amount: number }>;
+  netProfit?: number;
+}
+
+export interface BalanceSheetItem {
+  accountCode: string;
+  accountName: string;
+  amount: number;
 }
 
 export interface BalanceSheetData {
-  assets: Array<{ accountCode: string; accountName: string; amount: number }>;
-  liabilities: Array<{ accountCode: string; accountName: string; amount: number }>;
-  equity: Array<{ accountCode: string; accountName: string; amount: number }>;
+  period?: string;
+  projectCode?: string;
+  currentAssets?: BalanceSheetItem[];
+  totalCurrentAsset?: number;
+  fixedAssets?: BalanceSheetItem[];
+  totalFixedAsset?: number;
+  totalAsset?: number;
+  currentLiabilities?: BalanceSheetItem[];
+  totalCurrentLiab?: number;
+  longTermLiabilities?: BalanceSheetItem[];
+  totalLongTermLiab?: number;
+  totalLiabilities?: number;
+  equityItems?: BalanceSheetItem[];
+  netIncomeYTD?: number;
+  totalEquity?: number;
+  totalLiabAndEquity?: number;
+  isBalanced?: boolean;
+  // Legacy / fallback fields
+  assets?: Array<{ accountCode: string; accountName: string; amount: number }>;
+  liabilities?: Array<{ accountCode: string; accountName: string; amount: number }>;
+  equity?: Array<{ accountCode: string; accountName: string; amount: number }>;
 }
 
 // ─── Accounting — Runs ──────────────────────────────────────

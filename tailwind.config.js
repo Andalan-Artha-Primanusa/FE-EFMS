@@ -3,9 +3,26 @@ export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      screens: {
+        'xs': '480px',
+        'hd': '1280px',
+        'fhd': '1920px',
+        '2k': '2560px'
+      },
       fontFamily: {
         sans: ["'Plus Jakarta Sans'", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["'Plus Jakarta Sans'", "ui-monospace", "Menlo", "monospace"]
+      },
+      fontSize: {
+        '2xs': ['0.65rem', { lineHeight: '0.85rem' }],
+        'xs': ['0.725rem', { lineHeight: '0.95rem' }],
+        'sm': ['0.815rem', { lineHeight: '1.1rem' }],
+        'base': ['0.875rem', { lineHeight: '1.25rem' }],
+        'lg': ['1rem', { lineHeight: '1.35rem' }],
+        'xl': ['1.125rem', { lineHeight: '1.45rem' }],
+        '2xl': ['1.25rem', { lineHeight: '1.55rem' }],
+        '3xl': ['1.45rem', { lineHeight: '1.75rem' }],
+        '4xl': ['1.75rem', { lineHeight: '2.1rem' }],
       },
       colors: {
         andalan: {

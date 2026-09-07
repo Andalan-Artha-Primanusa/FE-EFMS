@@ -5,19 +5,9 @@ import { NotificationPanel } from "../components/NotificationPanel";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { ACCOUNT_SETTINGS_VIEW, menu, menuCodeFor, menuPermissionModuleFor, titleFromSlug, viewMap, viewPath } from "../data/navigation";
 import { api, getUnreadNotificationCount, type AuditLog, type Dashboard, type Permission, type RoleAccess, type TCode, type Transaction, type User } from "../lib/api";
-import { AccountSettingsPage } from "../pages/AccountSettingsPage";
-import { DashboardPage } from "../pages/DashboardPage";
-
 import { ModulePage } from "../pages/ModulePage";
-import { RBACPage } from "../pages/RBACPage";
 import { authorized, canAccessMenu, canViewAuditTrail, filterRowsByCompanyScope, scopedEndpoint } from "../lib/auth";
 import { routes } from "../router/routes";
-
-import { VariableSOWPage } from "../pages/VariableSOWPage";
-import { VariableSOWFormPage } from "../pages/VariableSOWFormPage";
-import { MasterRaiseFallPage } from "../pages/MasterRaiseFallPage";
-import { CoalIndexPage } from "../pages/CoalIndexPage";
-import { GeneralJournalPage } from "../pages/GeneralJournalPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import { PermissionDeniedPage } from "../pages/PermissionDeniedPage";
 
@@ -28,7 +18,8 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   const outlet = useOutlet();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const requestedSlug = params.slug || params["*"]?.split("/")[0];
+  const pathSlug = location.pathname.replace(/^\/+/, "").split("/")[0];
+  const requestedSlug = params.slug || params["*"]?.split("/")[0] || pathSlug;
   const resolvedView = titleFromSlug(requestedSlug);
   const activeView = location.pathname.startsWith("/transaction/") 
     ? "Transaction Form"
@@ -36,11 +27,13 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
     ? "Variable SOW Form"
     : location.pathname === "/account-settings"
     ? ACCOUNT_SETTINGS_VIEW
+    : location.pathname === "/"
+    ? "Executive Dashboard"
     : resolvedView ?? "Finance Dashboard";
   const [viewRows, setViewRows] = useState<any[]>([]);
   const [viewLoading, setViewLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => (typeof window !== "undefined" && window.innerWidth > 820 && window.innerWidth <= 1280));
   const query = "";
   const [notifications, setNotifications] = useState<AuditLog[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -124,8 +117,10 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   }, []);
 
   useEffect(() => {
-    loadView(activeView).catch((err) => setNotice(err instanceof Error ? err.message : "Gagal memuat data"));
-  }, [activeView]);
+    if (!outlet) {
+      loadView(activeView).catch((err) => setNotice(err instanceof Error ? err.message : "Gagal memuat data"));
+    }
+  }, [activeView, outlet]);
 
   function openView(item: string) {
     navigate(viewPath(item));
@@ -153,6 +148,15 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   const isUnknownModuleRoute = !outlet && Boolean(requestedSlug) && !resolvedView;
   const cannotAccessModuleRoute = !outlet && !isUnknownModuleRoute && activeView in viewMap && !canAccessMenu(activeView, user.role, permissions, tcodes);
 
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  const toggleGroup = (groupName: string) => {
+    setOpenGroups((prev) => ({
+      ...prev,
+      [groupName]: !prev[groupName]
+    }));
+  };
+
   return (
     <div className={`app-shell bg-finance-canvas text-finance-ink ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
@@ -164,10 +168,33 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
         <nav>
           {visibleMenu.map((group) => {
             const Icon = group.icon;
-            return <details key={group.group} open={["Dashboard", "Finance", "Transaction Request", "Accounting", "Master Data"].includes(group.group)}>
-              <summary title={group.group}><Icon size={18} /> <span>{group.group}</span> <ChevronDown size={15} /></summary>
-              {group.items.map((item) => <button className={activeView === item ? "active" : ""} key={item} title={item} onClick={() => openView(item)}>{item}</button>)}
-            </details>;
+            const isOpen = Boolean(openGroups[group.group]);
+            return (
+              <details key={group.group} open={isOpen}>
+                <summary 
+                  title={group.group} 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    toggleGroup(group.group);
+                  }}
+                  className="cursor-pointer select-none"
+                >
+                  <Icon size={18} /> 
+                  <span>{group.group}</span> 
+                  <ChevronDown size={15} className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+                </summary>
+                {isOpen && group.items.map((item) => (
+                  <button 
+                    className={activeView === item ? "active" : ""} 
+                    key={item} 
+                    title={item} 
+                    onClick={() => openView(item)}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </details>
+            );
           })}
         </nav>
       </aside>
@@ -201,10 +228,6 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
             <NotFoundPage />
           ) : cannotAccessModuleRoute ? (
             <PermissionDeniedPage requiredView={activeView} />
-          ) : activeView === "Variable SOW Form" ? (
-            <VariableSOWFormPage />
-          ) : activeView === "Variable SOW" ? (
-            <VariableSOWPage viewTitle={activeView} query={query} onNotice={setNotice} />
           ) : (
             <ModulePage
               config={activeConfig}

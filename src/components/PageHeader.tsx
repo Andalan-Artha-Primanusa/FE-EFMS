@@ -21,9 +21,9 @@ export function PageHeader({
   children?: ReactNode;
 }) {
   return (
-    <section className="page-header mb-6 pb-4 border-b border-slate-200">
-      <div className="flex flex-col gap-1.5">
-        {breadcrumbs && breadcrumbs.length > 0 ? (
+    <section className="page-header mb-6 pb-4 border-b border-slate-200 w-full">
+      <div className="flex flex-col gap-1.5 w-full">
+        {breadcrumbs && breadcrumbs.length > 0 && (
           <nav className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
             {breadcrumbs.map((crumb, index) => (
               <div key={index} className="flex items-center gap-1.5">
@@ -38,16 +38,14 @@ export function PageHeader({
               </div>
             ))}
           </nav>
-        ) : (
-          <p className="eyebrow text-[11px] font-bold text-aap-700 uppercase tracking-[0.14em] mb-1">FEAST · FATB Division</p>
         )}
         
-        <div className="flex items-start justify-between w-full">
-          <div>
+        <div className="flex items-center justify-between w-full gap-4">
+          <div className="min-w-0">
             <h1 className="text-2xl font-bold text-ink-900 tracking-tight">{title}</h1>
             {description && <p className="text-sm text-ink-500 mt-1">{description}</p>}
           </div>
-          <div className="page-header-side flex items-center gap-3">
+          <div className="flex items-center gap-2.5 shrink-0 ml-auto">
             {meta}
             {children}
           </div>

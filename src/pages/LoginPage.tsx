@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { KeyRound, ShieldCheck, X } from "lucide-react";
+import { Eye, EyeOff, KeyRound, ShieldCheck, X } from "lucide-react";
 import { forgotPassword, login, resetPassword, verifyTwoFactorLogin, type User } from "../lib/api";
 import feastLogo from "../assets/feast-logo.webp";
-import mockupFeast from "../assets/mockup-feast.webp";
+import loginFinanceBg from "../assets/login-finance-bg.webp";
 import andalanLogo from "../assets/andalan-logo.png";
 
 export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
   const [email, setEmail] = useState("admin@financeerp.local");
   const [password, setPassword] = useState("Admin@12345");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -122,17 +124,43 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
         </div>
         {!twoFactor ? (
         <form onSubmit={submit} className="login-form">
-          <label>Email<input value={email} onChange={(e) => setEmail(e.target.value)} type="email" /></label>
-          <label>Password<input value={password} onChange={(e) => setPassword(e.target.value)} type="password" /></label>
+          <label>Email<input value={email} onChange={(e) => setEmail(e.target.value)} type="text" placeholder="name@company.com" /></label>
+          <label>
+            Password
+            <div className="relative flex items-center w-full">
+              <input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                type={showPassword ? "text" : "password"}
+                className="w-full pr-10"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="btn-icon absolute right-3 text-slate-400 hover:text-slate-700 transition focus:outline-hidden cursor-pointer flex items-center justify-center p-0 m-0 border-0 bg-transparent shadow-none"
+                title={showPassword ? "Sembunyikan password" : "Lihat password"}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </label>
           {error && <div className="error">{error}</div>}
-          <button className="transition disabled:cursor-wait disabled:opacity-70 !bg-[#20a6b8] !text-white hover:!bg-[#1c92a2] !shadow-[0_16px_30px_rgba(32,166,184,.25)]" disabled={loading}>{loading ? "Memeriksa..." : "Login"}</button>
-          <button type="button" onClick={openForgot} className="text-xs font-bold text-slate-500 hover:text-[#20a6b8] transition inline-flex items-center gap-1.5 justify-center">
+          <button className="w-full transition disabled:cursor-wait disabled:opacity-70 !bg-[#a57c50] !text-white hover:!bg-[#8f683e] !shadow-[0_12px_24px_rgba(165,124,80,.28)] !rounded-lg !py-3 !font-extrabold text-sm" disabled={loading}>
+            {loading ? "Memeriksa..." : "Login"}
+          </button>
+          <button
+            type="button"
+            onClick={openForgot}
+            className="w-full transition !bg-[#261a10] !text-[#eedcc9] hover:!bg-[#3b291a] hover:!text-white !shadow-[0_12px_24px_rgba(38,26,16,.25)] !rounded-lg !py-2.5 !font-bold text-xs inline-flex items-center gap-1.5 justify-center"
+          >
             <KeyRound size={13} /> Lupa password?
           </button>
         </form>
         ) : (
         <form onSubmit={submitOtp} className="login-form">
-          <div className="flex items-center justify-center gap-2 text-[#20a6b8]">
+          <div className="flex items-center justify-center gap-2 text-[#a57c50]">
             <ShieldCheck size={20} />
             <span className="font-bold text-sm text-slate-800">Verifikasi Dua Langkah</span>
           </div>
@@ -150,11 +178,13 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
             />
           </label>
           {otpError && <div className="error">{otpError}</div>}
-          <button className="transition disabled:cursor-wait disabled:opacity-70 !bg-[#20a6b8] !text-white hover:!bg-[#1c92a2] !shadow-[0_16px_30px_rgba(32,166,184,.25)]" disabled={otpLoading}>{otpLoading ? "Memverifikasi..." : "Verifikasi & Masuk"}</button>
+          <button className="w-full transition disabled:cursor-wait disabled:opacity-70 !bg-[#a57c50] !text-white hover:!bg-[#8f683e] !shadow-[0_12px_24px_rgba(165,124,80,.28)] !rounded-lg !py-3 !font-extrabold text-sm" disabled={otpLoading}>
+            {otpLoading ? "Memverifikasi..." : "Verifikasi & Masuk"}
+          </button>
           <button
             type="button"
             onClick={() => setTwoFactor(null)}
-            className="text-xs font-bold text-slate-500 hover:text-[#20a6b8] transition inline-flex items-center gap-1.5 justify-center"
+            className="w-full transition !bg-[#261a10] !text-[#eedcc9] hover:!bg-[#3b291a] hover:!text-white !shadow-[0_12px_24px_rgba(38,26,16,.25)] !rounded-lg !py-2.5 !font-bold text-xs inline-flex items-center gap-1.5 justify-center"
           >
             <KeyRound size={13} /> Kembali ke login
           </button>
@@ -165,12 +195,25 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
           <img src={andalanLogo} alt="Andalan" className="!h-12 !w-auto !object-center" />
         </div>
       </section>
-      <section className="relative overflow-hidden bg-slate-950 min-h-full flex items-center justify-center p-3 sm:p-5 lg:p-6">
-        <img
-          src={mockupFeast}
-          alt="FEAST - Financial Enterprise Andalan System"
-          className="w-full h-full max-h-[94vh] object-contain object-center drop-shadow-2xl rounded-2xl select-none pointer-events-none transition duration-300 hover:scale-[1.01]"
-        />
+      <section className="relative overflow-hidden bg-slate-950 min-h-full flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div className="relative w-full h-full max-h-[94vh] rounded-2xl overflow-hidden shadow-2xl border border-slate-800/80 group">
+          <img
+            src={loginFinanceBg}
+            alt="FEAST - Financial Enterprise Andalan System Workspace"
+            className="w-full h-full object-cover object-center select-none transition duration-700 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/30 to-transparent flex flex-col justify-end p-6 sm:p-8 text-white">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/30 text-cyan-300 text-xs font-extrabold tracking-wider uppercase mb-2 backdrop-blur-md w-fit">
+              Financial Enterprise System
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              Next-Gen Mining & Financial Accounting
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-md">
+              Integrasi otomatis Berita Acara, Multi-Scheme Raise & Fall, dan pembukuan Enterprise PT Andalan Artha Primanusa.
+            </p>
+          </div>
+        </div>
       </section>
 
       {forgotOpen && (
@@ -219,14 +262,25 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
                   </label>
                   <label className="block">
                     <span className="block text-xs font-bold text-slate-700 mb-1">Password Baru</span>
-                    <input
-                      type="password"
-                      required
-                      value={forgotNewPassword}
-                      onChange={(e) => setForgotNewPassword(e.target.value)}
-                      placeholder="Minimal 8 karakter"
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-[#20a6b8] font-semibold text-xs"
-                    />
+                    <div className="relative flex items-center w-full">
+                      <input
+                        type={showForgotNewPassword ? "text" : "password"}
+                        required
+                        value={forgotNewPassword}
+                        onChange={(e) => setForgotNewPassword(e.target.value)}
+                        placeholder="Minimal 8 karakter"
+                        className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-xl focus:outline-hidden focus:border-[#20a6b8] font-semibold text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
+                        className="btn-icon absolute right-3 text-slate-400 hover:text-slate-700 transition focus:outline-hidden cursor-pointer flex items-center justify-center p-0 m-0 border-0 bg-transparent shadow-none"
+                        title={showForgotNewPassword ? "Sembunyikan password" : "Lihat password"}
+                        tabIndex={-1}
+                      >
+                        {showForgotNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
                   </label>
                 </>
               )}
@@ -234,7 +288,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
               <button
                 type="submit"
                 disabled={forgotLoading}
-                className="w-full py-2.5 bg-[#20a6b8] hover:bg-[#1c92a2] text-white rounded-xl text-xs font-bold transition disabled:opacity-50"
+                className="w-full py-2.5 !bg-[#a57c50] hover:!bg-[#8f683e] text-white rounded-xl text-xs font-bold transition disabled:opacity-50 !shadow-[0_10px_20px_rgba(165,124,80,.25)]"
               >
                 {forgotLoading ? "Memproses..." : forgotStage === "request" ? "Kirim Permintaan Reset" : "Simpan Password Baru"}
               </button>

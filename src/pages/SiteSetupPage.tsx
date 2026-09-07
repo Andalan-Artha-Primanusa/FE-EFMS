@@ -77,7 +77,7 @@ interface RaiseFallData {
 
 const DEFAULT_POS_CUSTOMER: CustomerData = {
   code: "POS",
-  fullName: "PT Position / PT Paramitha Bangun Persada",
+  fullName: "PT Position",
   groupParent: "Paramitha Group",
   projectSite: "Site WM1 / Pit Nikel",
   terminDays: 30,
@@ -333,13 +333,13 @@ export function SiteSetupPage({
           </div>
         </button>
 
-        {/* DBK Site Card (Future expansion) */}
+        {/* PTRO Site Card (Petrosea) */}
         <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/70 text-left opacity-75">
           <div className="flex justify-between items-start">
-            <span className="p-2 rounded-xl bg-blue-100 text-blue-900 font-black text-xs">DBK</span>
+            <span className="p-2 rounded-xl bg-blue-100 text-blue-900 font-black text-xs">PTRO</span>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">Terjadwal</span>
           </div>
-          <h3 className="font-bold text-slate-700 text-sm mt-2">Site DBK (Petrosea)</h3>
+          <h3 className="font-bold text-slate-700 text-sm mt-2">Site PTRO (PT Petrosea)</h3>
           <p className="text-[11px] text-slate-400 mt-0.5">Komoditas: Batubara (Dual Currency USD/IDR)</p>
         </div>
 

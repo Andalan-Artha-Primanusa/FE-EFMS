@@ -1,4 +1,4 @@
-﻿import type { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useFinanceController } from "./useFinanceController";
 import { DetailModal } from "./DetailModal";
 import { FormModals } from "./FormModals";
@@ -17,7 +17,7 @@ type ShellProps = {
 export function FinanceShell({ viewTitle, query = "", onNotice = (_m: string) => {}, user, render }: ShellProps) {
   const c = useFinanceController({ viewTitle, query, onNotice, user });
   return (
-    <div className="workspace-body space-y-6">
+    <div className="workspace-body space-y-3.5">
       {render ? render(c) : null}
       <DetailModal c={c} />
       <FormModals c={c} />

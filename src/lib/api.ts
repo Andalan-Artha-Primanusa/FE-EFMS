@@ -270,11 +270,36 @@ export function getUsers() {
   return api<User[]>("/api/users");
 }
 
-export function createUser(input: { name: string; email: string; password?: string; role: string; status: string; companyId?: number | null; companyCode?: string; companyName?: string; companyScope?: string[] | "ALL" }) {
+export function createUser(input: {
+  name: string;
+  email: string;
+  password?: string;
+  role: string;
+  status: string;
+  companyId?: number | null;
+  companyCode?: string;
+  companyName?: string;
+  companyScope?: string[] | "ALL";
+  permissions?: string[];
+}) {
   return api<User>("/api/users", { method: "POST", body: JSON.stringify(input) });
 }
 
-export function updateUser(id: number, input: { name: string; email: string; password?: string; role: string; status: string; companyId?: number | null; companyCode?: string; companyName?: string; companyScope?: string[] | "ALL" }) {
+export function updateUser(
+  id: number,
+  input: {
+    name: string;
+    email: string;
+    password?: string;
+    role: string;
+    status: string;
+    companyId?: number | null;
+    companyCode?: string;
+    companyName?: string;
+    companyScope?: string[] | "ALL";
+    permissions?: string[];
+  }
+) {
   return api<User>(`/api/users/${id}`, { method: "PUT", body: JSON.stringify(input) });
 }
 
@@ -386,7 +411,7 @@ export function resetPassword(token: string, newPassword: string) {
 }
 
 // Accounting Endpoints
-import type { JournalEntry, COAAccount, SubLedger, GeneralLedgerEntry, TrialBalanceRow, ProfitLossData, BalanceSheetData } from "../types";
+import type { JournalEntry, COAAccount, SubLedger, GeneralLedgerView, TrialBalanceRow, ProfitLossData, BalanceSheetData } from "../types";
 
 export function getJournals(): Promise<JournalEntry[]> {
   return api<JournalEntry[]>("/api/accounting/journals");
@@ -394,6 +419,10 @@ export function getJournals(): Promise<JournalEntry[]> {
 
 export function saveJournal(entry: Partial<JournalEntry>): Promise<JournalEntry> {
   return api<JournalEntry>("/api/accounting/journals", { method: "POST", body: JSON.stringify(entry) });
+}
+
+export function deleteJournal(id: number): Promise<void> {
+  return api<void>(`/api/accounting/journals/${id}`, { method: "DELETE" });
 }
 
 export function verifyJournal(id: number): Promise<{ status: string }> {
@@ -406,6 +435,13 @@ export function approveJournal(id: number): Promise<{ status: string }> {
 
 export function postJournalsBatch(ids: number[]): Promise<{ status: string }> {
   return api<{ status: string }>("/api/accounting/journals/post-batch", { method: "POST", body: JSON.stringify({ ids }) });
+}
+
+export function reverseJournal(id: number, reason = ""): Promise<JournalEntry> {
+  return api<JournalEntry>(`/api/accounting/journals/${id}/reverse`, {
+    method: "POST",
+    body: JSON.stringify({ reason })
+  });
 }
 
 export function getCOAAccounts(): Promise<COAAccount[]> {
@@ -424,8 +460,8 @@ export function saveSubLedger(sub: Partial<SubLedger>): Promise<SubLedger> {
   return api<SubLedger>("/api/accounting/sub-ledgers", { method: "POST", body: JSON.stringify(sub) });
 }
 
-export function getGeneralLedger(accountCode = "1101.001", period = "Juni 2026"): Promise<GeneralLedgerEntry[]> {
-  return api<GeneralLedgerEntry[]>(`/api/accounting/general-ledger?account=${encodeURIComponent(accountCode)}&period=${encodeURIComponent(period)}`);
+export function getGeneralLedger(accountCode = "1101.001", period = "Juni 2026"): Promise<GeneralLedgerView> {
+  return api<GeneralLedgerView>(`/api/accounting/general-ledger?account=${encodeURIComponent(accountCode)}&period=${encodeURIComponent(period)}`);
 }
 
 export function getTrialBalance(period = "Juni 2026"): Promise<TrialBalanceRow[]> {
@@ -446,9 +482,28 @@ export const money = (value: number) =>
 export const compactMoney = (value: number) =>
   new Intl.NumberFormat("id-ID", { notation: "compact", maximumFractionDigits: 1 }).format(value);
 
+export const DEFAULT_COMPANIES: Company[] = [
+  { id: 1, code: "HO", name: "Head Office", isHo: true, createdAt: "" },
+  { id: 2, code: "BGG", name: "PT Budi Gema Gempita", isHo: false, createdAt: "" },
+  { id: 3, code: "POS", name: "PT Position", isHo: false, createdAt: "" },
+  { id: 4, code: "SBS", name: "PT Satria Bahana Sarana", isHo: false, createdAt: "" },
+  { id: 5, code: "PTRO", name: "PT Petrosea", isHo: false, createdAt: "" },
+];
+
+const ALLOWED_COMPANY_CODES = ["HO", "BGG", "POS", "SBS", "PTRO"];
+
 // Company Endpoints
-export function getCompanies() {
-  return api<Company[]>("/api/companies");
+export async function getCompanies(): Promise<Company[]> {
+  try {
+    const list = await api<Company[]>("/api/companies");
+    if (Array.isArray(list) && list.length > 0) {
+      const filtered = list.filter((c) => ALLOWED_COMPANY_CODES.includes(c.code));
+      if (filtered.length > 0) return filtered;
+    }
+    return DEFAULT_COMPANIES;
+  } catch {
+    return DEFAULT_COMPANIES;
+  }
 }
 
 export function createCompany(input: { code: string; name: string; isHo: boolean }) {
@@ -504,6 +559,10 @@ export function calculateMiningInvoice(input: any) {
 
 export function generateJournalFromInvoice(id: number) {
   return api<any>(`/api/accounting/generate-from-invoice/${id}`, { method: "POST" });
+}
+
+export function generateJournalFromBA(id: number) {
+  return api<any>(`/api/accounting/generate-from-ba/${id}`, { method: "POST" });
 }
 
 export function generateJournalFromPayment(id: number) {

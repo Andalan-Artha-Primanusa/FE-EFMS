@@ -33,9 +33,78 @@ const customerContractOptions = [
   { code: "POS", name: "PT Position (POS)", project: "POS PROJECT", contract: "002/POS-AAP/2025" },
   { code: "SBS", name: "PT Satria Bahana Sarana (SBS)", project: "PT Satria Bahana Sarana Site", contract: "230/AAP-SBS/EXT/XII/24" },
   { code: "BGG", name: "PT Budi Gema Gempita (BGG)", project: "PT Budi Gema Gempita Site", contract: "09/BGG-AAP/VIII/2018" },
-  { code: "DBK", name: "PT Daya Bumindo Karunia (DBK)", project: "PT Daya Bumindo Karunia Site", contract: "001/DBK-AAP/2024" },
+  { code: "PTRO", name: "PT Petrosea (PTRO)", project: "PT Petrosea Site", contract: "001/PTRO-AAP/2024" },
   { code: "ABN", name: "PT Andalan Bhumi Nusantara (ABN)", project: "PT Andalan Bhumi Nusantara Site", contract: "001/AAP-ABN/IV/25" }
 ];
+
+function IndoDecimalInput({
+  value,
+  onChange,
+  placeholder,
+  className
+}: {
+  value: number | undefined;
+  onChange: (val: number) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const formatDisplay = (val: number | undefined | null): string => {
+    if (val === undefined || val === null || isNaN(val)) return "";
+    const str = String(val);
+    const [intPart, decPart] = str.split(".");
+    const formattedInt = new Intl.NumberFormat("id-ID").format(Number(intPart) || 0);
+    if (decPart !== undefined) {
+      return `${formattedInt},${decPart.slice(0, 3)}`;
+    }
+    return formattedInt;
+  };
+
+  const parseVal = (str: string): number => {
+    if (!str) return 0;
+    const clean = str.replace(/\./g, "").replace(",", ".");
+    const num = parseFloat(clean);
+    return isNaN(num) ? 0 : num;
+  };
+
+  const [text, setText] = useState<string>(() => formatDisplay(value));
+
+  useEffect(() => {
+    setText(formatDisplay(value));
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let raw = e.target.value.replace(/[^0-9.,]/g, "");
+    const commaCount = (raw.match(/,/g) || []).length;
+    if (commaCount > 1) {
+      const firstIdx = raw.indexOf(",");
+      raw = raw.slice(0, firstIdx + 1) + raw.slice(firstIdx + 1).replace(/,/g, "");
+    }
+    if (raw.includes(",")) {
+      const [i, d] = raw.split(",");
+      raw = `${i},${d.slice(0, 3)}`;
+    }
+    setText(raw);
+    const num = parseVal(raw);
+    onChange(num);
+  };
+
+  const handleBlur = () => {
+    const num = parseVal(text);
+    setText(formatDisplay(num));
+    onChange(num);
+  };
+
+  return (
+    <input
+      type="text"
+      className={className}
+      placeholder={placeholder}
+      value={text}
+      onChange={handleChange}
+      onBlur={handleBlur}
+    />
+  );
+}
 
 export function MasterRaiseFallPage({
   viewTitle,
@@ -63,15 +132,17 @@ export function MasterRaiseFallPage({
   const [selectedCustomer, setSelectedCustomer] = useState("ALL");
   const [companyList, setCompanyList] = useState<Company[]>([]);
 
-  // Company options built from the backend API (/api/companies) — not hardcoded.
+  // Company options built from the backend API (/api/companies) — limited to active R&F contracts (BGG & POS).
   const customerContractOptions = [
-    { code: "ALL", name: "Semua Customer / Kontrak", project: "All Projects", contract: "Semua Kontrak Active" },
-    ...companyList.map((c) => ({
-      code: c.code,
-      name: `${c.name} (${c.code})`,
-      project: "",
-      contract: ""
-    }))
+    { code: "ALL", name: "Semua Customer R&F (BGG & POS)", project: "All Projects", contract: "Semua Kontrak Active" },
+    ...companyList
+      .filter((c) => c.code === "BGG" || c.code === "POS")
+      .map((c) => ({
+        code: c.code,
+        name: `${c.name} (${c.code})`,
+        project: c.code === "POS" ? "POS PROJECT" : "PT Budi Gema Gempita Site",
+        contract: c.code === "POS" ? "002/POS-AAP/2025" : "09/BGG-AAP/VIII/2018"
+      }))
   ];
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -202,10 +273,16 @@ export function MasterRaiseFallPage({
   // Real-time formula calculations
   const isBGGStyle = rfForm.formulaScheme === "SINGLE_FACTOR_FUEL" || rfForm.customerCode === "BGG";
   
-  // BGG 1-Factor: Index = 0.60 + 0.40 * (Fn / Fo)
-  const calcBGGRF = rfForm.baseFuelFo > 0
-    ? 0.60 + (0.40 * (rfForm.actualFuelFn / (rfForm.baseFuelFo || 9000)))
-    : 1.56;
+  // BGG 1-Factor: Fn is the average of Periode I Total and Periode II Total (Gambar 2: Fuel + Transport)
+  const bggTotalP1 = (Number(rfForm.bggFuelP1) || 0) + (Number(rfForm.bggTransportP1) || 0);
+  const bggTotalP2 = (Number(rfForm.bggFuelP2) || 0) + (Number(rfForm.bggTransportP2) || 0);
+  const bggAvgFn = (bggTotalP1 > 0 && bggTotalP2 > 0)
+    ? (bggTotalP1 + bggTotalP2) / 2
+    : (bggTotalP1 || bggTotalP2 || Number(rfForm.actualFuelFn) || 21601.53);
+
+  const bggBaseFo = 9000;
+  // BGG 1-Factor: Index = 0.60 + 0.40 * (Fn / 9000)
+  const calcBGGRF = 0.60 + (0.40 * (bggAvgFn / bggBaseFo));
 
   // POS 3-Factor: D + L + F where L = b * (Ln / Lo) (pure IDR ratio, NO Forex Xn/Xo)
   const calcFuelD = rfForm.baseFuelFo > 0
@@ -222,13 +299,29 @@ export function MasterRaiseFallPage({
   const handleSaveRf = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload = { ...rfForm };
+      if (isBGGStyle) {
+        payload.actualFuelFn = bggAvgFn;
+        payload.baseFuelFo = 9000;
+        payload.weightFuelA = 0.40;
+        payload.weightLaborB = 0.0;
+        payload.weightFixedC = 0.60;
+        payload.formulaScheme = "SINGLE_FACTOR_FUEL";
+        payload.customerCode = payload.customerCode || "BGG";
+        payload.projectSite = payload.projectSite || "PT Budi Gema Gempita Site";
+        payload.contractNo = payload.contractNo || "09/BGG-AAP/VIII/2018";
+        payload.rfIndexResult = Number(calcBGGRF.toFixed(3));
+      } else {
+        payload.rfIndexResult = Number(calcTotalRF.toFixed(3));
+      }
+
       let endpoint = "/api/master-data/raise-fall";
       if (editItem?.id) {
         endpoint += `/${editItem.id}`;
-        await api(endpoint, { method: "PUT", body: JSON.stringify(rfForm) });
+        await api(endpoint, { method: "PUT", body: JSON.stringify(payload) });
         onNotice("Master Raise & Fall berhasil diperbarui!");
       } else {
-        await api(endpoint, { method: "POST", body: JSON.stringify(rfForm) });
+        await api(endpoint, { method: "POST", body: JSON.stringify(payload) });
         onNotice("Periode Raise & Fall baru berhasil ditambahkan!");
       }
       setModalOpen(false);
@@ -314,6 +407,10 @@ export function MasterRaiseFallPage({
       customerCode: selectedCustomer === "ALL" ? "" : selectedCustomer,
       projectSite: isBGG ? "PT Budi Gema Gempita Site" : "POS PROJECT",
       contractNo: isBGG ? "09/BGG-AAP/VIII/2018" : "002/POS-AAP/2025",
+      addendumNo: isBGG ? "Addendum 02/ADDM-BGG-AAP/I/2022" : "Addendum 01/POS-AAP/VI/2025",
+      effectiveFrom: isBGG ? "2022-01-01" : "2025-06-01",
+      effectiveTo: "Open-ended",
+      status: "Active",
       formulaScheme: isBGG ? "SINGLE_FACTOR_FUEL" : "TRIPLE_FACTOR_DLF",
       weightFuelA: isBGG ? 0.40 : 0.34,
       weightLaborB: isBGG ? 0.0 : 0.25,
@@ -324,6 +421,10 @@ export function MasterRaiseFallPage({
       actualFuelFn: isBGG ? 21601.53 : 1.450,
       actualLaborLn: autoLn,
       actualMRateXn: Math.round(avgMRateCalc),
+      bggFuelP1: 19800,
+      bggTransportP1: 1800,
+      bggFuelP2: 19800,
+      bggTransportP2: 1803.06,
       notes: isBGG ? "Kalkulasi RF BGG 1-Faktor BBM" : "Kalkulasi RF POS 3-Faktor DLF"
     });
     setModalOpen(true);
@@ -346,7 +447,15 @@ export function MasterRaiseFallPage({
   const openEditRfModal = (item: any) => {
     setModalType("rf");
     setEditItem(item);
-    setRfForm({ ...item });
+    const isBGG = item.customerCode === "BGG" || item.formulaScheme === "SINGLE_FACTOR_FUEL";
+    setRfForm({
+      ...item,
+      bggFuelP1: item.bggFuelP1 ?? 19800,
+      bggTransportP1: item.bggTransportP1 ?? 1800,
+      bggFuelP2: item.bggFuelP2 ?? 19800,
+      bggTransportP2: item.bggTransportP2 ?? (item.actualFuelFn ? Math.round((item.actualFuelFn * 2 - 19800 - 1800 - 19800) * 100) / 100 : 1803.06),
+      baseFuelFo: isBGG ? 9000 : (item.baseFuelFo || 10699.97)
+    });
     setModalOpen(true);
   };
 
@@ -630,13 +739,25 @@ export function MasterRaiseFallPage({
                       <td className="p-3 border-r border-slate-200">
                         <div className="font-bold text-slate-900">{r.customerCode} — {r.projectSite}</div>
                         <div className="text-[10px] font-mono text-slate-500">{r.contractNo}</div>
+                        {r.addendumNo && (
+                          <div className="text-[10px] font-mono font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/60 px-1.5 py-0.5 rounded mt-0.5 inline-block">
+                            {r.addendumNo} {r.effectiveFrom ? `(${r.effectiveFrom} s/d ${r.effectiveTo || "Open"})` : ""}
+                          </div>
+                        )}
                       </td>
                       <td className="p-3 border-r border-slate-200">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
-                          isSingle ? "bg-amber-100 text-amber-800" : "bg-cyan-100 text-cyan-800"
-                        }`}>
-                          {isSingle ? "1-Faktor BBM" : "3-Faktor (D+L+F)"}
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                            isSingle ? "bg-amber-100 text-amber-800" : "bg-cyan-100 text-cyan-800"
+                          }`}>
+                            {isSingle ? "1-Faktor BBM" : "3-Faktor (D+L+F)"}
+                          </span>
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                            r.status === "Archived" ? "bg-slate-100 text-slate-600 border border-slate-300" : "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                          }`}>
+                            {r.status || "Active"}
+                          </span>
+                        </div>
                       </td>
                       <td className="p-3 text-right font-mono font-bold border-r border-slate-200">
                         {r.actualFuelFn > 100 ? `Rp ${r.actualFuelFn?.toLocaleString("id-ID")}` : `USD ${r.actualFuelFn?.toFixed(3)}`}
@@ -984,28 +1105,91 @@ export function MasterRaiseFallPage({
 
                   {/* Input parameters based on scheme */}
                   {isBGGStyle ? (
-                    <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2">
-                      <h5 className="text-[11px] font-extrabold uppercase text-amber-900 tracking-wider">Parameter 1-Faktor BBM (BGG):</h5>
-                      <div className="grid grid-cols-2 gap-3 text-xs">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-700 mb-0.5">Fo (Base Fuel IDR)</label>
-                          <input
-                            type="number"
-                            className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-lg"
-                            value={rfForm.baseFuelFo || 9000}
-                            onChange={(e) => setRfForm({ ...rfForm, baseFuelFo: parseFloat(e.target.value) || 0 })}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-700 mb-0.5">Fn (Aktual Fuel IDR)</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-lg"
-                            value={rfForm.actualFuelFn || 21601.53}
-                            onChange={(e) => setRfForm({ ...rfForm, actualFuelFn: parseFloat(e.target.value) || 0 })}
-                          />
-                        </div>
+                    <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl space-y-3">
+                      <div className="flex justify-between items-center">
+                        <h5 className="text-[11px] font-extrabold uppercase text-amber-900 tracking-wider flex items-center gap-1.5">
+                          <Flame size={14} className="text-amber-600" />
+                          Parameter 1-Faktor BBM (BGG)
+                        </h5>
+                        <span className="text-[10px] font-bold bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded-md">
+                          Base Fuel (Fo): Rp 9.000 (Konstan Kontrak)
+                        </span>
+                      </div>
+
+                      <div className="overflow-hidden rounded-lg border border-amber-200 bg-white shadow-2xs">
+                        <table className="w-full text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-amber-100/70 text-amber-950 font-extrabold text-[11px] uppercase border-b border-amber-200">
+                              <th className="p-2 text-left w-28 border-r border-amber-200">Periode</th>
+                              <th className="p-2 text-right border-r border-amber-200">Fuel</th>
+                              <th className="p-2 text-right border-r border-amber-200">Transport</th>
+                              <th className="p-2 text-right">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-amber-100 font-medium">
+                            <tr>
+                              <td className="p-2 font-bold text-slate-900 border-r border-amber-100 bg-amber-50/30">
+                                PERIODE I
+                              </td>
+                              <td className="p-1.5 border-r border-amber-100">
+                                <IndoDecimalInput
+                                  placeholder="19.800"
+                                  className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-right p-1.5 rounded outline-none focus:border-amber-600"
+                                  value={rfForm.bggFuelP1}
+                                  onChange={(val) => setRfForm((prev: any) => ({ ...prev, bggFuelP1: val }))}
+                                />
+                              </td>
+                              <td className="p-1.5 border-r border-amber-100">
+                                <IndoDecimalInput
+                                  placeholder="1.800"
+                                  className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-right p-1.5 rounded outline-none focus:border-amber-600"
+                                  value={rfForm.bggTransportP1}
+                                  onChange={(val) => setRfForm((prev: any) => ({ ...prev, bggTransportP1: val }))}
+                                />
+                              </td>
+                              <td className="p-2 text-right font-mono font-extrabold text-slate-900 bg-amber-50/30">
+                                Rp {bggTotalP1.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td className="p-2 font-bold text-slate-900 border-r border-amber-100 bg-amber-50/30">
+                                PERIODE II
+                              </td>
+                              <td className="p-1.5 border-r border-amber-100">
+                                <IndoDecimalInput
+                                  placeholder="19.800"
+                                  className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-right p-1.5 rounded outline-none focus:border-amber-600"
+                                  value={rfForm.bggFuelP2}
+                                  onChange={(val) => setRfForm((prev: any) => ({ ...prev, bggFuelP2: val }))}
+                                />
+                              </td>
+                              <td className="p-1.5 border-r border-amber-100">
+                                <IndoDecimalInput
+                                  placeholder="1.803,06"
+                                  className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-right p-1.5 rounded outline-none focus:border-amber-600"
+                                  value={rfForm.bggTransportP2}
+                                  onChange={(val) => setRfForm((prev: any) => ({ ...prev, bggTransportP2: val }))}
+                                />
+                              </td>
+                              <td className="p-2 text-right font-mono font-extrabold text-slate-900 bg-amber-50/30">
+                                Rp {bggTotalP2.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
+                              </td>
+                            </tr>
+                          </tbody>
+                          <tfoot>
+                            <tr className="bg-amber-100/90 font-extrabold border-t-2 border-amber-300 text-amber-950">
+                              <td colSpan={2} className="p-2 text-left uppercase text-[10px] tracking-wider border-r border-amber-200">
+                                RATA-RATA TOTAL AKTUAL FUEL (Fn)
+                              </td>
+                              <td className="p-2 text-right text-[10px] uppercase font-bold text-amber-900 border-r border-amber-200">
+                                TOTAL (AVERAGE)
+                              </td>
+                              <td className="p-2 text-right font-mono font-black text-amber-950 text-xs">
+                                Rp {bggAvgFn.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
                       </div>
                     </div>
                   ) : (
@@ -1053,9 +1237,11 @@ export function MasterRaiseFallPage({
                     <div className="text-[10px] font-extrabold uppercase text-cyan-400">Live Calculation Preview:</div>
                     {isBGGStyle ? (
                       <div className="space-y-1 text-slate-300">
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span>Formula: 0,60 + 0,40 × (Fn / Fo):</span>
-                          <strong className="text-amber-300">0,60 + 0,40 × ({(rfForm.actualFuelFn || 21601.53).toLocaleString("id-ID")} / {(rfForm.baseFuelFo || 9000).toLocaleString("id-ID")})</strong>
+                          <strong className="text-amber-300">
+                            0,60 + 0,40 × ({bggAvgFn.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / 9.000)
+                          </strong>
                         </div>
                       </div>
                     ) : (
