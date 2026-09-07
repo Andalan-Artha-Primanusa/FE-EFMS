@@ -83,7 +83,7 @@ export function BATrackerSurveyMatrix({
                     <div className="flex items-center gap-1.5">
                       <span>{item.material || "-"}</span>
                       {!isDPFuel && (item.keterangan || item.notes) && (
-                        <span className="px-1.5 py-0.5 bg-cyan-100 text-cyan-900 border border-cyan-300 rounded text-[10px] font-black">
+                        <span className="px-1.5 py-0.5 bg-[#A57C50]/10 text-[#A57C50] border border-[#A57C50]/30 rounded-[3px] text-[10px] font-bold">
                           {item.keterangan || item.notes}
                         </span>
                       )}
@@ -91,7 +91,7 @@ export function BATrackerSurveyMatrix({
                     <div className="text-[10px] text-slate-500 font-normal mt-0.5">
                       {item.category} • {item.area || (isCustomerBGG ? "Pit KKL" : "WM1")}
                       {isDistance && (
-                        <span className="text-cyan-800 font-mono ml-1 font-bold">
+                        <span className="text-[#A57C50] font-mono ml-1 font-bold">
                           (Dist: {item.distanceWeightAvg || 0} {item.unit === "Bcm.Hm" ? "Hm" : "m"})
                         </span>
                       )}
@@ -101,7 +101,7 @@ export function BATrackerSurveyMatrix({
                     {isDPFuel ? (
                       <span className="text-slate-400 font-bold pt-1 block">-</span>
                     ) : (
-                      <span className="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs inline-block text-center min-w-[45px] mt-0.5">
+                      <span className="px-2 py-1 bg-slate-100 border border-slate-200 rounded-[3px] text-xs inline-block text-center min-w-[45px] mt-0.5">
                         {item.unit || "BCM"}
                       </span>
                     )}
@@ -119,7 +119,7 @@ export function BATrackerSurveyMatrix({
                         <FormattedNumberInput
                           allowDecimals
                           maxDecimals={3}
-                          className="w-24 bg-cyan-50 border border-cyan-300 rounded px-2 py-1 text-right font-mono font-bold text-xs text-cyan-950 focus:border-cyan-700 outline-none"
+                          className="w-24 bg-slate-50 border border-slate-300 rounded-[3px] px-2 py-1 text-right font-mono font-bold text-xs text-slate-900 focus:border-[#A57C50] outline-none"
                           value={item.adjustedVolume !== undefined && item.adjustedVolume !== 0 ? item.adjustedVolume : ""}
                           placeholder="00.00"
                           onChange={(val) => {
@@ -150,10 +150,10 @@ export function BATrackerSurveyMatrix({
                       )
                     ) : (
                       <div className="flex flex-col items-end pt-0.5">
-                        <span className="font-mono font-bold text-amber-950 bg-amber-50 border border-amber-300 px-2.5 py-1 rounded text-xs shadow-2xs">
+                        <span className="font-mono font-bold text-[#1A1612] bg-amber-50 border border-[#A57C50]/30 px-2.5 py-1 rounded-[3px] text-xs shadow-2xs">
                           {volAdj > 0 ? volAdj.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00"}
                         </span>
-                        <span className="text-[9px] text-amber-800 font-semibold italic mt-0.5 whitespace-nowrap">
+                        <span className="text-[9px] text-[#A57C50] font-semibold italic mt-0.5 whitespace-nowrap">
                           Auto-sync survey
                         </span>
                       </div>
@@ -177,15 +177,15 @@ export function BATrackerSurveyMatrix({
 
       {/* Delta Summary Box */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-3 bg-slate-100 rounded-xl border border-slate-200">
+        <div className="p-3 bg-white rounded-[4px] border border-slate-200 shadow-xs">
           <span className="text-[10px] font-bold uppercase text-slate-500 block">Total Awal (Site)</span>
           <span className="text-sm font-black font-mono text-slate-800">{formatIDR(sumInitial)}</span>
         </div>
-        <div className="p-3 bg-cyan-50 rounded-xl border border-cyan-200">
-          <span className="text-[10px] font-bold uppercase text-cyan-800 block">Total Survey Bersama</span>
-          <span className="text-sm font-black font-mono text-cyan-950">{formatIDR(sumAdjusted)}</span>
+        <div className="p-3 bg-[#A57C50]/5 rounded-[4px] border border-[#A57C50]/30 shadow-xs">
+          <span className="text-[10px] font-bold uppercase text-[#A57C50] block">Total Survey Bersama</span>
+          <span className="text-sm font-black font-mono text-[#1A1612]">{formatIDR(sumAdjusted)}</span>
         </div>
-        <div className={`p-3 rounded-xl border ${deltaAmount >= 0 ? "bg-emerald-50 border-emerald-300" : "bg-rose-50 border-rose-300"}`}>
+        <div className={`p-3 rounded-[4px] border shadow-xs ${deltaAmount >= 0 ? "bg-emerald-50/50 border-emerald-300" : "bg-rose-50/50 border-rose-300"}`}>
           <span className={`text-[10px] font-bold uppercase block ${deltaAmount >= 0 ? "text-emerald-800" : "text-rose-800"}`}>Delta Selisih Survey</span>
           <span className={`text-sm font-black font-mono ${deltaAmount >= 0 ? "text-emerald-900" : "text-rose-900"}`}>
             {deltaAmount >= 0 ? `+${formatIDR(deltaAmount)}` : `-${formatIDR(Math.abs(deltaAmount))}`}

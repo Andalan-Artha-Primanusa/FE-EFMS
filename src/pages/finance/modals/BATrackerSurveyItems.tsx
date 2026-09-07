@@ -89,19 +89,19 @@ export function BATrackerSurveyItems({
       {isBGG && (
         <div className="space-y-2 pt-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase text-amber-900 flex items-center gap-1.5">
-              <TrendingUp size={14} className="text-amber-700" />
+            <span className="text-xs font-black uppercase text-[#1A1612] flex items-center gap-1.5">
+              <TrendingUp size={14} className="text-[#A57C50]" />
               Kategori 2: Variabel Perhitungan Komersial & Eskalasi Kontrak (BGG Auto-sync)
             </span>
-            <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-300">
+            <span className="text-[10px] font-bold text-[#A57C50] bg-[#A57C50]/10 px-2.5 py-0.5 rounded-[3px] border border-[#A57C50]/30">
               Master Data Formula Terhubung
             </span>
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-amber-200 bg-white shadow-2xs">
+          <div className="overflow-x-auto rounded-[4px] border border-slate-200 bg-white shadow-2xs">
             <table className="w-full text-xs text-left border-collapse">
               <thead>
-                <tr className="bg-amber-100/70 text-amber-900 text-[10px] font-black uppercase tracking-wider border-b border-amber-200">
+                <tr className="bg-slate-100 text-slate-800 text-[10px] font-black uppercase tracking-wider border-b border-slate-200">
                   <th className="p-2 w-10 text-center">No</th>
                   <th className="p-2 min-w-[220px]">Deskripsi Formula / Parameter Kontrak</th>
                   <th className="p-2 text-center w-16">Satuan</th>
@@ -110,17 +110,17 @@ export function BATrackerSurveyItems({
                   <th className="p-2 min-w-[160px]">Keterangan</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-amber-100 font-mono">
-                <tr className="hover:bg-amber-50/50 transition">
+              <tbody className="divide-y divide-slate-100 font-mono">
+                <tr className="hover:bg-slate-50 transition">
                   <td className="p-2 text-center font-bold text-slate-500 font-sans">D</td>
-                  <td className="p-2 font-sans font-bold text-amber-950">
+                  <td className="p-2 font-sans font-bold text-[#1A1612]">
                     Eskalasi Nilai Kontrak (Raise & Fall Index: {(breakdown.rfRateFactor || 1.56).toFixed(3)}x)
                   </td>
                   <td className="p-2 text-center text-slate-700 font-sans">Lot</td>
-                  <td className="p-2 text-right font-bold text-amber-800">
+                  <td className="p-2 text-right font-bold text-[#A57C50]">
                     +{(((breakdown.rfRateFactor || 1.56) - 1.0) * 100).toFixed(1)}%
                   </td>
-                  <td className="p-2 text-right font-black text-amber-700">
+                  <td className="p-2 text-right font-black text-[#A57C50]">
                     +{formatIDR(breakdown.rfAmount)}
                   </td>
                   <td className="p-2 font-sans text-[10px] text-slate-500">
@@ -128,7 +128,7 @@ export function BATrackerSurveyItems({
                   </td>
                 </tr>
 
-                <tr className="hover:bg-amber-50/50 transition">
+                <tr className="hover:bg-slate-50 transition">
                   <td className="p-2 text-center font-bold text-slate-500 font-sans">E</td>
                   <td className="p-2 font-sans font-bold text-rose-950">
                     Potongan Kontrak Overdistance 25% (OD OB & OD Coal)
@@ -146,7 +146,7 @@ export function BATrackerSurveyItems({
                 </tr>
 
                 {breakdown.dpFuelDeduction > 0 && (
-                  <tr className="hover:bg-amber-50/50 transition">
+                  <tr className="hover:bg-slate-50 transition">
                     <td className="p-2 text-center font-bold text-slate-500 font-sans">F</td>
                     <td className="p-2 font-sans font-bold text-rose-950">
                       DP Fuel & Transport (Potongan Solar)

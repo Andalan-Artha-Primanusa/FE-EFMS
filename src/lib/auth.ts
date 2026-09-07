@@ -7,32 +7,30 @@ export function isSuperAdminRole(role: string) {
   return normalized === "super admin" || normalized === "super_admin" || normalized === "system administrator" || normalized === "erp super admin" || normalized.includes("super admin") || normalized.includes("super_admin");
 }
 
-// RBAC check for Coal Index: Hanya Finance SPV, FATB Manager, dan Direktur (+ Super Admin)
+// RBAC check for Coal Index: driven by RBAC permissions (coal_index:write / master_data:write) + fallback
 export function canManageCoalIndex(user?: User): boolean {
   if (!user) return false;
   const role = (user.role ?? "").toLowerCase().trim();
   if (isSuperAdminRole(role)) return true;
 
-  // Finance SPV / Supervisor
+  // Dynamic RBAC Permission Check (Authoritative)
+  if (
+    authorized(user, "coal_index", "write") ||
+    authorized(user, "coal_index", "*") ||
+    authorized(user, "master_data", "write") ||
+    authorized(user, "master_data", "*")
+  ) {
+    return true;
+  }
+
+  // Legacy Role Name Fallback (if permissions not loaded)
   if (
     role.includes("spv") ||
     role.includes("supervisor") ||
     role.includes("superintendent") ||
-    role.includes("finance specialist")
-  ) {
-    return true;
-  }
-
-  // FATB Manager / Finance Manager / Department Head FATB
-  if (
+    role.includes("finance specialist") ||
     role.includes("manager") ||
-    role.includes("fatb")
-  ) {
-    return true;
-  }
-
-  // Direktur / Director / C-Level / General Manager
-  if (
+    role.includes("fatb") ||
     role.includes("director") ||
     role.includes("direktur") ||
     role.includes("c-level") ||

@@ -26,7 +26,7 @@ export function InvoiceActionCell({
         <button
           type="button"
           onClick={() => onMoveUp(itemId)}
-          className="p-1 text-slate-400 hover:text-cyan-700 hover:bg-slate-200 rounded transition"
+          className="p-1 text-slate-400 hover:text-[#A57C50] hover:bg-slate-200 rounded-[3px] transition cursor-pointer"
           title="Pindah ke atas"
         >
           <ChevronUp size={12} />
@@ -34,7 +34,7 @@ export function InvoiceActionCell({
         <button
           type="button"
           onClick={() => onMoveDown(itemId)}
-          className="p-1 text-slate-400 hover:text-cyan-700 hover:bg-slate-200 rounded transition"
+          className="p-1 text-slate-400 hover:text-[#A57C50] hover:bg-slate-200 rounded-[3px] transition cursor-pointer"
           title="Pindah ke bawah"
         >
           <ChevronDown size={12} />
@@ -42,7 +42,7 @@ export function InvoiceActionCell({
         <button
           type="button"
           onClick={() => onRemove(itemId)}
-          className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-100 rounded ml-0.5 transition"
+          className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-100 rounded-[3px] ml-0.5 transition cursor-pointer"
           title="Hapus baris"
         >
           <X size={13} />
@@ -67,12 +67,12 @@ export function InvoiceDescriptionCell({
         <div className="flex items-center gap-1.5">
           <input
             type="text"
-            className="w-full bg-cyan-50/50 border border-cyan-300 rounded px-2 py-0.5 text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 outline-none"
+            className="w-full bg-slate-50 border border-slate-300 rounded-[3px] px-2 py-0.5 text-xs font-bold text-slate-900 focus:bg-white focus:border-[#A57C50] outline-none"
             value={item.description || ""}
             placeholder="Deskripsi pekerjaan baru..."
             onChange={(e) => onUpdateField(item.id, "description", e.target.value)}
           />
-          <span className="text-[10px] uppercase font-mono px-1 py-0.5 bg-cyan-100 text-cyan-800 rounded font-normal shrink-0">
+          <span className="text-[10px] uppercase font-mono px-1 py-0.5 bg-[#A57C50]/10 text-[#A57C50] border border-[#A57C50]/30 rounded-[3px] font-bold shrink-0">
             Kustom
           </span>
         </div>

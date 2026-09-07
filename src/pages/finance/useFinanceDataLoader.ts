@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { api, getSBSPenalties, SBSPenaltyItem, User as UserType } from "../../lib/api";
-import { authorized, filterRowsByCompanyScope, isHeadOfficeUser, companyScopeOf, scopedEndpoint } from "../../lib/auth";
+import { authorized, filterRowsByCompanyScope, isHeadOfficeUser, companyScopeOf, scopedEndpoint, isSuperAdminRole } from "../../lib/auth";
 
 interface UseFinanceDataLoaderProps {
   viewTitle: string;
@@ -19,12 +19,12 @@ export function useFinanceDataLoader({ viewTitle, user, onNotice }: UseFinanceDa
   const [sbsPenalties, setSbsPenalties] = useState<SBSPenaltyItem[]>([]);
   const [accountingJournals, setAccountingJournals] = useState<any[]>([]);
 
-  const userRole = user?.role || "Super Admin";
-  const isSuper = userRole === "Super Admin" || userRole === "Superadmin";
-  const isFinanceSpecialist = authorized(user, "operational_transaction", "write");
-  const isSPV = authorized(user, "ba_tracker", "verify") || authorized(user, "invoice", "verify");
-  const isManager = authorized(user, "ba_tracker", "approve") || authorized(user, "invoice", "approve_tier1");
-  const isDirector = authorized(user, "invoice", "approve_tier2");
+  const userRole = user?.role || "User";
+  const isSuper = isSuperAdminRole(user?.role || "");
+  const isFinanceSpecialist = isSuper || authorized(user, "operational_transaction", "write") || authorized(user, "ba_tracker", "write") || authorized(user, "finance", "write");
+  const isSPV = isSuper || authorized(user, "ba_tracker", "verify") || authorized(user, "invoice", "verify") || authorized(user, "finance", "verify");
+  const isManager = isSuper || authorized(user, "ba_tracker", "approve") || authorized(user, "invoice", "approve_tier1") || authorized(user, "approval", "act");
+  const isDirector = isSuper || authorized(user, "invoice", "approve_tier2") || authorized(user, "finance", "approve_tier2") || authorized(user, "management_dashboard", "read");
 
   async function loadData() {
     setLoading(true);

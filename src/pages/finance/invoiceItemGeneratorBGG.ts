@@ -155,6 +155,33 @@ export function buildBGGInvoiceItemsFromBA(ba: any, ctx: InvoiceItemGeneratorCon
       notes: "Potongan DP Fuel & Transport"
     });
 
+    // Append any additional custom items added to BA Tracker
+    const standardIds = new Set([ob1Item?.id, ob2Item?.id, obDistItem?.id, coalDistItem?.id, cwItem?.id, dpFuelItem?.id]);
+    const customBAItems = ba.items.filter((bi: any) => bi && !standardIds.has(bi.id) && (bi.isCustom || bi.section || bi.material));
+
+    customBAItems.forEach((cItem: any, cIdx: number) => {
+      const vol = Number(cItem.adjustedVolume ?? cItem.initialVolume ?? 1);
+      const rate = Number(cItem.rate || 0);
+      const isDed = cItem.isDeduction || cItem.category === "DP Fuel" || cItem.category === "Discount" || cItem.section === "E" || cItem.section === "F";
+      const amt = isDed ? -Math.abs(rate !== 0 ? vol * rate : (cItem.subtotalAdjusted || cItem.subtotalInitial || 0)) : Math.round(vol * rate);
+      const sec = cItem.section || (isDed ? "F" : "A");
+
+      invItems.push({
+        id: cItem.id || `bgg_custom_inv_${cIdx}`,
+        section: sec,
+        subSection: `${sec}. Add-on / Variabel Tambahan`,
+        description: cItem.material || cItem.description || "Variabel SOW Tambahan",
+        sowDescription: cItem.material || "Variabel SOW Tambahan",
+        unit: cItem.unit || (isDed ? "Lot" : "BCM"),
+        volume: vol,
+        unitRateIDR: rate,
+        amount: amt,
+        amountIDR: amt,
+        isDeduction: isDed,
+        notes: cItem.notes || ba.workPeriod || "-"
+      });
+    });
+
     return invItems;
   }
   return demoBGGItems.map(i => ({ ...i }));

@@ -36,10 +36,10 @@ export function BAOperatingTable({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-black uppercase text-cyan-900 flex items-center gap-1.5">
-          <Pickaxe size={14} className="text-cyan-700" />
+        <span className="text-xs font-black uppercase text-[#1A1612] flex items-center gap-1.5">
+          <Pickaxe size={14} className="text-[#A57C50]" />
           {isCustomerBGG
-            ? "Kategori: Penambangan Batubara & OB Removal (BGG)"
+            ? "Kategori: Penambangan Batubara, OB Removal & Variabel (BGG)"
             : isCustomerSBS
             ? "Kategori 1: Operating & Mining (OB Removal)"
             : "Kategori 1: Operating & Mining"}
@@ -55,7 +55,7 @@ export function BAOperatingTable({
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-xs">
+      <div className="overflow-x-auto rounded-[4px] border border-slate-200 shadow-xs">
         <table className="w-full text-xs text-left">
           <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
             <tr>
@@ -73,7 +73,7 @@ export function BAOperatingTable({
           <tbody className="divide-y divide-slate-100">
             {baOperatingItems.map((item, idx) => {
               const isDistance = isDistanceItem(item);
-              const isDPFuel = item.category === "DP Fuel" || item.isDeduction || (item.material || "").toLowerCase().includes("dp fuel");
+              const isDPFuel = item.category === "DP Fuel" || item.isDeduction || (item.material || "").toLowerCase().includes("dp fuel") || item.section === "F" || item.section === "E" || item.section === "P";
               const effVol = getBAEffectiveVolume(item, allBAItems, false);
               const subtotal = getBAItemSubtotal(item, effVol);
 
@@ -84,7 +84,7 @@ export function BAOperatingTable({
                       <span className="pt-1 block">{item.area || (isCustomerBGG ? "Pit KKL" : "WM1")}</span>
                     ) : (
                       <input
-                        className="w-16 sm:w-20 bg-slate-50 border border-slate-300 rounded px-1.5 py-1 text-xs font-bold focus:border-cyan-700 outline-none"
+                        className="w-16 sm:w-20 bg-slate-50 border border-slate-300 rounded-[3px] px-1.5 py-1 text-xs font-bold focus:border-[#A57C50] outline-none"
                         value={item.area || ""}
                         placeholder={isCustomerBGG ? "Pit KKL" : "WM1"}
                         onChange={(e) => {
@@ -98,6 +98,11 @@ export function BAOperatingTable({
                   <td className="p-2 font-medium text-slate-900 align-top">
                     {!isInlineEditingBA ? (
                       <div>
+                        {item.section && (
+                          <span className="inline-block mr-1.5 px-1.5 py-0.2 rounded-[2px] bg-slate-200 text-slate-700 font-bold text-[9px]">
+                            Seksi {item.section}
+                          </span>
+                        )}
                         <span className="font-bold text-slate-900">{item.material}</span>
                         {(item.keterangan || item.notes) && (
                           <span className="ml-2 text-[10px] text-slate-500 italic">({item.keterangan || item.notes})</span>
@@ -105,44 +110,53 @@ export function BAOperatingTable({
                       </div>
                     ) : (
                       <div className="space-y-1">
-                        <SOWSelectDropdown
-                          className="w-full bg-cyan-50/60 hover:bg-cyan-50 focus:bg-white border border-cyan-300 focus:border-cyan-700 rounded px-2 py-1 text-xs font-bold text-slate-900 outline-none transition cursor-pointer"
-                          value={item.isCustom ? "Lainnya" : (item.material || "")}
-                          customerCode={formData.customerCode || ""}
-                          activeSOWCatalog={activeSOWCatalog}
-                          mRate={mRate}
-                          categoryFilter="Operating & Mining"
-                          isDistanceOnly={isDistance}
-                          parentItems={baOperatingItems}
-                          onChange={(val) => {
-                            const updated = [...baOperatingItems];
-                            if (val === "Lainnya") {
-                              updated[idx].isCustom = true;
-                            }
-                            setBaOperatingItems(updated);
-                          }}
-                          onSelectSow={(sow) => {
-                            const updated = [...baOperatingItems];
-                            if (sow.name === "Lainnya") {
-                              updated[idx].isCustom = true;
-                              updated[idx].customName = updated[idx].customName || "";
-                              updated[idx].material = updated[idx].customName || "Lainnya";
-                              updated[idx].rate = updated[idx].rate || 0;
-                            } else {
-                              updated[idx].isCustom = false;
-                              updated[idx].material = sow.name;
-                              updated[idx].unit = sow.unit || updated[idx].unit;
-                              updated[idx].rate = sow.defaultRate || updated[idx].rate;
-                              if (sow.parentMaterial) {
-                                updated[idx].parentMaterial = sow.parentMaterial;
-                              }
-                            }
-                            setBaOperatingItems(updated);
-                          }}
-                        />
-                        {(item.isCustom || item.material === "Lainnya") && (
+                        <div className="flex items-center gap-1">
+                          {item.section && (
+                            <span className="shrink-0 px-1.5 py-0.5 rounded-[2px] bg-[#A57C50]/15 text-[#A57C50] font-bold text-[10px] border border-[#A57C50]/30">
+                              {item.section}
+                            </span>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <SOWSelectDropdown
+                              className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#A57C50] rounded-[3px] px-2 py-1 text-xs font-bold text-slate-900 outline-none transition cursor-pointer"
+                              value={item.isCustom ? "Lainnya" : (item.material || "")}
+                              customerCode={formData.customerCode || ""}
+                              activeSOWCatalog={activeSOWCatalog}
+                              mRate={mRate}
+                              categoryFilter="Operating & Mining"
+                              isDistanceOnly={isDistance}
+                              parentItems={baOperatingItems}
+                              onChange={(val) => {
+                                const updated = [...baOperatingItems];
+                                if (val === "Lainnya") {
+                                  updated[idx].isCustom = true;
+                                }
+                                setBaOperatingItems(updated);
+                              }}
+                              onSelectSow={(sow) => {
+                                const updated = [...baOperatingItems];
+                                if (sow.name === "Lainnya") {
+                                  updated[idx].isCustom = true;
+                                  updated[idx].customName = updated[idx].customName || "";
+                                  updated[idx].material = updated[idx].customName || "Lainnya";
+                                  updated[idx].rate = updated[idx].rate || 0;
+                                } else {
+                                  updated[idx].isCustom = false;
+                                  updated[idx].material = sow.name;
+                                  updated[idx].unit = sow.unit || updated[idx].unit;
+                                  updated[idx].rate = sow.defaultRate || updated[idx].rate;
+                                  if (sow.parentMaterial) {
+                                    updated[idx].parentMaterial = sow.parentMaterial;
+                                  }
+                                }
+                                setBaOperatingItems(updated);
+                              }}
+                            />
+                          </div>
+                        </div>
+                        {(item.isCustom || item.material === "Lainnya" || !item.material) && (
                           <input
-                            className="w-full bg-amber-50 border border-amber-300 focus:border-amber-600 rounded px-2 py-1 text-xs font-bold text-slate-900 outline-none placeholder:text-amber-700/60 placeholder:italic"
+                            className="w-full bg-amber-50/50 border border-amber-300 focus:border-[#A57C50] rounded-[3px] px-2 py-1 text-xs font-bold text-slate-900 outline-none placeholder:text-amber-700/60 placeholder:italic"
                             placeholder="Ketik rincian variabel lainnya..."
                             value={item.customName !== undefined ? item.customName : (item.material !== "Lainnya" ? item.material : "")}
                             onChange={(e) => {
@@ -171,10 +185,10 @@ export function BAOperatingTable({
                       </span>
                     ) : isDistance ? (
                       <div className="pt-0.5">
-                        <span className="font-mono font-extrabold text-cyan-950 text-xs block">
+                        <span className="font-mono font-extrabold text-[#1A1612] text-xs block">
                           {effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : "00.00"}
                         </span>
-                        <span className="text-[9px] text-cyan-700 font-bold block leading-none">
+                        <span className="text-[9px] text-[#A57C50] font-bold block leading-none">
                           (Auto-sync)
                         </span>
                       </div>
@@ -182,7 +196,7 @@ export function BAOperatingTable({
                       <FormattedNumberInput
                         allowDecimals
                         maxDecimals={3}
-                        className="w-20 sm:w-24 bg-slate-50 border border-slate-300 rounded px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
+                        className="w-20 sm:w-24 bg-slate-50 border border-slate-300 rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none"
                         value={item.initialVolume === 0 ? "" : (item.initialVolume ?? "")}
                         placeholder="00.00"
                         onChange={(val) => {
@@ -203,7 +217,7 @@ export function BAOperatingTable({
                         <FormattedNumberInput
                           allowDecimals
                           maxDecimals={2}
-                          className="w-16 sm:w-20 bg-white border border-slate-300 rounded px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
+                          className="w-16 sm:w-20 bg-white border border-slate-300 rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none"
                           value={item.distanceWeightAvg ?? item.distance ?? ""}
                           placeholder="00.00"
                           onChange={(val) => {
@@ -231,7 +245,7 @@ export function BAOperatingTable({
                       <FormattedNumberInput
                         allowDecimals
                         maxDecimals={3}
-                        className={`w-20 sm:w-24 border rounded px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none ${item.isCustom && (!item.rate || item.rate === 0) ? "bg-amber-50 border-amber-400 text-amber-900" : "bg-slate-50 border-slate-300"}`}
+                        className={`w-20 sm:w-24 border rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none ${item.isCustom && (!item.rate || item.rate === 0) ? "bg-amber-50 border-amber-400 text-amber-900" : "bg-slate-50 border-slate-300"}`}
                         value={item.rate === 0 ? "" : (item.rate ?? "")}
                         placeholder="00.00"
                         onChange={(val) => {
@@ -243,14 +257,14 @@ export function BAOperatingTable({
                     )}
                   </td>
                   <td className="p-2 text-right font-mono font-extrabold align-top">
-                    <div className={`pt-1 ${subtotal < 0 ? "text-rose-700 font-black" : "text-slate-900"}`}>{formatIDR(subtotal)}</div>
+                    <div className={`pt-1 ${subtotal < 0 ? "text-rose-700 font-black" : "text-[#1A1612]"}`}>{formatIDR(subtotal)}</div>
                   </td>
                   {isInlineEditingBA && (
                     <td className="p-2 text-center align-top">
                       <button
                         type="button"
                         onClick={() => setBaOperatingItems(baOperatingItems.filter((_, i) => i !== idx))}
-                        className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+                        className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer transition"
                       >
                         <Trash2 size={13} />
                       </button>
