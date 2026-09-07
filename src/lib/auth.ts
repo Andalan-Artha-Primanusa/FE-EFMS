@@ -118,8 +118,28 @@ export function authorized(
   return hasPermission(userPermissionsOf(user), module, action);
 }
 
-export function canAccessMenu(item: string, role: string, permissions: Permission[], tcodes?: TCode[]) {
+export function canAccessMenu(item: string, role: string, permissions: Permission[], tcodes?: TCode[], user?: User) {
   if (isSuperAdminRole(role)) return true;
+
+  // Site-specific Master Data restrictions:
+  // For site accounts (scope SITE / role includes "site"):
+  // Master data only allows "RAISE & FALL", and even then strictly for BGG and POS sites.
+  const isSiteUser = (user && !isHeadOfficeUser(user)) || (role && role.toLowerCase().includes("site"));
+  if (isSiteUser) {
+    const isMasterDataItem = [
+      "Chart of Accounts", "Company", "Site", "Department", "Cost Center", "Project",
+      "Vendor", "Client Setup", "Customer Master & Credit Terms", "Customer", "Employee",
+      "Bank", "Tax", "Currency", "Coal Index", "Variable SOW", "RAISE & FALL"
+    ].includes(item);
+
+    if (isMasterDataItem) {
+      if (item !== "RAISE & FALL") return false;
+      const userSite = (user?.companyCode || (user ? companyScopeOf(user).codes[0] : "") || "").toUpperCase();
+      const roleUpper = (role || "").toUpperCase();
+      const isBGGorPOS = userSite === "BGG" || userSite === "POS" || roleUpper.includes("BGG") || roleUpper.includes("POS");
+      if (!isBGGorPOS) return false;
+    }
+  }
 
   if (tcodes && tcodes.length > 0) {
     const itemSlug = item.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");

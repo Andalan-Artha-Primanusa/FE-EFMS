@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, getSBSPenalties, saveSBSPenalty, deleteSBSPenalty, SBSPenaltyItem, User as UserType, generateJournalFromInvoice, generateJournalFromBA, generateJournalFromPayment, getJournals } from "../../lib/api";
-import { authorized, filterRowsByCompanyScope } from "../../lib/auth";
+import { authorized, filterRowsByCompanyScope, isHeadOfficeUser, companyScopeOf, scopedEndpoint } from "../../lib/auth";
 
 import {
   resolveDocumentUrl, formatIDR, parseNumber, formatThousand, formatDateInput,
@@ -864,7 +864,7 @@ export function useFinanceController({
     try {
       const [dashRes, baRes, invRes, payRes, custRes, pVolRes, sbsPenRes, jrnRes] = await Promise.all([
         (viewTitle === "Finance & AR Dashboard" || viewTitle === "Finance AR Dashboard" || viewTitle.includes("AR Dashboard"))
-          ? api<any>("/api/finance/dashboard").catch(() => null)
+          ? api<any>(scopedEndpoint("/api/finance/dashboard", user || ({ role: userRole } as any))).catch(() => null)
           : Promise.resolve(null),
         api<any[]>("/api/finance/ba-trackers").catch(() => []),
         api<any[]>("/api/finance/invoices").catch(() => []),
@@ -875,7 +875,28 @@ export function useFinanceController({
         getJournals().catch(() => [])
       ]);
 
-      if (dashRes) setDashboardData(dashRes);
+      if (dashRes) {
+        if (user && !isHeadOfficeUser(user)) {
+          const scope = companyScopeOf(user);
+          const siteCode = (scope.codes[0] || user.companyCode || "").toUpperCase();
+          const matchesSite = (cCode: string) => {
+            const up = String(cCode || "").toUpperCase();
+            if (scope.codes.length > 0) return scope.codes.includes(up);
+            return up === siteCode || (siteCode === "POS" && (up === "IBP" || up === "BBA"));
+          };
+          const filteredMatrix = (dashRes.agingMatrix ?? []).filter((r: any) => matchesSite(r.customer || r.customerCode));
+          const filteredOverdue = (dashRes.topOverdueInvoices ?? []).filter((inv: any) => matchesSite(inv.customerCode || inv.customer));
+          const filteredBottlenecks = (dashRes.baBottlenecks ?? []).filter((b: any) => matchesSite(b.customer || b.customerCode));
+          setDashboardData({
+            ...dashRes,
+            agingMatrix: filteredMatrix,
+            topOverdueInvoices: filteredOverdue,
+            baBottlenecks: filteredBottlenecks,
+          });
+        } else {
+          setDashboardData(dashRes);
+        }
+      }
       if (Array.isArray(baRes)) setBaRows(user ? filterRowsByCompanyScope(baRes, user) : baRes);
       if (Array.isArray(invRes)) setInvoiceRows(user ? filterRowsByCompanyScope(invRes, user) : invRes);
       if (Array.isArray(payRes)) setPaymentRows(user ? filterRowsByCompanyScope(payRes, user) : payRes);
