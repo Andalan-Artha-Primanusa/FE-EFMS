@@ -73,8 +73,8 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
       const secEItems = activeItems.filter((i: any) => i.section === "E");
       const secFItems = activeItems.filter((i: any) => i.section === "F");
 
-      const volA = secAItems.reduce((s: number, i: any) => s + (getItemEffectiveVolume(i) || i.volume || 0), 0);
-      const volB = secBItems.reduce((s: number, i: any) => s + (getItemEffectiveVolume(i) || i.volume || 0), 0);
+      const volA = secAItems.reduce((s: number, i: any) => s + (getItemEffectiveVolume(i, activeItems) || i.volume || 0), 0);
+      const volB = secBItems.reduce((s: number, i: any) => s + (getItemEffectiveVolume(i, activeItems) || i.volume || 0), 0);
 
       tableBodyHTML = `
         <tr class="sec-hdr">
@@ -86,8 +86,8 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         </tr>
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">A1. Pit Kungkilan</td></tr>
         ${secAItems.map((i: any) => {
-          const effVol = getItemEffectiveVolume(i);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+          const effVol = getItemEffectiveVolume(i, activeItems);
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
           return `
             <tr>
               <td style="padding-left: 20px;">${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.period || ""}</span></td>
@@ -108,8 +108,8 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         </tr>
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">B1. Pit Kungkilan</td></tr>
         ${secBItems.map((i: any) => {
-          const effVol = getItemEffectiveVolume(i);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+          const effVol = getItemEffectiveVolume(i, activeItems);
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
           return `
             <tr>
               <td style="padding-left: 20px;">${i.description}</td>
@@ -130,10 +130,10 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         </tr>
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">C1. Over Distance For OB Removal</td></tr>
         ${secCItems.filter((i: any) => i.subSection?.includes("OB") || i.description?.includes("OB")).map((i: any) => {
-          const effVol = getItemEffectiveVolume(i);
+          const effVol = getItemEffectiveVolume(i, activeItems);
           const effMtr = getItemEffectiveOverhaulMtr(i);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
-          const diffMtr = effMtr - 1000;
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
+          const diffMtr = Number((effMtr - 1000).toFixed(3));
           return `
             <tr>
               <td style="padding-left: 20px;">
@@ -149,10 +149,10 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         }).join("")}
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">C2. Over Distance For Coal Winning</td></tr>
         ${secCItems.filter((i: any) => !i.subSection?.includes("OB") && !i.description?.includes("OB")).map((i: any) => {
-          const effVol = getItemEffectiveVolume(i);
+          const effVol = getItemEffectiveVolume(i, activeItems);
           const effMtr = getItemEffectiveOverhaulMtr(i);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
-          const diffMtr = effMtr - 1000;
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
+          const diffMtr = Number((effMtr - 1000).toFixed(3));
           return `
             <tr>
               <td style="padding-left: 20px;">
@@ -175,8 +175,8 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           <td class="text-right font-mono font-black">${c.subtotalD.toLocaleString("id-ID")}</td>
         </tr>
         ${secDItems.map((i: any) => {
-          const effVol = getItemEffectiveVolume(i);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+          const effVol = getItemEffectiveVolume(i, activeItems);
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
           return `
             <tr>
               <td style="padding-left: 20px;">${i.subSection || ""} ${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.period || ""}</span></td>
@@ -193,7 +193,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           <td class="text-right font-mono font-black">(${Math.abs(c.subtotalE).toLocaleString("id-ID")})</td>
         </tr>
         ${secEItems.map((i: any) => {
-          const { amount } = calculateItemRateAndAmount(i, "BGG");
+          const { amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
           return `
             <tr>
               <td colspan="4" style="padding-left: 20px;">${i.description}</td>
@@ -207,7 +207,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           <td class="text-right font-mono font-black">(${Math.abs(c.subtotalF).toLocaleString("id-ID")})</td>
         </tr>
         ${secFItems.map((i: any) => {
-          const { amount } = calculateItemRateAndAmount(i, "BGG");
+          const { amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
           return `
             <tr>
               <td colspan="4" style="padding-left: 20px;">${i.description}</td>

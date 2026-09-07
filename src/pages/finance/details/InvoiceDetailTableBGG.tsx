@@ -4,9 +4,9 @@ import { formatIDR } from "../helpers";
 interface InvoiceDetailTableBGGProps {
   activeItems: any[];
   cCalc: any;
-  getItemEffectiveVolume: (item: any) => number;
+  getItemEffectiveVolume: (item: any, currentList?: any[]) => number;
   getItemEffectiveOverhaulMtr: (item: any) => number;
-  calculateItemRateAndAmount: (item: any, customerCode: string) => { unitRate: number; amount: number };
+  calculateItemRateAndAmount: (item: any, customerCode: string, currentList?: any[]) => { unitRate: number; amount: number };
 }
 
 export const InvoiceDetailTableBGG: React.FC<InvoiceDetailTableBGGProps> = ({
@@ -30,8 +30,8 @@ export const InvoiceDetailTableBGG: React.FC<InvoiceDetailTableBGGProps> = ({
       </tr>
       <tr className="bg-slate-50 font-bold"><td colSpan={5} className="p-1.5 pl-4 text-slate-700">A1. Pit Kungkilan</td></tr>
       {activeItems.filter((i: any) => i.section === "A").map((i: any) => {
-        const effVol = getItemEffectiveVolume(i);
-        const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+        const effVol = getItemEffectiveVolume(i, activeItems);
+        const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
         return (
           <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
             <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">
@@ -57,8 +57,8 @@ export const InvoiceDetailTableBGG: React.FC<InvoiceDetailTableBGGProps> = ({
       </tr>
       <tr className="bg-slate-50 font-bold"><td colSpan={5} className="p-1.5 pl-4 text-slate-700">B1. Pit Kungkilan</td></tr>
       {activeItems.filter((i: any) => i.section === "B").map((i: any) => {
-        const effVol = getItemEffectiveVolume(i);
-        const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+        const effVol = getItemEffectiveVolume(i, activeItems);
+        const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
         return (
           <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
             <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">
@@ -81,10 +81,10 @@ export const InvoiceDetailTableBGG: React.FC<InvoiceDetailTableBGGProps> = ({
         <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalC)}</td>
       </tr>
       {activeItems.filter((i: any) => i.section === "C").map((i: any) => {
-        const effVol = getItemEffectiveVolume(i);
+        const effVol = getItemEffectiveVolume(i, activeItems);
         const effMtr = getItemEffectiveOverhaulMtr(i);
-        const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
-        const diffMtr = effMtr - 1000;
+        const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
+        const diffMtr = Number((effMtr - 1000).toFixed(3));
         return (
           <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
             <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">
@@ -110,8 +110,8 @@ export const InvoiceDetailTableBGG: React.FC<InvoiceDetailTableBGGProps> = ({
         <td className="p-2 text-right font-mono font-black">{formatIDR(cCalc.subtotalD)}</td>
       </tr>
       {activeItems.filter((i: any) => i.section === "D").map((i: any) => {
-        const effVol = getItemEffectiveVolume(i);
-        const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+        const effVol = getItemEffectiveVolume(i, activeItems);
+        const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
         return (
           <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
             <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">

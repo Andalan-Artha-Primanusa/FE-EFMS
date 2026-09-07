@@ -123,7 +123,7 @@ export function InvoiceTableSBS({
                       <div className="flex flex-col items-center justify-center gap-0.5">
                         <FormattedNumberInput
                           className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-1.5 py-0.5 rounded text-center focus:bg-white focus:border-cyan-700 outline-none"
-                          placeholder="0"
+                          placeholder="00.00"
                           value={currentDist === 0 ? "" : currentDist}
                           onChange={(val) => {
                             const dist = Number(val) || 0;
@@ -152,7 +152,7 @@ export function InvoiceTableSBS({
                           allowDecimals
                           maxDecimals={3}
                           className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                          placeholder="0"
+                          placeholder="00.00"
                           value={item.volume === 0 ? "" : (item.volume ?? "")}
                           onChange={(val) => updateInvItemVolume(item.id, val)}
                         />
@@ -162,7 +162,7 @@ export function InvoiceTableSBS({
                     <td className="p-2 text-right">
                       <FormattedNumberInput
                         className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                        placeholder="0"
+                        placeholder="00.00"
                         value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
                         onChange={(val) => updateInvItemRateIDR(item.id, val)}
                       />
@@ -201,7 +201,7 @@ export function InvoiceTableSBS({
                         allowDecimals
                         maxDecimals={3}
                         className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                        placeholder="0"
+                        placeholder="00.00"
                         value={item.volume === 0 ? "" : (item.volume ?? "")}
                         onChange={(val) => updateInvItemVolume(item.id, val)}
                       />
@@ -211,7 +211,7 @@ export function InvoiceTableSBS({
                   <td className="p-2 text-right">
                     <FormattedNumberInput
                       className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                      placeholder="0"
+                      placeholder="00.00"
                       value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
                       onChange={(val) => updateInvItemRateIDR(item.id, val)}
                     />

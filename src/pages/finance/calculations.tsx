@@ -99,74 +99,70 @@ export function createFinanceCalculations(deps: {
   ) => number;
   mRate: number;
 }) {
-  const { formData, invLineItems, rfIndexCalculated, mRate } = deps;
+  const { formData, invLineItems, rfIndexCalculated, getSowMasterRate, mRate } = deps;
 
-  const getItemEffectiveVolume = (item: any) => {
+  const getItemEffectiveVolume = (item: any, currentList?: any[]) => {
     if (!item) return 0;
-    const cust = formData.customerCode || "";
+    const directVol = Number(item.volume ?? item.adjustedVolume ?? item.initialVolume ?? 0);
+    if (directVol > 0) return directVol;
+
+    const list = currentList && currentList.length > 0 ? currentList : invLineItems;
+    const cust = (formData.customerCode || "").toUpperCase();
 
     if (cust === "BGG") {
       if (item.section === "C") {
         if (item.subSection?.includes("OB") || item.description?.includes("OB")) {
-          return (
-            item.volume ||
-            invLineItems
-              .filter((i) => i.section === "A")
-              .reduce((sum, i) => sum + (i.volume || 0), 0)
-          );
+          return list
+            .filter((i) => i.section === "A")
+            .reduce((sum, i) => sum + Number(i.volume ?? i.adjustedVolume ?? i.initialVolume ?? 0), 0);
         }
         if (item.subSection?.includes("Coal") || item.description?.includes("Coal")) {
-          return (
-            item.volume ||
-            invLineItems
-              .filter((i) => i.section === "B")
-              .reduce((sum, i) => sum + (i.volume || 0), 0)
-          );
+          return list
+            .filter((i) => i.section === "B")
+            .reduce((sum, i) => sum + Number(i.volume ?? i.adjustedVolume ?? i.initialVolume ?? 0), 0);
         }
       }
       if (item.section === "D") {
         if (item.description?.includes("75%")) {
-          return (
-            invLineItems.find(
-              (i) => i.section === "A" && i.description?.includes("75%")
-            )?.volume || 0
+          return Number(
+            list.find((i) => i.section === "A" && (i.description?.includes("75%") || i.sowDescription?.includes("75%")))?.volume ||
+            list.find((i) => i.section === "A" && (i.description?.includes("75%") || i.sowDescription?.includes("75%")))?.adjustedVolume || 0
           );
         }
         if (item.description?.includes("25%")) {
-          return (
-            invLineItems.find(
-              (i) => i.section === "A" && i.description?.includes("25%")
-            )?.volume || 0
+          return Number(
+            list.find((i) => i.section === "A" && (i.description?.includes("25%") || i.sowDescription?.includes("25%")))?.volume ||
+            list.find((i) => i.section === "A" && (i.description?.includes("25%") || i.sowDescription?.includes("25%")))?.adjustedVolume || 0
           );
         }
         if (item.subSection?.includes("D2") || item.description?.includes("OB")) {
-          return invLineItems
+          return list
             .filter((i) => i.section === "A")
-            .reduce((sum, i) => sum + (i.volume || 0), 0);
+            .reduce((sum, i) => sum + Number(i.volume ?? i.adjustedVolume ?? i.initialVolume ?? 0), 0);
         }
         if (
           item.subSection?.includes("D3") ||
           (item.description?.includes("Coal Winning") &&
             !item.description?.includes("Over Distance"))
         ) {
-          return invLineItems
+          return list
             .filter((i) => i.section === "B")
-            .reduce((sum, i) => sum + (i.volume || 0), 0);
+            .reduce((sum, i) => sum + Number(i.volume ?? i.adjustedVolume ?? i.initialVolume ?? 0), 0);
         }
         if (item.subSection?.includes("D4") || item.description?.includes("Coal")) {
-          return invLineItems
+          return list
             .filter((i) => i.section === "B")
-            .reduce((sum, i) => sum + (i.volume || 0), 0);
+            .reduce((sum, i) => sum + Number(i.volume ?? i.adjustedVolume ?? i.initialVolume ?? 0), 0);
         }
       }
-      return item.volume || 0;
+      return directVol;
     }
 
-    if (cust === "POS") {
+    if (cust === "POS" || cust === "IBP" || cust === "BBA") {
       if (item.section === "B") {
         if (item.code === "B1" || item.description?.includes("OB Removal")) {
-          return (
-            invLineItems.find(
+          return Number(
+            list.find(
               (i) =>
                 i.section === "A" &&
                 (i.code === "A1" || i.description?.includes("OVER BURDEN"))
@@ -174,8 +170,8 @@ export function createFinanceCalculations(deps: {
           );
         }
         if (item.code === "B2" || item.description?.includes("Top Soil")) {
-          return (
-            invLineItems.find(
+          return Number(
+            list.find(
               (i) =>
                 i.section === "A" &&
                 (i.code === "A2" || i.description?.includes("TOP SOIL"))
@@ -184,113 +180,122 @@ export function createFinanceCalculations(deps: {
         }
       }
     }
-    return item.volume || 0;
+    return directVol;
   };
 
   const getItemEffectiveOverhaulMtr = (item: any) => {
     if (!item) return 1000;
-    return item.overhaulMtr ?? item.baseMtr ?? 1000;
+    return item.overhaulMtr ?? item.distanceWeightAvg ?? item.distanceM ?? item.baseMtr ?? 1000;
   };
 
-  const calculateItemRateAndAmount = (item: any, currentCust?: string) => {
-    const cust = currentCust || formData.customerCode || "";
+  const calculateItemRateAndAmount = (item: any, currentCust?: string, currentList?: any[]) => {
+    const cust = (currentCust || formData.customerCode || "").toUpperCase();
     const rfFactor = rfIndexCalculated - 1;
-    const vol = getItemEffectiveVolume(item);
+    const vol = getItemEffectiveVolume(item, currentList);
     const mtr = getItemEffectiveOverhaulMtr(item);
 
-    let unitRate = 0;
-    let amount = 0;
+    let unitRate = Number(item.unitRateIDR ?? item.rate ?? 0);
+    let amount = Number(item.amountIDR ?? item.amount ?? 0);
 
     if (cust === "BGG") {
       if (item.section === "A" || item.section === "B") {
-        unitRate = Number(item.unitRateIDR || 0);
+        if (unitRate === 0) {
+          const isOB2 = item.description?.includes("25%") || item.sowDescription?.includes("25%");
+          const isCoal = item.description?.toLowerCase().includes("coal") || item.sowDescription?.toLowerCase().includes("coal");
+          unitRate = getSowMasterRate("BGG", item.description || item.sowDescription || "", isOB2 ? 28750 : isCoal ? 17500 : 29500);
+        }
         amount = Math.round(vol * unitRate);
         return { unitRate, amount };
       }
       if (item.section === "C") {
-        const diffMtr = mtr - 1000;
-        unitRate =
-          item.unitRateIDR !== undefined && item.unitRateIDR !== 0
-            ? Number(item.unitRateIDR)
-            : Math.round(
-                ((item.subSection?.includes("Coal") ||
-                item.description?.includes("Coal")
-                  ? 550
-                  : 650) *
-                  diffMtr) /
-                  100
-              );
+        const diffMtr = Math.max(0, mtr - 1000);
+        if (unitRate === 0) {
+          const isCoal = item.subSection?.includes("Coal") || item.description?.includes("Coal");
+          const per100m = isCoal ? getSowMasterRate("BGG", "Over Distance For Coal Winning", 550) : getSowMasterRate("BGG", "Over Distance For OB Removal", 650);
+          unitRate = Math.round((per100m * diffMtr) / 100);
+        }
         amount = Math.round(vol * unitRate);
         return { unitRate, amount };
       }
       if (item.section === "D") {
         const rfDelta = Math.max(0, rfFactor);
-        const baseRate = item.description?.includes("REMOVAL 2")
-          ? 28750
-          : item.description?.toLowerCase().includes("coal")
-          ? 17500
-          : 29500;
-        unitRate =
-          item.unitRateIDR && Number(item.unitRateIDR) > 0
-            ? Number(item.unitRateIDR)
-            : Math.round(baseRate * rfDelta);
+        if (unitRate === 0) {
+          const isOB2 = item.description?.includes("REMOVAL 2") || item.description?.includes("25%");
+          const isCoal = item.description?.toLowerCase().includes("coal");
+          const isODOB = item.subSection?.includes("D2") || (item.description?.toLowerCase().includes("ob") && item.description?.toLowerCase().includes("distance"));
+          const isODCoal = item.subSection?.includes("D4") || (item.description?.toLowerCase().includes("coal") && item.description?.toLowerCase().includes("distance"));
+
+          if (isODOB) {
+            const diffMtr = Math.max(0, mtr - 1000);
+            unitRate = Math.round(650 * rfDelta * (diffMtr / 100));
+          } else if (isODCoal) {
+            const diffMtr = Math.max(0, mtr - 1000);
+            unitRate = Math.round(550 * rfDelta * (diffMtr / 100));
+          } else if (isOB2) {
+            const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 2 (25%)", 28750);
+            unitRate = Math.round(baseRate * rfDelta);
+          } else if (isCoal) {
+            const baseRate = getSowMasterRate("BGG", "Coal Winning Pit Kungkilan", 17500);
+            unitRate = Math.round(baseRate * rfDelta);
+          } else {
+            const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 1 (75%)", 29500);
+            unitRate = Math.round(baseRate * rfDelta);
+          }
+        }
         amount = Math.round(vol * unitRate);
         return { unitRate, amount };
       }
       if (item.section === "E") {
-        amount =
-          item.amount !== undefined && item.amount !== 0
-            ? -Math.abs(Number(item.amount))
-            : 0;
-        return { unitRate: 0, amount };
+        if (amount !== 0) {
+          return { unitRate: 0, amount: -Math.abs(amount) };
+        }
+        return { unitRate: 0, amount: 0 };
       }
-      if (
-        item.section === "F" ||
-        item.category === "DP Fuel" ||
-        item.isDeduction
-      ) {
+      if (item.section === "F" || item.category === "DP Fuel" || item.isDeduction) {
         const val = Number(item.amount || item.unitRateIDR || 0);
         return { unitRate: 0, amount: -Math.abs(val) };
       }
     }
 
-    if (item.amount !== undefined && item.amount !== null && item.amount !== 0) {
+    if (amount !== 0 && (vol === 0 || unitRate === 0)) {
       return {
         unitRate: Number(
-          item.unitRateIDR || (vol > 0 ? Math.round(item.amount / vol) : item.amount)
+          item.unitRateIDR || (vol > 0 ? Math.round(Math.abs(amount) / vol) : Math.abs(amount))
         ),
-        amount: Number(item.amount),
+        amount: Number(amount),
       };
     }
 
-    unitRate = Number(item.unitRateIDR || 0);
-    amount = Math.round(vol * unitRate);
+    if (unitRate > 0 && vol > 0) {
+      amount = Math.round(vol * unitRate);
+    }
     return { unitRate, amount };
   };
 
   const getCustomerCalculations = (itemsList: any[], custCode?: string) => {
     const cust = custCode || formData.customerCode || "";
-    const subA = itemsList
+    const list = itemsList || [];
+    const subA = list
       .filter((i) => i.section === "A")
-      .reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust).amount, 0);
-    const subB = itemsList
+      .reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust, list).amount, 0);
+    const subB = list
       .filter((i) => i.section === "B")
-      .reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust).amount, 0);
-    const subC = itemsList
+      .reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust, list).amount, 0);
+    const subC = list
       .filter((i) => i.section === "C")
-      .reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust).amount, 0);
-    const subD = itemsList
+      .reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust, list).amount, 0);
+    const subD = list
       .filter((i) => i.section === "D")
-      .reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust).amount, 0);
-    const subE = itemsList
+      .reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust, list).amount, 0);
+    const subE = list
       .filter((i) => i.section === "E")
-      .reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust).amount, 0);
-    const subF = itemsList
+      .reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust, list).amount, 0);
+    const subF = list
       .filter((i) => i.section === "F")
-      .reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust).amount, 0);
-    const subP = itemsList
+      .reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust, list).amount, 0);
+    const subP = list
       .filter((i) => i.section === "P")
-      .reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust).amount, 0);
+      .reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust, list).amount, 0);
 
     const totalGross = subA + subB + subC + subD + subE + subF;
     const dpp11_12 = Math.round((totalGross * 11) / 12);

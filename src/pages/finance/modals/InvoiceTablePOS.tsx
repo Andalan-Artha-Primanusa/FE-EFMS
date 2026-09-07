@@ -81,7 +81,7 @@ export function InvoiceTablePOS({
                       allowDecimals
                       maxDecimals={3}
                       className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                      placeholder="0"
+                      placeholder="00.00"
                       value={item.volume === 0 ? "" : (item.volume ?? "")}
                       onChange={(val) => updateInvItemVolume(item.id, val)}
                     />
@@ -140,7 +140,7 @@ export function InvoiceTablePOS({
                   <div className="flex items-center gap-1.5 mt-1">
                     <FormattedNumberInput
                       className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                      placeholder="1.000"
+                      placeholder="00.00"
                       value={item.overhaulMtr === 0 ? "" : (item.overhaulMtr ?? "")}
                       onChange={(val) => updateInvItemOverhaul(item.id, val)}
                     />
@@ -155,7 +155,7 @@ export function InvoiceTablePOS({
                       allowDecimals
                       maxDecimals={3}
                       className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                      placeholder="0"
+                      placeholder="00.00"
                       value={item.volume === 0 ? "" : (item.volume ?? "")}
                       onChange={(val) => updateInvItemVolume(item.id, val)}
                     />
@@ -213,7 +213,7 @@ export function InvoiceTablePOS({
                       allowDecimals
                       maxDecimals={3}
                       className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                      placeholder="0"
+                      placeholder="00.00"
                       value={item.volume === 0 ? "" : (item.volume ?? "")}
                       onChange={(val) => updateInvItemVolume(item.id, val)}
                     />
@@ -271,7 +271,7 @@ export function InvoiceTablePOS({
                       allowDecimals
                       maxDecimals={3}
                       className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                      placeholder="0"
+                      placeholder="00.00"
                       value={item.volume === 0 ? "" : (item.volume ?? "")}
                       onChange={(val) => updateInvItemVolume(item.id, val)}
                     />

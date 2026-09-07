@@ -54,7 +54,7 @@ export function InvoiceTableBGG({
                 allowDecimals
                 maxDecimals={3}
                 className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                placeholder="0"
+                placeholder="00.00"
                 value={item.volume === 0 ? "" : (item.volume ?? "")}
                 onChange={(val) => updateInvItemVolume(item.id, val)}
               />
@@ -64,7 +64,7 @@ export function InvoiceTableBGG({
           <td className="p-2 text-right">
             <FormattedNumberInput
               className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-              placeholder="0"
+              placeholder="00.00"
               value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
               onChange={(val) => updateInvItemRateIDR(item.id, val)}
             />
@@ -98,7 +98,7 @@ export function InvoiceTableBGG({
                 allowDecimals
                 maxDecimals={3}
                 className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                placeholder="0"
+                placeholder="00.00"
                 value={item.volume === 0 ? "" : (item.volume ?? "")}
                 onChange={(val) => updateInvItemVolume(item.id, val)}
               />
@@ -108,7 +108,7 @@ export function InvoiceTableBGG({
           <td className="p-2 text-right">
             <FormattedNumberInput
               className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-              placeholder="0"
+              placeholder="00.00"
               value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
               onChange={(val) => updateInvItemRateIDR(item.id, val)}
             />
@@ -138,7 +138,7 @@ export function InvoiceTableBGG({
             <div className="flex items-center gap-1.5 mt-1">
               <FormattedNumberInput
                 className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                placeholder="1.000"
+                placeholder="00.00"
                 value={item.overhaulMtr === 0 ? "" : (item.overhaulMtr ?? "")}
                 onChange={(val) => updateInvItemOverhaul(item.id, val)}
               />
@@ -151,7 +151,7 @@ export function InvoiceTableBGG({
                 allowDecimals
                 maxDecimals={3}
                 className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                placeholder="0"
+                placeholder="00.00"
                 value={item.volume === 0 ? "" : (item.volume ?? "")}
                 onChange={(val) => updateInvItemVolume(item.id, val)}
               />
@@ -161,7 +161,7 @@ export function InvoiceTableBGG({
           <td className="p-2 text-right">
             <FormattedNumberInput
               className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-              placeholder="0"
+              placeholder="00.00"
               value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
               onChange={(val) => updateInvItemRateIDR(item.id, val)}
             />
@@ -193,7 +193,7 @@ export function InvoiceTableBGG({
                 allowDecimals
                 maxDecimals={3}
                 className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                placeholder="0"
+                placeholder="00.00"
                 value={item.volume === 0 ? "" : (item.volume ?? "")}
                 onChange={(val) => updateInvItemVolume(item.id, val)}
               />
@@ -203,7 +203,7 @@ export function InvoiceTableBGG({
           <td className="p-2 text-right">
             <FormattedNumberInput
               className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-              placeholder="0"
+              placeholder="00.00"
               value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
               onChange={(val) => updateInvItemRateIDR(item.id, val)}
             />
@@ -230,7 +230,7 @@ export function InvoiceTableBGG({
           <td className="p-2 text-right font-mono">
             <FormattedNumberInput
               className="w-36 bg-slate-50 border border-rose-300 font-mono font-extrabold text-rose-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white outline-none"
-              placeholder="0"
+              placeholder="00.00"
               value={item.amount === 0 ? "" : Math.abs(item.amount)}
               onChange={(val) => updateInvItemAmount(item.id, -Math.abs(val))}
             />
@@ -256,7 +256,7 @@ export function InvoiceTableBGG({
           <td className="p-2 text-right font-mono">
             <FormattedNumberInput
               className="w-36 bg-slate-50 border border-rose-300 font-mono font-extrabold text-rose-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white outline-none"
-              placeholder="0"
+              placeholder="00.00"
               value={item.amount === 0 ? "" : Math.abs(item.amount)}
               onChange={(val) => updateInvItemAmount(item.id, -Math.abs(val))}
             />

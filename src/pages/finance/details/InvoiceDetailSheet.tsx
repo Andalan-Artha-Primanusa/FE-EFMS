@@ -14,9 +14,9 @@ interface InvoiceDetailSheetProps {
   formData: any;
   buildInvoiceItemsFromBA: (ba: any, custCode: string, cat?: string) => any[];
   customerContractMap: Record<string, any>;
-  getItemEffectiveVolume: (item: any) => number;
+  getItemEffectiveVolume: (item: any, currentList?: any[]) => number;
   getItemEffectiveOverhaulMtr: (item: any) => number;
-  calculateItemRateAndAmount: (item: any, custCode: string) => { unitRate: number; amount: number };
+  calculateItemRateAndAmount: (item: any, custCode: string, currentList?: any[]) => { unitRate: number; amount: number };
   getCustomerCalculations: (items: any[], custCode: string) => any;
   rfIndexCalculated: number;
 }
