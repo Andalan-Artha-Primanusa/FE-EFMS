@@ -144,7 +144,7 @@ const OFFICIAL_ROLE_DEFAULT_GRANTS: Record<string, string[]> = {
     "ba_tracker:read", "invoice:read", "payment:read", "financial_report:read"
   ],
   "Admin Finance Site": [
-    "raise_fall:read", "raise_fall:write", "operational_transaction:read", "operational_transaction:write",
+    "operational_transaction:read", "operational_transaction:write",
     "ba_tracker:read", "ba_tracker:write", "invoice:read", "invoice:write", "payment:read"
   ],
   "Admin Finance Site BGG": [
