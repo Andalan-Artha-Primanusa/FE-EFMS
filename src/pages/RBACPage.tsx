@@ -144,23 +144,23 @@ const OFFICIAL_ROLE_DEFAULT_GRANTS: Record<string, string[]> = {
     "ba_tracker:read", "invoice:read", "payment:read", "financial_report:read"
   ],
   "Admin Finance Site": [
-    "master_data:read", "operational_transaction:read", "operational_transaction:write",
+    "raise_fall:read", "raise_fall:write", "operational_transaction:read", "operational_transaction:write",
     "ba_tracker:read", "ba_tracker:write", "invoice:read", "invoice:write", "payment:read"
   ],
   "Admin Finance Site BGG": [
-    "master_data:read", "operational_transaction:read", "operational_transaction:write",
+    "raise_fall:read", "raise_fall:write", "raise_fall:delete", "operational_transaction:read", "operational_transaction:write",
     "ba_tracker:read", "ba_tracker:write", "invoice:read", "invoice:write", "payment:read"
   ],
   "Admin Finance Site POS": [
-    "master_data:read", "operational_transaction:read", "operational_transaction:write",
+    "raise_fall:read", "raise_fall:write", "raise_fall:delete", "operational_transaction:read", "operational_transaction:write",
     "ba_tracker:read", "ba_tracker:write", "invoice:read", "invoice:write", "payment:read"
   ],
   "Admin Finance Site SBS": [
-    "master_data:read", "operational_transaction:read", "operational_transaction:write",
+    "operational_transaction:read", "operational_transaction:write",
     "ba_tracker:read", "ba_tracker:write", "invoice:read", "invoice:write", "payment:read"
   ],
   "Admin Finance Site PTRO": [
-    "master_data:read", "operational_transaction:read", "operational_transaction:write",
+    "operational_transaction:read", "operational_transaction:write",
     "ba_tracker:read", "ba_tracker:write", "invoice:read", "invoice:write", "payment:read"
   ]
 };
@@ -266,6 +266,9 @@ const ALL_SYSTEM_PERMISSIONS: Array<{ module: string; action: string; descriptio
   { module: "master_data", action: "read", description: "Melihat master data COA, customer, vendor, parameter site" },
   { module: "master_data", action: "write", description: "Membuat dan mengupdate data master" },
   { module: "master_data", action: "delete", description: "Menghapus data master" },
+  { module: "raise_fall", action: "read", description: "Melihat parameter indeks dan eskalasi Raise & Fall" },
+  { module: "raise_fall", action: "write", description: "Membuat dan mengupdate formula & indeks Raise & Fall" },
+  { module: "raise_fall", action: "delete", description: "Menghapus rekam kalkulasi Raise & Fall" },
   { module: "budget", action: "read", description: "Melihat perencanaan dan monitoring budget" },
   { module: "budget", action: "submit", description: "Mengajukan draft budget tahunan/bulanan" },
   { module: "budget", action: "approve", description: "Menyetujui pengajuan budget" },

@@ -138,6 +138,7 @@ export function canAccessMenu(item: string, role: string, permissions: Permissio
       const roleUpper = (role || "").toUpperCase();
       const isBGGorPOS = userSite === "BGG" || userSite === "POS" || roleUpper.includes("BGG") || roleUpper.includes("POS");
       if (!isBGGorPOS) return false;
+      return true;
     }
   }
 
