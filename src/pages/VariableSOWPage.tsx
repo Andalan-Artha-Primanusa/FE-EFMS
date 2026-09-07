@@ -377,7 +377,7 @@ export function VariableSOWPage({
                   </td>
                   <td className="p-3 pr-4 text-right">
                     <button
-                      className="px-3 py-1.5 rounded-lg bg-cyan-800 hover:bg-cyan-900 text-white font-bold text-xs flex items-center gap-1 ml-auto transition shadow-2xs cursor-pointer active:scale-95"
+                      className="px-3 py-1.5 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs flex items-center gap-1.5 ml-auto transition shadow-xs cursor-pointer active:scale-95"
                       onClick={() => openEditGridModal(c)}
                     >
                       <Eye size={13} />

@@ -121,23 +121,23 @@ export function CompanyPage({
       )}
 
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500">{filtered.length} perusahaan ditemukan</p>
+        <p className="text-xs text-slate-500 font-medium">{filtered.length} perusahaan ditemukan</p>
         {canWrite && (
-          <button onClick={openCreate} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 flex items-center gap-2">
-            <Plus size={16} /> Tambah Perusahaan
+          <button onClick={openCreate} className="px-3.5 py-1.5 bg-[#A57C50] hover:bg-[#8e6941] text-white rounded-[3px] text-xs font-bold shadow-xs flex items-center gap-1.5 transition cursor-pointer">
+            <Plus size={14} /> Tambah Perusahaan
           </button>
         )}
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="rounded-[4px] border border-slate-200 bg-white overflow-hidden shadow-2xs">
+        <table className="w-full text-xs">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="px-4 py-3 text-left font-bold text-slate-700">Code</th>
-              <th className="px-4 py-3 text-left font-bold text-slate-700">Nama Perusahaan</th>
-              <th className="px-4 py-3 text-center font-bold text-slate-700">Head Office</th>
-              <th className="px-4 py-3 text-left font-bold text-slate-700">Dibuat</th>
-              {canWrite && <th className="px-4 py-3 text-center font-bold text-slate-700">Aksi</th>}
+              <th className="px-3.5 py-2.5 text-left font-black text-slate-700 uppercase tracking-wider text-[10.5px]">Code</th>
+              <th className="px-3.5 py-2.5 text-left font-black text-slate-700 uppercase tracking-wider text-[10.5px]">Nama Perusahaan</th>
+              <th className="px-3.5 py-2.5 text-center font-black text-slate-700 uppercase tracking-wider text-[10.5px]">Head Office</th>
+              <th className="px-3.5 py-2.5 text-left font-black text-slate-700 uppercase tracking-wider text-[10.5px]">Dibuat</th>
+              {canWrite && <th className="px-3.5 py-2.5 text-center font-black text-slate-700 uppercase tracking-wider text-[10.5px]">Aksi</th>}
             </tr>
           </thead>
           <tbody>
@@ -146,27 +146,27 @@ export function CompanyPage({
             ) : filtered.length === 0 ? (
               <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">Tidak ada data perusahaan</td></tr>
             ) : filtered.map((c) => (
-              <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
-                <td className="px-4 py-2.5 font-mono text-xs font-bold text-blue-700">{c.code}</td>
-                <td className="px-4 py-2.5 font-medium text-slate-900">{c.name}</td>
-                <td className="px-4 py-2.5 text-center">
+              <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50/80 transition">
+                <td className="px-3.5 py-2 font-mono text-xs font-bold text-[#A57C50]">{c.code}</td>
+                <td className="px-3.5 py-2 font-medium text-slate-900">{c.name}</td>
+                <td className="px-3.5 py-2 text-center">
                   {c.isHo ? (
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-bold">HO</span>
+                    <span className="px-2 py-0.5 rounded-[3px] bg-[#A57C50]/15 text-[#A57C50] border border-[#A57C50]/30 text-[10.5px] font-bold">HO</span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-bold">Site</span>
+                    <span className="px-2 py-0.5 rounded-[3px] bg-slate-100 text-slate-500 border border-slate-200 text-[10.5px] font-bold">Site</span>
                   )}
                 </td>
-                <td className="px-4 py-2.5 text-xs text-slate-500">
+                <td className="px-3.5 py-2 text-xs text-slate-500">
                   {c.createdAt ? new Date(c.createdAt).toLocaleDateString("id-ID") : "-"}
                 </td>
                 {canWrite && (
-                  <td className="px-4 py-2.5 text-center">
+                  <td className="px-3.5 py-2 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      <button onClick={() => openEdit(c)} className="p-1.5 hover:bg-blue-100 rounded-lg text-blue-600 transition" title="Edit">
-                        <Edit2 size={14} />
+                      <button onClick={() => openEdit(c)} className="p-1 hover:bg-[#A57C50]/10 rounded-[3px] text-[#A57C50] transition cursor-pointer" title="Edit">
+                        <Edit2 size={13} />
                       </button>
-                      <button onClick={() => setDeleteTarget(c)} className="p-1.5 hover:bg-rose-100 rounded-lg text-rose-600 transition" title="Hapus">
-                        <Trash2 size={14} />
+                      <button onClick={() => setDeleteTarget(c)} className="p-1 hover:bg-rose-100 rounded-[3px] text-rose-600 transition cursor-pointer" title="Hapus">
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </td>
@@ -179,45 +179,45 @@ export function CompanyPage({
 
       {/* Modal Create/Edit */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
-                <Building size={20} className="text-blue-600" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="bg-white rounded-[4px] max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                <Building size={18} className="text-[#A57C50]" />
                 {modalMode === "create" ? "Tambah Perusahaan Baru" : "Edit Perusahaan"}
               </h3>
-              <button onClick={() => setModalOpen(false)} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700">
-                <X size={18} />
+              <button onClick={() => setModalOpen(false)} className="p-1 hover:bg-slate-100 rounded-[3px] text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X size={16} />
               </button>
             </div>
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Code *</label>
-                <input type="text" required value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })} placeholder="Contoh: BGG" className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                <input type="text" required value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })} placeholder="Contoh: BGG" className="w-full px-3 py-2 border border-slate-300 rounded-[3px] font-mono text-xs focus:outline-hidden focus:border-[#A57C50]" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Nama Perusahaan *</label>
-                <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Contoh: PT Budi Gema Gempita" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Contoh: PT Budi Gema Gempita" className="w-full px-3 py-2 border border-slate-300 rounded-[3px] text-xs focus:outline-hidden focus:border-[#A57C50]" />
               </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" checked={formData.isHo} onChange={(e) => setFormData({ ...formData, isHo: e.target.checked })} className="rounded" />
+              <div className="flex items-center gap-2 pt-1">
+                <input type="checkbox" checked={formData.isHo} onChange={(e) => setFormData({ ...formData, isHo: e.target.checked })} className="rounded-[2px] accent-[#A57C50]" />
                 <label className="text-xs font-bold text-slate-700">Head Office (HO)</label>
               </div>
             </div>
 
             {modalError && (
-              <div className="p-2.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg flex items-center justify-between text-xs font-bold">
+              <div className="p-2.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-[3px] flex items-center justify-between text-xs font-bold">
                 <span>{modalError}</span>
-                <button type="button" onClick={() => setModalError(null)} className="p-0.5 hover:bg-rose-100 rounded">
+                <button type="button" onClick={() => setModalError(null)} className="p-0.5 hover:bg-rose-100 rounded-[3px]">
                   <X size={13} />
                 </button>
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button onClick={() => setModalOpen(false)} className="px-4 py-2 border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-700 transition">Batal</button>
-              <button onClick={handleSave} disabled={submitting || !formData.code || !formData.name} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition disabled:opacity-50 flex items-center gap-2">
-                {submitting ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button onClick={() => setModalOpen(false)} className="px-4 py-1.5 border border-slate-300 hover:bg-slate-100 rounded-[3px] text-xs font-bold text-slate-700 transition cursor-pointer">Batal</button>
+              <button onClick={handleSave} disabled={submitting || !formData.code || !formData.name} className="px-4 py-1.5 bg-[#A57C50] hover:bg-[#8e6941] text-white rounded-[3px] text-xs font-bold shadow-xs transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer">
+                {submitting ? <RefreshCw size={13} className="animate-spin" /> : <Check size={13} />}
                 {modalMode === "create" ? "Buat Perusahaan" : "Simpan"}
               </button>
             </div>
@@ -227,19 +227,19 @@ export function CompanyPage({
 
       {/* Modal Delete Confirm */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-center">
-            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto"><Trash2 size={24} /></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="bg-white rounded-[4px] max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4 text-center">
+            <div className="w-10 h-10 rounded-[3px] bg-rose-100 text-rose-600 flex items-center justify-center mx-auto"><Trash2 size={20} /></div>
             <div className="space-y-1">
-              <h3 className="font-bold text-slate-900 text-lg">Hapus Perusahaan?</h3>
+              <h3 className="font-bold text-slate-900 text-base">Hapus Perusahaan?</h3>
               <p className="text-xs text-slate-500">
                 <strong className="font-mono text-rose-600">{deleteTarget.code}</strong> ({deleteTarget.name}) akan dihapus permanen.
               </p>
             </div>
-            <div className="flex items-center justify-center gap-2 pt-2">
-              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-700 transition">Batal</button>
-              <button onClick={handleDelete} disabled={submitting} className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-sm transition disabled:opacity-50">
-                {submitting ? <RefreshCw size={14} className="animate-spin" /> : "Hapus"}
+            <div className="flex items-center justify-center gap-2 pt-2 border-t border-slate-100">
+              <button onClick={() => setDeleteTarget(null)} className="px-4 py-1.5 border border-slate-300 hover:bg-slate-100 rounded-[3px] text-xs font-bold text-slate-700 transition cursor-pointer">Batal</button>
+              <button onClick={handleDelete} disabled={submitting} className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-[3px] text-xs font-bold shadow-xs transition disabled:opacity-50 cursor-pointer">
+                {submitting ? <RefreshCw size={13} className="animate-spin" /> : "Hapus"}
               </button>
             </div>
           </div>

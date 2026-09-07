@@ -557,6 +557,14 @@ export function calculateMiningInvoice(input: any) {
   return api<any>("/api/finance/invoices/calculate-mining", { method: "POST", body: JSON.stringify(input) });
 }
 
+export function calculateBATracker(input: any) {
+  return api<any>("/api/finance/ba-trackers/calculate", { method: "POST", body: JSON.stringify(input) });
+}
+
+export function calculateInvoicePreview(input: any) {
+  return api<any>("/api/finance/invoices/calculate-preview", { method: "POST", body: JSON.stringify(input) });
+}
+
 export function generateJournalFromInvoice(id: number) {
   return api<any>(`/api/accounting/generate-from-invoice/${id}`, { method: "POST" });
 }

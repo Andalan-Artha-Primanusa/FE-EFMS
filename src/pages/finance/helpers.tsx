@@ -520,7 +520,7 @@ export function RupiahInput({
         <span className="absolute left-3 top-2.5 text-xs font-extrabold text-slate-400">Rp</span>
         <input
           type="text"
-          className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 pl-9 text-slate-900 font-mono font-bold focus:border-cyan-700 focus:bg-white outline-none text-xs"
+          className="w-full bg-white border border-slate-300 rounded-[3px] p-2 pl-9 text-slate-900 font-mono font-bold focus:border-[#A57C50] outline-none text-xs"
           placeholder={placeholder || "0"}
           value={displayVal}
           onFocus={(e) => e.target.select()}
@@ -655,7 +655,7 @@ export function VolumeInput({
       <div className="relative">
         <input
           type="text"
-          className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 pr-14 text-slate-900 font-mono font-bold focus:border-cyan-700 focus:bg-white outline-none text-xs"
+          className="w-full bg-white border border-slate-300 rounded-[3px] p-2.5 pr-14 text-slate-900 font-mono font-bold focus:border-[#A57C50] outline-none text-xs"
           placeholder={placeholder || "0,000"}
           value={localStr}
           onChange={handleChange}
@@ -748,7 +748,7 @@ export function FormattedNumberInput({
   return (
     <input
       type="text"
-      className={className}
+      className={className || "w-full bg-white border border-slate-300 rounded-[3px] p-2 text-slate-900 font-mono font-bold focus:border-[#A57C50] outline-none text-xs"}
       value={isFocused ? localStr : formatDecimalDisplay(value, allowDecimals, maxDecimals)}
       placeholder={placeholder}
       onFocus={(e) => {

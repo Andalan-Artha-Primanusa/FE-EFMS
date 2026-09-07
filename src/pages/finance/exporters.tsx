@@ -646,7 +646,8 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           .footer-cell { display: table-cell; width: 50%; padding: 6px 10px; vertical-align: top; font-size: 9.5px; }
           .footer-left { border-right: 1.5px solid #0f172a; }
           .sig-space { height: 42px; border-bottom: 1.2px dashed #64748b; margin: 4px 0; }
-          .btn-print { background: #0e7490; color: white; border: none; padding: 7px 16px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
+          .btn-print { background: #A57C50; color: white; border: none; padding: 7px 16px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
+          .btn-print:hover { background: #8e6941; }
           @media print { .btn-print { display: none; } body { padding: 0; } .page-container { min-height: auto; } }
         </style>
       </head>
@@ -812,7 +813,8 @@ export function exportBADocumentPDFImpl(ctx: any, baData: any) {
         .sig-space { height: 40px; border-bottom: 1px dashed #94a3b8; margin: 4px auto; width: 85%; }
         .sig-name { font-size: 9.5px; font-weight: 900; text-decoration: underline; text-transform: uppercase; }
         .sig-title { font-size: 8.5px; color: #475569; }
-        .btn-print { background: #0e7490; color: white; border: none; padding: 7px 16px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
+        .btn-print { background: #A57C50; color: white; border: none; padding: 7px 16px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
+        .btn-print:hover { background: #8e6941; }
         @media print { .btn-print { display: none; } body { padding: 0; } .page-container { min-height: auto; } }
       </style>
     </head>
@@ -1316,7 +1318,8 @@ export function exportARBAIMonitoringPDFImpl(ctx: any) {
           .sig-table th { background: #f1f5f9; color: #0f172a; border: 1.5px solid #0f172a; padding: 6px; font-size: 9px; font-weight: 800; }
           .sig-table td { border: 1.5px solid #0f172a; padding: 8px; text-align: center; height: 55px; vertical-align: bottom; font-weight: 800; font-size: 9px; }
 
-          .btn-print { background: #1e2b4d; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
+          .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
+          .btn-print:hover { background: #8e6941; }
           @media print { .btn-print { display: none; } }
         </style>
       </head>
@@ -1609,7 +1612,8 @@ export function exportBAOnlyPDFImpl(ctx: any) {
           .sig-table th { background: #f1f5f9; color: #0f172a; border: 1.5px solid #0f172a; padding: 7px; font-size: 10px; font-weight: 800; }
           .sig-table td { border: 1.5px solid #0f172a; padding: 8px; text-align: center; height: 2.2cm; min-height: 2.2cm; vertical-align: bottom; font-weight: 800; font-size: 10px; }
 
-          .btn-print { background: #1e2b4d; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
+          .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
+          .btn-print:hover { background: #8e6941; }
           @media print { .btn-print { display: none; } }
         </style>
       </head>
@@ -1892,7 +1896,8 @@ export function exportAROnlyPDFImpl(ctx: any) {
           .sig-table th { background: #f1f5f9; color: #0f172a; border: 1.5px solid #0f172a; padding: 7px; font-size: 10px; font-weight: 800; }
           .sig-table td { border: 1.5px solid #0f172a; padding: 8px; text-align: center; height: 2.2cm; min-height: 2.2cm; vertical-align: bottom; font-weight: 800; font-size: 10px; }
 
-          .btn-print { background: #0e7490; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
+          .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
+          .btn-print:hover { background: #8e6941; }
           @media print { .btn-print { display: none; } }
         </style>
       </head>
@@ -2086,5 +2091,20 @@ export function exportEBupotPPh23CSVImpl(ctx: any, targetInvoices?: any[] | any)
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+}
+
+export function createFinanceExporters(exportCtx: any) {
+  return {
+    exportPaymentDetailPDF: (itemData: any) => exportPaymentDetailPDFImpl(exportCtx, itemData),
+    exportBADocumentPDF: (baData: any) => exportBADocumentPDFImpl(exportCtx, baData),
+    exportARBAIMonitoringExcel: () => exportARBAIMonitoringExcelImpl(exportCtx),
+    exportARBAIMonitoringPDF: () => exportARBAIMonitoringPDFImpl(exportCtx),
+    exportBAOnlyExcel: () => exportBAOnlyExcelImpl(exportCtx),
+    exportBAOnlyPDF: () => exportBAOnlyPDFImpl(exportCtx),
+    exportAROnlyExcel: () => exportAROnlyExcelImpl(exportCtx),
+    exportAROnlyPDF: () => exportAROnlyPDFImpl(exportCtx),
+    exportCoretaxEFakturCSV: (itemData?: any) => exportCoretaxEFakturCSVImpl(exportCtx, itemData),
+    exportEBupotPPh23CSV: (itemData?: any) => exportEBupotPPh23CSVImpl(exportCtx, itemData),
+  };
 }
 

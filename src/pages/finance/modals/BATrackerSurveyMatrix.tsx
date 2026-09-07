@@ -1,0 +1,243 @@
+import React from "react";
+import { Calculator, Upload, ExternalLink, ArrowRight } from "lucide-react";
+import { formatIDR, formatThousand, FormattedNumberInput, resolveDocumentUrl } from "../helpers";
+
+interface BATrackerSurveyMatrixProps {
+  allBAItems: any[];
+  baOperatingItems: any[];
+  setBaOperatingItems: React.Dispatch<React.SetStateAction<any[]>>;
+  baMDOItems: any[];
+  setBaMDOItems: React.Dispatch<React.SetStateAction<any[]>>;
+  baDeductionItems: any[];
+  setBaDeductionItems: React.Dispatch<React.SetStateAction<any[]>>;
+  isInlineEditingBA: boolean;
+  formData: any;
+  isCustomerBGG: boolean;
+  isDistanceItem: (item: any) => boolean;
+  getBAEffectiveVolume: (item: any, allItems: any[], isSurvey: boolean) => number;
+  getBAItemSubtotal: (item: any, volume: number) => number;
+  sumInitial: number;
+  sumAdjusted: number;
+  deltaAmount: number;
+  handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => void;
+  setActiveBAStep: (step: number) => void;
+}
+
+export function BATrackerSurveyMatrix({
+  allBAItems,
+  baOperatingItems,
+  setBaOperatingItems,
+  baMDOItems,
+  setBaMDOItems,
+  baDeductionItems,
+  setBaDeductionItems,
+  isInlineEditingBA,
+  formData,
+  isCustomerBGG,
+  isDistanceItem,
+  getBAEffectiveVolume,
+  getBAItemSubtotal,
+  sumInitial,
+  sumAdjusted,
+  deltaAmount,
+  handleFileUpload,
+  setActiveBAStep,
+}: BATrackerSurveyMatrixProps) {
+  return (
+    <div className="space-y-4">
+      <div className="bg-amber-50/70 border border-amber-200/80 rounded-[4px] p-3 flex items-start gap-2.5 text-xs text-amber-950">
+        <Calculator className="text-[#A57C50] shrink-0 mt-0.5" size={16} />
+        <div>
+          <strong>Step 2 — Penyesuaian Hasil Joint Survey Lapangan:</strong> Masukkan volume hasil joint visit / survey bersama client. Volume pada variabel distance otomatis tersinkronisasi dan sistem menghitung <strong>Delta Selisih</strong> (+/-) secara live.
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-[4px] border border-slate-200 shadow-xs">
+        <table className="w-full text-xs text-left min-w-[780px]">
+          <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+            <tr>
+              <th className="p-2.5 min-w-[240px]">Material / Pekerjaan</th>
+              <th className="p-2.5 text-center w-20">Satuan</th>
+              <th className="p-2.5 text-right w-28">Volume TC</th>
+              <th className="p-2.5 text-right w-32">Vol Hasil Survey</th>
+              <th className="p-2.5 text-right w-28">Rate SOW (Rp)</th>
+              <th className="p-2.5 text-right w-32">Subtotal Baru (Rp)</th>
+              <th className="p-2.5 text-right w-32">Delta (+/- Rp)</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {allBAItems.map((item, idx) => {
+              const isDistance = isDistanceItem(item);
+              const isDPFuel = item.category === "DP Fuel" || item.isDeduction || (item.material || "").toLowerCase().includes("dp fuel");
+              const volAwal = getBAEffectiveVolume(item, allBAItems, false);
+              const volAdj = getBAEffectiveVolume(item, allBAItems, true);
+              const r = Number(item.rate || 0);
+              const subAwal = getBAItemSubtotal(item, volAwal);
+              const subAdj = getBAItemSubtotal(item, volAdj);
+              const delta = subAdj - subAwal;
+              const isOp = item.category === "Operating & Mining" || item.category === "Over Distance";
+
+              return (
+                <tr key={item.id || idx} className={`hover:bg-slate-50/80 transition ${isDPFuel ? "bg-slate-50/40" : isDistance ? "bg-amber-50/20" : ""}`}>
+                  <td className="p-2.5 font-bold text-slate-900 align-top">
+                    <div className="flex items-center gap-1.5">
+                      <span>{item.material || "-"}</span>
+                      {!isDPFuel && (item.keterangan || item.notes) && (
+                        <span className="px-1.5 py-0.5 bg-cyan-100 text-cyan-900 border border-cyan-300 rounded text-[10px] font-black">
+                          {item.keterangan || item.notes}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-normal mt-0.5">
+                      {item.category} • {item.area || (isCustomerBGG ? "Pit KKL" : "WM1")}
+                      {isDistance && (
+                        <span className="text-cyan-800 font-mono ml-1 font-bold">
+                          (Dist: {item.distanceWeightAvg || 0} {item.unit === "Bcm.Hm" ? "Hm" : "m"})
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="p-2.5 text-center font-mono font-bold text-slate-700 align-top">
+                    {isDPFuel ? (
+                      <span className="text-slate-400 font-bold pt-1 block">-</span>
+                    ) : (
+                      <span className="px-2 py-1 bg-slate-100 border border-slate-200 rounded text-xs inline-block text-center min-w-[45px] mt-0.5">
+                        {item.unit || "BCM"}
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-2.5 text-right font-mono text-slate-600 align-top">
+                    <span className="pt-1 block">{isDPFuel ? "-" : (volAwal > 0 ? volAwal.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00")}</span>
+                  </td>
+                  <td className="p-2.5 text-right font-mono align-top">
+                    {isDPFuel ? (
+                      <span className="pt-1 block text-slate-400 font-mono">-</span>
+                    ) : !isDistance ? (
+                      !isInlineEditingBA ? (
+                        <span className="font-bold text-slate-900 pt-1 block">{volAdj > 0 ? volAdj.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00"}</span>
+                      ) : (
+                        <FormattedNumberInput
+                          allowDecimals
+                          maxDecimals={3}
+                          className="w-24 bg-cyan-50 border border-cyan-300 rounded px-2 py-1 text-right font-mono font-bold text-xs text-cyan-950 focus:border-cyan-700 outline-none"
+                          value={item.adjustedVolume !== undefined && item.adjustedVolume !== 0 ? item.adjustedVolume : ""}
+                          placeholder="00.00"
+                          onChange={(val) => {
+                            if (item.isDeduction || item.category === "Pengurang Biaya") {
+                              const deds = [...(baDeductionItems || [])];
+                              const dIdx = deds.findIndex((d) => d.id === item.id);
+                              if (dIdx >= 0) {
+                                deds[dIdx].adjustedVolume = val;
+                                setBaDeductionItems(deds);
+                              }
+                            } else if (isOp) {
+                              const ops = [...baOperatingItems];
+                              const opIdx = ops.findIndex((o) => o.id === item.id);
+                              if (opIdx >= 0) {
+                                ops[opIdx].adjustedVolume = val;
+                                setBaOperatingItems(ops);
+                              }
+                            } else {
+                              const mdos = [...baMDOItems];
+                              const mIdx = mdos.findIndex((m) => m.id === item.id);
+                              if (mIdx >= 0) {
+                                mdos[mIdx].adjustedVolume = val;
+                                setBaMDOItems(mdos);
+                              }
+                            }
+                          }}
+                        />
+                      )
+                    ) : (
+                      <div className="flex flex-col items-end pt-0.5">
+                        <span className="font-mono font-bold text-amber-950 bg-amber-50 border border-amber-300 px-2.5 py-1 rounded text-xs shadow-2xs">
+                          {volAdj > 0 ? volAdj.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00"}
+                        </span>
+                        <span className="text-[9px] text-amber-800 font-semibold italic mt-0.5 whitespace-nowrap">
+                          Auto-sync survey
+                        </span>
+                      </div>
+                    )}
+                  </td>
+                  <td className="p-2.5 text-right font-mono text-slate-700 align-top">
+                    <span className="pt-1 block font-mono text-slate-800">{isDPFuel ? (r ? formatThousand(r) : "0") : formatIDR(r)}</span>
+                  </td>
+                  <td className="p-2.5 text-right font-mono font-bold text-slate-900 align-top">
+                    <div className="pt-1">{formatIDR(subAdj)}</div>
+                  </td>
+                  <td className={`p-2.5 text-right font-mono font-black align-top ${delta >= 0 ? "text-emerald-700" : "text-rose-600"}`}>
+                    <div className="pt-1">{delta >= 0 ? `+${formatIDR(delta)}` : `-${formatIDR(Math.abs(delta))}`}</div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Delta Summary Box */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="p-3 bg-slate-100 rounded-xl border border-slate-200">
+          <span className="text-[10px] font-bold uppercase text-slate-500 block">Total Awal (Site)</span>
+          <span className="text-sm font-black font-mono text-slate-800">{formatIDR(sumInitial)}</span>
+        </div>
+        <div className="p-3 bg-cyan-50 rounded-xl border border-cyan-200">
+          <span className="text-[10px] font-bold uppercase text-cyan-800 block">Total Survey Bersama</span>
+          <span className="text-sm font-black font-mono text-cyan-950">{formatIDR(sumAdjusted)}</span>
+        </div>
+        <div className={`p-3 rounded-xl border ${deltaAmount >= 0 ? "bg-emerald-50 border-emerald-300" : "bg-rose-50 border-rose-300"}`}>
+          <span className={`text-[10px] font-bold uppercase block ${deltaAmount >= 0 ? "text-emerald-800" : "text-rose-800"}`}>Delta Selisih Survey</span>
+          <span className={`text-sm font-black font-mono ${deltaAmount >= 0 ? "text-emerald-900" : "text-rose-900"}`}>
+            {deltaAmount >= 0 ? `+${formatIDR(deltaAmount)}` : `-${formatIDR(Math.abs(deltaAmount))}`}
+          </span>
+        </div>
+      </div>
+
+      {/* Upload Draft BA PDF */}
+      {isInlineEditingBA && (
+        <div className="p-3 bg-slate-50 border border-slate-200 rounded-[4px] space-y-2">
+          <div className="flex justify-between items-center">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+              <Upload size={14} className="text-[#A57C50]" /> Upload Berkas Draft BA Joint Survey (PDF)
+            </label>
+            {formData.draftBAPath && (
+              <a
+                href={resolveDocumentUrl(formData.draftBAPath)}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] text-[#A57C50] hover:text-[#8e6941] font-bold inline-flex items-center gap-1 underline"
+              >
+                <ExternalLink size={11} /> Buka Draft PDF
+              </a>
+            )}
+          </div>
+          <input
+            type="file"
+            accept="application/pdf"
+            className="text-xs text-slate-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-[3px] file:border-0 file:text-xs file:font-bold file:bg-[#A57C50] file:text-white hover:file:bg-[#8e6941] cursor-pointer"
+            onChange={(e) => handleFileUpload(e, "draftBAPath")}
+          />
+        </div>
+      )}
+
+      {/* Navigation Buttons */}
+      <div className="flex justify-between items-center pt-2">
+        <button
+          type="button"
+          onClick={() => setActiveBAStep(1)}
+          className="px-3.5 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold rounded-[3px] transition text-xs cursor-pointer"
+        >
+          Kembali ke Step 1
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveBAStep(3)}
+          className="px-4 py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold rounded-[3px] flex items-center gap-1.5 transition text-xs shadow-xs cursor-pointer"
+        >
+          <span>Lanjut ke Step 3 (Tanda Tangan & Final)</span>
+          <ArrowRight size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}

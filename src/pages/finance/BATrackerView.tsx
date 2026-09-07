@@ -93,28 +93,28 @@ export function BATrackerView({ c }: { c: any }) {
 
         return (
           <>
-            {/* Header & Filter Periode Bar */}
-            <div className="bg-white border border-slate-200 rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-3">
+            {/* Header & Filter Periode Bar — FEAST Enterprise Standard */}
+            <div className="bg-white border border-slate-200 p-3.5 sm:p-4 shadow-sm space-y-3" style={{ borderRadius: 4 }}>
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 border-b border-slate-200 pb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-lg bg-cyan-100/70 border border-cyan-300 text-cyan-900 shrink-0 shadow-2xs">
-                    <Calendar size={18} className="text-cyan-800" />
+                  <div className="p-1.5 rounded-[3px] bg-[#FBF6F0] border border-[#E7D3BC] text-[#A57C50] shrink-0">
+                    <Calendar className="w-4 h-4 text-[#A57C50]" />
                   </div>
                   <div>
-                    <h3 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">
+                    <h3 className="text-sm font-bold text-slate-900 tracking-tight">
                       Siklus & Proyeksi Berita Acara ({periodFilter === "All" ? "Semua Periode" : `Periode ${periodFilter}`})
                     </h3>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto justify-between lg:justify-end">
+                <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-between lg:justify-end">
                   {/* Filter Periode Dropdown */}
-                  <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                  <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-[3px] border border-slate-200">
+                    <span className="text-[11px] font-semibold text-slate-500">
                       Periode:
                     </span>
                     <select
-                      className="bg-white text-slate-900 font-bold text-xs px-2.5 py-1 rounded border border-slate-300 focus:border-cyan-700 focus:outline-none cursor-pointer shadow-2xs"
+                      className="bg-transparent text-slate-900 font-semibold text-xs focus:outline-none cursor-pointer"
                       value={periodFilter}
                       onChange={(e) => setPeriodFilter(e.target.value)}
                     >
@@ -128,36 +128,39 @@ export function BATrackerView({ c }: { c: any }) {
                   {/* Dropdown 1: Export BA */}
                   <div className="relative">
                     <button
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-white border border-cyan-700 text-cyan-800 hover:bg-cyan-50 shadow-2xs transition cursor-pointer shrink-0"
+                      type="button"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-[3px] bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer shrink-0"
                       onClick={() => setShowExportBADropdown(!showExportBADropdown)}
                       title="Export Laporan Berita Acara (BA)"
                     >
-                      <FileText size={14} />
+                      <FileText className="w-3.5 h-3.5" />
                       <span>Export BA</span>
-                      <ChevronDown size={13} className="text-cyan-700" />
+                      <ChevronDown className="w-3 h-3 text-slate-400" />
                     </button>
 
                     {showExportBADropdown && (
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setShowExportBADropdown(false)} />
-                        <div className="absolute right-0 mt-1 w-44 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-20 text-xs font-bold divide-y divide-slate-100">
+                        <div className="absolute right-0 mt-1 w-44 bg-white rounded-[4px] shadow-lg border border-slate-200 py-1 z-20 text-xs font-semibold divide-y divide-slate-100">
                           <button
+                            type="button"
                             className="w-full px-3 py-2 text-left text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 flex items-center gap-2 transition cursor-pointer"
                             onClick={() => {
                               exportBAOnlyExcel();
                               setShowExportBADropdown(false);
                             }}
                           >
-                            <FileSpreadsheet size={14} className="text-emerald-600" /> Export Excel BA
+                            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> Export Excel BA
                           </button>
                           <button
+                            type="button"
                             className="w-full px-3 py-2 text-left text-slate-700 hover:bg-rose-50 hover:text-rose-800 flex items-center gap-2 transition cursor-pointer"
                             onClick={() => {
                               exportBAOnlyPDF();
                               setShowExportBADropdown(false);
                             }}
                           >
-                            <FileText size={14} className="text-rose-600" /> Export PDF BA
+                            <FileText className="w-3.5 h-3.5 text-rose-600" /> Export PDF BA
                           </button>
                         </div>
                       </>
@@ -167,87 +170,96 @@ export function BATrackerView({ c }: { c: any }) {
                   {/* Dropdown 2: Input / Tambah BA */}
                   <div className="relative">
                     <button
-                      className="primary flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-extrabold rounded-lg bg-cyan-700 hover:bg-cyan-800 text-white shadow-2xs transition shrink-0 cursor-pointer"
+                      type="button"
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:brightness-95 shrink-0 cursor-pointer"
+                      style={{ background: "#A57C50", borderRadius: 3 }}
                       onClick={() => setShowInputBADropdown(!showInputBADropdown)}
                       title="Tambah BA Baru atau Input Pending Volume"
                     >
-                      <Plus size={15} />
+                      <Plus className="w-3.5 h-3.5" />
                       <span>Input / Tambah BA</span>
-                      <ChevronDown size={13} className="text-cyan-200" />
+                      <ChevronDown className="w-3 h-3 text-white/80" />
                     </button>
 
                     {showInputBADropdown && (
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setShowInputBADropdown(false)} />
-                        <div className="absolute right-0 mt-1 w-64 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-20 text-xs font-bold divide-y divide-slate-100">
+                        <div className="absolute right-0 mt-1 w-64 bg-white rounded-[4px] shadow-lg border border-slate-200 py-1 z-20 text-xs font-semibold divide-y divide-slate-100">
                           <button
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-amber-50 hover:text-amber-950 flex items-center gap-2 transition cursor-pointer"
+                            type="button"
+                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
                             onClick={() => {
                               openCreateModal("ba", { customerCode: "BGG" });
                               setShowInputBADropdown(false);
                             }}
                           >
-                            <Building2 size={14} className="text-[#a57c50] shrink-0" />
+                            <Building2 className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
                             <span>Buat BA BGG (PT Budi Gema Gempita)</span>
                           </button>
                           <button
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-amber-50 hover:text-amber-950 flex items-center gap-2 transition cursor-pointer"
+                            type="button"
+                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
                             onClick={() => {
                               openCreateModal("ba", { customerCode: "POS" });
                               setShowInputBADropdown(false);
                             }}
                           >
-                            <Building2 size={14} className="text-[#a57c50] shrink-0" />
+                            <Building2 className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
                             <span>Buat BA POS (PT Position)</span>
                           </button>
                           <button
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-amber-50 hover:text-amber-950 flex items-center gap-2 transition cursor-pointer"
+                            type="button"
+                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
                             onClick={() => {
                               openCreateModal("ba", { customerCode: "PTRO" });
                               setShowInputBADropdown(false);
                             }}
                           >
-                            <Building2 size={14} className="text-[#a57c50] shrink-0" />
+                            <Building2 className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
                             <span>Buat BA PTRO (PT Petrosea)</span>
                           </button>
                           <button
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-amber-50 hover:text-amber-950 flex items-center gap-2 transition cursor-pointer"
+                            type="button"
+                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
                             onClick={() => {
                               openCreateModal("ba", { customerCode: "SBS" });
                               setShowInputBADropdown(false);
                             }}
                           >
-                            <Building2 size={14} className="text-[#a57c50] shrink-0" />
+                            <Building2 className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
                             <span>Buat BA SBS (PT Satria Bahana Sarana)</span>
                           </button>
                           <button
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-amber-50 hover:text-amber-950 flex items-center gap-2 transition cursor-pointer"
+                            type="button"
+                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
                             onClick={() => {
                               openCreateModal("ba", { customerCode: "IBP" });
                               setShowInputBADropdown(false);
                             }}
                           >
-                            <Building2 size={14} className="text-[#a57c50] shrink-0" />
+                            <Building2 className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
                             <span>Buat BA IBP</span>
                           </button>
                           <button
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-amber-50 hover:text-amber-950 flex items-center gap-2 transition cursor-pointer"
+                            type="button"
+                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
                             onClick={() => {
                               openCreateModal("ba", { customerCode: "BBA" });
                               setShowInputBADropdown(false);
                             }}
                           >
-                            <Building2 size={14} className="text-[#a57c50] shrink-0" />
+                            <Building2 className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
                             <span>Buat BA BBA</span>
                           </button>
                           <button
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-amber-50 hover:text-amber-950 flex items-center gap-2 transition cursor-pointer"
+                            type="button"
+                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
                             onClick={() => {
                               openCreateModal("pending_volume");
                               setShowInputBADropdown(false);
                             }}
                           >
-                            <Layers size={14} className="text-[#261a10] shrink-0" />
+                            <Layers className="w-3.5 h-3.5 text-[#6E5033] shrink-0" />
                             <span>Input Pending Volume</span>
                           </button>
                         </div>
@@ -258,38 +270,40 @@ export function BATrackerView({ c }: { c: any }) {
               </div>
 
               {/* TOP CALCULATION STAT CARDS (4 CARDS) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5 pt-0.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 pt-0.5">
                 {/* Card 1: Total BA Siap Invoice (Approved) */}
-                <div className="p-2.5 sm:p-3 rounded-xl bg-emerald-50/70 border border-emerald-200/80 shadow-2xs space-y-0.5 relative overflow-hidden">
+                <div className="p-4 bg-white border border-slate-200 shadow-sm space-y-1 relative" style={{ borderRadius: 4 }}>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1">
-                      <CheckCircle2 size={14} className="text-emerald-700 shrink-0" /> Total BA Siap Invoice (Approved)
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Siap Invoice
                     </span>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-200 shrink-0">
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-[3px] bg-emerald-50 text-emerald-800 border border-emerald-200">
                       {stageReadyRows.length} Dokumen
                     </span>
                   </div>
-                  <div className="text-sm sm:text-base lg:text-lg font-bold font-mono text-emerald-950 pt-0.5 truncate">
+                  <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
                     {formatIDR(stageReadyNominal)}
                   </div>
+                  <div className="text-[11px] text-slate-400">Total BA disetujui</div>
                 </div>
 
                 {/* Card 2: BA On Progress */}
-                <div className="p-2.5 sm:p-3 rounded-xl bg-amber-50/70 border border-amber-200/80 shadow-2xs space-y-0.5 relative overflow-hidden">
+                <div className="p-4 bg-white border border-slate-200 shadow-sm space-y-1 relative" style={{ borderRadius: 4 }}>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-amber-900 flex items-center gap-1">
-                      <Clock size={14} className="text-amber-700 shrink-0" /> BA On Progress
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-amber-600" /> BA On Progress
                     </span>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200 shrink-0">
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-[3px] bg-amber-50 text-amber-800 border border-amber-200">
                       {baOnProgressCount} Dokumen
                     </span>
                   </div>
-                  <div className="text-sm sm:text-base lg:text-lg font-bold font-mono text-amber-950 pt-0.5 truncate">
+                  <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
                     {formatIDR(baOnProgressNominal)}
                   </div>
+                  <div className="text-[11px] text-slate-400">Draft, verifikasi & revisi</div>
                 </div>
 
-                {/* Card 3: Pending Volume (Over Kontrak / Stripping Ratio) */}
+                {/* Card 3: Pending Volume */}
                 {(() => {
                   const activePendingLedgers = pendingVolumeLedgers.filter((l: any) => l.remainingVolume > 0 || l.status === "Active" || l.status === "Partially Settled");
                   const ledgerPendingNominal = activePendingLedgers.reduce((sum: number, l: any) => sum + (l.remainingVolume * (l.ob1Rate * 0.75 + l.ob2Rate * 0.25 || 27000)), 0);
@@ -299,65 +313,69 @@ export function BATrackerView({ c }: { c: any }) {
                   return (
                     <div 
                       onClick={() => setShowPendingVolumeDrawer(true)}
-                      className="p-2.5 sm:p-3 rounded-xl bg-indigo-50/70 border border-indigo-200/80 hover:border-indigo-400 hover:shadow-sm transition cursor-pointer space-y-0.5 relative overflow-hidden group"
-                      title="Klik untuk membuka Kartu Kontrol Saldo Pending Volume (Carry-Forward OB)"
+                      className="p-4 bg-white border border-slate-200 shadow-sm hover:border-[#A57C50] transition cursor-pointer space-y-1 relative group"
+                      style={{ borderRadius: 4 }}
+                      title="Buka Kartu Kontrol Saldo Pending Volume"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-indigo-900 flex items-center gap-1 group-hover:text-indigo-950">
-                          <Scale size={14} className="text-indigo-700 shrink-0 group-hover:scale-110 transition" /> Pending Volume
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
+                          <Scale className="w-3.5 h-3.5 text-slate-600" /> Pending Volume
                         </span>
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-900 border border-indigo-200 shrink-0 flex items-center gap-0.5">
+                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-[3px] bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-0.5">
                           <span>{totalPendingCount > 0 ? `${totalPendingCount} Periode` : "Carry Over"}</span>
-                          <ChevronRight size={10} className="text-indigo-700" />
+                          <ChevronRight className="w-2.5 h-2.5" />
                         </span>
                       </div>
-                      <div className="text-sm sm:text-base lg:text-lg font-bold font-mono text-indigo-950 pt-0.5 truncate">
+                      <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
                         {formatIDR(totalPendingDisplay)}
                       </div>
+                      <div className="text-[11px] text-slate-400">Carry-forward volume OB</div>
                     </div>
                   );
                 })()}
 
                 {/* Card 4: Estimasi Total Revenue */}
-                <div className="p-2.5 sm:p-3 rounded-xl bg-cyan-50/70 border border-cyan-200/80 shadow-2xs space-y-0.5 relative overflow-hidden">
+                <div className="p-4 bg-white border border-slate-200 shadow-sm space-y-1 relative" style={{ borderRadius: 4 }}>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-cyan-900 flex items-center gap-1">
-                      <TrendingUp size={14} className="text-cyan-700 shrink-0" /> Estimasi Total Revenue
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
+                      <TrendingUp className="w-3.5 h-3.5 text-[#A57C50]" /> Estimasi Revenue
                     </span>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-cyan-100 text-cyan-900 border border-cyan-200 shrink-0">
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-[3px] bg-[#FBF6F0] text-[#A57C50] border border-[#E7D3BC]">
                       {periodFilter === "All" ? "Semua" : periodFilter}
                     </span>
                   </div>
-                  <div className="text-sm sm:text-base lg:text-lg font-bold font-mono text-cyan-950 pt-0.5 truncate">
+                  <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
                     {formatIDR(estTotalRevPeriod)}
                   </div>
+                  <div className="text-[11px] text-slate-400">Nilai total pengerjaan</div>
                 </div>
               </div>
             </div>
 
             {/* Grouped Table Panel */}
             <Panel title="Daftar Berita Acara Pekerjaan">
-              {/* CHEVRON / ARROW PROCESS STEPPER FILTER (HORIZONTALLY SCROLLABLE & COMPACT) */}
+              {/* CHEVRON / ARROW PROCESS STEPPER FILTER */}
               <div className="space-y-1.5 mb-2.5">
                 <div className="flex justify-between items-center px-0.5">
-                  <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1">
-                    <Layers size={13} className="text-cyan-700" /> Alur Siklus Dokumen
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 flex items-center gap-1">
+                    <Layers className="w-3.5 h-3.5 text-[#A57C50]" /> Alur Siklus Dokumen
                   </span>
                   {baFilter !== "All" && (
                     <button
                       type="button"
                       onClick={() => setBaFilter("All")}
-                      className="text-[10px] font-bold text-cyan-800 hover:text-cyan-950 underline cursor-pointer flex items-center gap-1"
+                      className="text-[11px] font-semibold text-[#A57C50] hover:text-[#8C6740] cursor-pointer flex items-center gap-1"
                     >
-                      <RefreshCw size={11} /> Reset (Tampilkan Semua)
+                      <RefreshCw className="w-3 h-3" /> Reset Filter
                     </button>
                   )}
                 </div>
-                {/* Connected Arrow / Chevron Process Bar with Horizontal Scrollbar Container */}
-                <div className="w-full overflow-x-auto pb-1.5 scrollbar-thin">
-                  <div className="flex items-stretch min-w-[900px] bg-slate-200/90 p-1 rounded-xl border border-slate-300 shadow-2xs gap-0">
+                {/* Process Bar Container */}
+                <div className="w-full overflow-x-auto pb-1.5 no-scrollbar">
+                  <div className="flex items-stretch min-w-[900px] bg-slate-100 p-1 border border-slate-200 gap-1" style={{ borderRadius: 4 }}>
                     {/* Step 1: Draft & Survey */}
                     <div
+
                       onClick={() => setBaFilter(baFilter === "Submit" ? "All" : "Submit")}
                       style={{
                         clipPath: "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%)",
