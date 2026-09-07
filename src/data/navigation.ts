@@ -69,7 +69,10 @@ export function menuPermissionModuleFor(item: string): string {
   if (lower.includes("reconcil")) return "reconciliation";
   if (lower.includes("closing") || lower.includes("accrual") || lower.includes("depreci") || lower.includes("review") || lower.includes("close")) return "period_closing";
   if (lower.includes("journal") || lower.includes("ledger") || lower.includes("trial")) return "accounting";
-  if (lower.includes("invoice") || lower.includes("payment") || lower.includes("ba") || lower.includes("receipt") || lower.includes("customer")) return "operational_transaction";
+  if (lower.includes("invoice")) return "invoice";
+  if (lower.includes("ba")) return "ba_tracker";
+  if (lower.includes("payment") || lower.includes("receipt")) return "payment";
+  if (lower.includes("customer")) return "operational_transaction";
   if (lower.includes("report") || lower.includes("aging") || lower.includes("statement") || lower.includes("cash-flow")) return "financial_report";
   if (lower.includes("dashboard")) return "management_dashboard";
   if (lower.includes("approval")) return "approval";
@@ -184,9 +187,9 @@ export const menuPermissionMap: Record<string, string[]> = {
   "Reimbursement": ["transaction_request:read"],
   "Payment Request": ["transaction_request:read"],
   "Finance & AR Dashboard": ["operational_transaction:read", "financial_report:read"],
-  "Berita Acara (BA) Tracker": ["operational_transaction:read"],
-  "Invoice Management": ["operational_transaction:read"],
-  "Payment & Receipt Log": ["operational_transaction:read"],
+  "Berita Acara (BA) Tracker": ["ba_tracker:read", "operational_transaction:read"],
+  "Invoice Management": ["invoice:read", "operational_transaction:read"],
+  "Payment & Receipt Log": ["payment:read", "operational_transaction:read"],
   "Purchase to Pay AP": ["operational_transaction:read"],
   "Order to Cash AR": ["operational_transaction:read"],
   "Cash and Bank Management": ["operational_transaction:read"],
