@@ -297,13 +297,18 @@ export function DetailModal({ c }: { c: any }) {
                 {detailViewItem.type === "invoice" && (() => {
                   const viewCustCode = (detailViewItem.data.customerCode || "").toUpperCase();
                   const targetBA = baRows?.find((b: any) => b.baNumber === detailViewItem.data.baNoReference || b.baNumber === detailViewItem.data.baNumber || b.id === detailViewItem.data.baID);
-                  let activeItems = (detailViewItem.data.items && Array.isArray(detailViewItem.data.items) && detailViewItem.data.items.length > 0)
+                  const rawItems = (detailViewItem.data.items && Array.isArray(detailViewItem.data.items) && detailViewItem.data.items.length > 0)
                     ? detailViewItem.data.items
+                    : (detailViewItem.data.lineItems && Array.isArray(detailViewItem.data.lineItems) && detailViewItem.data.lineItems.length > 0)
+                      ? detailViewItem.data.lineItems
+                      : null;
+                  let activeItems = rawItems
+                    ? rawItems
                     : (invLineItems && invLineItems.length > 0 && formData?.invoiceNo === detailViewItem.data.invoiceNo
                         ? invLineItems
                         : (typeof buildInvoiceItemsFromBA === "function"
                             ? buildInvoiceItemsFromBA(targetBA || detailViewItem.data, viewCustCode, detailViewItem.data.invoiceCategory)
-                            : (detailViewItem.data.items || []))
+                            : (detailViewItem.data.items || detailViewItem.data.lineItems || []))
                       );
 
                   if ((!activeItems || activeItems.length === 0 || activeItems.every((i: any) => !(i.volume > 0 || i.amount > 0 || i.unitRateIDR > 0))) && typeof buildInvoiceItemsFromBA === "function") {

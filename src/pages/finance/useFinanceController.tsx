@@ -2232,6 +2232,7 @@ export function useFinanceController({
           ...formData,
           status: formData.status || "Draft",
           items: invLineItems,
+          lineItems: invLineItems,
           invoiceNo: formData.invoiceNo || "003/POS-AAP/RF/VI/2026",
           customerCode: formData.customerCode || "",
           projectSite: formData.projectSite || "POS PROJECT",

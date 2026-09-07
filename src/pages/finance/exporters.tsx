@@ -19,13 +19,18 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
     const logoUrl = `${window.location.origin}/andalan-logo.png`;
 
     const targetBA = baRows?.find((b: any) => b.baNumber === itemData?.baNoReference || b.baNumber === itemData?.baNumber || b.id === itemData?.baID);
-    let activeItems = (itemData?.items && Array.isArray(itemData.items) && itemData.items.length > 0)
+    const rawItems = (itemData?.items && Array.isArray(itemData.items) && itemData.items.length > 0)
       ? itemData.items
+      : (itemData?.lineItems && Array.isArray(itemData.lineItems) && itemData.lineItems.length > 0)
+        ? itemData.lineItems
+        : null;
+    let activeItems = rawItems
+      ? rawItems
       : (invLineItems && invLineItems.length > 0 && (!itemData?.invoiceNo || formData?.invoiceNo === itemData?.invoiceNo)
           ? invLineItems
           : (typeof buildInvoiceItemsFromBA === "function"
               ? buildInvoiceItemsFromBA(targetBA || itemData, custCode, itemData?.invoiceCategory)
-              : (itemData?.items || []))
+              : (itemData?.items || itemData?.lineItems || []))
         );
 
     if ((!activeItems || activeItems.length === 0 || activeItems.every((i: any) => !(i.volume > 0 || i.amount > 0 || i.unitRateIDR > 0))) && typeof buildInvoiceItemsFromBA === "function") {
