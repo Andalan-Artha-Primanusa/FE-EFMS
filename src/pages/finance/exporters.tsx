@@ -19,13 +19,18 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
     const logoUrl = `${window.location.origin}/andalan-logo.png`;
 
     const targetBA = baRows?.find((b: any) => b.baNumber === itemData?.baNoReference || b.baNumber === itemData?.baNumber || b.id === itemData?.baID);
-    let activeItems = (itemData?.items && Array.isArray(itemData.items) && itemData.items.length > 0)
+    const rawItems = (itemData?.items && Array.isArray(itemData.items) && itemData.items.length > 0)
       ? itemData.items
+      : (itemData?.lineItems && Array.isArray(itemData.lineItems) && itemData.lineItems.length > 0)
+        ? itemData.lineItems
+        : null;
+    let activeItems = rawItems
+      ? rawItems
       : (invLineItems && invLineItems.length > 0 && (!itemData?.invoiceNo || formData?.invoiceNo === itemData?.invoiceNo)
           ? invLineItems
           : (typeof buildInvoiceItemsFromBA === "function"
               ? buildInvoiceItemsFromBA(targetBA || itemData, custCode, itemData?.invoiceCategory)
-              : (itemData?.items || []))
+              : (itemData?.items || itemData?.lineItems || []))
         );
 
     if ((!activeItems || activeItems.length === 0 || activeItems.every((i: any) => !(i.volume > 0 || i.amount > 0 || i.unitRateIDR > 0))) && typeof buildInvoiceItemsFromBA === "function") {
@@ -68,8 +73,8 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
       const secEItems = activeItems.filter((i: any) => i.section === "E");
       const secFItems = activeItems.filter((i: any) => i.section === "F");
 
-      const volA = secAItems.reduce((s: number, i: any) => s + (getItemEffectiveVolume(i) || i.volume || 0), 0);
-      const volB = secBItems.reduce((s: number, i: any) => s + (getItemEffectiveVolume(i) || i.volume || 0), 0);
+      const volA = secAItems.reduce((s: number, i: any) => s + (getItemEffectiveVolume(i, activeItems) || i.volume || 0), 0);
+      const volB = secBItems.reduce((s: number, i: any) => s + (getItemEffectiveVolume(i, activeItems) || i.volume || 0), 0);
 
       tableBodyHTML = `
         <tr class="sec-hdr">
@@ -81,8 +86,8 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         </tr>
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">A1. Pit Kungkilan</td></tr>
         ${secAItems.map((i: any) => {
-          const effVol = getItemEffectiveVolume(i);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+          const effVol = getItemEffectiveVolume(i, activeItems);
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
           return `
             <tr>
               <td style="padding-left: 20px;">${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.period || ""}</span></td>
@@ -103,8 +108,8 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         </tr>
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">B1. Pit Kungkilan</td></tr>
         ${secBItems.map((i: any) => {
-          const effVol = getItemEffectiveVolume(i);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+          const effVol = getItemEffectiveVolume(i, activeItems);
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
           return `
             <tr>
               <td style="padding-left: 20px;">${i.description}</td>
@@ -125,10 +130,10 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         </tr>
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">C1. Over Distance For OB Removal</td></tr>
         ${secCItems.filter((i: any) => i.subSection?.includes("OB") || i.description?.includes("OB")).map((i: any) => {
-          const effVol = getItemEffectiveVolume(i);
+          const effVol = getItemEffectiveVolume(i, activeItems);
           const effMtr = getItemEffectiveOverhaulMtr(i);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
-          const diffMtr = effMtr - 1000;
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
+          const diffMtr = Number((effMtr - 1000).toFixed(3));
           return `
             <tr>
               <td style="padding-left: 20px;">
@@ -144,10 +149,10 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         }).join("")}
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">C2. Over Distance For Coal Winning</td></tr>
         ${secCItems.filter((i: any) => !i.subSection?.includes("OB") && !i.description?.includes("OB")).map((i: any) => {
-          const effVol = getItemEffectiveVolume(i);
+          const effVol = getItemEffectiveVolume(i, activeItems);
           const effMtr = getItemEffectiveOverhaulMtr(i);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
-          const diffMtr = effMtr - 1000;
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
+          const diffMtr = Number((effMtr - 1000).toFixed(3));
           return `
             <tr>
               <td style="padding-left: 20px;">
@@ -170,8 +175,8 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           <td class="text-right font-mono font-black">${c.subtotalD.toLocaleString("id-ID")}</td>
         </tr>
         ${secDItems.map((i: any) => {
-          const effVol = getItemEffectiveVolume(i);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+          const effVol = getItemEffectiveVolume(i, activeItems);
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
           return `
             <tr>
               <td style="padding-left: 20px;">${i.subSection || ""} ${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.period || ""}</span></td>
@@ -188,7 +193,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           <td class="text-right font-mono font-black">(${Math.abs(c.subtotalE).toLocaleString("id-ID")})</td>
         </tr>
         ${secEItems.map((i: any) => {
-          const { amount } = calculateItemRateAndAmount(i, "BGG");
+          const { amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
           return `
             <tr>
               <td colspan="4" style="padding-left: 20px;">${i.description}</td>
@@ -202,7 +207,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           <td class="text-right font-mono font-black">(${Math.abs(c.subtotalF).toLocaleString("id-ID")})</td>
         </tr>
         ${secFItems.map((i: any) => {
-          const { amount } = calculateItemRateAndAmount(i, "BGG");
+          const { amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
           return `
             <tr>
               <td colspan="4" style="padding-left: 20px;">${i.description}</td>
@@ -641,7 +646,8 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           .footer-cell { display: table-cell; width: 50%; padding: 6px 10px; vertical-align: top; font-size: 9.5px; }
           .footer-left { border-right: 1.5px solid #0f172a; }
           .sig-space { height: 42px; border-bottom: 1.2px dashed #64748b; margin: 4px 0; }
-          .btn-print { background: #0e7490; color: white; border: none; padding: 7px 16px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
+          .btn-print { background: #A57C50; color: white; border: none; padding: 7px 16px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
+          .btn-print:hover { background: #8e6941; }
           @media print { .btn-print { display: none; } body { padding: 0; } .page-container { min-height: auto; } }
         </style>
       </head>
@@ -807,7 +813,8 @@ export function exportBADocumentPDFImpl(ctx: any, baData: any) {
         .sig-space { height: 40px; border-bottom: 1px dashed #94a3b8; margin: 4px auto; width: 85%; }
         .sig-name { font-size: 9.5px; font-weight: 900; text-decoration: underline; text-transform: uppercase; }
         .sig-title { font-size: 8.5px; color: #475569; }
-        .btn-print { background: #0e7490; color: white; border: none; padding: 7px 16px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
+        .btn-print { background: #A57C50; color: white; border: none; padding: 7px 16px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
+        .btn-print:hover { background: #8e6941; }
         @media print { .btn-print { display: none; } body { padding: 0; } .page-container { min-height: auto; } }
       </style>
     </head>
@@ -1311,7 +1318,8 @@ export function exportARBAIMonitoringPDFImpl(ctx: any) {
           .sig-table th { background: #f1f5f9; color: #0f172a; border: 1.5px solid #0f172a; padding: 6px; font-size: 9px; font-weight: 800; }
           .sig-table td { border: 1.5px solid #0f172a; padding: 8px; text-align: center; height: 55px; vertical-align: bottom; font-weight: 800; font-size: 9px; }
 
-          .btn-print { background: #1e2b4d; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
+          .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
+          .btn-print:hover { background: #8e6941; }
           @media print { .btn-print { display: none; } }
         </style>
       </head>
@@ -1604,7 +1612,8 @@ export function exportBAOnlyPDFImpl(ctx: any) {
           .sig-table th { background: #f1f5f9; color: #0f172a; border: 1.5px solid #0f172a; padding: 7px; font-size: 10px; font-weight: 800; }
           .sig-table td { border: 1.5px solid #0f172a; padding: 8px; text-align: center; height: 2.2cm; min-height: 2.2cm; vertical-align: bottom; font-weight: 800; font-size: 10px; }
 
-          .btn-print { background: #1e2b4d; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
+          .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
+          .btn-print:hover { background: #8e6941; }
           @media print { .btn-print { display: none; } }
         </style>
       </head>
@@ -1887,7 +1896,8 @@ export function exportAROnlyPDFImpl(ctx: any) {
           .sig-table th { background: #f1f5f9; color: #0f172a; border: 1.5px solid #0f172a; padding: 7px; font-size: 10px; font-weight: 800; }
           .sig-table td { border: 1.5px solid #0f172a; padding: 8px; text-align: center; height: 2.2cm; min-height: 2.2cm; vertical-align: bottom; font-weight: 800; font-size: 10px; }
 
-          .btn-print { background: #0e7490; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
+          .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
+          .btn-print:hover { background: #8e6941; }
           @media print { .btn-print { display: none; } }
         </style>
       </head>
@@ -2081,5 +2091,20 @@ export function exportEBupotPPh23CSVImpl(ctx: any, targetInvoices?: any[] | any)
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+}
+
+export function createFinanceExporters(exportCtx: any) {
+  return {
+    exportPaymentDetailPDF: (itemData: any) => exportPaymentDetailPDFImpl(exportCtx, itemData),
+    exportBADocumentPDF: (baData: any) => exportBADocumentPDFImpl(exportCtx, baData),
+    exportARBAIMonitoringExcel: () => exportARBAIMonitoringExcelImpl(exportCtx),
+    exportARBAIMonitoringPDF: () => exportARBAIMonitoringPDFImpl(exportCtx),
+    exportBAOnlyExcel: () => exportBAOnlyExcelImpl(exportCtx),
+    exportBAOnlyPDF: () => exportBAOnlyPDFImpl(exportCtx),
+    exportAROnlyExcel: () => exportAROnlyExcelImpl(exportCtx),
+    exportAROnlyPDF: () => exportAROnlyPDFImpl(exportCtx),
+    exportCoretaxEFakturCSV: (itemData?: any) => exportCoretaxEFakturCSVImpl(exportCtx, itemData),
+    exportEBupotPPh23CSV: (itemData?: any) => exportEBupotPPh23CSVImpl(exportCtx, itemData),
+  };
 }
 

@@ -504,17 +504,17 @@ export function MasterRaiseFallPage({
               />
               <button
                 onClick={openCreateMRateModal}
-                className="bg-cyan-800 hover:bg-cyan-900 text-white font-bold px-3.5 py-2 rounded-lg text-xs flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                className="bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold px-3 py-1.5 rounded-[3px] text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
               >
-                <Plus size={15} /> + Kurs M-Rate Manual
+                <Plus size={14} /> + Kurs M-Rate Manual
               </button>
             </>
           ) : (
             <button
               onClick={openCreateRfModal}
-              className="bg-cyan-800 hover:bg-cyan-900 text-white font-bold px-3.5 py-2 rounded-lg text-xs flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+              className="bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold px-3 py-1.5 rounded-[3px] text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
             >
-              <Plus size={15} /> Hitung Periode RF Baru
+              <Plus size={14} /> Hitung Periode RF Baru
             </button>
           )}
         </div>
@@ -522,16 +522,16 @@ export function MasterRaiseFallPage({
 
       {/* Customer & Contract Selection Bar (Only for Raise & Fall) */}
       {!isCurrencyPage && (
-        <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+        <div className="bg-white p-3 rounded-[4px] border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-slate-100 text-slate-700 rounded-lg border border-slate-200">
-              <Building2 size={16} />
+            <div className="p-1.5 bg-slate-100 text-slate-700 rounded-[3px] border border-slate-200">
+              <Building2 size={15} />
             </div>
             <div>
               <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block">Klien & Kontrak Aktif</span>
               <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                 {customerContractOptions.find((c) => c.code === selectedCustomer)?.name || "Semua Customer"}
-                <span className="bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded font-mono text-[11px]">
+                <span className="bg-slate-100 text-slate-700 px-1.5 py-0.2 rounded-[3px] font-mono text-[11px]">
                   {customerContractOptions.find((c) => c.code === selectedCustomer)?.contract || "All"}
                 </span>
               </span>
@@ -555,7 +555,7 @@ export function MasterRaiseFallPage({
                   }));
                 }
               }}
-              className="bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-cyan-700 shadow-2xs"
+              className="bg-slate-50 border border-slate-300 rounded-[3px] px-2.5 py-1 text-xs font-bold text-slate-900 focus:outline-none focus:border-[#A57C50] shadow-xs"
             >
               {customerContractOptions.map((opt) => (
                 <option key={opt.code} value={opt.code}>
@@ -569,13 +569,13 @@ export function MasterRaiseFallPage({
 
       {/* Top Metric Cards Summary */}
       {isCurrencyPage ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="bg-white p-3.5 rounded-[4px] border border-slate-200 shadow-xs space-y-1">
             <div className="flex justify-between items-center text-slate-500">
               <span className="text-[11px] font-bold uppercase tracking-wider">M-Rate Average (Xn)</span>
-              <TrendingUp size={14} className="text-cyan-700" />
+              <TrendingUp size={14} className="text-[#A57C50]" />
             </div>
-            <div className="text-2xl font-black text-slate-900 font-mono">
+            <div className="text-xl font-bold text-slate-900 tabular-nums">
               Rp {avgMRateCalc.toLocaleString("id-ID", { minimumFractionDigits: 2 })}
             </div>
             <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
@@ -584,12 +584,12 @@ export function MasterRaiseFallPage({
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-1">
+          <div className="bg-white p-3.5 rounded-[4px] border border-slate-200 shadow-xs space-y-1">
             <div className="flex justify-between items-center text-slate-500">
               <span className="text-[11px] font-bold uppercase tracking-wider">Total Log Kurs Harian BI</span>
               <Calendar size={14} className="text-slate-600" />
             </div>
-            <div className="text-2xl font-black text-slate-900 font-mono">
+            <div className="text-xl font-bold text-slate-900 tabular-nums">
               {mrateRows.length} Hari
             </div>
             <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
@@ -598,13 +598,13 @@ export function MasterRaiseFallPage({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="bg-white p-3.5 rounded-[4px] border border-slate-200 shadow-xs space-y-1">
             <div className="flex justify-between items-center text-slate-500">
               <span className="text-[11px] font-bold uppercase tracking-wider">Index Raise & Fall (RF)</span>
-              <Calculator size={14} className="text-cyan-800" />
+              <Calculator size={14} className="text-[#A57C50]" />
             </div>
-            <div className="text-2xl font-black text-slate-900 tracking-tight font-mono">
+            <div className="text-xl font-bold text-slate-900 tracking-tight tabular-nums">
               {activeRf.rfIndexResult ? activeRf.rfIndexResult.toFixed(3) : "1.521"}
             </div>
             <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
@@ -613,12 +613,12 @@ export function MasterRaiseFallPage({
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-1">
+          <div className="bg-white p-3.5 rounded-[4px] border border-slate-200 shadow-xs space-y-1">
             <div className="flex justify-between items-center text-slate-500">
               <span className="text-[11px] font-bold uppercase tracking-wider">Base Fuel (Fo)</span>
               <Flame size={14} className="text-amber-600" />
             </div>
-            <div className="text-xl font-bold text-slate-900 font-mono">
+            <div className="text-lg font-bold text-slate-900 tabular-nums">
               Rp {(activeRf.baseFuelFo || 10699.97).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
             </div>
             <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
@@ -627,12 +627,12 @@ export function MasterRaiseFallPage({
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-1">
+          <div className="bg-white p-3.5 rounded-[4px] border border-slate-200 shadow-xs space-y-1">
             <div className="flex justify-between items-center text-slate-500">
               <span className="text-[11px] font-bold uppercase tracking-wider">Base Labor (Lo)</span>
               <Percent size={14} className="text-slate-600" />
             </div>
-            <div className="text-xl font-bold text-slate-900 font-mono">
+            <div className="text-lg font-bold text-slate-900 tabular-nums">
               Rp {(activeRf.baseLaborLo || 3594536).toLocaleString("id-ID")}
             </div>
             <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
@@ -641,12 +641,12 @@ export function MasterRaiseFallPage({
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-1">
+          <div className="bg-white p-3.5 rounded-[4px] border border-slate-200 shadow-xs space-y-1">
             <div className="flex justify-between items-center text-slate-500">
               <span className="text-[11px] font-bold uppercase tracking-wider">M-Rate Average (Xn)</span>
-              <TrendingUp size={14} className="text-cyan-700" />
+              <TrendingUp size={14} className="text-[#A57C50]" />
             </div>
-            <div className="text-xl font-bold text-slate-900 font-mono">
+            <div className="text-lg font-bold text-slate-900 tabular-nums">
               Rp {avgMRateCalc.toLocaleString("id-ID", { minimumFractionDigits: 2 })}
             </div>
             <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
@@ -662,9 +662,9 @@ export function MasterRaiseFallPage({
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
           <button
             onClick={() => setActiveTab("monthly")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] text-xs font-bold border transition cursor-pointer ${
               activeTab === "monthly"
-                ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
+                ? "bg-[#A57C50] text-white border-[#A57C50] shadow-xs"
                 : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
             }`}
           >
@@ -673,9 +673,9 @@ export function MasterRaiseFallPage({
 
           <button
             onClick={() => setActiveTab("base")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] text-xs font-bold border transition cursor-pointer ${
               activeTab === "base"
-                ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
+                ? "bg-[#A57C50] text-white border-[#A57C50] shadow-xs"
                 : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
             }`}
           >
@@ -684,9 +684,9 @@ export function MasterRaiseFallPage({
 
           <button
             onClick={() => setActiveTab("umk")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition cursor-pointer ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] text-xs font-bold border transition cursor-pointer ${
               activeTab === "umk"
-                ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
+                ? "bg-[#A57C50] text-white border-[#A57C50] shadow-xs"
                 : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
             }`}
           >
@@ -698,24 +698,24 @@ export function MasterRaiseFallPage({
       {/* Tab 1: Log Kalkulasi Periode RF */}
       {activeTab === "monthly" && (
         <Panel title="Daftar Perhitungan Indeks Raise & Fall Per Periode">
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-[4px] border border-slate-200">
             <table className="w-full text-xs text-left border-collapse">
               <thead>
-                <tr className="bg-slate-100 text-slate-800 font-extrabold text-[11px] uppercase border-b border-slate-200">
-                  <th className="p-3 border-r border-slate-200">PERIODE</th>
-                  <th className="p-3 border-r border-slate-200">KONTRAK & CUSTOMER</th>
-                  <th className="p-3 border-r border-slate-200">SKEMA FORMULA</th>
-                  <th className="p-3 text-right border-r border-slate-200">FUEL (Fn)</th>
-                  <th className="p-3 text-right border-r border-slate-200">LABOR (Ln IDR)</th>
-                  <th className="p-3 text-right border-r border-slate-200">M-RATE (Xn IDR)</th>
-                  <th className="p-3 text-right border-r border-slate-200">KOMPONEN D</th>
-                  <th className="p-3 text-right border-r border-slate-200">KOMPONEN L</th>
-                  <th className="p-3 text-right border-r border-slate-200">FIXED F</th>
-                  <th className="p-3 text-right border-r border-slate-200 font-black text-cyan-900">RF INDEX RESULT</th>
-                  <th className="p-3 text-center">AKSI</th>
+                <tr className="bg-slate-100/80 text-slate-800 font-bold text-[11px] uppercase border-b border-slate-200">
+                  <th className="p-2.5 border-r border-slate-200">PERIODE</th>
+                  <th className="p-2.5 border-r border-slate-200">KONTRAK & CUSTOMER</th>
+                  <th className="p-2.5 border-r border-slate-200">SKEMA FORMULA</th>
+                  <th className="p-2.5 text-right border-r border-slate-200">FUEL (Fn)</th>
+                  <th className="p-2.5 text-right border-r border-slate-200">LABOR (Ln IDR)</th>
+                  <th className="p-2.5 text-right border-r border-slate-200">M-RATE (Xn IDR)</th>
+                  <th className="p-2.5 text-right border-r border-slate-200">KOMPONEN D</th>
+                  <th className="p-2.5 text-right border-r border-slate-200">KOMPONEN L</th>
+                  <th className="p-2.5 text-right border-r border-slate-200">FIXED F</th>
+                  <th className="p-2.5 text-right border-r border-slate-200 font-bold text-slate-900">RF INDEX RESULT</th>
+                  <th className="p-2.5 text-center">AKSI</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 font-medium text-slate-900">
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-900 bg-white">
                 {filteredRfRows.map((r) => {
                   const isSingle = r.formulaScheme === "SINGLE_FACTOR_FUEL" || r.customerCode === "BGG";
                   let d = 0, l = 0, f = 0, totalRf = 0;
@@ -732,69 +732,69 @@ export function MasterRaiseFallPage({
                   }
 
                   return (
-                    <tr key={r.id} className="hover:bg-slate-50 border-b border-slate-200">
-                      <td className="p-3 font-extrabold text-slate-900 border-r border-slate-200">
+                    <tr key={r.id} className="hover:bg-slate-50/80 border-b border-slate-100">
+                      <td className="p-2.5 font-bold text-slate-900 border-r border-slate-100">
                         {r.period}
                       </td>
-                      <td className="p-3 border-r border-slate-200">
+                      <td className="p-2.5 border-r border-slate-100">
                         <div className="font-bold text-slate-900">{r.customerCode} — {r.projectSite}</div>
-                        <div className="text-[10px] font-mono text-slate-500">{r.contractNo}</div>
+                        <div className="text-[10px] tabular-nums text-slate-500">{r.contractNo}</div>
                         {r.addendumNo && (
-                          <div className="text-[10px] font-mono font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/60 px-1.5 py-0.5 rounded mt-0.5 inline-block">
+                          <div className="text-[10px] tabular-nums font-bold text-indigo-700 bg-indigo-50 border border-indigo-200/60 px-1.5 py-0.5 rounded-[3px] mt-0.5 inline-block">
                             {r.addendumNo} {r.effectiveFrom ? `(${r.effectiveFrom} s/d ${r.effectiveTo || "Open"})` : ""}
                           </div>
                         )}
                       </td>
-                      <td className="p-3 border-r border-slate-200">
+                      <td className="p-2.5 border-r border-slate-100">
                         <div className="flex flex-col gap-1 items-start">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
-                            isSingle ? "bg-amber-100 text-amber-800" : "bg-cyan-100 text-cyan-800"
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold ${
+                            isSingle ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-800"
                           }`}>
                             {isSingle ? "1-Faktor BBM" : "3-Faktor (D+L+F)"}
                           </span>
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-[3px] text-[9px] font-bold ${
                             r.status === "Archived" ? "bg-slate-100 text-slate-600 border border-slate-300" : "bg-emerald-100 text-emerald-800 border border-emerald-300"
                           }`}>
                             {r.status || "Active"}
                           </span>
                         </div>
                       </td>
-                      <td className="p-3 text-right font-mono font-bold border-r border-slate-200">
+                      <td className="p-2.5 text-right tabular-nums font-bold border-r border-slate-100">
                         {r.actualFuelFn > 100 ? `Rp ${r.actualFuelFn?.toLocaleString("id-ID")}` : `USD ${r.actualFuelFn?.toFixed(3)}`}
                       </td>
-                      <td className="p-3 text-right font-mono font-bold border-r border-slate-200">
+                      <td className="p-2.5 text-right tabular-nums font-bold border-r border-slate-100">
                         {isSingle ? <span className="text-slate-400 font-sans">N/A</span> : `Rp ${r.actualLaborLn?.toLocaleString("id-ID")}`}
                       </td>
-                      <td className="p-3 text-right font-mono font-bold border-r border-slate-200">
+                      <td className="p-2.5 text-right tabular-nums font-bold border-r border-slate-100">
                         {isSingle ? <span className="text-slate-400 font-sans">N/A</span> : `Rp ${r.actualMRateXn?.toLocaleString("id-ID")}`}
                       </td>
-                      <td className="p-3 text-right font-mono text-slate-700 border-r border-slate-200">
+                      <td className="p-2.5 text-right tabular-nums text-slate-700 border-r border-slate-100">
                         {isSingle ? <span className="text-slate-400 font-sans">-</span> : d.toFixed(3)}
                       </td>
-                      <td className="p-3 text-right font-mono text-slate-700 border-r border-slate-200">
+                      <td className="p-2.5 text-right tabular-nums text-slate-700 border-r border-slate-100">
                         {isSingle ? <span className="text-slate-400 font-sans">-</span> : l.toFixed(3)}
                       </td>
-                      <td className="p-3 text-right font-mono text-slate-700 border-r border-slate-200">
+                      <td className="p-2.5 text-right tabular-nums text-slate-700 border-r border-slate-100">
                         {isSingle ? <span className="text-slate-400 font-sans">-</span> : f.toFixed(3)}
                       </td>
-                      <td className="p-3 text-right font-mono font-black text-sm text-cyan-900 border-r border-slate-200 underline">
+                      <td className="p-2.5 text-right tabular-nums font-bold text-sm text-slate-950 border-r border-slate-100 underline">
                         {totalRf.toFixed(3)}
                       </td>
-                      <td className="p-3 text-center">
+                      <td className="p-2.5 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => openEditRfModal(r)}
-                            className="p-1.5 text-cyan-700 hover:bg-cyan-50 rounded-lg transition-colors"
+                            className="p-1 text-slate-600 hover:text-[#A57C50] rounded-[3px] transition-colors"
                             title="Edit Record"
                           >
-                            <Edit2 size={14} />
+                            <Edit2 size={13} />
                           </button>
                           <button
                             onClick={() => setDeleteRfTarget({ id: r.id })}
-                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            className="p-1 text-rose-600 hover:bg-rose-50 rounded-[3px] transition-colors"
                             title="Hapus Record"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={13} />
                           </button>
                         </div>
                       </td>
@@ -810,14 +810,14 @@ export function MasterRaiseFallPage({
       {/* Tab 2: Formulasi & Indeks Dasar Kontrak */}
       {activeTab === "base" && (
         <Panel title="Parameter Formula & Indeks Dasar Kontrak (Multi-Scheme Engine)">
-          <div className="space-y-5 text-xs text-slate-800">
+          <div className="space-y-4 text-xs text-slate-800">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Skema 1: BGG 1-Faktor BBM */}
-              <div className="p-4 bg-slate-900 text-white rounded-2xl shadow-md space-y-3 border border-slate-800 font-mono">
-                <div className="text-xs font-black text-amber-400 uppercase tracking-widest flex items-center gap-2">
-                  <Flame size={16} /> SKEMA BGG: 1-FAKTOR FUEL (ESKALASI BBM MURNI)
+              <div className="p-4 bg-slate-900 text-white rounded-[4px] shadow-xs space-y-3 border border-slate-800 font-mono">
+                <div className="text-xs font-bold text-amber-400 uppercase tracking-widest flex items-center gap-2">
+                  <Flame size={15} /> SKEMA BGG: 1-FAKTOR FUEL (ESKALASI BBM MURNI)
                 </div>
-                <div className="p-3 bg-slate-800/90 rounded-xl border border-slate-700 text-slate-200 text-xs">
+                <div className="p-2.5 bg-slate-800/90 rounded-[3px] border border-slate-700 text-slate-200 text-xs">
                   <code>Index = 0,60 + 0,40 × (Fn / Fo)</code>
                 </div>
                 <ul className="text-[11px] text-slate-300 space-y-1 font-sans">
@@ -828,11 +828,11 @@ export function MasterRaiseFallPage({
               </div>
 
               {/* Skema 2: POS 3-Faktor DLF */}
-              <div className="p-4 bg-slate-900 text-white rounded-2xl shadow-md space-y-3 border border-slate-800 font-mono">
-                <div className="text-xs font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2">
-                  <Calculator size={16} /> SKEMA POS: 3-FAKTOR D + L + F (DIESEL, LABOR, FIXED)
+              <div className="p-4 bg-slate-900 text-white rounded-[4px] shadow-xs space-y-3 border border-slate-800 font-mono">
+                <div className="text-xs font-bold text-[#A57C50] uppercase tracking-widest flex items-center gap-2">
+                  <Calculator size={15} /> SKEMA POS: 3-FAKTOR D + L + F (DIESEL, LABOR, FIXED)
                 </div>
-                <div className="p-3 bg-slate-800/90 rounded-xl border border-slate-700 text-slate-200 text-xs">
+                <div className="p-2.5 bg-slate-800/90 rounded-[3px] border border-slate-700 text-slate-200 text-xs">
                   <code>Index = D + L + F</code>
                   <div className="text-[10px] text-teal-300 mt-1">
                     D = [a × Fn × Xn] / Fo | L = b × (Ln / Lo) (Rasio IDR Murni!) | F = c
@@ -848,42 +848,42 @@ export function MasterRaiseFallPage({
 
             {/* Grid Detail Base Index Parameters */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 bg-slate-50 border border-slate-300 rounded-xl space-y-3">
-                <h4 className="font-extrabold uppercase text-slate-900 text-xs tracking-wider flex items-center gap-2">
-                  <Percent size={15} className="text-cyan-700" /> Bobot Komponen Terbobot (POS Project):
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-[4px] space-y-2.5">
+                <h4 className="font-bold uppercase text-slate-900 text-xs tracking-wider flex items-center gap-2">
+                  <Percent size={14} className="text-[#A57C50]" /> Bobot Komponen Terbobot (POS Project):
                 </h4>
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between p-2 bg-white rounded-lg border border-slate-200">
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between p-2 bg-white rounded-[3px] border border-slate-200">
                     <span className="font-bold text-slate-600">a (Fuel Weighting)</span>
-                    <strong className="text-slate-900 font-mono text-sm">34,0%</strong>
+                    <strong className="text-slate-900 tabular-nums">34,0%</strong>
                   </div>
-                  <div className="flex justify-between p-2 bg-white rounded-lg border border-slate-200">
+                  <div className="flex justify-between p-2 bg-white rounded-[3px] border border-slate-200">
                     <span className="font-bold text-slate-600">b (Labor Weighting)</span>
-                    <strong className="text-slate-900 font-mono text-sm">25,0%</strong>
+                    <strong className="text-slate-900 tabular-nums">25,0%</strong>
                   </div>
-                  <div className="flex justify-between p-2 bg-white rounded-lg border border-slate-200">
+                  <div className="flex justify-between p-2 bg-white rounded-[3px] border border-slate-200">
                     <span className="font-bold text-slate-600">c (Fixed Weighting)</span>
-                    <strong className="text-slate-900 font-mono text-sm">41,0%</strong>
+                    <strong className="text-slate-900 tabular-nums">41,0%</strong>
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50 border border-slate-300 rounded-xl space-y-3">
-                <h4 className="font-extrabold uppercase text-slate-900 text-xs tracking-wider flex items-center gap-2">
-                  <Layers size={15} className="text-cyan-700" /> Nilai Indeks Dasar Kontrak (Base Index Values):
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-[4px] space-y-2.5">
+                <h4 className="font-bold uppercase text-slate-900 text-xs tracking-wider flex items-center gap-2">
+                  <Layers size={14} className="text-[#A57C50]" /> Nilai Indeks Dasar Kontrak (Base Index Values):
                 </h4>
-                <div className="space-y-2 text-xs font-mono">
-                  <div className="flex justify-between p-2 bg-white rounded-lg border border-slate-200">
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between p-2 bg-white rounded-[3px] border border-slate-200">
                     <span className="font-bold text-slate-600 font-sans">Fo (Base Fuel POS)</span>
-                    <strong className="text-slate-900">Rp 10.699,97</strong>
+                    <strong className="text-slate-900 tabular-nums">Rp 10.699,97</strong>
                   </div>
-                  <div className="flex justify-between p-2 bg-white rounded-lg border border-slate-200">
+                  <div className="flex justify-between p-2 bg-white rounded-[3px] border border-slate-200">
                     <span className="font-bold text-slate-600 font-sans">Lo (Base Labor POS)</span>
-                    <strong className="text-slate-900">Rp 3.594.536,00</strong>
+                    <strong className="text-slate-900 tabular-nums">Rp 3.594.536,00</strong>
                   </div>
-                  <div className="flex justify-between p-2 bg-white rounded-lg border border-slate-200">
+                  <div className="flex justify-between p-2 bg-white rounded-[3px] border border-slate-200">
                     <span className="font-bold text-slate-600 font-sans">Xo (Base Forex POS)</span>
-                    <strong className="text-slate-900">Rp 15.388,75</strong>
+                    <strong className="text-slate-900 tabular-nums">Rp 15.388,75</strong>
                   </div>
                 </div>
               </div>
@@ -899,47 +899,47 @@ export function MasterRaiseFallPage({
           action={
             <button
               onClick={openCreateUmkModal}
-              className="bg-cyan-800 hover:bg-slate-900 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+              className="bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold px-3 py-1.5 rounded-[3px] text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
             >
-              <Plus size={15} /> + Tambah Nilai UMK Baru
+              <Plus size={14} /> + Tambah Nilai UMK Baru
             </button>
           }
         >
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-[4px] border border-slate-200">
             <table className="w-full text-xs text-left border-collapse">
               <thead>
-                <tr className="bg-slate-100 text-slate-800 font-extrabold text-[11px] uppercase border-b border-slate-200">
-                  <th className="p-3 border-r border-slate-200">PROJECT SITE</th>
-                  <th className="p-3 text-center border-r border-slate-200">TAHUN BERLAKU</th>
-                  <th className="p-3 text-right border-r border-slate-200 font-black text-cyan-900">NILAI UMK (IDR)</th>
-                  <th className="p-3 border-r border-slate-200">NO. SK / PERATURAN GUBERNUR</th>
-                  <th className="p-3 text-center border-r border-slate-200">TANGGAL EFEKTIF</th>
-                  <th className="p-3 border-r border-slate-200">CATATAN AUDIT</th>
-                  <th className="p-3 text-center">AKSI</th>
+                <tr className="bg-slate-100/80 text-slate-800 font-bold text-[11px] uppercase border-b border-slate-200">
+                  <th className="p-2.5 border-r border-slate-200">PROJECT SITE</th>
+                  <th className="p-2.5 text-center border-r border-slate-200">TAHUN BERLAKU</th>
+                  <th className="p-2.5 text-right border-r border-slate-200 font-bold text-slate-900">NILAI UMK (IDR)</th>
+                  <th className="p-2.5 border-r border-slate-200">NO. SK / PERATURAN GUBERNUR</th>
+                  <th className="p-2.5 text-center border-r border-slate-200">TANGGAL EFEKTIF</th>
+                  <th className="p-2.5 border-r border-slate-200">CATATAN AUDIT</th>
+                  <th className="p-2.5 text-center">AKSI</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 font-medium text-slate-900">
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-900 bg-white">
                 {umkRows.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50 border-b border-slate-200">
-                    <td className="p-3 font-extrabold text-cyan-900 border-r border-slate-200">
+                  <tr key={u.id} className="hover:bg-slate-50/80 border-b border-slate-100">
+                    <td className="p-2.5 font-bold text-slate-900 border-r border-slate-100">
                       {u.site}
                     </td>
-                    <td className="p-3 text-center font-bold font-mono border-r border-slate-200">
+                    <td className="p-2.5 text-center font-bold tabular-nums border-r border-slate-100">
                       {u.year}
                     </td>
-                    <td className="p-3 text-right font-mono font-black text-sm text-slate-900 border-r border-slate-200">
+                    <td className="p-2.5 text-right tabular-nums font-bold text-sm text-slate-900 border-r border-slate-100">
                       Rp {u.amountIdr?.toLocaleString("id-ID")}
                     </td>
-                    <td className="p-3 font-mono text-[11px] text-slate-700 border-r border-slate-200">
+                    <td className="p-2.5 tabular-nums text-[11px] text-slate-700 border-r border-slate-100">
                       {u.skNumber || "-"}
                     </td>
-                    <td className="p-3 text-center font-mono text-[11px] border-r border-slate-200">
+                    <td className="p-2.5 text-center tabular-nums text-[11px] border-r border-slate-100">
                       {u.effectiveDate || "-"}
                     </td>
-                    <td className="p-3 text-slate-600 text-[11px] border-r border-slate-200">
+                    <td className="p-2.5 text-slate-600 text-[11px] border-r border-slate-100">
                       {u.notes || "-"}
                     </td>
-                    <td className="p-3 text-center">
+                    <td className="p-2.5 text-center">
                       <div className="flex items-center justify-center gap-1.5">
                         <button
                           onClick={() => {
@@ -948,17 +948,17 @@ export function MasterRaiseFallPage({
                             setUmkForm({ ...u });
                             setModalOpen(true);
                           }}
-                          className="p-1.5 text-cyan-700 hover:bg-cyan-50 rounded-lg transition-colors"
+                          className="p-1 text-slate-600 hover:text-[#A57C50] rounded-[3px] transition-colors"
                           title="Edit UMK"
                         >
-                          <Edit2 size={14} />
+                          <Edit2 size={13} />
                         </button>
                         <button
                           onClick={() => setDeleteUmkTarget({ id: u.id })}
-                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          className="p-1 text-rose-600 hover:bg-rose-50 rounded-[3px] transition-colors"
                           title="Hapus UMK"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                         </button>
                       </div>
                     </td>
@@ -986,39 +986,39 @@ export function MasterRaiseFallPage({
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="bg-cyan-800 hover:bg-slate-900 text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all shadow-xs disabled:opacity-50"
+                className="bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold px-3 py-1.5 rounded-[3px] text-xs flex items-center gap-1.5 transition-all shadow-xs disabled:opacity-50"
               >
-                <Upload size={14} className={uploading ? "animate-bounce" : ""} /> {uploading ? "Mengimpor..." : "Import Excel Kurs BI"}
+                <Upload size={13} className={uploading ? "animate-bounce" : ""} /> {uploading ? "Mengimpor..." : "Import Excel Kurs BI"}
               </button>
             </div>
           }
         >
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-[4px] border border-slate-200">
             <table className="w-full text-xs text-left border-collapse">
               <thead>
-                <tr className="bg-slate-100 text-slate-800 font-extrabold text-[11px] uppercase border-b border-slate-200">
-                  <th className="p-3 border-r border-slate-200">NO</th>
-                  <th className="p-3 border-r border-slate-200">TANGGAL KURS</th>
-                  <th className="p-3 text-right border-r border-slate-200">KURS JUAL (IDR)</th>
-                  <th className="p-3 text-right border-r border-slate-200">KURS BELI (IDR)</th>
-                  <th className="p-3 text-right font-black text-cyan-900">KURS TENGAH (IDR)</th>
+                <tr className="bg-slate-100/80 text-slate-800 font-bold text-[11px] uppercase border-b border-slate-200">
+                  <th className="p-2.5 border-r border-slate-200">NO</th>
+                  <th className="p-2.5 border-r border-slate-200">TANGGAL KURS</th>
+                  <th className="p-2.5 text-right border-r border-slate-200">KURS JUAL (IDR)</th>
+                  <th className="p-2.5 text-right border-r border-slate-200">KURS BELI (IDR)</th>
+                  <th className="p-2.5 text-right font-bold text-slate-900">KURS TENGAH (IDR)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 font-medium text-slate-900 font-mono">
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-900 tabular-nums bg-white">
                 {mrateRows.map((m, idx) => (
-                  <tr key={m.id || idx} className="hover:bg-slate-50 border-b border-slate-200">
-                    <td className="p-3 text-center border-r border-slate-200 font-sans font-bold">{m.no || idx + 1}</td>
-                    <td className="p-3 border-r border-slate-200 font-sans font-extrabold">{m.dateStr}</td>
-                    <td className="p-3 text-right border-r border-slate-200">Rp {m.kursJual?.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-                    <td className="p-3 text-right border-r border-slate-200">Rp {m.kursBeli?.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-                    <td className="p-3 text-right font-black text-cyan-900">Rp {(m.kursTengah || (m.kursJual + m.kursBeli) / 2).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
+                  <tr key={m.id || idx} className="hover:bg-slate-50/80 border-b border-slate-100">
+                    <td className="p-2.5 text-center border-r border-slate-100 font-sans font-bold">{m.no || idx + 1}</td>
+                    <td className="p-2.5 border-r border-slate-100 font-sans font-bold">{m.dateStr}</td>
+                    <td className="p-2.5 text-right border-r border-slate-100">Rp {m.kursJual?.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
+                    <td className="p-2.5 text-right border-r border-slate-100">Rp {m.kursBeli?.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
+                    <td className="p-2.5 text-right font-bold text-slate-900">Rp {(m.kursTengah || (m.kursJual + m.kursBeli) / 2).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
+              <tfoot className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-300">
                 <tr>
-                  <td colSpan={4} className="p-3 text-left font-sans uppercase">RATA-RATA KURS TENGAH (M-RATE AVERAGE Xn):</td>
-                  <td className="p-3 text-right font-mono text-sm font-black text-cyan-950 underline">
+                  <td colSpan={4} className="p-2.5 text-left font-sans uppercase">RATA-RATA KURS TENGAH (M-RATE AVERAGE Xn):</td>
+                  <td className="p-2.5 text-right tabular-nums text-sm font-black text-slate-950 underline">
                     Rp {avgMRateCalc.toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                   </td>
                 </tr>
@@ -1031,27 +1031,27 @@ export function MasterRaiseFallPage({
       {/* Tab 4: Master Contract Unit Rates USD */}
       {activeTab === "rates" && (
         <Panel title="Tarif Kontrak Unit Rate USD (Referensi Sheet Rate Excel)">
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-[4px] border border-slate-200">
             <table className="w-full text-xs text-left border-collapse">
               <thead>
-                <tr className="bg-slate-100 text-slate-800 font-extrabold text-[11px] uppercase border-b border-slate-200">
-                  <th className="p-3 border-r border-slate-200">KATEGORI SOW</th>
-                  <th className="p-3 border-r border-slate-200">ITEM PEKERJAAN</th>
-                  <th className="p-3 text-center border-r border-slate-200">SATUAN</th>
-                  <th className="p-3 text-right border-r border-slate-200 font-black text-cyan-900">BASE RATE (USD)</th>
-                  <th className="p-3">DESKRIPSI</th>
+                <tr className="bg-slate-100/80 text-slate-800 font-bold text-[11px] uppercase border-b border-slate-200">
+                  <th className="p-2.5 border-r border-slate-200">KATEGORI SOW</th>
+                  <th className="p-2.5 border-r border-slate-200">ITEM PEKERJAAN</th>
+                  <th className="p-2.5 text-center border-r border-slate-200">SATUAN</th>
+                  <th className="p-2.5 text-right border-r border-slate-200 font-bold text-slate-900">BASE RATE (USD)</th>
+                  <th className="p-2.5">DESKRIPSI</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 font-medium text-slate-900">
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-900 bg-white">
                 {sowRows.map((s) => (
-                  <tr key={s.id} className="hover:bg-slate-50 border-b border-slate-200">
-                    <td className="p-3 font-extrabold text-cyan-900 border-r border-slate-200">{s.category}</td>
-                    <td className="p-3 font-bold text-slate-900 border-r border-slate-200">{s.itemName}</td>
-                    <td className="p-3 text-center font-mono border-r border-slate-200">{s.unit}</td>
-                    <td className="p-3 text-right font-mono font-extrabold text-cyan-900 border-r border-slate-200">
+                  <tr key={s.id} className="hover:bg-slate-50/80 border-b border-slate-100">
+                    <td className="p-2.5 font-bold text-slate-900 border-r border-slate-100">{s.category}</td>
+                    <td className="p-2.5 font-bold text-slate-900 border-r border-slate-100">{s.itemName}</td>
+                    <td className="p-2.5 text-center tabular-nums border-r border-slate-100">{s.unit}</td>
+                    <td className="p-2.5 text-right tabular-nums font-bold text-slate-900 border-r border-slate-100">
                       USD {s.rateUSD?.toFixed(3)}
                     </td>
-                    <td className="p-3 text-slate-600 text-[11px]">{s.description}</td>
+                    <td className="p-2.5 text-slate-600 text-[11px]">{s.description}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1063,37 +1063,37 @@ export function MasterRaiseFallPage({
       {/* Modal Popup (Calculated RF / MRate / UMK) */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-5 py-4 bg-slate-900 text-white flex justify-between items-center">
-              <h3 className="font-extrabold text-sm uppercase tracking-wider flex items-center gap-2">
-                <Calculator size={18} className="text-cyan-400" />
+          <div className="bg-white rounded-[4px] shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-4 py-3 bg-slate-900 text-white flex justify-between items-center">
+              <h3 className="font-bold text-xs uppercase tracking-wider flex items-center gap-2">
+                <Calculator size={15} className="text-[#A57C50]" />
                 {modalType === "rf"
                   ? (editItem ? "Edit Rekam Kalkulasi Raise & Fall" : "Hitung / Input Periode Raise & Fall Baru")
                   : modalType === "umk"
                   ? (editItem ? "Edit Referensi UMK Site" : "Tambah Referensi UMK Baru")
                   : "Tambah Kurs Harian Bank Indonesia"}
               </h3>
-              <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-white">
-                <X size={18} />
+              <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-white cursor-pointer">
+                <X size={16} />
               </button>
             </div>
 
-            <div className="p-5 overflow-y-auto space-y-4">
+            <div className="p-4 overflow-y-auto space-y-4 text-xs">
               {modalType === "rf" && (
-                <form onSubmit={handleSaveRf} className="space-y-4">
+                <form onSubmit={handleSaveRf} className="space-y-3.5">
                   <div className="grid grid-cols-2 gap-3">
                     <MonthPickerInput
                       label="Periode Tagihan"
                       value={rfForm.period}
                       onChange={(val) => setRfForm({ ...rfForm, period: val })}
                       format="long"
-                      className="w-full bg-slate-50 border border-slate-300 font-extrabold text-xs p-2 rounded-lg outline-none focus:border-cyan-600"
+                      className="w-full bg-white border border-slate-300 font-bold text-xs p-2 rounded-[3px] outline-none focus:border-[#A57C50]"
                       required
                     />
                     <div>
-                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Skema Formula</label>
+                      <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Skema Formula</label>
                       <select
-                        className="w-full bg-slate-50 border border-slate-300 font-bold text-xs p-2 rounded-lg outline-none focus:border-cyan-600"
+                        className="w-full bg-white border border-slate-300 font-bold text-xs p-2 rounded-[3px] outline-none focus:border-[#A57C50]"
                         value={rfForm.formulaScheme || (rfForm.customerCode === "BGG" ? "SINGLE_FACTOR_FUEL" : "TRIPLE_FACTOR_DLF")}
                         onChange={(e) => setRfForm({ ...rfForm, formulaScheme: e.target.value })}
                       >
@@ -1105,21 +1105,21 @@ export function MasterRaiseFallPage({
 
                   {/* Input parameters based on scheme */}
                   {isBGGStyle ? (
-                    <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl space-y-3">
+                    <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-[4px] space-y-2.5">
                       <div className="flex justify-between items-center">
-                        <h5 className="text-[11px] font-extrabold uppercase text-amber-900 tracking-wider flex items-center gap-1.5">
+                        <h5 className="text-[11px] font-bold uppercase text-amber-900 tracking-wider flex items-center gap-1.5">
                           <Flame size={14} className="text-amber-600" />
                           Parameter 1-Faktor BBM (BGG)
                         </h5>
-                        <span className="text-[10px] font-bold bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded-md">
+                        <span className="text-[10px] font-bold bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded-[3px]">
                           Base Fuel (Fo): Rp 9.000 (Konstan Kontrak)
                         </span>
                       </div>
 
-                      <div className="overflow-hidden rounded-lg border border-amber-200 bg-white shadow-2xs">
+                      <div className="overflow-hidden rounded-[3px] border border-amber-200 bg-white shadow-xs">
                         <table className="w-full text-xs border-collapse">
                           <thead>
-                            <tr className="bg-amber-100/70 text-amber-950 font-extrabold text-[11px] uppercase border-b border-amber-200">
+                            <tr className="bg-amber-100/70 text-amber-950 font-bold text-[10px] uppercase border-b border-amber-200">
                               <th className="p-2 text-left w-28 border-r border-amber-200">Periode</th>
                               <th className="p-2 text-right border-r border-amber-200">Fuel</th>
                               <th className="p-2 text-right border-r border-amber-200">Transport</th>
@@ -1134,7 +1134,7 @@ export function MasterRaiseFallPage({
                               <td className="p-1.5 border-r border-amber-100">
                                 <IndoDecimalInput
                                   placeholder="19.800"
-                                  className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-right p-1.5 rounded outline-none focus:border-amber-600"
+                                  className="w-full bg-white border border-slate-300 font-mono font-bold text-right p-1.5 rounded-[3px] outline-none focus:border-amber-600"
                                   value={rfForm.bggFuelP1}
                                   onChange={(val) => setRfForm((prev: any) => ({ ...prev, bggFuelP1: val }))}
                                 />
@@ -1142,12 +1142,12 @@ export function MasterRaiseFallPage({
                               <td className="p-1.5 border-r border-amber-100">
                                 <IndoDecimalInput
                                   placeholder="1.800"
-                                  className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-right p-1.5 rounded outline-none focus:border-amber-600"
+                                  className="w-full bg-white border border-slate-300 font-mono font-bold text-right p-1.5 rounded-[3px] outline-none focus:border-amber-600"
                                   value={rfForm.bggTransportP1}
                                   onChange={(val) => setRfForm((prev: any) => ({ ...prev, bggTransportP1: val }))}
                                 />
                               </td>
-                              <td className="p-2 text-right font-mono font-extrabold text-slate-900 bg-amber-50/30">
+                              <td className="p-2 text-right tabular-nums font-bold text-slate-900 bg-amber-50/30">
                                 Rp {bggTotalP1.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
                               </td>
                             </tr>
@@ -1158,7 +1158,7 @@ export function MasterRaiseFallPage({
                               <td className="p-1.5 border-r border-amber-100">
                                 <IndoDecimalInput
                                   placeholder="19.800"
-                                  className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-right p-1.5 rounded outline-none focus:border-amber-600"
+                                  className="w-full bg-white border border-slate-300 font-mono font-bold text-right p-1.5 rounded-[3px] outline-none focus:border-amber-600"
                                   value={rfForm.bggFuelP2}
                                   onChange={(val) => setRfForm((prev: any) => ({ ...prev, bggFuelP2: val }))}
                                 />
@@ -1166,25 +1166,25 @@ export function MasterRaiseFallPage({
                               <td className="p-1.5 border-r border-amber-100">
                                 <IndoDecimalInput
                                   placeholder="1.803,06"
-                                  className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-right p-1.5 rounded outline-none focus:border-amber-600"
+                                  className="w-full bg-white border border-slate-300 font-mono font-bold text-right p-1.5 rounded-[3px] outline-none focus:border-amber-600"
                                   value={rfForm.bggTransportP2}
                                   onChange={(val) => setRfForm((prev: any) => ({ ...prev, bggTransportP2: val }))}
                                 />
                               </td>
-                              <td className="p-2 text-right font-mono font-extrabold text-slate-900 bg-amber-50/30">
+                              <td className="p-2 text-right tabular-nums font-bold text-slate-900 bg-amber-50/30">
                                 Rp {bggTotalP2.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
                               </td>
                             </tr>
                           </tbody>
                           <tfoot>
-                            <tr className="bg-amber-100/90 font-extrabold border-t-2 border-amber-300 text-amber-950">
+                            <tr className="bg-amber-100/90 font-bold border-t-2 border-amber-300 text-amber-950">
                               <td colSpan={2} className="p-2 text-left uppercase text-[10px] tracking-wider border-r border-amber-200">
                                 RATA-RATA TOTAL AKTUAL FUEL (Fn)
                               </td>
                               <td className="p-2 text-right text-[10px] uppercase font-bold text-amber-900 border-r border-amber-200">
                                 TOTAL (AVERAGE)
                               </td>
-                              <td className="p-2 text-right font-mono font-black text-amber-950 text-xs">
+                              <td className="p-2 text-right tabular-nums font-black text-amber-950 text-xs">
                                 Rp {bggAvgFn.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
                               </td>
                             </tr>
@@ -1193,15 +1193,15 @@ export function MasterRaiseFallPage({
                       </div>
                     </div>
                   ) : (
-                    <div className="p-3 bg-slate-100 border border-slate-200 rounded-xl space-y-2">
-                      <h5 className="text-[11px] font-extrabold uppercase text-cyan-900 tracking-wider">Input Indikator Aktual (POS 3-Faktor):</h5>
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-[4px] space-y-2">
+                      <h5 className="text-[11px] font-bold uppercase text-slate-800 tracking-wider">Input Indikator Aktual (POS 3-Faktor):</h5>
                       <div className="grid grid-cols-3 gap-2 text-xs">
                         <div>
                           <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Fn (Fuel USD)</label>
                           <input
                             type="number"
                             step="0.001"
-                            className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-lg"
+                            className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-[3px]"
                             value={rfForm.actualFuelFn}
                             onChange={(e) => setRfForm({ ...rfForm, actualFuelFn: parseFloat(e.target.value) || 0 })}
                           />
@@ -1209,11 +1209,11 @@ export function MasterRaiseFallPage({
                         <div>
                           <div className="flex justify-between items-center mb-0.5">
                             <label className="text-[10px] font-bold text-slate-600">Ln (UMK IDR)</label>
-                            <span className="text-[9px] text-cyan-800 font-bold">Auto UMK ✅</span>
+                            <span className="text-[9px] text-emerald-800 font-bold">Auto UMK ✅</span>
                           </div>
                           <input
                             type="number"
-                            className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-lg"
+                            className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-[3px]"
                             value={rfForm.actualLaborLn}
                             onChange={(e) => setRfForm({ ...rfForm, actualLaborLn: parseFloat(e.target.value) || 0 })}
                           />
@@ -1223,7 +1223,7 @@ export function MasterRaiseFallPage({
                           <input
                             type="number"
                             step="0.01"
-                            className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-lg"
+                            className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-[3px]"
                             value={rfForm.actualMRateXn}
                             onChange={(e) => setRfForm({ ...rfForm, actualMRateXn: parseFloat(e.target.value) || 0 })}
                           />
@@ -1233,13 +1233,13 @@ export function MasterRaiseFallPage({
                   )}
 
                   {/* Real-time Calculation Breakdown Preview */}
-                  <div className="p-3 bg-slate-900 text-white rounded-xl space-y-2 font-mono text-[11px]">
-                    <div className="text-[10px] font-extrabold uppercase text-cyan-400">Live Calculation Preview:</div>
+                  <div className="p-3 bg-slate-900 text-white rounded-[4px] space-y-2 font-mono text-[11px]">
+                    <div className="text-[10px] font-bold uppercase text-[#A57C50]">Live Calculation Preview:</div>
                     {isBGGStyle ? (
                       <div className="space-y-1 text-slate-300">
                         <div className="flex justify-between items-center">
                           <span>Formula: 0,60 + 0,40 × (Fn / Fo):</span>
-                          <strong className="text-amber-300">
+                          <strong className="text-amber-300 tabular-nums">
                             0,60 + 0,40 × ({bggAvgFn.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / 9.000)
                           </strong>
                         </div>
@@ -1248,29 +1248,29 @@ export function MasterRaiseFallPage({
                       <>
                         <div className="flex justify-between text-slate-300">
                           <span>D = (34% × {rfForm.actualFuelFn} × {rfForm.actualMRateXn}) / Fo:</span>
-                          <strong className="text-amber-300">{calcFuelD.toFixed(3)}</strong>
+                          <strong className="text-amber-300 tabular-nums">{calcFuelD.toFixed(3)}</strong>
                         </div>
                         <div className="flex justify-between text-slate-300">
                           <span>L = 25% × ({rfForm.actualLaborLn} / {rfForm.baseLaborLo}) (Murni IDR):</span>
-                          <strong className="text-teal-300">{calcLaborL.toFixed(3)}</strong>
+                          <strong className="text-teal-300 tabular-nums">{calcLaborL.toFixed(3)}</strong>
                         </div>
                         <div className="flex justify-between text-slate-300">
                           <span>F = Fixed (41%):</span>
-                          <strong className="text-cyan-300">{calcFixedF.toFixed(3)}</strong>
+                          <strong className="text-slate-300 tabular-nums">{calcFixedF.toFixed(3)}</strong>
                         </div>
                       </>
                     )}
-                    <div className="pt-2 border-t border-slate-800 flex justify-between text-sm font-black text-white">
+                    <div className="pt-2 border-t border-slate-800 flex justify-between text-sm font-bold text-white">
                       <span>INDEX RF RESULT =</span>
-                      <span className="text-emerald-400 underline">{calcTotalRF.toFixed(3)}</span>
+                      <span className="text-emerald-400 underline tabular-nums">{calcTotalRF.toFixed(3)}</span>
                     </div>
                   </div>
 
                   <div className="flex justify-end gap-2 pt-2">
-                    <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 bg-slate-100 font-bold text-xs rounded-xl text-slate-700">
+                    <button type="button" onClick={() => setModalOpen(false)} className="px-3.5 py-1.5 bg-white border border-slate-300 font-bold text-xs rounded-[3px] text-slate-700 hover:bg-slate-50 cursor-pointer">
                       Batal
                     </button>
-                    <button type="submit" className="px-5 py-2 bg-cyan-900 hover:bg-slate-900 text-white font-extrabold text-xs rounded-xl">
+                    <button type="submit" className="px-4 py-1.5 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs cursor-pointer">
                       Simpan Master RF
                     </button>
                   </div>
@@ -1278,11 +1278,11 @@ export function MasterRaiseFallPage({
               )}
 
               {modalType === "umk" && (
-                <form onSubmit={handleSaveUmk} className="space-y-4">
+                <form onSubmit={handleSaveUmk} className="space-y-3.5">
                   <div>
-                    <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Project Site Tambang</label>
+                    <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Project Site Tambang</label>
                     <select
-                      className="w-full bg-slate-50 border border-slate-300 font-bold text-xs p-2 rounded-lg"
+                      className="w-full bg-white border border-slate-300 font-bold text-xs p-2 rounded-[3px]"
                       value={umkForm.site}
                       onChange={(e) => setUmkForm({ ...umkForm, site: e.target.value })}
                       required
@@ -1295,20 +1295,20 @@ export function MasterRaiseFallPage({
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Tahun Berlaku</label>
+                      <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Tahun Berlaku</label>
                       <input
                         type="number"
-                        className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-xs p-2 rounded-lg"
+                        className="w-full bg-white border border-slate-300 font-mono font-bold text-xs p-2 rounded-[3px]"
                         value={umkForm.year}
                         onChange={(e) => setUmkForm({ ...umkForm, year: parseInt(e.target.value) || 2026 })}
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Nilai UMK (IDR)</label>
+                      <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Nilai UMK (IDR)</label>
                       <input
                         type="number"
-                        className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-xs p-2 rounded-lg"
+                        className="w-full bg-white border border-slate-300 font-mono font-bold text-xs p-2 rounded-[3px]"
                         value={umkForm.amountIdr}
                         onChange={(e) => setUmkForm({ ...umkForm, amountIdr: parseFloat(e.target.value) || 0 })}
                         required
@@ -1317,28 +1317,28 @@ export function MasterRaiseFallPage({
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Nomor SK / Peraturan</label>
+                      <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Nomor SK / Peraturan</label>
                       <input
-                        className="w-full bg-slate-50 border border-slate-300 text-xs p-2 rounded-lg"
+                        className="w-full bg-white border border-slate-300 text-xs p-2 rounded-[3px]"
                         value={umkForm.skNumber}
                         onChange={(e) => setUmkForm({ ...umkForm, skNumber: e.target.value })}
                         placeholder="e.g. SK-GUB-SULTENG/2026/014"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Tanggal Efektif</label>
+                      <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Tanggal Efektif</label>
                       <input
                         type="date"
-                        className="w-full bg-slate-50 border border-slate-300 text-xs p-2 rounded-lg"
+                        className="w-full bg-white border border-slate-300 text-xs p-2 rounded-[3px]"
                         value={umkForm.effectiveDate}
                         onChange={(e) => setUmkForm({ ...umkForm, effectiveDate: e.target.value })}
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Catatan Audit</label>
+                    <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Catatan Audit</label>
                     <input
-                      className="w-full bg-slate-50 border border-slate-300 text-xs p-2 rounded-lg"
+                      className="w-full bg-white border border-slate-300 text-xs p-2 rounded-[3px]"
                       value={umkForm.notes}
                       onChange={(e) => setUmkForm({ ...umkForm, notes: e.target.value })}
                       placeholder="e.g. UMK Kab. Morowali Penetapan Resmi 2026"
@@ -1346,10 +1346,10 @@ export function MasterRaiseFallPage({
                   </div>
 
                   <div className="flex justify-end gap-2 pt-2">
-                    <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 bg-slate-100 font-bold text-xs rounded-xl text-slate-700">
+                    <button type="button" onClick={() => setModalOpen(false)} className="px-3.5 py-1.5 bg-white border border-slate-300 font-bold text-xs rounded-[3px] text-slate-700 hover:bg-slate-50 cursor-pointer">
                       Batal
                     </button>
-                    <button type="submit" className="px-5 py-2 bg-cyan-900 hover:bg-slate-900 text-white font-extrabold text-xs rounded-xl">
+                    <button type="submit" className="px-4 py-1.5 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs cursor-pointer">
                       Simpan Referensi UMK
                     </button>
                   </div>
@@ -1357,11 +1357,11 @@ export function MasterRaiseFallPage({
               )}
 
               {modalType === "mrate" && (
-                <form onSubmit={handleSaveMRate} className="space-y-4">
+                <form onSubmit={handleSaveMRate} className="space-y-3.5">
                   <div>
-                    <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Tanggal Kurs</label>
+                    <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Tanggal Kurs</label>
                     <input
-                      className="w-full bg-slate-50 border border-slate-300 font-bold text-xs p-2 rounded-lg"
+                      className="w-full bg-white border border-slate-300 font-bold text-xs p-2 rounded-[3px]"
                       value={mrateForm.dateStr}
                       onChange={(e) => setMrateForm({ ...mrateForm, dateStr: e.target.value })}
                       placeholder="e.g. 01/07/2026"
@@ -1370,40 +1370,40 @@ export function MasterRaiseFallPage({
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Kurs Jual (IDR)</label>
+                      <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Kurs Jual (IDR)</label>
                       <input
                         type="number"
                         step="0.01"
-                        className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-xs p-2 rounded-lg"
+                        className="w-full bg-white border border-slate-300 font-mono font-bold text-xs p-2 rounded-[3px]"
                         value={mrateForm.kursJual}
                         onChange={(e) => setMrateForm({ ...mrateForm, kursJual: parseFloat(e.target.value) || 0 })}
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-extrabold uppercase text-slate-500 mb-1">Kurs Beli (IDR)</label>
+                      <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Kurs Beli (IDR)</label>
                       <input
                         type="number"
                         step="0.01"
-                        className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-xs p-2 rounded-lg"
+                        className="w-full bg-white border border-slate-300 font-mono font-bold text-xs p-2 rounded-[3px]"
                         value={mrateForm.kursBeli}
                         onChange={(e) => setMrateForm({ ...mrateForm, kursBeli: parseFloat(e.target.value) || 0 })}
                         required
                       />
                     </div>
                   </div>
-                  <div className="p-2.5 bg-slate-100 rounded-lg text-xs flex justify-between font-mono">
-                    <span>Kurs Tengah Hitung:</span>
-                    <strong className="text-cyan-900 font-bold">
+                  <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-[3px] text-xs flex justify-between font-mono">
+                    <span className="text-slate-600">Kurs Tengah Hitung:</span>
+                    <strong className="text-slate-900 font-bold tabular-nums">
                       Rp {((mrateForm.kursJual + mrateForm.kursBeli) / 2).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                     </strong>
                   </div>
 
                   <div className="flex justify-end gap-2 pt-2">
-                    <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 bg-slate-100 font-bold text-xs rounded-xl text-slate-700">
+                    <button type="button" onClick={() => setModalOpen(false)} className="px-3.5 py-1.5 bg-white border border-slate-300 font-bold text-xs rounded-[3px] text-slate-700 hover:bg-slate-50 cursor-pointer">
                       Batal
                     </button>
-                    <button type="submit" className="px-5 py-2 bg-cyan-900 hover:bg-slate-900 text-white font-extrabold text-xs rounded-xl">
+                    <button type="submit" className="px-4 py-1.5 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs cursor-pointer">
                       Simpan Kurs Harian
                     </button>
                   </div>

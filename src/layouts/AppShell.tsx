@@ -143,10 +143,10 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   };
   const visibleMenu = menu.map((group) => ({
     ...group,
-    items: group.items.filter((item) => canAccessMenu(item, user.role, permissions, tcodes))
+    items: group.items.filter((item) => canAccessMenu(item, user.role, permissions, tcodes, user))
   })).filter((group) => group.items.length > 0);
   const isUnknownModuleRoute = !outlet && Boolean(requestedSlug) && !resolvedView;
-  const cannotAccessModuleRoute = !outlet && !isUnknownModuleRoute && activeView in viewMap && !canAccessMenu(activeView, user.role, permissions, tcodes);
+  const cannotAccessModuleRoute = !outlet && !isUnknownModuleRoute && activeView in viewMap && !canAccessMenu(activeView, user.role, permissions, tcodes, user);
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 

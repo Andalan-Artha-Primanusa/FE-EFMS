@@ -583,14 +583,14 @@ export function VariableSOWFormPage() {
             <div className="flex gap-2.5">
               <button
                 type="button"
-                className="px-5 py-2.5 rounded-2xl border border-slate-200 bg-white text-slate-700 font-bold text-xs hover:bg-slate-50 cursor-pointer"
+                className="px-5 py-2 rounded-[3px] border border-slate-300 bg-white text-slate-700 font-bold text-xs hover:bg-slate-50 transition cursor-pointer"
                 onClick={() => navigate("/variable-sow")}
               >
                 Batal
               </button>
               <button
                 type="submit"
-                className="px-6 py-2.5 rounded-2xl bg-cyan-800 hover:bg-cyan-900 text-white font-black text-xs shadow-md transition active:scale-95 cursor-pointer"
+                className="px-6 py-2 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-black text-xs shadow-md transition active:scale-95 cursor-pointer"
               >
                 Simpan Tariff Grid SOW
               </button>

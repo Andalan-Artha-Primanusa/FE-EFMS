@@ -350,23 +350,24 @@ export function CoalIndexPage({
           {/* Refresh Button */}
           <button
             onClick={() => loadData()}
-            className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition shadow-2xs active:scale-95 cursor-pointer"
+            className="p-1.5 rounded-[3px] border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition cursor-pointer"
             title="Perbarui Data"
           >
-            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+            <RefreshCw size={15} className={loading ? "animate-spin text-[#A57C50]" : ""} />
           </button>
 
           {/* Action Button: Input Periode Baru */}
           {canEdit ? (
             <button
               onClick={handleOpenCreateModal}
-              className="px-3.5 py-2 rounded-lg bg-cyan-800 hover:bg-cyan-900 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition active:scale-95 cursor-pointer whitespace-nowrap"
+              className="px-4 py-2 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition hover:brightness-95 cursor-pointer whitespace-nowrap"
+              style={{ background: "#A57C50", borderRadius: 3 }}
             >
               <Plus size={15} />
               <span>Input Periode Baru</span>
             </button>
           ) : (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 border border-slate-200 text-slate-600 text-xs font-medium whitespace-nowrap">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] bg-slate-100 border border-slate-200 text-slate-600 text-xs font-medium whitespace-nowrap">
               <Lock size={13} className="text-slate-400" />
               <span>Mode Lihat (Read-Only)</span>
             </div>
@@ -374,16 +375,16 @@ export function CoalIndexPage({
         </div>
       </PageHeader>
 
-      {/* KPI Cards Grid */}
+      {/* KPI Cards Grid — FEAST Enterprise High Density Standard */}
       {currentIndex && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Active Tier Highlight Card */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-col justify-between space-y-2">
+          <div className="bg-white p-4 border border-slate-200 shadow-sm flex flex-col justify-between space-y-2" style={{ borderRadius: 4 }}>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 Active Pricing Tier
               </span>
-              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+              <span className={`px-2 py-0.5 rounded-[3px] text-[10px] font-bold border ${
                 isCurrentFinal
                   ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                   : "bg-amber-50 text-amber-800 border-amber-200"
@@ -393,7 +394,7 @@ export function CoalIndexPage({
             </div>
 
             <div>
-              <div className="text-2xl font-black text-slate-900 tracking-tight">
+              <div className="text-2xl font-bold text-slate-900 tracking-tight">
                 {currentIndex.activeTier || "Tier 3"}
               </div>
               <p className="text-[11px] font-medium text-slate-600 mt-0.5">
@@ -405,16 +406,16 @@ export function CoalIndexPage({
               </p>
             </div>
 
-            <div className="pt-2 border-t border-slate-100 text-[11px] font-mono text-slate-600 flex items-center justify-between">
+            <div className="pt-2 border-t border-slate-100 text-[11px] font-tabular text-slate-600 flex items-center justify-between">
               <span>OB 1: Rp 29.500</span>
               <span>OB 2: Rp 28.750</span>
             </div>
           </div>
 
           {/* Average R3 Monthly Card */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-col justify-between space-y-2">
+          <div className="bg-white p-4 border border-slate-200 shadow-sm flex flex-col justify-between space-y-2" style={{ borderRadius: 4 }}>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
                 Monthly Average R3
               </span>
               <span className="p-1 bg-slate-100 rounded text-slate-600">
@@ -422,7 +423,7 @@ export function CoalIndexPage({
               </span>
             </div>
             <div>
-              <div className="text-2xl font-black text-slate-900 font-mono tracking-tight">
+              <div className="text-2xl font-bold text-slate-900 font-tabular tracking-tight">
                 ${currentIndex.avgR3 ? currentIndex.avgR3.toFixed(2) : "0.00"}
                 <span className="text-xs font-sans font-normal text-slate-400 ml-1">USD/MT</span>
               </div>
@@ -432,16 +433,16 @@ export function CoalIndexPage({
             </div>
             <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
               <div
-                className="h-full bg-cyan-800 rounded-full"
-                style={{ width: `${tierPercentage}%` }}
+                className="h-full rounded-full"
+                style={{ width: `${tierPercentage}%`, background: "#A57C50" }}
               />
             </div>
           </div>
 
           {/* ICI 3 Average Card */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-col justify-between space-y-2">
+          <div className="bg-white p-4 border border-slate-200 shadow-sm flex flex-col justify-between space-y-2" style={{ borderRadius: 4 }}>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
                 ICI 3 (5.000 GAR)
               </span>
               <span className="p-1 bg-slate-100 rounded text-slate-600">
@@ -449,7 +450,7 @@ export function CoalIndexPage({
               </span>
             </div>
             <div>
-              <div className="text-2xl font-black text-slate-900 font-mono tracking-tight">
+              <div className="text-2xl font-bold text-slate-900 font-tabular tracking-tight">
                 ${currentIndex.avgIci3 ? currentIndex.avgIci3.toFixed(2) : "0.00"}
                 <span className="text-xs font-sans font-normal text-slate-400 ml-1">USD/MT</span>
               </div>
@@ -457,15 +458,15 @@ export function CoalIndexPage({
                 Rata-rata 4 Minggu Rilis
               </p>
             </div>
-            <div className="text-[11px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+            <div className="text-[11px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded-[3px] border border-slate-200">
               Kualitas 5.000 kcal/kg
             </div>
           </div>
 
           {/* ICI 4 Average Card */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs flex flex-col justify-between space-y-2">
+          <div className="bg-white p-4 border border-slate-200 shadow-sm flex flex-col justify-between space-y-2" style={{ borderRadius: 4 }}>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
                 ICI 4 (4.200 GAR)
               </span>
               <span className="p-1 bg-slate-100 rounded text-slate-600">
@@ -473,7 +474,7 @@ export function CoalIndexPage({
               </span>
             </div>
             <div>
-              <div className="text-2xl font-black text-slate-900 font-mono tracking-tight">
+              <div className="text-2xl font-bold text-slate-900 font-tabular tracking-tight">
                 ${currentIndex.avgIci4 ? currentIndex.avgIci4.toFixed(2) : "0.00"}
                 <span className="text-xs font-sans font-normal text-slate-400 ml-1">USD/MT</span>
               </div>

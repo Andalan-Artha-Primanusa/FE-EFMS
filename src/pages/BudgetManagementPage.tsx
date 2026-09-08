@@ -1,6 +1,28 @@
-import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, Lock, Plus, RefreshCw, Send, ThumbsDown, ThumbsUp, Undo2, WalletCards, X } from "lucide-react";
+import React, { useCallback, useEffect, useState, useMemo } from "react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Lock,
+  Plus,
+  RefreshCw,
+  Send,
+  ThumbsDown,
+  ThumbsUp,
+  Undo2,
+  WalletCards,
+  X,
+  Calendar,
+  Layers,
+  PieChart,
+  FileText,
+  Download,
+  Search,
+  Building2,
+  Scale
+} from "lucide-react";
+import * as XLSX from "xlsx";
 import { PageHeader } from "../components/PageHeader";
+import { FeastToolbar } from "../components/ui/FeastToolbar";
 import {
   approveBudget,
   createBudget,
@@ -32,16 +54,16 @@ const MODE_LABEL: Record<BudgetMode, string> = {
   vsactual: "Budget versus Actual"
 };
 
-const fmt = (n: number | undefined | null) =>
+const formatIDR = (n: number | undefined | null) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(n ?? 0));
 
 const STATUS_TONE: Record<string, string> = {
-  Draft: "bg-slate-100 text-slate-700",
-  "Waiting Approval": "bg-amber-100 text-amber-800",
-  Published: "bg-emerald-100 text-emerald-800",
-  Rejected: "bg-rose-100 text-rose-800",
-  Locked: "bg-indigo-100 text-indigo-800",
-  Revised: "bg-sky-100 text-sky-800"
+  Draft: "bg-slate-100 text-slate-700 border border-slate-300",
+  "Waiting Approval": "bg-amber-50 text-amber-800 border border-amber-200",
+  Published: "bg-emerald-50 text-emerald-800 border border-emerald-200",
+  Rejected: "bg-rose-50 text-rose-800 border border-rose-200",
+  Locked: "bg-slate-100 text-slate-800 border border-slate-300",
+  Revised: "bg-sky-50 text-sky-800 border border-sky-200"
 };
 
 export function BudgetManagementPage({ viewTitle, onNotice }: { viewTitle: string; onNotice?: (m: string) => void }) {
@@ -52,6 +74,7 @@ export function BudgetManagementPage({ viewTitle, onNotice }: { viewTitle: strin
   const [vsActual, setVsActual] = useState<{ period: string; budget: number; actual: number; used: number; variance: number }[]>([]);
   const [loading, setLoading] = useState(false);
   const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear());
+  const [searchTerm, setSearchTerm] = useState("");
   const [notice, setNotice] = useState("");
 
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -62,6 +85,7 @@ export function BudgetManagementPage({ viewTitle, onNotice }: { viewTitle: strin
   const [form, setForm] = useState<BudgetInput>({ fiscalYear: new Date().getFullYear(), periodMonth: 1, companyId: 0, accountId: 0, amount: 0 });
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       if (isVsActual) {
         const data = await getBudgetVsActual(fiscalYear);
@@ -78,6 +102,8 @@ export function BudgetManagementPage({ viewTitle, onNotice }: { viewTitle: strin
       }
     } catch (err: any) {
       setNotice(err instanceof Error ? err.message : "Gagal memuat data budget");
+    } finally {
+      setLoading(false);
     }
   }, [mode, fiscalYear, isVsActual]);
 
@@ -92,6 +118,66 @@ export function BudgetManagementPage({ viewTitle, onNotice }: { viewTitle: strin
     setNotice(m);
     onNotice?.(m);
   }
+
+  const filteredRows = useMemo(() => {
+    if (!searchTerm) return rows;
+    const q = searchTerm.toLowerCase();
+    return rows.filter(
+      (b) =>
+        b.accountName?.toLowerCase().includes(q) ||
+        b.accountCode?.toLowerCase().includes(q) ||
+        b.companyName?.toLowerCase().includes(q) ||
+        b.companyCode?.toLowerCase().includes(q) ||
+        b.status?.toLowerCase().includes(q)
+    );
+  }, [rows, searchTerm]);
+
+  const stats = useMemo(() => {
+    if (isVsActual) {
+      const totalBudget = vsActual.reduce((s, r) => s + (r.budget || 0), 0);
+      const totalActual = vsActual.reduce((s, r) => s + (r.actual || 0), 0);
+      const variance = totalBudget - totalActual;
+      const pct = totalBudget > 0 ? (totalActual / totalBudget) * 100 : 0;
+      return { totalBudget, totalActual, variance, pct, count: vsActual.length };
+    }
+    const totalBudget = filteredRows.reduce((s, r) => s + (r.amount || 0), 0);
+    const totalUtilized = filteredRows.reduce((s, r) => s + (r.utilized || 0), 0);
+    const sisa = totalBudget - totalUtilized;
+    const pct = totalBudget > 0 ? (totalUtilized / totalBudget) * 100 : 0;
+    return { totalBudget, totalActual: totalUtilized, variance: sisa, pct, count: filteredRows.length };
+  }, [isVsActual, vsActual, filteredRows]);
+
+  const exportToExcel = () => {
+    if (isVsActual) {
+      const data = vsActual.map((r) => ({
+        "Periode": r.period,
+        "Anggaran (IDR)": r.budget,
+        "Realisasi (IDR)": r.actual,
+        "Terpakai (%)": r.budget ? ((r.used / r.budget) * 100).toFixed(2) : "0",
+        "Variansi (IDR)": r.variance
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Budget_vs_Actual");
+      XLSX.writeFile(wb, `Budget_vs_Actual_${fiscalYear}.xlsx`);
+      return;
+    }
+
+    const data = filteredRows.map((b) => ({
+      "Kode Akun": b.accountCode ?? "",
+      "Nama Akun": b.accountName ?? "",
+      "Company": b.companyName ?? b.companyCode ?? "",
+      "Tahun": b.fiscalYear,
+      "Bulan": b.periodMonth,
+      "Anggaran (IDR)": b.amount,
+      "Realisasi (IDR)": b.utilized,
+      "Status": b.status
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Budget_List");
+    XLSX.writeFile(wb, `Budget_${MODE_LABEL[mode]}_${fiscalYear}.xlsx`);
+  };
 
   function openCreate() {
     setEditing(null);
@@ -145,172 +231,342 @@ export function BudgetManagementPage({ viewTitle, onNotice }: { viewTitle: strin
   }
 
   return (
-    <section className="space-y-4">
-      <PageHeader
-        title={MODE_LABEL[mode]}
-        description="Kelola anggaran perusahaan: perencanaan, pengajuan, persetujuan, revisi, transfer, dan perbandingan realisasi."
-        meta={
-          <div className="flex items-center gap-2 flex-wrap">
-            <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
-              Tahun
-              <select value={fiscalYear} onChange={(e) => setFiscalYear(Number(e.target.value))} className="px-3 py-2 border border-slate-200 rounded-xl text-xs font-semibold">
-                {[new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1].map((y) => <option key={y} value={y}>{y}</option>)}
+    <div className="space-y-4">
+      {/* Stat Cards — FEAST Enterprise High Density Standard */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: "Total Anggaran", value: formatIDR(stats.totalBudget), sub: `Tahun Fiskal ${fiscalYear}`, icon: WalletCards, accent: "#A57C50", small: true },
+          { label: "Realisasi Aktual", value: formatIDR(stats.totalActual), sub: `${stats.pct.toFixed(1)}% terserap`, icon: PieChart, accent: "#16a34a", small: true },
+          { label: "Sisa Anggaran", value: formatIDR(stats.variance), sub: "Tersedia untuk alokasi", icon: Scale, accent: stats.variance < 0 ? "#dc2626" : "#2563eb", small: true },
+          { label: "Total Pos Anggaran", value: stats.count, sub: `${MODE_LABEL[mode]}`, icon: FileText, accent: "#64748b" },
+        ].map((c, i) => (
+          <div key={i} className="bg-white border border-slate-200 p-4 shadow-sm" style={{ borderRadius: 4 }}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{c.label}</span>
+              <c.icon className="w-3.5 h-3.5" style={{ color: c.accent }} />
+            </div>
+            <div className={`font-bold text-slate-900 ${c.small ? "text-sm leading-tight" : "text-2xl"}`}>{c.value}</div>
+            <div className="text-[11px] text-slate-400 mt-1">{c.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Unified Enterprise Toolbar */}
+      <FeastToolbar
+        primaryActionLabel={!isVsActual ? "Buat Budget" : undefined}
+        primaryActionIcon={Plus}
+        onPrimaryAction={openCreate}
+        searchTerm={!isVsActual ? searchTerm : undefined}
+        onSearchChange={!isVsActual ? setSearchTerm : undefined}
+        searchPlaceholder="Cari akun / kode / company..."
+        filters={
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 px-2.5 py-1" style={{ borderRadius: 3 }}>
+              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-[11px] text-slate-500 font-medium">Tahun:</span>
+              <select
+                value={fiscalYear}
+                onChange={(e) => setFiscalYear(Number(e.target.value))}
+                className="bg-transparent text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer"
+              >
+                {[new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1].map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
               </select>
-            </label>
-            <button className="ghost" onClick={() => load()}><RefreshCw size={14} /> Muat Ulang</button>
-            {!isVsActual && <button className="primary" onClick={openCreate}><Plus size={14} /> Buat Budget</button>}
+            </div>
           </div>
         }
+        onRefresh={load}
+        isRefreshing={loading}
+        onExport={exportToExcel}
+        exportTitle="Ekspor Excel"
       />
 
       {notice && (
-        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-center gap-2">
-          <AlertCircle size={14} /> {notice}
+        <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs font-semibold flex items-center justify-between" style={{ borderRadius: 4 }}>
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>{notice}</span>
+          </div>
+          <button onClick={() => setNotice("")} className="text-amber-600 hover:text-amber-800 text-xs font-bold">Tutup</button>
         </div>
       )}
 
+      {/* Main Table Content */}
       {isVsActual ? (
-        <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+        <div className="bg-white border border-slate-200 shadow-sm overflow-hidden" style={{ borderRadius: 4 }}>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
-              <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider">
+              <thead className="bg-slate-100 text-slate-700 uppercase tracking-wider font-semibold border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3 text-left font-bold">Periode</th>
-                  <th className="px-4 py-3 text-right font-bold">Anggaran</th>
-                  <th className="px-4 py-3 text-right font-bold">Realisasi</th>
-                  <th className="px-4 py-3 text-right font-bold">Terpakai %</th>
-                  <th className="px-4 py-3 text-right font-bold">Variansi</th>
+                  <th className="px-4 py-3 text-left">Periode</th>
+                  <th className="px-4 py-3 text-right">Anggaran</th>
+                  <th className="px-4 py-3 text-right">Realisasi</th>
+                  <th className="px-4 py-3 text-right">Terpakai %</th>
+                  <th className="px-4 py-3 text-right">Variansi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {vsActual.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">Belum ada data.</td></tr>}
-                {vsActual.map((r) => {
-                  const pct = r.budget ? (r.used / r.budget) * 100 : 0;
-                  const tone = pct > 100 ? "text-rose-600" : pct > 80 ? "text-amber-600" : "text-emerald-600";
-                  return (
-                    <tr key={r.period} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-bold text-slate-700">{r.period}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{fmt(r.budget)}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{fmt(r.actual)}</td>
-                      <td className={`px-4 py-3 text-right tabular-nums font-bold ${tone}`}>{pct.toFixed(1)}%</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{fmt(r.variance)}</td>
-                    </tr>
-                  );
-                })}
+              <tbody className="divide-y divide-slate-200">
+                {vsActual.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-12 text-center text-slate-400">
+                      Belum ada data realisasi anggaran untuk tahun {fiscalYear}.
+                    </td>
+                  </tr>
+                ) : (
+                  vsActual.map((r) => {
+                    const pct = r.budget ? (r.used / r.budget) * 100 : 0;
+                    const tone = pct > 100 ? "text-rose-600 font-bold" : pct > 80 ? "text-amber-600 font-bold" : "text-emerald-700 font-bold";
+                    return (
+                      <tr key={r.period} className="hover:bg-[#FBF6F0] transition-colors">
+                        <td className="px-4 py-2.5 font-bold text-slate-800">{r.period}</td>
+                        <td className="px-4 py-2.5 text-right font-tabular text-slate-800">{formatIDR(r.budget)}</td>
+                        <td className="px-4 py-2.5 text-right font-tabular text-slate-800">{formatIDR(r.actual)}</td>
+                        <td className={`px-4 py-2.5 text-right font-tabular ${tone}`}>{pct.toFixed(1)}%</td>
+                        <td className="px-4 py-2.5 text-right font-tabular text-slate-800">{formatIDR(r.variance)}</td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
         </div>
       ) : (
-        <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+        <div className="bg-white border border-slate-200 shadow-sm overflow-hidden" style={{ borderRadius: 4 }}>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
-              <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider">
+              <thead className="bg-slate-100 text-slate-700 uppercase tracking-wider font-semibold border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3 text-left font-bold">Akun</th>
-                  <th className="px-4 py-3 text-left font-bold">Company</th>
-                  <th className="px-4 py-3 text-right font-bold">Periode</th>
-                  <th className="px-4 py-3 text-right font-bold">Anggaran</th>
-                  <th className="px-4 py-3 text-right font-bold">Realisasi</th>
-                  <th className="px-4 py-3 text-left font-bold">Status</th>
-                  <th className="px-4 py-3 text-right font-bold">Aksi</th>
+                  <th className="px-4 py-3 text-left">Akun (COA)</th>
+                  <th className="px-4 py-3 text-left">Company</th>
+                  <th className="px-4 py-3 text-right">Periode</th>
+                  <th className="px-4 py-3 text-right">Anggaran</th>
+                  <th className="px-4 py-3 text-right">Realisasi</th>
+                  <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-right">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {rows.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-400">Belum ada data budget.</td></tr>}
-                {rows.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <div className="font-bold text-slate-700">{b.accountName ?? b.accountCode ?? `Akun #${b.accountId}`}</div>
-                      {b.accountCode && <div className="text-[11px] text-slate-400">{b.accountCode}</div>}
-                    </td>
-                    <td className="px-4 py-3">{b.companyName ?? b.companyCode ?? `#${b.companyId}`}</td>
-                    <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap">{b.fiscalYear} / {String(b.periodMonth).padStart(2, "0")}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-bold">{fmt(b.amount)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{fmt(b.utilized)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold ${STATUS_TONE[b.status] ?? "bg-slate-100 text-slate-600"}`}>{b.status}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1 flex-wrap">
-                        {(b.status === "Draft") && (
-                          <>
-                            <button title="Edit" className="icon-btn" onClick={() => openEdit(b)}>✎</button>
-                            <button title="Ajukan" className="icon-btn text-emerald-600" onClick={() => action("Submit", (n) => submitBudget(b.id, n))}><Send size={14} /></button>
-                            <button title="Hapus" className="icon-btn text-rose-600" onClick={() => remove(b)}><X size={14} /></button>
-                          </>
-                        )}
-                        {b.status === "Waiting Approval" && (
-                          <>
-                            <button title="Setujui" className="icon-btn text-emerald-600" onClick={() => action("Approve", (n) => approveBudget(b.id, n))}><ThumbsUp size={14} /></button>
-                            <button title="Tolak" className="icon-btn text-rose-600" onClick={() => action("Reject", (n) => rejectBudget(b.id, n))}><ThumbsDown size={14} /></button>
-                          </>
-                        )}
-                        {b.status === "Published" && (
-                          <>
-                            <button title="Kunci" className="icon-btn text-indigo-600" onClick={() => action("Lock", (n) => lockBudget(b.id, n))}><Lock size={14} /></button>
-                            <button title="Revisi" className="icon-btn text-sky-600" onClick={() => action("Revise", (n) => reviseBudget(b.id, n))}><Undo2 size={14} /></button>
-                          </>
-                        )}
-                        {(b.status === "Rejected" || b.status === "Revised") && (
-                          <button title="Ajukan Ulang" className="icon-btn text-emerald-600" onClick={() => action("Submit", (n) => submitBudget(b.id, n))}><Send size={14} /></button>
-                        )}
-                      </div>
+              <tbody className="divide-y divide-slate-200">
+                {filteredRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center text-slate-400">
+                      {searchTerm ? "Tidak ditemukan anggaran yang sesuai pencarian." : "Belum ada data anggaran untuk periode ini."}
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredRows.map((b) => (
+                    <tr key={b.id} className="hover:bg-[#FBF6F0] transition-colors">
+                      <td className="px-4 py-2.5">
+                        <div className="font-bold text-slate-900">{b.accountName ?? b.accountCode ?? `Akun #${b.accountId}`}</div>
+                        {b.accountCode && <div className="text-[11px] text-slate-400 font-mono">{b.accountCode}</div>}
+                      </td>
+                      <td className="px-4 py-2.5 font-medium text-slate-700">{b.companyName ?? b.companyCode ?? `#${b.companyId}`}</td>
+                      <td className="px-4 py-2.5 text-right font-tabular whitespace-nowrap text-slate-600">{b.fiscalYear} / {String(b.periodMonth).padStart(2, "0")}</td>
+                      <td className="px-4 py-2.5 text-right font-tabular font-bold text-slate-900">{formatIDR(b.amount)}</td>
+                      <td className="px-4 py-2.5 text-right font-tabular text-slate-700">{formatIDR(b.utilized)}</td>
+                      <td className="px-4 py-2.5">
+                        <span className={`inline-flex px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_TONE[b.status] ?? "bg-slate-100 text-slate-700"}`} style={{ borderRadius: 3 }}>
+                          {b.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-1 flex-wrap">
+                          {b.status === "Draft" && (
+                            <>
+                              <button
+                                title="Edit"
+                                onClick={() => openEdit(b)}
+                                className="px-2 py-1 bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 text-[11px] font-semibold"
+                                style={{ borderRadius: 3 }}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                title="Ajukan"
+                                onClick={() => action("Submit", (n) => submitBudget(b.id, n))}
+                                className="p-1 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                                style={{ borderRadius: 3 }}
+                              >
+                                <Send className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                title="Hapus"
+                                onClick={() => remove(b)}
+                                className="p-1 text-rose-600 hover:bg-rose-50 hover:text-rose-800"
+                                style={{ borderRadius: 3 }}
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                          {b.status === "Waiting Approval" && (
+                            <>
+                              <button
+                                title="Setujui"
+                                onClick={() => action("Approve", (n) => approveBudget(b.id, n))}
+                                className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold inline-flex items-center gap-1"
+                                style={{ borderRadius: 3 }}
+                              >
+                                <ThumbsUp className="w-3 h-3" /> Setujui
+                              </button>
+                              <button
+                                title="Tolak"
+                                onClick={() => action("Reject", (n) => rejectBudget(b.id, n))}
+                                className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-semibold inline-flex items-center gap-1"
+                                style={{ borderRadius: 3 }}
+                              >
+                                <ThumbsDown className="w-3 h-3" /> Tolak
+                              </button>
+                            </>
+                          )}
+                          {b.status === "Published" && (
+                            <>
+                              <button
+                                title="Kunci"
+                                onClick={() => action("Lock", (n) => lockBudget(b.id, n))}
+                                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-semibold inline-flex items-center gap-1"
+                                style={{ borderRadius: 3 }}
+                              >
+                                <Lock className="w-3 h-3" /> Kunci
+                              </button>
+                              <button
+                                title="Revisi"
+                                onClick={() => action("Revise", (n) => reviseBudget(b.id, n))}
+                                className="px-2 py-1 bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 text-[11px] font-semibold inline-flex items-center gap-1"
+                                style={{ borderRadius: 3 }}
+                              >
+                                <Undo2 className="w-3 h-3" /> Revisi
+                              </button>
+                            </>
+                          )}
+                          {(b.status === "Rejected" || b.status === "Revised") && (
+                            <button
+                              title="Ajukan Ulang"
+                              onClick={() => action("Submit", (n) => submitBudget(b.id, n))}
+                              className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold inline-flex items-center gap-1"
+                              style={{ borderRadius: 3 }}
+                            >
+                              <Send className="w-3 h-3" /> Ajukan Ulang
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
+      {/* Modal Form */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-sm">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                <WalletCards size={18} className="text-[#20a6b8]" /> {editing ? "Edit Budget" : "Buat Budget"}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-[2px]">
+          <div className="bg-white max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4 text-sm" style={{ borderRadius: 4 }}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <WalletCards className="w-4 h-4 text-[#A57C50]" />
+                {editing ? "Edit Alokasi Budget" : "Buat Alokasi Budget"}
               </h3>
-              <button onClick={() => setModalOpen(false)} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700"><X size={18} /></button>
+              <button
+                onClick={() => setModalOpen(false)}
+                className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
+                style={{ borderRadius: 3 }}
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
             <form onSubmit={save} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label className="block">
-                <span className="block text-xs font-bold text-slate-700 mb-1">Company</span>
-                <select value={form.companyId} onChange={(e) => setForm({ ...form, companyId: Number(e.target.value) })} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-[#20a6b8] text-xs font-semibold">
-                  <option value={0}>— Pilih —</option>
-                  {companies.map((c) => <option key={c.id} value={c.id}>{c.code} - {c.name}</option>)}
-                </select>
-              </label>
-              <label className="block">
-                <span className="block text-xs font-bold text-slate-700 mb-1">Akun (Chart of Accounts)</span>
-                <select value={form.accountId} onChange={(e) => setForm({ ...form, accountId: Number(e.target.value) })} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-[#20a6b8] text-xs font-semibold">
-                  <option value={0}>— Pilih —</option>
-                  {accounts.map((a) => <option key={a.id} value={a.id}>{(a as any).code ?? ""} {(a as any).name ?? `Akun #${a.id}`}</option>)}
-                </select>
-              </label>
-              <label className="block">
-                <span className="block text-xs font-bold text-slate-700 mb-1">Tahun Fiskal</span>
-                <input type="number" value={form.fiscalYear} onChange={(e) => setForm({ ...form, fiscalYear: Number(e.target.value) })} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-[#20a6b8] text-xs font-semibold" />
-              </label>
-              <label className="block">
-                <span className="block text-xs font-bold text-slate-700 mb-1">Bulan (1-12)</span>
-                <input type="number" min={1} max={12} value={form.periodMonth} onChange={(e) => setForm({ ...form, periodMonth: Number(e.target.value) })} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-[#20a6b8] text-xs font-semibold" />
-              </label>
               <label className="block sm:col-span-2">
-                <span className="block text-xs font-bold text-slate-700 mb-1">Jumlah Anggaran (IDR)</span>
-                <input type="number" value={form.amount || ""} onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-[#20a6b8] text-xs font-semibold" />
+                <span className="block text-[11px] font-bold text-slate-700 mb-1 uppercase tracking-wide">Company</span>
+                <select
+                  value={form.companyId}
+                  onChange={(e) => setForm({ ...form, companyId: Number(e.target.value) })}
+                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#A57C50] focus:bg-white transition-colors"
+                  style={{ borderRadius: 3 }}
+                >
+                  <option value={0}>— Pilih Entitas / Company —</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
+                  ))}
+                </select>
               </label>
-              <div className="sm:col-span-2 flex items-center justify-end gap-2 mt-2">
-                <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">Batal</button>
-                <button type="submit" className="px-4 py-2 bg-[#20a6b8] hover:bg-[#1c92a2] text-white rounded-xl text-xs font-bold inline-flex items-center gap-2">
-                  <CheckCircle2 size={14} /> Simpan
+
+              <label className="block sm:col-span-2">
+                <span className="block text-[11px] font-bold text-slate-700 mb-1 uppercase tracking-wide">Akun (Chart of Accounts)</span>
+                <select
+                  value={form.accountId}
+                  onChange={(e) => setForm({ ...form, accountId: Number(e.target.value) })}
+                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#A57C50] focus:bg-white transition-colors"
+                  style={{ borderRadius: 3 }}
+                >
+                  <option value={0}>— Pilih Akun COA —</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>{(a as any).code ?? ""} - {(a as any).name ?? `Akun #${a.id}`}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="block text-[11px] font-bold text-slate-700 mb-1 uppercase tracking-wide">Tahun Fiskal</span>
+                <input
+                  type="number"
+                  value={form.fiscalYear}
+                  onChange={(e) => setForm({ ...form, fiscalYear: Number(e.target.value) })}
+                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#A57C50] focus:bg-white transition-colors"
+                  style={{ borderRadius: 3 }}
+                />
+              </label>
+
+              <label className="block">
+                <span className="block text-[11px] font-bold text-slate-700 mb-1 uppercase tracking-wide">Bulan (1-12)</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={form.periodMonth}
+                  onChange={(e) => setForm({ ...form, periodMonth: Number(e.target.value) })}
+                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#A57C50] focus:bg-white transition-colors"
+                  style={{ borderRadius: 3 }}
+                />
+              </label>
+
+              <label className="block sm:col-span-2">
+                <span className="block text-[11px] font-bold text-slate-700 mb-1 uppercase tracking-wide">Jumlah Anggaran (IDR)</span>
+                <input
+                  type="number"
+                  value={form.amount || ""}
+                  onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })}
+                  placeholder="0"
+                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 text-xs font-semibold focus:outline-none focus:border-[#A57C50] focus:bg-white transition-colors font-tabular"
+                  style={{ borderRadius: 3 }}
+                />
+              </label>
+
+              <div className="sm:col-span-2 flex items-center justify-end gap-2 mt-3 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                  style={{ borderRadius: 3 }}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-white text-xs font-semibold transition-colors hover:brightness-95 shadow-sm inline-flex items-center gap-1.5"
+                  style={{ background: "#A57C50", borderRadius: 3 }}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Simpan Alokasi
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </section>
+    </div>
   );
 }
+

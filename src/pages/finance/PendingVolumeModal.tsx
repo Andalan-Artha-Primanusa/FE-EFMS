@@ -77,18 +77,18 @@ export function PendingVolumeModal({ c }: { c: any }) {
       {/* ================= MODAL KARTU KONTROL PENDING VOLUME ================= */}
       {showPendingVolumeDrawer && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-6">
+          <div className="bg-white border border-slate-200 rounded-[4px] shadow-2xl w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-6">
             
             {/* Modal Header - AAP Brand Ink Header with Bronze Accent */}
             <div className="p-4 sm:p-5 bg-[#1A1612] text-white flex items-center justify-between border-b border-amber-900/30">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#A57C50]/20 border border-[#A57C50]/40 flex items-center justify-center text-[#A57C50]">
+                <div className="w-10 h-10 rounded-[3px] bg-[#A57C50]/20 border border-[#A57C50]/40 flex items-center justify-center text-[#A57C50]">
                   <Scale size={20} />
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-black tracking-tight text-white flex items-center gap-2">
                     <span>Kartu Kontrol Saldo Pending Volume</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#A57C50]/25 text-amber-200 border border-[#A57C50]/40 font-mono uppercase tracking-wider">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-[3px] bg-[#A57C50]/25 text-amber-200 border border-[#A57C50]/40 font-mono uppercase tracking-wider">
                       Carry-Forward OB
                     </span>
                   </h3>
@@ -100,7 +100,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
               <button
                 type="button"
                 onClick={() => setShowPendingVolumeDrawer(false)}
-                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
+                className="w-8 h-8 rounded-[3px] bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer"
                 title="Tutup Modal"
               >
                 <X size={16} />
@@ -117,7 +117,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
 
                 return (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div className="p-3.5 rounded-xl bg-white border border-amber-300/80 shadow-2xs space-y-1">
+                    <div className="p-3.5 rounded-[4px] bg-white border border-amber-300/80 shadow-2xs space-y-1">
                       <span className="text-[10px] font-black uppercase tracking-wider text-[#A57C50] flex items-center gap-1.5">
                         <Layers size={13} className="text-[#A57C50]" /> Saldo Pending Aktif
                       </span>
@@ -127,7 +127,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
                       <p className="text-[10px] text-slate-500">Sisa volume OB belum tertagih</p>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-white border border-emerald-200/90 shadow-2xs space-y-1">
+                    <div className="p-3.5 rounded-[4px] bg-white border border-emerald-200/90 shadow-2xs space-y-1">
                       <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
                         <DollarSign size={13} className="text-emerald-700" /> Estimasi Nilai Tertunda
                       </span>
@@ -137,7 +137,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
                       <p className="text-[10px] text-emerald-700">Proyeksi klaim saat kuota tersedia</p>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-white border border-cyan-200/90 shadow-2xs space-y-1">
+                    <div className="p-3.5 rounded-[4px] bg-white border border-cyan-200/90 shadow-2xs space-y-1">
                       <span className="text-[10px] font-black uppercase tracking-wider text-cyan-900 flex items-center gap-1.5">
                         <CheckCircle2 size={13} className="text-cyan-700" /> Berhasil Dialokasikan
                       </span>
@@ -147,7 +147,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
                       <p className="text-[10px] text-cyan-700">Volume telah dicairkan ke invoice</p>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-1">
+                    <div className="p-3.5 rounded-[4px] bg-white border border-slate-200 shadow-2xs space-y-1">
                       <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                         <Clock size={13} className="text-slate-600" /> Status Alokasi
                       </span>
@@ -361,10 +361,10 @@ export function PendingVolumeModal({ c }: { c: any }) {
       {/* ================= SUB-MODAL ALOKASI KE INVOICE ================= */}
       {allocatingItem && (
         <div className="fixed inset-0 z-60 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-[4px] shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="p-4 bg-[#1A1612] text-white flex items-center justify-between border-b border-amber-900/30">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#A57C50]/20 border border-[#A57C50]/40 flex items-center justify-center text-[#A57C50]">
+                <div className="w-8 h-8 rounded-[3px] bg-[#A57C50]/20 border border-[#A57C50]/40 flex items-center justify-center text-[#A57C50]">
                   <Send size={15} />
                 </div>
                 <div>
@@ -372,13 +372,13 @@ export function PendingVolumeModal({ c }: { c: any }) {
                   <p className="text-[11px] text-amber-100/70">Klien: {allocatingItem.customerCode} | Periode Asal: {allocatingItem.sourcePeriod}</p>
                 </div>
               </div>
-              <button onClick={() => setAllocatingItem(null)} className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition">
+              <button onClick={() => setAllocatingItem(null)} className="w-7 h-7 rounded-[3px] bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition cursor-pointer">
                 <X size={15} />
               </button>
             </div>
 
             <form onSubmit={handleExecuteAllocation} className="p-5 space-y-4 text-xs">
-              <div className="p-3 bg-amber-50/60 border border-amber-200/80 rounded-xl space-y-1">
+              <div className="p-3 bg-amber-50/60 border border-amber-200/80 rounded-[4px] space-y-1">
                 <div className="flex justify-between text-slate-700">
                   <span className="font-medium">Sisa Saldo Tersedia:</span>
                   <strong className="font-mono text-[#1A1612]">{allocatingItem.remainingVolume?.toLocaleString("id-ID", { minimumFractionDigits: 2 })} BCM</strong>
@@ -397,7 +397,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
                   type="text"
                   required
                   placeholder="e.g. 091/BGG-AAP/VII/2026"
-                  className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-xs p-2.5 rounded-lg outline-none focus:border-[#A57C50] focus:bg-white transition"
+                  className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-xs p-2.5 rounded-[3px] outline-none focus:border-[#A57C50] focus:bg-white transition"
                   value={allocTargetInvoice}
                   onChange={(e) => setAllocTargetInvoice(e.target.value)}
                 />
@@ -410,7 +410,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
                 <FormattedNumberInput
                   allowDecimals
                   maxDecimals={2}
-                  className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-xs p-2.5 rounded-lg outline-none focus:border-[#A57C50] focus:bg-white transition"
+                  className="w-full bg-slate-50 border border-slate-300 font-mono font-bold text-xs p-2.5 rounded-[3px] outline-none focus:border-[#A57C50] focus:bg-white transition"
                   value={allocVolume}
                   onChange={(val) => setAllocVolume(val)}
                 />
@@ -425,7 +425,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
                   rows={2}
                   required
                   placeholder="e.g. Alokasi pencairan kuota surplus periode Juli 2026"
-                  className="w-full bg-slate-50 border border-slate-300 text-xs p-2.5 rounded-lg outline-none focus:border-[#A57C50] focus:bg-white transition"
+                  className="w-full bg-slate-50 border border-slate-300 text-xs p-2.5 rounded-[3px] outline-none focus:border-[#A57C50] focus:bg-white transition"
                   value={allocNote}
                   onChange={(e) => setAllocNote(e.target.value)}
                 />
@@ -435,14 +435,14 @@ export function PendingVolumeModal({ c }: { c: any }) {
                 <button
                   type="button"
                   onClick={() => setAllocatingItem(null)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold text-slate-700 rounded-lg transition"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold text-slate-700 rounded-[3px] transition"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={submittingAlloc}
-                  className="px-5 py-2 bg-[#A57C50] hover:bg-[#8C6740] text-white font-extrabold rounded-lg shadow-2xs disabled:opacity-50 flex items-center gap-1.5 transition cursor-pointer"
+                  className="px-5 py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-extrabold rounded-[3px] shadow-2xs disabled:opacity-50 flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <Check size={14} /> {submittingAlloc ? "Memproses..." : "Konfirmasi Alokasi"}
                 </button>

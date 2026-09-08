@@ -7,32 +7,30 @@ export function isSuperAdminRole(role: string) {
   return normalized === "super admin" || normalized === "super_admin" || normalized === "system administrator" || normalized === "erp super admin" || normalized.includes("super admin") || normalized.includes("super_admin");
 }
 
-// RBAC check for Coal Index: Hanya Finance SPV, FATB Manager, dan Direktur (+ Super Admin)
+// RBAC check for Coal Index: driven by RBAC permissions (coal_index:write / master_data:write) + fallback
 export function canManageCoalIndex(user?: User): boolean {
   if (!user) return false;
   const role = (user.role ?? "").toLowerCase().trim();
   if (isSuperAdminRole(role)) return true;
 
-  // Finance SPV / Supervisor
+  // Dynamic RBAC Permission Check (Authoritative)
+  if (
+    authorized(user, "coal_index", "write") ||
+    authorized(user, "coal_index", "*") ||
+    authorized(user, "master_data", "write") ||
+    authorized(user, "master_data", "*")
+  ) {
+    return true;
+  }
+
+  // Legacy Role Name Fallback (if permissions not loaded)
   if (
     role.includes("spv") ||
     role.includes("supervisor") ||
     role.includes("superintendent") ||
-    role.includes("finance specialist")
-  ) {
-    return true;
-  }
-
-  // FATB Manager / Finance Manager / Department Head FATB
-  if (
+    role.includes("finance specialist") ||
     role.includes("manager") ||
-    role.includes("fatb")
-  ) {
-    return true;
-  }
-
-  // Direktur / Director / C-Level / General Manager
-  if (
+    role.includes("fatb") ||
     role.includes("director") ||
     role.includes("direktur") ||
     role.includes("c-level") ||
@@ -118,8 +116,29 @@ export function authorized(
   return hasPermission(userPermissionsOf(user), module, action);
 }
 
-export function canAccessMenu(item: string, role: string, permissions: Permission[], tcodes?: TCode[]) {
+export function canAccessMenu(item: string, role: string, permissions: Permission[], tcodes?: TCode[], user?: User) {
   if (isSuperAdminRole(role)) return true;
+
+  // Site-specific Master Data restrictions:
+  // For site accounts (scope SITE / role includes "site"):
+  // Master data only allows "RAISE & FALL", and even then strictly for BGG and POS sites.
+  const isSiteUser = (user && !isHeadOfficeUser(user)) || (role && role.toLowerCase().includes("site"));
+  if (isSiteUser) {
+    const isMasterDataItem = [
+      "Chart of Accounts", "Company", "Site", "Department", "Cost Center", "Project",
+      "Vendor", "Client Setup", "Customer Master & Credit Terms", "Customer", "Employee",
+      "Bank", "Tax", "Currency", "Coal Index", "Variable SOW", "RAISE & FALL"
+    ].includes(item);
+
+    if (isMasterDataItem) {
+      if (item !== "RAISE & FALL") return false;
+      const userSite = (user?.companyCode || (user ? companyScopeOf(user).codes[0] : "") || "").toUpperCase();
+      const roleUpper = (role || "").toUpperCase();
+      const isBGGorPOS = userSite === "BGG" || userSite === "POS" || roleUpper.includes("BGG") || roleUpper.includes("POS");
+      if (!isBGGorPOS) return false;
+      return true;
+    }
+  }
 
   if (tcodes && tcodes.length > 0) {
     const itemSlug = item.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
