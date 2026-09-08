@@ -14,11 +14,17 @@ export const resolveDocumentUrl = (path: string | undefined | null) => {
   return `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
 };
 
-export const formatIDR = (val: any) => {
+export const formatIDR = (val: any, maxDecimals: number = 3) => {
   if (val === undefined || val === null || val === "") return "Rp 0";
   const num = typeof val === "number" ? val : Number(val);
   if (isNaN(num)) return "Rp 0";
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(num);
+  const hasDecimals = num % 1 !== 0;
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: hasDecimals ? maxDecimals : 0
+  }).format(num);
 };
 
 export const parseNumber = (str: any): number => {
@@ -28,11 +34,15 @@ export const parseNumber = (str: any): number => {
   return parseInt(clean, 10) || 0;
 };
 
-export const formatThousand = (val: any): string => {
+export const formatThousand = (val: any, maxDecimals: number = 3): string => {
   if (val === undefined || val === null || val === "") return "";
-  const num = parseNumber(val);
-  if (num === 0) return "0";
-  return new Intl.NumberFormat("id-ID").format(num);
+  const num = typeof val === "number" ? val : parseDecimalNumber(val);
+  if (isNaN(num) || num === 0) return "0";
+  const hasDecimals = num % 1 !== 0;
+  return new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: hasDecimals ? maxDecimals : 0
+  }).format(num);
 };
 
 export const getCustomerOfficialName = (code: string | undefined | null): string => {
@@ -554,11 +564,9 @@ export const parseDecimalNumber = (val: any): number => {
     const dotParts = clean.split(".");
     if (dotParts.length === 2) {
       const [intPart, decPart] = dotParts;
-      // Jika 1 titik dengan tepat 3 digit dan integer <= 3 digit serta bukan "0" -> diasumsikan titik ribuan ("12.511", "1.000")
-      if (decPart.length === 3 && intPart.length <= 3 && intPart !== "0") {
+      if (decPart.length === 3 && intPart !== "0") {
         num = parseFloat(`${intPart}${decPart}`);
       } else {
-        // Jika tidak, diasumsikan titik desimal ("12.5", "0.25", "12511.250")
         num = parseFloat(`${intPart}.${decPart.slice(0, 3)}`);
       }
     } else {
@@ -706,6 +714,10 @@ export function FormattedNumberInput({
     const raw = e.target.value;
     if (allowDecimals) {
       let clean = raw.replace(/[^0-9.,-]/g, "");
+      if (!clean.includes(",") && (clean.match(/\./g) || []).length === 1) {
+        const [intPart, decPart] = clean.split(".");
+        clean = `${intPart},${decPart}`;
+      }
       const commaCount = (clean.match(/,/g) || []).length;
       if (commaCount > 1) {
         const firstIdx = clean.indexOf(",");
@@ -759,7 +771,12 @@ export function FormattedNumberInput({
         } else if (curNum === 0) {
           setLocalStr("");
         } else {
-          setLocalStr(formatDecimalDisplay(curNum, allowDecimals, maxDecimals));
+          const hasDec = curNum % 1 !== 0;
+          if (!hasDec) {
+            setLocalStr(String(curNum));
+          } else {
+            setLocalStr(String(curNum).replace(".", ","));
+          }
         }
         e.target.select();
         onFocus?.(e);

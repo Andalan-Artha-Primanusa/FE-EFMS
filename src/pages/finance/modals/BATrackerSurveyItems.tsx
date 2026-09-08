@@ -25,6 +25,9 @@ interface BATrackerSurveyItemsProps {
   setActiveBAStep: (step: number) => void;
   rfIndexCalculated?: number;
   latestKursBI?: number;
+  reorderBAItems?: (startIndex: number, endIndex: number, listType?: "operating" | "mdo" | "deduction") => void;
+  moveBAItem?: (id: string, dir: "up" | "down", listType?: "operating" | "mdo" | "deduction") => void;
+  getSowMasterRate?: (cust: string, name: string, fb: number, isUSD?: boolean, tier?: string) => number;
 }
 
 export function BATrackerSurveyItems({
@@ -45,10 +48,15 @@ export function BATrackerSurveyItems({
   sumInitial,
   setActiveBAStep,
   rfIndexCalculated = 1.560,
+  reorderBAItems,
+  moveBAItem,
+  getSowMasterRate,
 }: BATrackerSurveyItemsProps) {
   const isCustomerDBK = formData.customerCode === "PTRO" || formData.customerCode === "DBK";
+  const sumAdjusted = allBAItems.reduce((acc, it) => acc + getBAItemSubtotal(it, getBAEffectiveVolume(it, allBAItems, true)), 0);
   const breakdown = calculateBACommercialBreakdown(formData.customerCode, allBAItems, rfIndexCalculated, isCustomerDBK);
   const isBGG = formData.customerCode === "BGG" || formData.customerCode === "PT BGG";
+  const isSBS = formData.customerCode === "SBS";
 
   return (
     <div className="space-y-4">
@@ -57,6 +65,10 @@ export function BATrackerSurveyItems({
         formData={formData}
         baOperatingItems={baOperatingItems}
         setBaOperatingItems={setBaOperatingItems}
+        baMDOItems={baMDOItems}
+        setBaMDOItems={setBaMDOItems}
+        baDeductionItems={baDeductionItems}
+        setBaDeductionItems={setBaDeductionItems}
         isInlineEditingBA={isInlineEditingBA}
         activeSOWCatalog={activeSOWCatalog}
         mRate={mRate}
@@ -64,6 +76,9 @@ export function BATrackerSurveyItems({
         isDistanceItem={isDistanceItem}
         getBAEffectiveVolume={getBAEffectiveVolume}
         getBAItemSubtotal={getBAItemSubtotal}
+        reorderBAItems={reorderBAItems}
+        moveBAItem={moveBAItem}
+        getSowMasterRate={getSowMasterRate}
       />
 
       {/* Tabel 2: MDO / Support (POS & SBS) */}
@@ -213,21 +228,41 @@ export function BATrackerSurveyItems({
           )}
         </div>
 
-        <div className="pt-2 border-t border-amber-900/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-          <div>
-            <div className="text-[11px] font-bold text-amber-200 uppercase tracking-wider flex items-center gap-1">
-              <Sparkles size={12} className="text-[#A57C50]" /> Total DPP Unbilled Revenue (Dasar Pengenaan Pajak):
+        <div className="pt-2.5 border-t border-amber-900/30 flex flex-col md:flex-row justify-between items-start md:items-end gap-3">
+          <div className="space-y-1.5 flex-1 min-w-0">
+            <div className="text-[11px] font-bold text-amber-200 uppercase tracking-wider flex items-center gap-1.5">
+              <Sparkles size={13} className="text-[#A57C50]" />
+              Prediksi Nilai Tagihan Komersial & Pajak (Identik Draf Invoice):
             </div>
-            <div className="text-[10px] text-amber-100/60 font-medium">
-              Estimasi PPN 11%: {formatIDR(breakdown.ppnAmount)} | PPh 23 (2%): {formatIDR(breakdown.pph23Amount)}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] font-mono">
+              <div className="bg-white/5 p-1.5 rounded-[2px] border border-white/5">
+                <span className="text-amber-100/60 block text-[9px] font-sans">Subtotal Gross (DPP):</span>
+                <span className="font-bold text-slate-100">{formatIDR(breakdown.totalGross > 0 ? breakdown.totalGross : (sumAdjusted > 0 ? sumAdjusted : sumInitial))}</span>
+              </div>
+              <div className="bg-white/5 p-1.5 rounded-[2px] border border-white/5">
+                <span className="text-amber-100/60 block text-[9px] font-sans">DPP PPN (11/12):</span>
+                <span className="font-bold text-slate-200">{formatIDR(breakdown.dpp11_12)}</span>
+              </div>
+              <div className="bg-white/5 p-1.5 rounded-[2px] border border-white/5">
+                <span className="text-amber-100/60 block text-[9px] font-sans">PPN (12%) (+):</span>
+                <span className="font-bold text-emerald-300">+{formatIDR(breakdown.vat12)}</span>
+              </div>
+              <div className="bg-white/5 p-1.5 rounded-[2px] border border-white/5">
+                <span className="text-amber-100/60 block text-[9px] font-sans">PPh 23 (2%) (-):</span>
+                <span className="font-bold text-rose-300">-{formatIDR(breakdown.pph23Amount)}</span>
+              </div>
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-xl sm:text-2xl font-black font-mono text-emerald-400 tracking-tight">
-              {formatIDR(breakdown.totalDPP > 0 ? breakdown.totalDPP : sumInitial)}
+
+          <div className="text-right shrink-0 bg-emerald-950/40 p-2.5 rounded-[3px] border border-emerald-500/30">
+            <div className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">
+              {isSBS ? "Prediksi Total Dibayar (Net)" : "Prediksi Total Invoice (Netto)"}
             </div>
-            <div className="text-[10px] text-amber-100/60 font-mono">
-              Net Piutang: {formatIDR(breakdown.netAR)}
+            <div className="text-xl sm:text-2xl font-black font-mono text-emerald-400 tracking-tight">
+              {formatIDR((breakdown.totalDibayar ?? breakdown.netTotalInvoice) > 0 ? (breakdown.totalDibayar ?? breakdown.netTotalInvoice) : (sumAdjusted > 0 ? sumAdjusted : sumInitial))}
+            </div>
+            <div className="text-[9px] text-emerald-200/60 font-mono">
+              {isSBS ? `(Inv: ${formatIDR(breakdown.netTotalInvoice)} - Denda: ${formatIDR(breakdown.subtotalP || 0)})` : "(Gross + PPN 12% - PPh 23)"}
             </div>
           </div>
         </div>

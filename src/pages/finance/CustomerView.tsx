@@ -128,6 +128,9 @@ export function CustomerView({ c }: { c: any }) {
       setIsSowModalOpen(false);
       setEditingSOW(null);
       await loadSetupData();
+      if (c && typeof c.reloadMasterData === "function") {
+        await c.reloadMasterData();
+      }
     } catch (err: any) {
       onNotice(`Gagal menyimpan tarif SOW: ${err?.message}`);
     }
@@ -140,6 +143,9 @@ export function CustomerView({ c }: { c: any }) {
       await api(`/api/master-data/variable-sow/${id}`, { method: "DELETE" });
       onNotice(`Item material SOW berhasil dihapus.`);
       await loadSetupData();
+      if (c && typeof c.reloadMasterData === "function") {
+        await c.reloadMasterData();
+      }
     } catch (err: any) {
       onNotice(`Gagal menghapus SOW: ${err?.message}`);
     }

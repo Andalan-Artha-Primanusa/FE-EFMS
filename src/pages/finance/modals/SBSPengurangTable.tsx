@@ -42,8 +42,6 @@ export function SBSPengurangTable({
               <tr className="bg-slate-900 text-white font-extrabold text-[11px] uppercase tracking-wider">
                 <th className="p-2.5 text-center w-24">AKSI</th>
                 <th className="p-2.5">PENGURANG PEMBAYARAN</th>
-                <th className="p-2.5 text-center w-36">CLAIMED UNIT</th>
-                <th className="p-2.5 text-right w-36">UNIT RATE (IDR)</th>
                 <th className="p-2.5 text-right w-44 font-extrabold">AMOUNT (IDR)</th>
               </tr>
             </thead>
@@ -57,12 +55,12 @@ export function SBSPengurangTable({
                     onRemove={() => removeInvLineItem(item.id)}
                   />
                   <td className="p-2 font-bold text-slate-800">{item.description}</td>
-                  <td className="p-2 text-center font-mono text-slate-600">{item.unit || "Lot"}</td>
-                  <td className="p-2 text-right font-mono text-slate-400">-</td>
                   <td className="p-2 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <span className="text-slate-400 font-mono font-bold">(</span>
                       <FormattedNumberInput
+                        allowDecimals
+                        maxDecimals={3}
                         className="w-36 bg-slate-50 hover:bg-white border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:border-cyan-700 outline-none"
                         placeholder="00.00"
                         value={item.amount === 0 ? "" : Math.abs(item.amount)}

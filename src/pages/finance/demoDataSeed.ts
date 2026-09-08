@@ -18,14 +18,14 @@ export const FALLBACK_BLANK_BGG_ITEMS = [
 ];
 
 export const FALLBACK_BLANK_SBS_ITEMS = [
-  { id: "sbs_inv_a1", section: "A", description: "PIT E - DISPOSAL SEKATAN", unit: "BCM", volume: 0, distanceM: 3100, overhaulMtr: 3100, unitRateIDR: 22654 },
-  { id: "sbs_inv_a2", section: "A", description: "PIT E - RENCANA JALAN", unit: "BCM", volume: 0, distanceM: 1350, overhaulMtr: 1350, unitRateIDR: 12638 },
-  { id: "sbs_inv_a3", section: "A", description: "PIT E - RENCANA CSA", unit: "BCM", volume: 0, distanceM: 600, overhaulMtr: 600, unitRateIDR: 8346 },
-  { id: "sbs_inv_a4", section: "A", description: "PIT E - JALAN BARITO", unit: "BCM", volume: 0, distanceM: 1850, overhaulMtr: 1850, unitRateIDR: 15500 },
-  { id: "sbs_inv_a5", section: "A", description: "PIT E - SEKATAN", unit: "BCM", volume: 0, distanceM: 2150, overhaulMtr: 2150, unitRateIDR: 16931 },
-  { id: "sbs_inv_a6", section: "A", description: "PIT E - TS MAHONI", unit: "BCM", volume: 0, distanceM: 3100, overhaulMtr: 3100, unitRateIDR: 22654 },
-  { id: "sbs_inv_a7", section: "A", description: "PIT E - IPD WARWEFILL", unit: "BCM", volume: 0, distanceM: 600, overhaulMtr: 600, unitRateIDR: 8346 },
-  { id: "sbs_inv_a8", section: "A", description: "PIT E - SEKATAN", unit: "BCM", volume: 0, distanceM: 2450, overhaulMtr: 2450, unitRateIDR: 19375 },
+  { id: "sbs_inv_a1", section: "A", description: "PIT E - DISPOSAL SEKATAN", unit: "BCM", volume: 0, distanceM: 0, overhaulMtr: 0, unitRateIDR: 0 },
+  { id: "sbs_inv_a2", section: "A", description: "PIT E - RENCANA JALAN", unit: "BCM", volume: 0, distanceM: 0, overhaulMtr: 0, unitRateIDR: 0 },
+  { id: "sbs_inv_a3", section: "A", description: "PIT E - RENCANA CSA", unit: "BCM", volume: 0, distanceM: 0, overhaulMtr: 0, unitRateIDR: 0 },
+  { id: "sbs_inv_a4", section: "A", description: "PIT E - JALAN BARITO", unit: "BCM", volume: 0, distanceM: 0, overhaulMtr: 0, unitRateIDR: 0 },
+  { id: "sbs_inv_a5", section: "A", description: "PIT E - SEKATAN", unit: "BCM", volume: 0, distanceM: 0, overhaulMtr: 0, unitRateIDR: 0 },
+  { id: "sbs_inv_a6", section: "A", description: "PIT E - TS MAHONI", unit: "BCM", volume: 0, distanceM: 0, overhaulMtr: 0, unitRateIDR: 0 },
+  { id: "sbs_inv_a7", section: "A", description: "PIT E - IPD WARWEFILL", unit: "BCM", volume: 0, distanceM: 0, overhaulMtr: 0, unitRateIDR: 0 },
+  { id: "sbs_inv_a8", section: "A", description: "PIT E - SEKATAN", unit: "BCM", volume: 0, distanceM: 0, overhaulMtr: 0, unitRateIDR: 0 },
   { id: "sbs_inv_b1", section: "B", description: "Dozer CAT D10 - BDCT 1001", unit: "Hours", volume: 0, unitRateIDR: 1980000 },
   { id: "sbs_inv_b2", section: "B", description: "Dozer CAT D10 - BDCT 1002", unit: "Hours", volume: 0, unitRateIDR: 1980000 },
   { id: "sbs_inv_b3", section: "B", description: "Excavator CAT 395 - EXCT 3901", unit: "Hours", volume: 0, unitRateIDR: 1425000 },
@@ -49,21 +49,18 @@ export const FALLBACK_BLANK_POS_ITEMS = [
 ];
 
 export const FALLBACK_BGG_BA_ITEMS = [
-  { id: "bgg_op1_feb", category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 1 (75%)", period: "Feb-26", unit: "BCM", initialVolume: 36168.37, adjustedVolume: 36168.37, rate: 27250, subtotalInitial: 985588083, subtotalAdjusted: 985588083 },
-  { id: "bgg_op1_jun", category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 1 (75%)", period: "Jun-26", unit: "BCM", initialVolume: 121490.00, adjustedVolume: 121490.00, rate: 29500, subtotalInitial: 3583955000, subtotalAdjusted: 3583955000 },
-  { id: "bgg_op2_feb", category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 2 (25%)", period: "Feb-26", unit: "BCM", initialVolume: 12056.12, adjustedVolume: 12056.12, rate: 26500, subtotalInitial: 319487180, subtotalAdjusted: 319487180 },
-  { id: "bgg_op2_jun", category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 2 (25%)", period: "Jun-26", unit: "BCM", initialVolume: 40496.67, adjustedVolume: 40496.67, rate: 28750, subtotalInitial: 1164279263, subtotalAdjusted: 1164279263 },
-  { id: "bgg_cw_jun", category: "Operating & Mining", area: "Pit KKL", material: "Coal Winning Pit Kungkilan", period: "Jun-26", unit: "Ton", initialVolume: 46683.48, adjustedVolume: 46683.48, rate: 17500, subtotalInitial: 816960900, subtotalAdjusted: 816960900 },
-  { id: "bgg_od_ob_feb", category: "Over Distance", area: "Pit KKL", material: "Over Distance For OB Removal", period: "Feb-26", unit: "BCM", distanceWeightAvg: 1232, initialVolume: 48224.49, adjustedVolume: 48224.49, rate: 1393, isDistanceVar: true, subtotalInitial: 67153575, subtotalAdjusted: 67153575 },
-  { id: "bgg_od_ob_jun", category: "Over Distance", area: "Pit KKL", material: "Over Distance For OB Removal", period: "Jun-26", unit: "BCM", distanceWeightAvg: 1239, initialVolume: 161986.66, adjustedVolume: 161986.66, rate: 1550, isDistanceVar: true, subtotalInitial: 251147442, subtotalAdjusted: 251147442 },
-  { id: "bgg_od_cw_jun", category: "Over Distance", area: "Pit KKL", material: "Over Distance For Coal Winning", period: "Jun-26", unit: "Ton", distanceWeightAvg: 4582, initialVolume: 46683.48, adjustedVolume: 46683.48, rate: 19700, isDistanceVar: true, subtotalInitial: 919652140, subtotalAdjusted: 919652140 }
+  { id: "bgg_op1", category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 1 (75%)", period: "Jun-26", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 29500, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "bgg_op2", category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 2 (25%)", period: "Jun-26", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 28750, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "bgg_cw", category: "Operating & Mining", area: "Pit KKL", material: "Coal Winning Pit Kungkilan", period: "Jun-26", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: 17500, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "bgg_od_ob", category: "Over Distance", area: "Pit KKL", material: "Over Distance For OB Removal", period: "Jun-26", unit: "BCM", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 1550, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "bgg_od_cw", category: "Over Distance", area: "Pit KKL", material: "Over Distance For Coal Winning", period: "Jun-26", unit: "Ton", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 19700, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
 ];
 
 export const FALLBACK_POS_OPERATING_ITEMS = [
-  { id: "ba_op1", category: "Operating & Mining", area: "WM1", material: "Top Soil", unit: "BCM", initialVolume: 2800, adjustedVolume: 2800, rate: 60500, subtotalInitial: 169400000, subtotalAdjusted: 169400000 },
-  { id: "ba_op2", category: "Operating & Mining", area: "WM1", material: "Saprolite", unit: "WMT", initialVolume: 650, adjustedVolume: 650, rate: 62200, subtotalInitial: 40430000, subtotalAdjusted: 40430000 },
-  { id: "ba_op3", category: "Operating & Mining", area: "WM1", material: "Limonite", unit: "WMT", initialVolume: 4120, adjustedVolume: 4120, rate: 60200, subtotalInitial: 248024000, subtotalAdjusted: 248024000 },
-  { id: "ba_op4", category: "Operating & Mining", area: "WM1", material: "Overburden/ Waste", unit: "BCM", initialVolume: 15420.5, adjustedVolume: 15420.5, rate: 59500, subtotalInitial: 917519750, subtotalAdjusted: 917519750 },
+  { id: "ba_op1", category: "Operating & Mining", area: "WM1", material: "Top Soil", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 60500, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "ba_op2", category: "Operating & Mining", area: "WM1", material: "Saprolite", unit: "WMT", initialVolume: 0, adjustedVolume: 0, rate: 62200, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "ba_op3", category: "Operating & Mining", area: "WM1", material: "Limonite", unit: "WMT", initialVolume: 0, adjustedVolume: 0, rate: 60200, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "ba_op4", category: "Operating & Mining", area: "WM1", material: "Overburden/ Waste", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 59500, subtotalInitial: 0, subtotalAdjusted: 0 },
   { id: "ba_dist1", category: "Over Distance", area: "WM1", material: "Over/Underhaul For OB Removal", unit: "BCM", parentMaterial: "Overburden/ Waste", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 8608, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
   { id: "ba_dist2", category: "Over Distance", area: "WM1", material: "Over/Underhaul For Top Soil Removal", unit: "BCM", parentMaterial: "Top Soil", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 8608, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
   { id: "ba_dist3", category: "Over Distance", area: "WM1", material: "Over/Underhaul For Limonite", unit: "BCM", parentMaterial: "Limonite", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 8416, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
@@ -71,19 +68,19 @@ export const FALLBACK_POS_OPERATING_ITEMS = [
 ];
 
 export const FALLBACK_POS_MDO_ITEMS = [
-  { id: "ba_mdo1", category: "MDO", area: "Site POS", material: "Mine Development (MDO) - Clearing & Access Road", unit: "Ha", distanceWeightAvg: 0, initialVolume: 5.5, adjustedVolume: 5.5, rate: 15500000, subtotalInitial: 85250000, subtotalAdjusted: 85250000 },
-  { id: "ba_mdo2", category: "MDO", area: "Site POS", material: "Rocks for construction - under/overhaul", unit: "USD/1KM", distanceWeightAvg: 0, initialVolume: 1200, adjustedVolume: 1200, rate: 9450, subtotalInitial: 11340000, subtotalAdjusted: 11340000 }
+  { id: "ba_mdo1", category: "MDO", area: "Site POS", material: "Mine Development (MDO) - Clearing & Access Road", unit: "Ha", distanceWeightAvg: 0, initialVolume: 0, adjustedVolume: 0, rate: 15500000, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "ba_mdo2", category: "MDO", area: "Site POS", material: "Rocks for construction - under/overhaul", unit: "USD/1KM", distanceWeightAvg: 0, initialVolume: 0, adjustedVolume: 0, rate: 9450, subtotalInitial: 0, subtotalAdjusted: 0 }
 ];
 
 export const FALLBACK_SBS_BA_ITEMS = [
-  { id: "sbs_ba_a1", category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL SEKATAN", unit: "BCM", distance: 3150, initialVolume: 80114.79, adjustedVolume: 80114.79, rate: 22654, subtotalInitial: 1814920453, subtotalAdjusted: 1814920453 },
-  { id: "sbs_ba_a2", category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA JALAN", unit: "BCM", distance: 1400, initialVolume: 23741.16, adjustedVolume: 23741.16, rate: 12638, subtotalInitial: 300040780, subtotalAdjusted: 300040780 },
-  { id: "sbs_ba_a3", category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA CSA", unit: "BCM", distance: 650, initialVolume: 442.24, adjustedVolume: 442.24, rate: 8346, subtotalInitial: 3690935, subtotalAdjusted: 3690935 },
-  { id: "sbs_ba_a4", category: "Operating & Mining", area: "Pit E", material: "PIT E - JALAN BARITO", unit: "BCM", distance: 1850, initialVolume: 33726.42, adjustedVolume: 33726.42, rate: 15500, subtotalInitial: 522759510, subtotalAdjusted: 522759510 },
-  { id: "sbs_ba_a5", category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", unit: "BCM", distance: 2150, initialVolume: 110582.62, adjustedVolume: 110582.62, rate: 16931, subtotalInitial: 1872274339, subtotalAdjusted: 1872274339 },
-  { id: "sbs_ba_a6", category: "Operating & Mining", area: "Pit E", material: "PIT E - TS MAHONI", unit: "BCM", distance: 3100, initialVolume: 1536.19, adjustedVolume: 1536.19, rate: 22654, subtotalInitial: 34800848, subtotalAdjusted: 34800848 },
-  { id: "sbs_ba_a7", category: "Operating & Mining", area: "Pit E", material: "PIT E - IPD WARWEFILL", unit: "BCM", distance: 700, initialVolume: 3840.48, adjustedVolume: 3840.48, rate: 8346, subtotalInitial: 32052646, subtotalAdjusted: 32052646 },
-  { id: "sbs_ba_a8", category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", unit: "BCM", distance: 2650, initialVolume: 1154.75, adjustedVolume: 1154.75, rate: 19375, subtotalInitial: 22373281, subtotalAdjusted: 22373281 }
+  { id: "sbs_ba_a1", category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL SEKATAN", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_ba_a2", category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA JALAN", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_ba_a3", category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA CSA", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_ba_a4", category: "Operating & Mining", area: "Pit E", material: "PIT E - JALAN BARITO", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_ba_a5", category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_ba_a6", category: "Operating & Mining", area: "Pit E", material: "PIT E - TS MAHONI", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_ba_a7", category: "Operating & Mining", area: "Pit E", material: "PIT E - IPD WARWEFILL", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_ba_a8", category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 }
 ];
 
 export const FALLBACK_SBS_RENTAL_ITEMS = [
@@ -218,18 +215,26 @@ export function getInitialBAItemsForRecord(
   }
   if (baNo.includes("053/BA-POS")) {
     return [
-      { id: "pos_p_op1", category: "Operating & Mining", area: "WM1", material: "Top Soil", period: "Jul-26", unit: "BCM", initialVolume: 2800.00, adjustedVolume: 2800.00, rate: 60500, subtotalInitial: 169400000, subtotalAdjusted: 169400000 },
-      { id: "pos_p_op2", category: "Operating & Mining", area: "WM1", material: "Saprolite", period: "Jul-26", unit: "WMT", initialVolume: 650.00, adjustedVolume: 650.00, rate: 62200, subtotalInitial: 40430000, subtotalAdjusted: 40430000 },
-      { id: "pos_p_op3", category: "Operating & Mining", area: "WM1", material: "Limonite", period: "Jul-26", unit: "WMT", initialVolume: 4120.00, adjustedVolume: 4120.00, rate: 60200, subtotalInitial: 248024000, subtotalAdjusted: 248024000 },
-      { id: "pos_p_op4", category: "Operating & Mining", area: "WM1", material: "Overburden/ Waste", period: "Jul-26", unit: "BCM", initialVolume: 15420.50, adjustedVolume: 15420.50, rate: 59500, subtotalInitial: 917519750, subtotalAdjusted: 917519750 },
-      { id: "pos_p_dist1", category: "Over Distance", area: "WM1", material: "Over/Underhaul For OB Removal", period: "Jul-26", unit: "BCM", parentMaterial: "Overburden/ Waste", distanceWeightAvg: 1600, initialVolume: 15420.50, adjustedVolume: 15420.50, rate: 8608, isDistanceVar: true, subtotalInitial: 79650144, subtotalAdjusted: 79650144 },
-      { id: "pos_p_mdo1", category: "MDO", area: "Site POS", material: "Rocks for construction - under/overhaul", period: "Jul-26", unit: "USD/1KM", initialVolume: 44335.51, adjustedVolume: 44335.51, rate: 9450, subtotalInitial: 418970600, subtotalAdjusted: 418970600 }
+      { id: "pos_p_op1", category: "Operating & Mining", area: "WM1", material: "Top Soil", period: "Jul-26", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 60500, subtotalInitial: 0, subtotalAdjusted: 0 },
+      { id: "pos_p_op2", category: "Operating & Mining", area: "WM1", material: "Saprolite", period: "Jul-26", unit: "WMT", initialVolume: 0, adjustedVolume: 0, rate: 62200, subtotalInitial: 0, subtotalAdjusted: 0 },
+      { id: "pos_p_op3", category: "Operating & Mining", area: "WM1", material: "Limonite", period: "Jul-26", unit: "WMT", initialVolume: 0, adjustedVolume: 0, rate: 60200, subtotalInitial: 0, subtotalAdjusted: 0 },
+      { id: "pos_p_op4", category: "Operating & Mining", area: "WM1", material: "Overburden/ Waste", period: "Jul-26", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 59500, subtotalInitial: 0, subtotalAdjusted: 0 },
+      { id: "pos_p_dist1", category: "Over Distance", area: "WM1", material: "Over/Underhaul For OB Removal", period: "Jul-26", unit: "BCM", parentMaterial: "Overburden/ Waste", distanceWeightAvg: 1600, initialVolume: 0, adjustedVolume: 0, rate: 8608, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+      { id: "pos_p_mdo1", category: "MDO", area: "Site POS", material: "Rocks for construction - under/overhaul", period: "Jul-26", unit: "USD/1KM", initialVolume: 0, adjustedVolume: 0, rate: 9450, subtotalInitial: 0, subtotalAdjusted: 0 }
     ];
   }
 
-  if (cust === "BGG" || cust === "PT BGG") return defaults.defaultBGGBAItems;
-  if (cust === "PTRO" || cust === "PT Petrosea") return defaults.defaultPTROBAItems || defaults.defaultDBKBAItems || FALLBACK_PTRO_BA_ITEMS;
-  if (cust === "DBK") return defaults.defaultDBKBAItems || defaults.defaultPTROBAItems || FALLBACK_PTRO_BA_ITEMS;
-  if (cust === "SBS") return defaults.defaultSBSBAOperatingItems;
-  return defaults.defaultPOSBAOperatingItems;
+  const mapZero = (arr: any[]) => (arr || []).map((it) => ({
+    ...it,
+    initialVolume: 0,
+    adjustedVolume: 0,
+    subtotalInitial: 0,
+    subtotalAdjusted: 0
+  }));
+
+  if (cust === "BGG" || cust === "PT BGG") return mapZero(defaults.defaultBGGBAItems);
+  if (cust === "PTRO" || cust === "PT Petrosea") return mapZero(defaults.defaultPTROBAItems || defaults.defaultDBKBAItems || FALLBACK_PTRO_BA_ITEMS);
+  if (cust === "DBK") return mapZero(defaults.defaultDBKBAItems || defaults.defaultPTROBAItems || FALLBACK_PTRO_BA_ITEMS);
+  if (cust === "SBS") return mapZero(defaults.defaultSBSBAOperatingItems).map((it: any) => ({ ...it, distance: 0, distanceWeightAvg: 0, rate: 0 }));
+  return mapZero(defaults.defaultPOSBAOperatingItems);
 }

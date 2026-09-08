@@ -90,15 +90,7 @@ export function getSiteSOWList(
   const merged: Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean; isDeduction?: boolean; parentMaterial?: string }> = [];
   const seen = new Set<string>();
 
-  defs.forEach(d => {
-    const key = (d.name || "").toLowerCase().trim();
-    if (key && !seen.has(key)) {
-      seen.add(key);
-      const isDed = (d.category || "").toLowerCase().includes("pengurang") || (d.name || "").toLowerCase().includes("denda") || (d.name || "").toLowerCase().includes("kelebihan");
-      merged.push({ ...d, isDeduction: isDed });
-    }
-  });
-
+  // 1. Process real-time master data catalog FIRST
   matchedFromCatalog.forEach(c => {
     const name = c.name || c.itemName;
     const key = (name || "").toLowerCase().trim();
@@ -117,6 +109,16 @@ export function getSiteSOWList(
         isDistanceVar: isDist,
         isDeduction: isDed
       });
+    }
+  });
+
+  // 2. Only add static defaults if not already present from live catalog
+  defs.forEach(d => {
+    const key = (d.name || "").toLowerCase().trim();
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      const isDed = (d.category || "").toLowerCase().includes("pengurang") || (d.name || "").toLowerCase().includes("denda") || (d.name || "").toLowerCase().includes("kelebihan");
+      merged.push({ ...d, isDeduction: isDed });
     }
   });
 

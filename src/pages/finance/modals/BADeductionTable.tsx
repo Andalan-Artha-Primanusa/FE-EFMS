@@ -64,7 +64,6 @@ export function BADeductionTable({
               <th className="p-2 text-center w-10">No</th>
               <th className="p-2 min-w-[220px]">Deskripsi Pengurang Biaya (Master SOW)</th>
               <th className="p-2 min-w-[160px]">Keterangan</th>
-              <th className="p-2 text-center w-20">Satuan</th>
               <th className="p-2 text-right w-36">Nilai Potongan (Rp)</th>
               <th className="p-2 text-right w-36">Subtotal (Rp)</th>
               {isInlineEditingBA && <th className="p-2 text-center w-10">#</th>}
@@ -138,11 +137,6 @@ export function BADeductionTable({
                       }}
                     />
                   )}
-                </td>
-                <td className="p-2 text-center font-mono font-bold text-slate-800">
-                  <span className="px-2 py-0.5 bg-rose-50 border border-rose-200 rounded text-xs inline-block text-center min-w-[45px]">
-                    {item.unit || "Lot"}
-                  </span>
                 </td>
                 <td className="p-2 text-right font-mono">
                   {!isInlineEditingBA ? (

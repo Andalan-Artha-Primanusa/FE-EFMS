@@ -122,6 +122,8 @@ export function InvoiceTableSBS({
                     <td className="p-2 text-center">
                       <div className="flex flex-col items-center justify-center gap-0.5">
                         <FormattedNumberInput
+                          allowDecimals
+                          maxDecimals={3}
                           className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-1.5 py-0.5 rounded text-center focus:bg-white focus:border-cyan-700 outline-none"
                           placeholder="00.00"
                           value={currentDist === 0 ? "" : currentDist}
@@ -134,7 +136,7 @@ export function InvoiceTableSBS({
                                 ...it,
                                 distanceM: dist,
                                 overhaulMtr: dist,
-                                ...(rate > 0 ? { unitRateIDR: rate } : {}),
+                                unitRateIDR: rate,
                               };
                             }));
                           }}
@@ -161,6 +163,8 @@ export function InvoiceTableSBS({
                     </td>
                     <td className="p-2 text-right">
                       <FormattedNumberInput
+                        allowDecimals
+                        maxDecimals={3}
                         className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                         placeholder="00.00"
                         value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
@@ -210,6 +214,8 @@ export function InvoiceTableSBS({
                   </td>
                   <td className="p-2 text-right">
                     <FormattedNumberInput
+                      allowDecimals
+                      maxDecimals={3}
                       className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                       placeholder="00.00"
                       value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}

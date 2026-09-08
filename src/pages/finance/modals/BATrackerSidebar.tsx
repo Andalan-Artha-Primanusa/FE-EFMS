@@ -37,6 +37,18 @@ export function BATrackerSidebar({
             <span className="text-slate-500 font-bold">Total Nilai Klaim BA:</span>
             <span className="font-mono font-black text-emerald-800 text-sm">{formatIDR(sumAdjusted || sumInitial || formData.workAmount || 0)}</span>
           </div>
+          {((sumAdjusted || sumInitial || 0) > 0) && (
+            <div className="flex justify-between text-[11px] pt-0.5 border-t border-slate-200/60">
+              <span className="text-slate-500">Prediksi Netto (Inv):</span>
+              <span className="font-mono font-bold text-emerald-700">
+                {formatIDR(Math.round(
+                  (sumAdjusted || sumInitial || 0) + 
+                  Math.round(((sumAdjusted || sumInitial || 0) * 11 / 12) * 0.12) - 
+                  Math.round((sumAdjusted || sumInitial || 0) * 0.02)
+                ))}
+              </span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-slate-500 font-bold">Status BA:</span>
             <span>{renderBAStatusBadge(formData.statusBA || "Submit", formData.invoiceNoLinked, undefined, editItem || formData, invoiceRows)}</span>

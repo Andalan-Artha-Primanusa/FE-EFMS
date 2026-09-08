@@ -120,21 +120,21 @@ export function BATrackerHeaderForm({
                       { id: `bgg_od_ob_${Date.now() + 3}`, category: "Over Distance", area: "", material: "Over Distance For OB Removal", period: currentPeriod, notes: "", keterangan: "", unit: "BCM", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 1550, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
                       { id: `bgg_od_cw_${Date.now() + 4}`, category: "Over Distance", area: "", material: "Over Distance For Coal Winning", period: currentPeriod, notes: "", keterangan: "", unit: "Ton", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 19700, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
                     ];
-                    setBaOperatingItems((bggRows || []).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, period: currentPeriod, notes: "", keterangan: "" })));
+                    setBaOperatingItems((bggRows || []).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
                     setBaMDOItems([]);
                     setBaDeductionItems([]);
                   } else if (isPTRO || isDBK) {
                     const ptroRows = (defaultPTROBAItems && defaultPTROBAItems.length > 0) ? defaultPTROBAItems : defaultDBKBAItems;
-                    setBaOperatingItems((ptroRows || []).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, period: currentPeriod, notes: "", keterangan: "" })));
+                    setBaOperatingItems((ptroRows || []).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
                     setBaMDOItems([]);
                     setBaDeductionItems([]);
                   } else if (isSBS) {
-                    setBaOperatingItems((defaultSBSBAOperatingItems || []).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, period: currentPeriod, notes: "", keterangan: "" })));
-                    setBaMDOItems((defaultSBSBAMDOItems || []).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, period: currentPeriod, notes: "", keterangan: "" })));
-                    setBaDeductionItems((defaultSBSBADeductionItems || []).map((it: any) => ({ ...it, initialVolume: 1, adjustedVolume: 1, rate: 0, period: currentPeriod, notes: "", keterangan: "", material: it.material === "Denda ketidakcapaian Volume" ? `Denda ketidakcapaian Volume ${currentPeriod}` : it.material })));
+                    setBaOperatingItems((defaultSBSBAOperatingItems || []).map((it: any) => ({ ...it, distance: 0, distanceWeightAvg: 0, rate: 0, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
+                    setBaMDOItems((defaultSBSBAMDOItems || []).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
+                    setBaDeductionItems((defaultSBSBADeductionItems || []).map((it: any) => ({ ...it, initialVolume: 1, adjustedVolume: 1, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "", material: it.material === "Denda ketidakcapaian Volume" ? `Denda ketidakcapaian Volume ${currentPeriod}` : it.material })));
                   } else {
-                    setBaOperatingItems(defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", period: currentPeriod, notes: "", keterangan: "" })));
-                    setBaMDOItems(defaultPOSBAMDOItems.map(it => ({ ...it, area: "", period: currentPeriod, notes: "", keterangan: "" })));
+                    setBaOperatingItems(defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
+                    setBaMDOItems(defaultPOSBAMDOItems.map(it => ({ ...it, area: "", initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
                     setBaDeductionItems([]);
                   }
                 }}

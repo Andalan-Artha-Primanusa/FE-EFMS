@@ -34,15 +34,40 @@ export function buildInvoiceItemsFromBA(
 
   // 1. POS/IBP/BBA MDO (Mine Development Operation)
   if ((code === "POS" || code === "IBP" || code === "BBA") && category === "MDO") {
-    const mdo1 = ba?.items?.find((i: any) => (i.material || "").toLowerCase().includes("mine dev") || (i.material || "").toLowerCase().includes("mdo")) || baMDOItems?.[0];
-    const mdo2 = ba?.items?.find((i: any) => (i.material || "").toLowerCase().includes("rock") || (i.material || "").toLowerCase().includes("konstruksi")) || baMDOItems?.[1];
+    const sourceItems = (ba?.items && ba.items.length > 0) ? ba.items : baMDOItems;
+    const mdoItems = (sourceItems || []).filter((i: any) =>
+      i.category === "MDO" ||
+      (i.material || "").toLowerCase().includes("mdo") ||
+      (i.material || "").toLowerCase().includes("mine dev") ||
+      (i.material || "").toLowerCase().includes("rock") ||
+      (i.material || "").toLowerCase().includes("konstruksi")
+    );
 
-    const vol1 = mdo1?.adjustedVolume > 0 ? mdo1.adjustedVolume : (mdo1?.initialVolume || mdo1?.volume || 5.5);
-    const vol2 = mdo2?.adjustedVolume > 0 ? mdo2.adjustedVolume : (mdo2?.initialVolume || mdo2?.volume || 1200);
+    if (mdoItems.length > 0) {
+      return mdoItems.map((bi: any, idx: number) => {
+        const vol = Number(bi.adjustedVolume ?? bi.initialVolume ?? bi.volume ?? 0);
+        const rate = Number(bi.rate || bi.unitRateIDR || (bi.subtotalAdjusted && vol > 0 ? Math.round(bi.subtotalAdjusted / vol) : 0));
+        const amt = Number(bi.subtotalAdjusted || bi.subtotalInitial || Math.round(vol * rate));
+        return {
+          id: bi.id || `mdo_inv_${idx + 1}`,
+          section: "A",
+          code: bi.code || `MDO${idx + 1}`,
+          description: bi.material || bi.description || `MDO Item ${idx + 1}`,
+          sowDescription: bi.material || bi.description || `MDO Item ${idx + 1}`,
+          volume: vol,
+          unit: bi.unit || "Ha",
+          baseRateUSD: bi.baseRateUSD || 0,
+          unitRateIDR: rate,
+          amount: amt,
+          amountIDR: amt,
+          notes: bi.notes || bi.keterangan || ba?.workPeriod || "-"
+        };
+      });
+    }
 
     return [
-      { id: "MDO_1", section: "A", code: "MDO1", description: "Mine Development (MDO Cut & Fill & Access Road)", volume: vol1, unit: "Ha", baseRateUSD: 0, unitRateIDR: 15500000 },
-      { id: "MDO_2", section: "A", code: "MDO2", description: "Rocks for construction - under/overhaul", volume: vol2, unit: "USD/1KM", baseRateUSD: 0.526, unitRateIDR: 9450 }
+      { id: "MDO_1", section: "A", code: "MDO1", description: "Mine Development (MDO Cut & Fill & Access Road)", volume: 0, unit: "Ha", baseRateUSD: 0, unitRateIDR: 15500000, amount: 0, amountIDR: 0 },
+      { id: "MDO_2", section: "A", code: "MDO2", description: "Rocks for construction - under/overhaul", volume: 0, unit: "USD/1KM", baseRateUSD: 0.526, unitRateIDR: 9450, amount: 0, amountIDR: 0 }
     ];
   }
 
@@ -68,29 +93,43 @@ export function buildInvoiceItemsFromBA(
     ];
   }
 
-  // 3. POS Standard Production
+  // 3. POS Standard Production (Operation & Mining)
   if (code === "POS" || code === "IBP" || code === "BBA") {
     if (ba?.items && Array.isArray(ba.items) && ba.items.length > 0) {
       const posItems: any[] = [];
-      ba.items.forEach((bi: any, idx: number) => {
+      const miningItems = ba.items.filter((bi: any) =>
+        bi.category !== "MDO" &&
+        !(bi.material || "").toLowerCase().includes("mine dev") &&
+        !(bi.material || "").toLowerCase().includes("mdo")
+      );
+
+      miningItems.forEach((bi: any, idx: number) => {
         const isDist = bi.isDistanceVar || bi.category === "Over Distance";
-        const vol = Number(bi.adjustedVolume ?? bi.initialVolume ?? 0);
+        const vol = Number(bi.adjustedVolume ?? bi.initialVolume ?? bi.volume ?? 0);
         const overhaulMtr = Number(bi.distanceWeightAvg ?? 1000);
         const rate = Number(bi.rate || bi.unitRateIDR || 0);
         // Omit distance items if amount is 0 (vol == 0, distance <= 1000, or rate == 0)
         if (isDist && (vol <= 0 || overhaulMtr <= 1000 || rate <= 0)) {
           return;
         }
+        const amt = isDist
+          ? Math.round(vol * ((overhaulMtr - 1000) / 1000) * rate)
+          : Math.round(vol * rate);
+
         posItems.push({
           id: bi.id || `pos_inv_${idx}`,
           section: isDist ? "B" : "A",
           code: bi.code || `POS_${idx}`,
           description: bi.material || bi.description || "Pekerjaan Penambangan POS",
+          sowDescription: bi.material || bi.description || "Pekerjaan Penambangan POS",
           unit: bi.unit || "BCM",
           volume: vol,
           overhaulMtr: isDist ? overhaulMtr : 1000,
           baseRateUSD: bi.baseRateUSD || 0,
           unitRateIDR: rate,
+          amount: amt,
+          amountIDR: amt,
+          notes: bi.notes || bi.keterangan || ba?.workPeriod || "-"
         });
       });
       return posItems;
@@ -111,18 +150,20 @@ export function buildInvoiceItemsFromBA(
       const invItems: any[] = [];
       const kurs = latestKursBI || 17923.30;
       itemsToProcess.forEach((bi: any, idx: number) => {
-        const mLow = (bi.material || bi.sowDescription || "").toLowerCase();
+        const mLow = (bi.material || bi.sowDescription || bi.description || "").toLowerCase();
         const isDist = bi.isDistanceVar || bi.category === "Over Distance" || mLow.includes("overhaul") || mLow.includes("distance");
         const isCoal = mLow.includes("coal") || mLow.includes("batubara");
-        const vol = Number(bi.adjustedVolume ?? bi.initialVolume ?? 0);
+        const isOB = mLow.includes("ob") || mLow.includes("overburden") || mLow.includes("waste") || mLow.includes("over burden");
+        const vol = Number(bi.adjustedVolume ?? bi.initialVolume ?? bi.volume ?? 0);
 
         if (isDist) {
           const baseM = isCoal ? 3000 : 1000;
           const curMtr = Number(bi.distanceWeightAvg ?? baseM);
           const diff = Math.max(0, curMtr - baseM);
-          const usdRate = bi.rateUSD || 0.028;
+          const usdRate = bi.rateUSD || (bi.isUSD ? bi.rate : 0.028);
           const idrRate = bi.rateIDR || bi.rate || 230;
-          const amt = !isCoal 
+          const isUSD = bi.isUSD || !isCoal;
+          const amt = isUSD 
             ? Math.round(vol * (diff / 100) * usdRate * kurs)
             : Math.round(vol * (diff / 100) * idrRate);
 
@@ -135,45 +176,71 @@ export function buildInvoiceItemsFromBA(
             section: "C",
             subSection: !isCoal ? "C1. Over Distance For OB Removal" : "C2. Over Distance For Coal Winning",
             description: bi.material || (isCoal ? "Overhaul Coal Getting (>3000m)" : "Overhaul OB (>1000m)"),
-            unit: isCoal ? "Ton" : "Bcm",
+            sowDescription: bi.material || (isCoal ? "Overhaul Coal Getting (>3000m)" : "Overhaul OB (>1000m)"),
+            unit: bi.unit || (isCoal ? "Ton" : "Bcm"),
             volume: vol,
             overhaulMtr: curMtr,
             baseMtr: baseM,
-            unitRateUSD: !isCoal ? usdRate : undefined,
-            unitRateIDR: isCoal ? idrRate : undefined,
-            kursBI: !isCoal ? kurs : undefined,
+            unitRateUSD: isUSD ? usdRate : undefined,
+            unitRateIDR: !isUSD ? idrRate : Math.round(usdRate * kurs),
+            kursBI: isUSD ? kurs : undefined,
             amount: amt,
             amountIDR: amt,
             notes: bi.notes || bi.keterangan || ""
           });
         } else if (isCoal) {
-          const usdRate = bi.rateUSD || 0.840;
+          const usdRate = bi.rateUSD || (bi.isUSD ? bi.rate : 0.840);
+          const rateIDR = bi.rateIDR || bi.rate || Math.round(usdRate * kurs);
+          const amt = Number(bi.subtotalAdjusted || bi.subtotalInitial || Math.round(vol * usdRate * kurs));
           invItems.push({
             id: bi.id || `ptro_inv_b_${idx}`,
             section: "B",
             description: bi.material || "COAL GETTING",
-            sowDescription: "COAL GETTING",
-            unit: "Ton",
+            sowDescription: bi.material || "COAL GETTING",
+            unit: bi.unit || "Ton",
             volume: vol,
             unitRateUSD: usdRate,
+            unitRateIDR: rateIDR,
             kursBI: kurs,
-            amount: Math.round(vol * usdRate * kurs),
-            amountIDR: Math.round(vol * usdRate * kurs),
+            amount: amt,
+            amountIDR: amt,
             notes: bi.notes || bi.keterangan || ""
           });
-        } else {
-          const usdRate = bi.rateUSD || 1.490;
+        } else if (isOB) {
+          const usdRate = bi.rateUSD || (bi.isUSD ? bi.rate : 1.490);
+          const rateIDR = bi.rateIDR || bi.rate || Math.round(usdRate * kurs);
+          const amt = Number(bi.subtotalAdjusted || bi.subtotalInitial || Math.round(vol * usdRate * kurs));
           invItems.push({
             id: bi.id || `ptro_inv_a_${idx}`,
             section: "A",
             description: bi.material || "OVER BURDEN REMOVAL",
-            sowDescription: "OVER BURDEN REMOVAL",
-            unit: "Bcm",
+            sowDescription: bi.material || "OVER BURDEN REMOVAL",
+            unit: bi.unit || "Bcm",
             volume: vol,
             unitRateUSD: usdRate,
+            unitRateIDR: rateIDR,
             kursBI: kurs,
-            amount: Math.round(vol * usdRate * kurs),
-            amountIDR: Math.round(vol * usdRate * kurs),
+            amount: amt,
+            amountIDR: amt,
+            notes: bi.notes || bi.keterangan || ""
+          });
+        } else {
+          const isUSD = bi.isUSD || bi.rateUSD > 0;
+          const usdRate = bi.rateUSD || 0;
+          const rateIDR = bi.rate || bi.unitRateIDR || Math.round(usdRate * kurs);
+          const amt = Number(bi.subtotalAdjusted || bi.subtotalInitial || Math.round(vol * rateIDR));
+          invItems.push({
+            id: bi.id || `ptro_inv_custom_${idx}`,
+            section: bi.section || "A",
+            description: bi.material || bi.description || "Pekerjaan Penunjang",
+            sowDescription: bi.material || bi.description || "Pekerjaan Penunjang",
+            unit: bi.unit || "Unit",
+            volume: vol,
+            unitRateUSD: isUSD ? usdRate : undefined,
+            unitRateIDR: rateIDR,
+            kursBI: isUSD ? kurs : undefined,
+            amount: amt,
+            amountIDR: amt,
             notes: bi.notes || bi.keterangan || ""
           });
         }
@@ -193,54 +260,48 @@ export function buildInvoiceItemsFromBA(
       itemsToProcess.forEach((bi: any, idx: number) => {
         if (bi.category === "Pengurang Biaya" || bi.category === "Pengurang Pembayaran" || bi.isDeduction) {
           const amt = Number(bi.rate || bi.subtotalAdjusted || bi.subtotalInitial || bi.amount || 0);
-          invItems.push({
-            id: bi.id || `sbs_inv_p_${idx}`,
-            section: "P",
-            description: bi.material || bi.description,
-            unit: bi.unit || "Lot",
-            amount: -Math.abs(amt),
-            amountIDR: -Math.abs(amt),
-            isDeduction: true,
-            notes: bi.notes || bi.period || ba.workPeriod || "-"
-          });
+          if (amt !== 0) {
+            invItems.push({
+              id: bi.id || `sbs_inv_p_${idx}`,
+              section: "P",
+              description: bi.material || bi.description,
+              sowDescription: bi.material || bi.description,
+              unit: bi.unit || "Lot",
+              amount: -Math.abs(amt),
+              amountIDR: -Math.abs(amt),
+              isDeduction: true,
+              notes: bi.notes || bi.period || ba.workPeriod || "-"
+            });
+          }
           return;
         }
         const unit = (bi.unit || "BCM").trim();
         const matLower = (bi.material || bi.description || "").toLowerCase();
-        const isHours = unit.toLowerCase().includes("hour") || unit.toLowerCase() === "jam" || matLower.includes("dozer") || matLower.includes("excavator") || matLower.includes("grader");
+        const isHours = unit.toLowerCase().includes("hour") || unit.toLowerCase() === "jam" || matLower.includes("dozer") || matLower.includes("excavator") || matLower.includes("grader") || bi.category === "Penunjang";
         const section = isHours ? "B" : "A";
         const vol = Number(bi.adjustedVolume ?? bi.initialVolume ?? bi.volume ?? 0);
         const dist = Number(bi.distanceM ?? bi.distance ?? bi.distanceWeightAvg ?? 0);
         let rate = Number(bi.rate || bi.unitRateIDR || 0);
-        if (section === "A" && dist > 0) {
+        if (section === "A" && dist > 0 && rate === 0) {
           const bracketTarif = getSBSTarifByDistance(dist);
           if (bracketTarif.rate > 0) rate = bracketTarif.rate;
-        } else if (section === "B" && rate === 0) {
-          if (matLower.includes("d10") || matLower.includes("dozer")) rate = 1980000;
-          else if (matLower.includes("395") || matLower.includes("excavator")) rate = 1425000;
         }
+        const amt = Number(bi.subtotalAdjusted || bi.subtotalInitial || Math.round(vol * rate));
         invItems.push({
           id: bi.id || `sbs_inv_${section.toLowerCase()}_${idx}`,
           section,
           description: bi.material || bi.description || bi.sowDescription || `Pekerjaan SBS ${idx + 1}`,
           sowDescription: bi.material || bi.description || bi.sowDescription || `Pekerjaan SBS ${idx + 1}`,
-          unit: isHours ? "Hours" : "BCM",
+          unit: isHours ? "Hours" : (unit || "BCM"),
           volume: vol,
           distanceM: dist,
           distance: dist,
           unitRateIDR: rate,
-          amount: Math.round(vol * rate),
-          amountIDR: Math.round(vol * rate),
+          amount: amt,
+          amountIDR: amt,
           notes: bi.notes || bi.period || ba.workPeriod || "-"
         });
       });
-
-      if (!invItems.some(i => i.section === "P")) {
-        const sbsDeductions = (blankSBSItems.length > 0 ? blankSBSItems : demoSBSItems).filter((it: any) => it.section === "P");
-        sbsDeductions.forEach((d: any) => {
-          invItems.push({ ...d });
-        });
-      }
 
       return invItems;
     }

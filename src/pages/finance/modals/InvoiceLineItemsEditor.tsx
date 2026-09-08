@@ -164,9 +164,6 @@ export function InvoiceLineItemsEditor({
                     >
                       <span className="text-xs font-bold text-slate-800 group-hover:text-cyan-800 flex items-center justify-between">
                         <span>{cat.label}</span>
-                        <span className="text-[10px] bg-slate-100 group-hover:bg-cyan-100 text-slate-600 group-hover:text-cyan-800 px-1.5 py-0.5 rounded font-mono font-bold">
-                          Seksi {cat.section}
-                        </span>
                       </span>
                       <span className="text-[10px] text-slate-500 font-normal">{cat.desc}</span>
                     </button>

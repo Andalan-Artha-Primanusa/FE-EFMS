@@ -155,9 +155,29 @@ export function BAMDOTable({
                   )}
                 </td>
                 <td className="p-2 text-center font-mono font-bold text-slate-800">
-                  <span className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-xs inline-block text-center min-w-[45px]">
-                    {item.unit || (isCustomerSBS ? "Hours" : "Ha")}
-                  </span>
+                  {!isInlineEditingBA ? (
+                    <span className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-xs inline-block text-center min-w-[45px]">
+                      {item.unit || (isCustomerSBS ? "Hours" : "Ha")}
+                    </span>
+                  ) : (
+                    <select
+                      className="w-16 sm:w-20 bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-indigo-600 rounded-[3px] px-1 py-1 text-xs font-bold text-slate-900 outline-none transition cursor-pointer text-center font-mono"
+                      value={item.unit || (isCustomerSBS ? "Hours" : "Ha")}
+                      onChange={(e) => {
+                        const updated = [...baMDOItems];
+                        updated[idx].unit = e.target.value;
+                        setBaMDOItems(updated);
+                      }}
+                    >
+                      {["Hours", "Ha", "BCM", "Ton", "Lot", "Unit", "Trip", "m2"]
+                        .concat(item.unit && !["Hours", "Ha", "BCM", "Ton", "Lot", "Unit", "Trip", "m2"].includes(item.unit) ? [item.unit] : [])
+                        .map((u) => (
+                          <option key={u} value={u}>
+                            {u}
+                          </option>
+                        ))}
+                    </select>
+                  )}
                 </td>
                 <td className="p-2 text-right font-mono">
                   {!isInlineEditingBA ? (
