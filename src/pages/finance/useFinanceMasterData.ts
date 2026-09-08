@@ -56,9 +56,14 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
               unit: d.unit,
               customer: d.customer || d.customerCode || "",
               customerCode: d.customerCode || d.customer || "",
-              baseRateUSD: d.rateUSD || 0,
-              rateUSD: d.rateUSD || 0,
-              rateIDR: d.rateIDR || (d.rateUSD ? Math.round(d.rateUSD * 17923.30) : 0)
+              baseRateUSD: d.rateUSD || d.baseRateUSD || 0,
+              rateUSD: d.rateUSD || d.baseRateUSD || 0,
+              rateIDR: d.rateIDR || d.baseRateIDR || (d.rateUSD ? Math.round(d.rateUSD * 17923.30) : 0),
+              tier1Rate: d.tier1Rate || 0,
+              tier2Rate: d.tier2Rate || 0,
+              tier3Rate: d.tier3Rate || 0,
+              splitPercentage: d.splitPercentage || 0,
+              baseDistanceMeters: d.baseDistanceMeters || 0,
             }))
           );
         }
@@ -117,38 +122,142 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
     return (latest.activeTier as any) || (latest.avgR3 > 75 ? "Tier 3" : latest.avgR3 >= 50 ? "Tier 2" : "Tier 1");
   };
 
-  const getSowMasterRate = (customer: string, itemName: string, fallbackRate: number, isUSD: boolean = false, tier?: string) => {
-    const custUpper = customer.toUpperCase();
-    const itemNorm = itemName.toLowerCase().replace(/[^a-z0-9]/g, "");
-    const match = dynamicSowOptions.find(s => {
-      const sCust = (s.customer || s.customerCode || "").toUpperCase();
-      const sName = (s.itemName || s.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-      return (sCust === custUpper || (!sCust && custUpper === "POS")) && (sName.includes(itemNorm) || itemNorm.includes(sName));
-    });
-    if (match) {
-      if (tier === "Tier 1" && match.tier1Rate) return match.tier1Rate;
-      if (tier === "Tier 2" && match.tier2Rate) return match.tier2Rate;
-      if (tier === "Tier 3" && match.tier3Rate) return match.tier3Rate;
-      if (isUSD && match.rateUSD) return match.rateUSD;
-      if (!isUSD && match.rateIDR) return match.rateIDR;
-      if (!isUSD && match.rateUSD) return Math.round(match.rateUSD * (latestKursBI || mRate || 17923.30));
-    }
-    return fallbackRate;
-  };
-
   const defaultMasterVariableOptions = templateRows("variable_sow_defaults");
   const masterVariableOptions = dynamicSowOptions.length > 0 ? dynamicSowOptions : defaultMasterVariableOptions;
 
+  const getSowMasterRate = useCallback((customer: string, itemName: string, fallbackRate: number, isUSD: boolean = false, tier?: string): number => {
+    const custUpper = (customer || customerCode || "POS").toUpperCase();
+    const itemNorm = (itemName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!itemNorm) return fallbackRate;
+
+    const currentKurs = latestKursBI || mRate || 17923.30;
+    const catalog = dynamicSowOptions.length > 0 ? dynamicSowOptions : defaultMasterVariableOptions;
+
+    // Filter catalog for customer
+    const filtered = catalog.filter((s: any) => {
+      const sCust = (s.customer || s.customerCode || "").toUpperCase();
+      return !sCust || sCust === custUpper || ((custUpper === "POS" || custUpper === "IBP" || custUpper === "BBA") && (!sCust || sCust === "POS"));
+    });
+
+    // Match priority 1: Exact normalized match
+    let match = filtered.find((s: any) => {
+      const sName = (s.itemName || s.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      return sName === itemNorm;
+    });
+
+    // Match priority 2: Substring inclusion
+    if (!match) {
+      match = filtered.find((s: any) => {
+        const sName = (s.itemName || s.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        return sName.length > 3 && itemNorm.length > 3 && (sName.includes(itemNorm) || itemNorm.includes(sName));
+      });
+    }
+
+    // Match priority 3: Domain keyword matching
+    if (!match) {
+      if (custUpper === "BGG") {
+        if (itemNorm.includes("75") || (itemNorm.includes("ob") && itemNorm.includes("1"))) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").includes("75%"));
+        } else if (itemNorm.includes("25") || (itemNorm.includes("ob") && itemNorm.includes("2"))) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").includes("25%"));
+        } else if (itemNorm.includes("coal") && !itemNorm.includes("distance") && !itemNorm.includes("overhaul")) {
+          match = filtered.find((s: any) => {
+            const n = (s.itemName || s.name || "").toLowerCase();
+            return n.includes("coal") && !n.includes("distance") && !n.includes("overhaul");
+          });
+        } else if ((itemNorm.includes("distance") || itemNorm.includes("overhaul")) && itemNorm.includes("ob")) {
+          match = filtered.find((s: any) => {
+            const n = (s.itemName || s.name || "").toLowerCase();
+            return (n.includes("distance") || n.includes("overhaul")) && n.includes("ob");
+          });
+        } else if ((itemNorm.includes("distance") || itemNorm.includes("overhaul")) && itemNorm.includes("coal")) {
+          match = filtered.find((s: any) => {
+            const n = (s.itemName || s.name || "").toLowerCase();
+            return (n.includes("distance") || n.includes("overhaul")) && n.includes("coal");
+          });
+        }
+      } else if (custUpper === "PTRO" || custUpper === "DBK") {
+        if ((itemNorm.includes("overhaul") || itemNorm.includes("distance")) && (itemNorm.includes("ob") || itemNorm.includes("burden"))) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("overhaul ob"));
+        } else if ((itemNorm.includes("overhaul") || itemNorm.includes("distance")) && itemNorm.includes("coal")) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("overhaul coal"));
+        } else if (itemNorm.includes("overburden") || itemNorm.includes("burden") || itemNorm.includes("ob")) {
+          match = filtered.find((s: any) => {
+            const n = (s.itemName || s.name || "").toLowerCase();
+            return (n.includes("over burden") || n.includes("overburden")) && !n.includes("overhaul");
+          });
+        } else if (itemNorm.includes("coal")) {
+          match = filtered.find((s: any) => {
+            const n = (s.itemName || s.name || "").toLowerCase();
+            return (n.includes("coal getting") || n.includes("coal winning")) && !n.includes("overhaul");
+          });
+        }
+      } else if (custUpper === "SBS") {
+        if (itemNorm.includes("d10") || itemNorm.includes("bdct")) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("d10"));
+        } else if (itemNorm.includes("395") || itemNorm.includes("exct")) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("395"));
+        }
+      } else if (custUpper === "POS") {
+        if (itemNorm.includes("topsoil") || itemNorm.includes("top soil")) {
+          const isOverhaul = itemNorm.includes("overhaul") || itemNorm.includes("underhaul") || itemNorm.includes("distance");
+          match = filtered.find((s: any) => {
+            const n = (s.itemName || s.name || "").toLowerCase();
+            return n.includes("top") && (isOverhaul ? (n.includes("over") || n.includes("under")) : (!n.includes("over") && !n.includes("under")));
+          });
+        } else if (itemNorm.includes("limonite")) {
+          const isOverhaul = itemNorm.includes("overhaul") || itemNorm.includes("underhaul") || itemNorm.includes("distance");
+          match = filtered.find((s: any) => {
+            const n = (s.itemName || s.name || "").toLowerCase();
+            return n.includes("limonite") && (isOverhaul ? (n.includes("over") || n.includes("under")) : (!n.includes("over") && !n.includes("under")));
+          });
+        } else if (itemNorm.includes("saprolite")) {
+          const isOverhaul = itemNorm.includes("overhaul") || itemNorm.includes("underhaul") || itemNorm.includes("distance");
+          match = filtered.find((s: any) => {
+            const n = (s.itemName || s.name || "").toLowerCase();
+            return n.includes("saprolite") && (isOverhaul ? (n.includes("over") || n.includes("under")) : (!n.includes("over") && !n.includes("under")));
+          });
+        } else if (itemNorm.includes("overburden") || itemNorm.includes("burden") || itemNorm.includes("waste") || itemNorm.includes("ob")) {
+          const isOverhaul = itemNorm.includes("overhaul") || itemNorm.includes("underhaul") || itemNorm.includes("distance");
+          match = filtered.find((s: any) => {
+            const n = (s.itemName || s.name || "").toLowerCase();
+            return (n.includes("waste") || n.includes("overburden") || n.includes("ob")) && (isOverhaul ? (n.includes("over") || n.includes("under")) : (!n.includes("over") && !n.includes("under")));
+          });
+        }
+      }
+    }
+
+    if (match) {
+      const activeTier = tier || (custUpper === "BGG" ? getBGGActiveCoalTier() : undefined);
+      if (activeTier === "Tier 1" && match.tier1Rate) return match.tier1Rate;
+      if (activeTier === "Tier 2" && match.tier2Rate) return match.tier2Rate;
+      if (activeTier === "Tier 3" && match.tier3Rate) return match.tier3Rate;
+      if (isUSD) {
+        if (match.rateUSD) return match.rateUSD;
+        if (match.baseRateUSD) return match.baseRateUSD;
+        if (match.rateIDR) return Number((match.rateIDR / currentKurs).toFixed(4));
+      } else {
+        if (match.rateIDR) return match.rateIDR;
+        if (match.baseRateIDR) return match.baseRateIDR;
+        if (match.tier3Rate) return match.tier3Rate;
+        if (match.rateUSD) return Math.round(match.rateUSD * currentKurs);
+        if (match.baseRateUSD) return Math.round(match.baseRateUSD * currentKurs);
+      }
+    }
+    return fallbackRate;
+  }, [dynamicSowOptions, defaultMasterVariableOptions, customerCode, latestKursBI, mRate, coalIndexMaster]);
+
   const activeSOWCatalog = useMemo(() => {
     const currentKurs = latestKursBI || mRate || 17923.30;
-    if (dynamicSowOptions && dynamicSowOptions.length > 0) {
+    const catalog = dynamicSowOptions && dynamicSowOptions.length > 0 ? dynamicSowOptions : defaultMasterVariableOptions;
+    if (catalog && catalog.length > 0) {
       const custUpper = (customerCode || "").toUpperCase();
-      const filtered = dynamicSowOptions.filter((s) => {
+      const filtered = catalog.filter((s: any) => {
         const sCust = (s.customer || s.customerCode || "").toUpperCase();
         return !sCust || sCust === custUpper || ((custUpper === "POS" || custUpper === "IBP" || custUpper === "BBA") && (!sCust || sCust === "POS"));
       });
       if (filtered.length > 0) {
-        return filtered.map((s) => {
+        return filtered.map((s: any) => {
           let category = s.category || "Operating & Mining";
           const catNorm = category.toLowerCase();
           if (catNorm.includes("mdo") || catNorm.includes("development") || catNorm.includes("mine development")) {
@@ -160,6 +269,14 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
           const isCoalOverhaul = isOverhaul && ((s.itemName || s.name || "").toLowerCase().includes("coal") || (s.itemName || s.name || "").toLowerCase().includes("batubara"));
           let rateIDR = s.rateIDR ? s.rateIDR : (s.rateUSD ? Math.round(s.rateUSD * currentKurs) : (s.baseRateUSD ? Math.round(s.baseRateUSD * currentKurs) : 0));
           if (isOverhaul && s.rateUSD) rateIDR = Math.round(s.rateUSD * currentKurs);
+
+          if (custUpper === "BGG") {
+            const activeTier = getBGGActiveCoalTier();
+            if (activeTier === "Tier 1" && s.tier1Rate) rateIDR = s.tier1Rate;
+            else if (activeTier === "Tier 2" && s.tier2Rate) rateIDR = s.tier2Rate;
+            else if (activeTier === "Tier 3" && s.tier3Rate) rateIDR = s.tier3Rate;
+            else if (s.tier3Rate) rateIDR = s.tier3Rate;
+          }
 
           let cleanUnit = (s.unit || "BCM").replace(/^USD\//i, "").replace(/^IDR\//i, "").trim();
           if (cleanUnit.toUpperCase() === "1KM") cleanUnit = "USD/1KM";
@@ -178,7 +295,7 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
       }
     }
     return templateRows("sow_catalog");
-  }, [dynamicSowOptions, customerCode, latestKursBI, mRate, templateRows]);
+  }, [dynamicSowOptions, defaultMasterVariableOptions, customerCode, latestKursBI, mRate, templateRows]);
 
   const customerContractMap: Record<string, any> = useMemo(() => {
     const map: Record<string, any> = {};
@@ -201,28 +318,29 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
     return map;
   }, [financeTemplates, customerRows]);
 
-  const applyRateLookup = (items: any[]): any[] =>
+  const applyRateLookup = useCallback((items: any[], defaultCust?: string): any[] =>
     items.map((it: any) => {
       if (!it || !it.lookup) return it;
+      const cust = it.customer || defaultCust || customerCode || "";
       const fb = Number(it.baseRateUSD ?? it.unitRateIDR ?? 0);
-      const rate = getSowMasterRate(it.customer || "", it.lookup, fb, Boolean(it.lookupUSD));
+      const rate = getSowMasterRate(cust, it.lookup, fb, Boolean(it.lookupUSD));
       if (it.lookupUSD) {
         return it.unitRateUSD !== undefined ? { ...it, unitRateUSD: rate } : { ...it, baseRateUSD: rate };
       }
       return { ...it, unitRateIDR: rate };
-    });
+    }), [customerCode, getSowMasterRate]);
 
   const blankPOSItems = useMemo(() => {
     const rows = templateRows("invoice_blank_POS");
-    return rows && rows.length > 0 ? applyRateLookup(rows) : FALLBACK_BLANK_POS_ITEMS;
-  }, [financeTemplates, dynamicSowOptions, mRate, templateRows]);
+    return rows && rows.length > 0 ? applyRateLookup(rows, "POS") : FALLBACK_BLANK_POS_ITEMS;
+  }, [financeTemplates, dynamicSowOptions, mRate, templateRows, applyRateLookup]);
 
   const demoPOSItems = useMemo(() => templateRows("invoice_demo_POS"), [financeTemplates]);
 
   const blankBGGItems = useMemo(() => {
     const rows = templateRows("invoice_blank_BGG");
-    return rows && rows.length > 0 ? applyRateLookup(rows) : FALLBACK_BLANK_BGG_ITEMS;
-  }, [financeTemplates, dynamicSowOptions, mRate, templateRows]);
+    return rows && rows.length > 0 ? applyRateLookup(rows, "BGG") : FALLBACK_BLANK_BGG_ITEMS;
+  }, [financeTemplates, dynamicSowOptions, mRate, templateRows, applyRateLookup]);
 
   const demoBGGItems = useMemo(() => templateRows("invoice_demo_BGG"), [financeTemplates]);
 
@@ -230,36 +348,80 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
     const rows = templateRows("invoice_blank_PTRO");
     const baseRows = rows && rows.length > 0 ? rows : FALLBACK_BLANK_PTRO_ITEMS;
     const currentKurs = latestKursBI || mRate || 17923.30;
-    return baseRows.map(r => ({
-      ...r,
-      kursBI: r.kursBI || currentKurs,
-      unitRateUSD: r.unitRateUSD || (r.description?.includes("OVER BURDEN") ? 1.490 : r.description?.includes("COAL") ? 0.840 : r.unitRateUSD)
-    }));
-  }, [financeTemplates, dynamicSowOptions, mRate, latestKursBI, templateRows]);
+    const obRateUSD = getSowMasterRate("PTRO", "OVER BURDEN REMOVAL", 1.490, true);
+    const cgRateUSD = getSowMasterRate("PTRO", "COAL GETTING", 0.840, true);
+    const odObRateUSD = getSowMasterRate("PTRO", "Overhaul OB", 0.028, true);
+    const odCgRateIDR = getSowMasterRate("PTRO", "Overhaul Coal Getting", 230, false);
+    return baseRows.map(r => {
+      const d = (r.description || "").toUpperCase();
+      let rateUSD = r.unitRateUSD;
+      let rateIDR = r.unitRateIDR;
+      if (d.includes("OVER BURDEN") && !d.includes("OVER DISTANCE") && !d.includes("OVERHAUL")) rateUSD = obRateUSD;
+      else if (d.includes("COAL") && !d.includes("OVER DISTANCE") && !d.includes("OVERHAUL")) rateUSD = cgRateUSD;
+      else if ((d.includes("OVER DISTANCE") || d.includes("OVERHAUL")) && d.includes("OB")) rateUSD = odObRateUSD;
+      else if ((d.includes("OVER DISTANCE") || d.includes("OVERHAUL")) && d.includes("COAL")) rateIDR = odCgRateIDR;
+      return {
+        ...r,
+        kursBI: r.kursBI || currentKurs,
+        unitRateUSD: rateUSD,
+        unitRateIDR: rateIDR
+      };
+    });
+  }, [financeTemplates, dynamicSowOptions, mRate, latestKursBI, templateRows, getSowMasterRate]);
   const blankDBKItems = blankPTROItems;
   const demoPTROItems = useMemo(() => templateRows("invoice_demo_PTRO"), [financeTemplates]);
   const demoDBKItems = demoPTROItems;
 
   const blankSBSItems = useMemo(() => {
     const rows = templateRows("invoice_blank_SBS");
-    return rows && rows.length > 0 ? applyRateLookup(rows) : FALLBACK_BLANK_SBS_ITEMS;
-  }, [financeTemplates, dynamicSowOptions, mRate, templateRows]);
+    return rows && rows.length > 0 ? applyRateLookup(rows, "SBS") : FALLBACK_BLANK_SBS_ITEMS;
+  }, [financeTemplates, dynamicSowOptions, mRate, templateRows, applyRateLookup]);
   const demoSBSItems = useMemo(() => templateRows("invoice_demo_SBS"), [financeTemplates]);
+
+  const zeroBAVolumes = (items: any[], zeroDistanceAndRate: boolean = false): any[] =>
+    (items || []).map((it) => ({
+      ...it,
+      initialVolume: 0,
+      adjustedVolume: 0,
+      subtotalInitial: 0,
+      subtotalAdjusted: 0,
+      ...(zeroDistanceAndRate ? { distance: 0, distanceWeightAvg: 0, rate: 0 } : {}),
+    }));
+
+  const syncBARatesWithMasterData = useCallback((items: any[], cust: string): any[] => {
+    return (items || []).map((it) => {
+      const mat = it.material || it.name || it.description || "";
+      if (!mat || it.isCustom) return it;
+      const isUSD = Boolean(it.isUSD);
+      const masterRate = getSowMasterRate(cust, mat, it.rate || 0, isUSD);
+      if (masterRate > 0) {
+        return {
+          ...it,
+          rate: masterRate,
+          ...(isUSD ? { rateUSD: getSowMasterRate(cust, mat, it.rateUSD || 0, true) } : {})
+        };
+      }
+      return it;
+    });
+  }, [getSowMasterRate]);
 
   const defaultPOSBAOperatingItems = useMemo(() => {
     const rows = templateRows("ba_operating_POS");
-    return rows.length > 0 ? rows : FALLBACK_POS_OPERATING_ITEMS;
-  }, [financeTemplates, templateRows]);
+    const base = zeroBAVolumes(rows.length > 0 ? rows : FALLBACK_POS_OPERATING_ITEMS);
+    return syncBARatesWithMasterData(base, "POS");
+  }, [financeTemplates, templateRows, syncBARatesWithMasterData]);
 
   const defaultPOSBAMDOItems = useMemo(() => {
     const rows = templateRows("ba_mdo_POS");
-    return rows.length > 0 ? rows : FALLBACK_POS_MDO_ITEMS;
-  }, [financeTemplates, templateRows]);
+    const base = zeroBAVolumes(rows.length > 0 ? rows : FALLBACK_POS_MDO_ITEMS);
+    return syncBARatesWithMasterData(base, "POS");
+  }, [financeTemplates, templateRows, syncBARatesWithMasterData]);
 
   const defaultBGGBAItems = useMemo(() => {
     const rows = templateRows("ba_items_BGG");
-    return rows.length > 0 ? rows : FALLBACK_BGG_BA_ITEMS;
-  }, [financeTemplates, templateRows]);
+    const base = zeroBAVolumes(rows.length > 0 ? rows : FALLBACK_BGG_BA_ITEMS);
+    return syncBARatesWithMasterData(base, "BGG");
+  }, [financeTemplates, templateRows, syncBARatesWithMasterData]);
 
   const defaultPTROBAItems = useMemo(() => {
     const currentKurs = latestKursBI || mRate || 17923.30;
@@ -276,7 +438,7 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
         else if (mat.includes("COAL GETTING") || mat.includes("COAL WINNING")) rate = Math.round((r.rateUSD || cgRateUSD) * currentKurs);
         else if (mat.includes("OVERHAUL OB") || mat.includes("OVER DISTANCE FOR OB")) rate = Math.round((r.rateUSD || odObRateUSD) * currentKurs);
         else if (mat.includes("OVERHAUL COAL") || mat.includes("OVER DISTANCE FOR COAL")) rate = r.rate || odCgRateIDR;
-        return { ...r, rate, subtotalInitial: (r.initialVolume || 0) * rate, subtotalAdjusted: (r.adjustedVolume || 0) * rate };
+        return { ...r, rate, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0 };
       });
     }
     return [
@@ -285,23 +447,66 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
       { id: "ptro_ba_odob", category: "Over Distance", area: "Pit Sapan", material: "Overhaul OB", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: odObRateUSD, distanceBasis: 1000, isDistanceVar: true, distanceWeightAvg: 1000, rate: Math.round(odObRateUSD * currentKurs), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
       { id: "ptro_ba_odcg", category: "Over Distance", area: "Pit Sapan", material: "Overhaul Coal Getting", unit: "TON", initialVolume: 0, adjustedVolume: 0, isUSD: false, rateIDR: odCgRateIDR, distanceBasis: 3000, isDistanceVar: true, distanceWeightAvg: 3000, rate: odCgRateIDR, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
     ];
-  }, [financeTemplates, templateRows, dynamicSowOptions, latestKursBI, mRate]);
+  }, [financeTemplates, templateRows, dynamicSowOptions, latestKursBI, mRate, getSowMasterRate]);
   const defaultDBKBAItems = defaultPTROBAItems;
 
   const defaultSBSBAOperatingItems = useMemo(() => {
     const rows = templateRows("ba_operating_SBS");
-    return rows.length > 0 ? rows : FALLBACK_SBS_BA_ITEMS;
-  }, [financeTemplates, templateRows]);
+    const base = zeroBAVolumes(rows.length > 0 ? rows : FALLBACK_SBS_BA_ITEMS, true);
+    return syncBARatesWithMasterData(base, "SBS");
+  }, [financeTemplates, templateRows, syncBARatesWithMasterData]);
 
   const defaultSBSBAMDOItems = useMemo(() => {
     const rows = templateRows("ba_mdo_SBS");
-    return rows.length > 0 ? rows : FALLBACK_SBS_RENTAL_ITEMS;
-  }, [financeTemplates, templateRows]);
+    const base = zeroBAVolumes(rows.length > 0 ? rows : FALLBACK_SBS_RENTAL_ITEMS);
+    return syncBARatesWithMasterData(base, "SBS");
+  }, [financeTemplates, templateRows, syncBARatesWithMasterData]);
 
   const defaultSBSBADeductionItems = useMemo(() => {
     const rows = templateRows("ba_deductions_SBS");
-    return rows.length > 0 ? rows : FALLBACK_SBS_DEDUCTION_ITEMS;
+    const base = rows.length > 0 ? rows : FALLBACK_SBS_DEDUCTION_ITEMS;
+    return base.map((r: any) => ({ ...r, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 }));
   }, [financeTemplates, templateRows]);
+
+  const reloadMasterData = useCallback(async () => {
+    try {
+      const [sowData, fxData] = await Promise.all([
+        api<any[]>("/api/master-data/variable-sow").catch(() => []),
+        api<any[]>("/api/master-data/daily-exchange-rates").catch(() => []),
+      ]);
+      if (Array.isArray(sowData) && sowData.length > 0) {
+        setDynamicSowOptions(
+          sowData.map((d) => ({
+            id: d.id,
+            code: d.itemName ? d.itemName.toUpperCase().replace(/[^A-Z0-9]/g, "_") : `SOW_${d.id}`,
+            name: d.itemName,
+            itemName: d.itemName,
+            category: d.category,
+            unit: d.unit,
+            customer: d.customer || d.customerCode || "",
+            customerCode: d.customerCode || d.customer || "",
+            baseRateUSD: d.rateUSD || d.baseRateUSD || 0,
+            rateUSD: d.rateUSD || d.baseRateUSD || 0,
+            rateIDR: d.rateIDR || d.baseRateIDR || (d.rateUSD ? Math.round(d.rateUSD * (latestKursBI || 17923.30)) : 0),
+            tier1Rate: d.tier1Rate || 0,
+            tier2Rate: d.tier2Rate || 0,
+            tier3Rate: d.tier3Rate || 0,
+            splitPercentage: d.splitPercentage || 0,
+            baseDistanceMeters: d.baseDistanceMeters || 0,
+          }))
+        );
+      }
+      if (Array.isArray(fxData) && fxData.length > 0) {
+        const sorted = [...fxData].sort((a, b) =>
+          new Date(b.date || b.tanggal || 0).getTime() - new Date(a.date || a.tanggal || 0).getTime()
+        );
+        const tengah = sorted[0].tengah || sorted[0].midRate || sorted[0].kurs_tengah || sorted[0].kursTengah || 0;
+        if (tengah > 0) setLatestKursBI(tengah);
+      }
+    } catch {
+      // silent
+    }
+  }, [latestKursBI]);
 
   return {
     mRate, setMRate, fuelPriceUSD, setFuelPriceUSD, laborPriceIDR, setLaborPriceIDR,
@@ -316,6 +521,6 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
     demoPTROItems, demoDBKItems, blankSBSItems, demoSBSItems,
     defaultPOSBAOperatingItems, defaultPOSBAMDOItems, defaultBGGBAItems,
     defaultPTROBAItems, defaultDBKBAItems, defaultSBSBAOperatingItems,
-    defaultSBSBAMDOItems, defaultSBSBADeductionItems
+    defaultSBSBAMDOItems, defaultSBSBADeductionItems, reloadMasterData
   };
 }

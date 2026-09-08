@@ -57,20 +57,20 @@ export function useFinanceController({
     customerContractMap, applyRateLookup, blankPOSItems, demoPOSItems, blankBGGItems, demoBGGItems,
     blankPTROItems, blankDBKItems, demoPTROItems, demoDBKItems, blankSBSItems, demoSBSItems,
     defaultPOSBAOperatingItems, defaultPOSBAMDOItems, defaultBGGBAItems, defaultPTROBAItems, defaultDBKBAItems,
-    defaultSBSBAOperatingItems, defaultSBSBAMDOItems, defaultSBSBADeductionItems
+    defaultSBSBAOperatingItems, defaultSBSBAMDOItems, defaultSBSBADeductionItems, reloadMasterData
   } = masterData;
 
   // BA State Hook
   const baState = useFinanceBAState({
     setEditItem, setFormData, setDetailViewItem, setModalType, loadData, onNotice,
     defaultBGGBAItems, defaultDBKBAItems, defaultPTROBAItems, defaultSBSBAOperatingItems, defaultPOSBAOperatingItems,
-    detailViewItem, getCurrentMonthPeriod
+    detailViewItem, getCurrentMonthPeriod, getSowMasterRate
   });
   const {
     baOperatingItems, setBaOperatingItems, baMDOItems, setBaMDOItems, baDeductionItems, setBaDeductionItems,
     activeBAStep, setActiveBAStep, isInlineEditingBA, setIsInlineEditingBA, showAddRowDropdown, setShowAddRowDropdown,
     openBAModal, handleVerifyBA, handleApproveBA, handleAccrueBA, handleSaveBGGBA,
-    createBlankBGGBAItems, createBlankSBSBAItems
+    reorderBAItems, moveBAItem, createBlankBGGBAItems, createBlankSBSBAItems
   } = baState;
 
   // Invoice State Hook
@@ -87,7 +87,7 @@ export function useFinanceController({
     loadDemoPOSData, loadDemoBGGData, loadDemoPTROData, loadDemoDBKData, loadDemoSBSData,
     removeInvLineItem, updateInvItemVolume, updateInvItemOverhaul, updateInvItemRateIDR,
     updateInvItemRateUSD, updateInvItemKurs, updateInvItemAmount, addInvLineItem,
-    updateInvItemField, reorderInvLineItems, handleGenerateInvoiceFromBA,
+    updateInvItemField, reorderInvLineItems, moveInvRow, handleGenerateInvoiceFromBA,
     handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2
   } = invoiceState;
 
@@ -205,20 +205,20 @@ export function useFinanceController({
     defaultPOSBAMDOItems, defaultBGGBAItems, defaultPTROBAItems, defaultDBKBAItems, defaultSBSBAOperatingItems,
     defaultSBSBAMDOItems, defaultSBSBADeductionItems, latestKursBI, coalIndexMaster, getBGGActiveCoalTier,
     baOperatingItems, setBaOperatingItems, baMDOItems, setBaMDOItems, baDeductionItems, setBaDeductionItems,
-    activeBAStep, setActiveBAStep, showAddRowDropdown, setShowAddRowDropdown, posInvoiceCategory,
+    reorderBAItems, moveBAItem, activeBAStep, setActiveBAStep, showAddRowDropdown, setShowAddRowDropdown, posInvoiceCategory,
     setPosInvoiceCategory, invLineItems, setInvLineItems, selectedVarA, setSelectedVarA, selectedVarB,
     setSelectedVarB, selectedVarC, setSelectedVarC, selectedVarD, setSelectedVarD, selectedVarE,
     setSelectedVarE, selectedVarF, setSelectedVarF, selectedVarP, setSelectedVarP, addVariableToSection,
     customerContractMap, handleCompanySelect, loadDemoPOSData, loadDemoBGGData, loadDemoPTROData,
     loadDemoDBKData, loadDemoSBSData, removeInvLineItem, addInvLineItem, updateInvItemField,
-    reorderInvLineItems, updateInvItemVolume, updateInvItemOverhaul, updateInvItemRateIDR,
+    reorderInvLineItems, moveInvRow, updateInvItemVolume, updateInvItemOverhaul, updateInvItemRateIDR,
     updateInvItemRateUSD, updateInvItemKurs, updateInvItemAmount, getItemEffectiveVolume,
     getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations,
     getSBSTarifByDistance, SBS_DISTANCE_TIERS, calcs, subtotalA, subtotalB, subtotalC, subtotalD,
     subtotalE, subtotalF, subtotalP, totalGrossCalc, dpp11_12Calc, vat12Calc, pph23Calc,
     netTotalInvoiceCalc, totalDibayarCalc, exportPaymentDetailPDF, exportBADocumentPDF,
     exportARBAIMonitoringExcel, exportARBAIMonitoringPDF, exportBAOnlyExcel, exportBAOnlyPDF,
-    exportAROnlyExcel, exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV, loadData,
+    exportAROnlyExcel, exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV, loadData, reloadMasterData,
     handleSavePartialPayment, handleVerifyPartialPayment, buildInvoiceItemsFromBA: buildInvItems,
     handleBASelect, createInvoiceFromBA, openBAModal, openCreateModal, openEditModal, handleFileUpload,
     handleSave, handleVerifyBA, handleApproveBA, handleAccrueBA, handleSaveBGGBA,

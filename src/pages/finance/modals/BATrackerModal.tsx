@@ -41,6 +41,8 @@ export function BATrackerModal({ c }: { c: any }) {
     createInvoiceFromBA,
     handleFileUpload,
     handleSave,
+    reorderBAItems,
+    moveBAItem,
     defaultPOSBAOperatingItems,
     defaultPOSBAMDOItems,
     defaultDBKBAItems,
@@ -55,6 +57,7 @@ export function BATrackerModal({ c }: { c: any }) {
     laborPriceIDR = 29500,
     raiseFallMaster,
     getBGGActiveCoalTier,
+    getSowMasterRate,
   } = c || {};
 
   const [auditTab, setAuditTab] = useState<"flow" | "activity">("flow");
@@ -81,9 +84,10 @@ export function BATrackerModal({ c }: { c: any }) {
   const sumAdjusted = allBAItems.reduce((acc, it) => acc + calcSubtotal(it, getBAEffectiveVolume(it, allBAItems, true)), 0);
   const deltaAmount = sumAdjusted - sumInitial;
 
-  const breakdownInitial = calculateBACommercialBreakdown(formData.customerCode, allBAItems, rfIndexCalculated, isCustomerDBK);
-  const totalClaimInitial = breakdownInitial.totalDPP > 0 ? breakdownInitial.totalDPP : sumInitial;
-  const totalClaimAdjusted = sumAdjusted > 0 && breakdownInitial.totalDPP > 0 ? Math.round(sumAdjusted * (breakdownInitial.totalDPP / (sumInitial || 1))) : sumAdjusted;
+  const breakdownInitial = calculateBACommercialBreakdown(formData.customerCode, allBAItems, rfIndexCalculated, isCustomerDBK, false);
+  const breakdownAdjusted = calculateBACommercialBreakdown(formData.customerCode, allBAItems, rfIndexCalculated, isCustomerDBK, true);
+  const totalClaimInitial = breakdownInitial.totalGross > 0 ? breakdownInitial.totalGross : sumInitial;
+  const totalClaimAdjusted = breakdownAdjusted.totalGross > 0 ? breakdownAdjusted.totalGross : sumAdjusted;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,6 +178,9 @@ export function BATrackerModal({ c }: { c: any }) {
                   setActiveBAStep={setActiveBAStep}
                   rfIndexCalculated={rfIndexCalculated}
                   latestKursBI={latestKursBI}
+                  reorderBAItems={reorderBAItems}
+                  moveBAItem={moveBAItem}
+                  getSowMasterRate={getSowMasterRate}
                 />
               )}
 

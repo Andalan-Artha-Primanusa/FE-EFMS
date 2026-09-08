@@ -118,29 +118,52 @@ export interface BACommercialBreakdown {
   dpFuelDeduction: number;
   totalDeductions: number;
   totalDPP: number;
+  totalGross: number;
+  dpp11_12: number;
+  vat12: number;
   ppnAmount: number;
   pph23Amount: number;
   netAR: number;
+  netTotalInvoice: number;
+  totalDibayar?: number;
+  subtotalP?: number;
 }
 
 export function calculateBACommercialBreakdown(
   customerCode: string,
   allItems: any[],
   rfIndexCalculated: number = 1.0,
-  isCustomerDBK: boolean = false
+  isCustomerDBK: boolean = false,
+  isSurvey?: boolean
 ): BACommercialBreakdown {
   const isBGG = customerCode === "BGG" || customerCode === "PT BGG";
+  const isSBS = customerCode === "SBS";
+  const hasAdjustedVolume = (allItems || []).some((it) => Number(it.adjustedVolume || 0) > 0);
+  const effectiveIsSurvey = isSurvey !== undefined ? isSurvey : hasAdjustedVolume;
+
   let obAmount = 0;
   let coalAmount = 0;
   let overdistanceGross = 0;
   let mdoGross = 0;
   let dpFuelDeduction = 0;
+  let sbsPenalties = 0;
 
-  for (const it of allItems) {
-    const vol = getBAEffectiveVolume(it, allItems, false);
+  for (const it of allItems || []) {
+    const vol = getBAEffectiveVolume(it, allItems, effectiveIsSurvey);
     const subtotal = getBAItemSubtotal(it, vol, isCustomerDBK);
     const mLow = (it.material || it.sowDescription || "").toLowerCase();
     const cat = it.category || "";
+
+    if (isSBS) {
+      if (cat === "Pengurang Biaya" || cat === "Pengurang Pembayaran" || it.isDeduction) {
+        sbsPenalties += Math.abs(subtotal);
+      } else if (cat === "Penunjang" || cat === "Equipment Rental" || (it.unit || "").toLowerCase().includes("hour") || (it.unit || "").toLowerCase() === "jam") {
+        mdoGross += Math.max(0, subtotal);
+      } else {
+        obAmount += Math.max(0, subtotal);
+      }
+      continue;
+    }
 
     if (cat === "DP Fuel" || it.isDeduction || mLow.includes("dp fuel")) {
       dpFuelDeduction += Math.abs(subtotal);
@@ -171,11 +194,20 @@ export function calculateBACommercialBreakdown(
     odDeduction = Math.round((overdistanceGross + rfODAmount) * 0.25);
   }
 
-  const totalDeductions = odDeduction + dpFuelDeduction;
-  const totalDPP = Math.max(0, basePokok + overdistanceGross + mdoGross + rfAmount - totalDeductions);
-  const ppnAmount = Math.round(totalDPP * 0.11);
-  const pph23Amount = Math.round(totalDPP * 0.02);
-  const netAR = totalDPP + ppnAmount - pph23Amount;
+  // Khusus SBS: Gross = Seksi A + Seksi B (tanpa potongan Section P sebelum pajak).
+  // Pajak dihitung dari Gross, dan Section P dipotong di akhir dari Total Invoice -> Total Dibayar.
+  const totalDeductions = isSBS ? sbsPenalties : (odDeduction + dpFuelDeduction);
+  const totalGross = isSBS
+    ? (basePokok + mdoGross)
+    : Math.max(0, basePokok + overdistanceGross + mdoGross + rfAmount - totalDeductions);
+  const totalDPP = totalGross;
+  const dpp11_12 = Math.round((totalGross * 11) / 12);
+  const vat12 = Math.round(dpp11_12 * 0.12);
+  const ppnAmount = vat12;
+  const pph23Amount = Math.round(totalGross * 0.02);
+  const netTotalInvoice = totalGross + vat12 - pph23Amount;
+  const totalDibayar = isSBS ? netTotalInvoice - sbsPenalties : netTotalInvoice;
+  const netAR = totalDibayar;
 
   return {
     basePokok,
@@ -186,12 +218,18 @@ export function calculateBACommercialBreakdown(
     rfRateFactor: effectiveRF,
     rfAmount,
     odDeduction,
-    dpFuelDeduction,
+    dpFuelDeduction: isSBS ? 0 : dpFuelDeduction,
     totalDeductions,
     totalDPP,
+    totalGross,
+    dpp11_12,
+    vat12,
     ppnAmount,
     pph23Amount,
     netAR,
+    netTotalInvoice,
+    totalDibayar,
+    subtotalP: isSBS ? sbsPenalties : 0,
   };
 }
 

@@ -248,6 +248,19 @@ export function useFinanceInvoiceState({
     });
   };
 
+  const moveInvRow = (id: string, dir: "up" | "down") => {
+    setInvLineItems(prev => {
+      const idx = prev.findIndex(item => item.id === id);
+      if (idx === -1) return prev;
+      const targetIdx = dir === "up" ? idx - 1 : idx + 1;
+      if (targetIdx < 0 || targetIdx >= prev.length) return prev;
+      const result = Array.from(prev);
+      const [removed] = result.splice(idx, 1);
+      result.splice(targetIdx, 0, removed);
+      return result;
+    });
+  };
+
   const handleGenerateInvoiceFromBA = async (baId: number) => {
     try {
       const newInv: any = await generateInvoiceFromBA(baId);
@@ -306,7 +319,7 @@ export function useFinanceInvoiceState({
     loadDemoPOSData, loadDemoBGGData, loadDemoPTROData, loadDemoDBKData, loadDemoSBSData,
     removeInvLineItem, updateInvItemVolume, updateInvItemOverhaul,
     updateInvItemRateIDR, updateInvItemRateUSD, updateInvItemKurs, updateInvItemAmount,
-    addInvLineItem, updateInvItemField, reorderInvLineItems,
+    addInvLineItem, updateInvItemField, reorderInvLineItems, moveInvRow,
     handleGenerateInvoiceFromBA, handleVerifyInvoice, handleApproveInvoice,
     handleApproveInvoiceTier1, handleApproveInvoiceTier2
   };

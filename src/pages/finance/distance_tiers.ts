@@ -57,7 +57,7 @@ export function getSBSTarifByDistance(
   distance: number,
   dynamicSowRows?: any[]
 ): { rate: number; tier: SBSDistanceTier | null } {
-  if (distance === undefined || distance === null || distance < 0) {
+  if (distance === undefined || distance === null || Number(distance) <= 0) {
     return { rate: 0, tier: null };
   }
   const dist = Number(distance);

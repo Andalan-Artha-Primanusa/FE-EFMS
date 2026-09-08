@@ -182,19 +182,21 @@ export function useFinanceModalManager({
         bggOBDistanceHm: initialData.bggOBDistanceHm ?? 0, bggNettOB: 0, ...initialData,
       });
       setBaOperatingItems(
-        cust === "BGG" || cust === "PT BGG" ? createBlankBGGBAItems(defaultPeriod)
+        (cust === "BGG" || cust === "PT BGG" ? createBlankBGGBAItems(defaultPeriod)
         : (cust === "PTRO" || cust === "PT Petrosea") ? (defaultPTROBAItems || defaultDBKBAItems || []).map((it: any) => ({ ...it, period: defaultPeriod, notes: "", keterangan: "" }))
         : cust === "DBK" ? (defaultDBKBAItems || []).map((it: any) => ({ ...it, period: defaultPeriod, notes: "", keterangan: "" }))
         : cust === "SBS" ? createBlankSBSBAItems(defaultPeriod)
         : defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", period: defaultPeriod, notes: "", keterangan: "" }))
+        ).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0 }))
       );
       setBaMDOItems(
-        cust === "SBS" ? (defaultSBSBAMDOItems || []).map((it: any) => ({ ...it, area: "Pit E", period: defaultPeriod, notes: "", keterangan: "" }))
+        (cust === "SBS" ? (defaultSBSBAMDOItems || []).map((it: any) => ({ ...it, area: "Pit E", period: defaultPeriod, notes: "", keterangan: "" }))
         : (cust === "BGG" || cust === "DBK" || cust === "PTRO" || cust === "PT Petrosea") ? []
         : defaultPOSBAMDOItems.map(it => ({ ...it, area: "", period: defaultPeriod, notes: "", keterangan: "" }))
+        ).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0 }))
       );
       setBaDeductionItems(
-        cust === "SBS" ? (defaultSBSBADeductionItems || []).map((it: any) => ({ ...it, area: "Pit E", period: defaultPeriod, notes: "", keterangan: "", material: it.material === "Denda ketidakcapaian Volume" ? `Denda ketidakcapaian Volume ${defaultPeriod}` : it.material })) : []
+        cust === "SBS" ? (defaultSBSBADeductionItems || []).map((it: any) => ({ ...it, area: "Pit E", period: defaultPeriod, notes: "", keterangan: "", rate: 0, subtotalInitial: 0, subtotalAdjusted: 0, material: it.material === "Denda ketidakcapaian Volume" ? `Denda ketidakcapaian Volume ${defaultPeriod}` : it.material })) : []
       );
       setActiveBAStep(1);
     } else if (type === "pending_volume") {

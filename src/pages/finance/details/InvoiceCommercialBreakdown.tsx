@@ -71,7 +71,7 @@ export const InvoiceCommercialBreakdown: React.FC<InvoiceCommercialBreakdownProp
               {formatIDR(cCalc.subtotalD || 0)}
             </div>
             <span className="text-[9px] text-cyan-200/70">
-              {viewCustCode === "BGG" ? "Seksi D: Kompensasi Indeks Solar Fn/Fo" : "Seksi D: Kompensasi 3-Faktor (Solar, Upah, M-Rate)"}
+              {viewCustCode === "BGG" ? "Kompensasi Indeks Solar Fn/Fo" : "Kompensasi 3-Faktor (Solar, Upah, M-Rate)"}
             </span>
           </div>
         </div>

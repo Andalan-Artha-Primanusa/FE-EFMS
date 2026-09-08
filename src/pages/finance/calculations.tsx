@@ -257,6 +257,67 @@ export function createFinanceCalculations(deps: {
       }
     }
 
+    if (cust === "PTRO" || cust === "DBK") {
+      const desc = item.description || item.sowDescription || item.material || "";
+      const kurs = item.kursBI || mRate || 17923.30;
+      if (unitRate === 0) {
+        if (item.isUSD || item.unitRateUSD !== undefined) {
+          const usdRate = item.unitRateUSD || getSowMasterRate("PTRO", desc, 0, true);
+          unitRate = Math.round(usdRate * kurs);
+        } else {
+          unitRate = getSowMasterRate("PTRO", desc, 0, false);
+        }
+      }
+      if (unitRate > 0 && vol > 0) {
+        amount = Math.round(vol * unitRate);
+      }
+      return { unitRate, amount };
+    }
+
+    if (cust === "POS" || cust === "IBP" || cust === "BBA") {
+      const desc = item.description || item.sowDescription || item.material || "";
+      if (item.section === "D") {
+        const rfDelta = Math.max(0, rfFactor);
+        if (unitRate === 0) {
+          const baseUSD = item.baseRateUSD || getSowMasterRate("POS", desc, 0, true);
+          unitRate = Math.round(baseUSD * rfDelta * (mRate || 17923.30));
+        }
+        amount = Math.round(vol * unitRate);
+        return { unitRate, amount };
+      }
+      if (unitRate === 0) {
+        if (item.baseRateUSD > 0) {
+          unitRate = Math.round(item.baseRateUSD * (mRate || 17923.30));
+        } else {
+          const masterIDR = getSowMasterRate("POS", desc, 0, false);
+          if (masterIDR > 0) unitRate = masterIDR;
+          else {
+            const masterUSD = getSowMasterRate("POS", desc, 0, true);
+            if (masterUSD > 0) unitRate = Math.round(masterUSD * (mRate || 17923.30));
+          }
+        }
+      }
+      if (unitRate > 0 && vol > 0) {
+        amount = Math.round(vol * unitRate);
+      }
+      return { unitRate, amount };
+    }
+
+    if (cust === "SBS") {
+      if (item.isDeduction || item.section === "P" || item.category === "Pengurang Biaya") {
+        const val = Number(item.amount || item.unitRateIDR || 0);
+        return { unitRate: 0, amount: -Math.abs(val) };
+      }
+      const desc = item.description || item.sowDescription || item.material || "";
+      if (unitRate === 0) {
+        unitRate = getSowMasterRate("SBS", desc, 0);
+      }
+      if (unitRate > 0 && vol > 0) {
+        amount = Math.round(vol * unitRate);
+      }
+      return { unitRate, amount };
+    }
+
     if (amount !== 0 && (vol === 0 || unitRate === 0)) {
       return {
         unitRate: Number(
