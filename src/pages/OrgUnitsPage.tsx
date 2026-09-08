@@ -114,9 +114,12 @@ export function OrgUnitsPage({
 
   const companyName = (id: number) => companies.find((c) => c.id === id)?.name ?? "—";
 
+  const [modalError, setModalError] = useState<string | null>(null);
+
   const openCreate = () => {
     setModalMode("create");
     setEditTarget(null);
+    setModalError(null);
     setFormData({ type: "site", companyId: companies[0]?.id ?? 0, code: "", name: "", parentId: "", status: "active" });
     setModalOpen(true);
   };
@@ -124,6 +127,7 @@ export function OrgUnitsPage({
   const openEdit = (u: OrgUnit) => {
     setModalMode("edit");
     setEditTarget(u);
+    setModalError(null);
     setFormData({
       type: u.type,
       companyId: u.companyId,
@@ -137,6 +141,7 @@ export function OrgUnitsPage({
 
   const handleSave = async () => {
     setSubmitting(true);
+    setModalError(null);
     try {
       const payload = {
         type: formData.type,
@@ -156,7 +161,7 @@ export function OrgUnitsPage({
       setModalOpen(false);
       await loadUnits();
     } catch (err: any) {
-      setFeedback({ type: "error", message: err?.message || "Gagal menyimpan org unit" });
+      setModalError(err?.message || "Gagal menyimpan org unit");
     } finally {
       setSubmitting(false);
     }
@@ -219,16 +224,16 @@ export function OrgUnitsPage({
         )}
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="rounded-[4px] border border-slate-200 bg-white overflow-hidden shadow-2xs">
+        <table className="w-full text-xs">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="px-4 py-3 text-left font-bold text-slate-700">Tipe</th>
-              <th className="px-4 py-3 text-left font-bold text-slate-700">Code</th>
-              <th className="px-4 py-3 text-left font-bold text-slate-700">Nama</th>
-              <th className="px-4 py-3 text-left font-bold text-slate-700">Perusahaan</th>
-              <th className="px-4 py-3 text-center font-bold text-slate-700">Status</th>
-              {canWrite && <th className="px-4 py-3 text-center font-bold text-slate-700">Aksi</th>}
+              <th className="px-3.5 py-2.5 text-left font-black text-slate-700 uppercase tracking-wider text-[10.5px]">Tipe</th>
+              <th className="px-3.5 py-2.5 text-left font-black text-slate-700 uppercase tracking-wider text-[10.5px]">Code</th>
+              <th className="px-3.5 py-2.5 text-left font-black text-slate-700 uppercase tracking-wider text-[10.5px]">Nama Org Unit</th>
+              <th className="px-3.5 py-2.5 text-left font-black text-slate-700 uppercase tracking-wider text-[10.5px]">Perusahaan</th>
+              <th className="px-3.5 py-2.5 text-center font-black text-slate-700 uppercase tracking-wider text-[10.5px]">Status</th>
+              {canWrite && <th className="px-3.5 py-2.5 text-center font-black text-slate-700 uppercase tracking-wider text-[10.5px]">Aksi</th>}
             </tr>
           </thead>
           <tbody>
@@ -237,34 +242,34 @@ export function OrgUnitsPage({
             ) : filtered.length === 0 ? (
               <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">Tidak ada data org unit</td></tr>
             ) : filtered.map((u) => (
-              <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
-                <td className="px-4 py-2.5">
-                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${TYPE_COLOR[u.type] ?? "bg-slate-100 text-slate-600"}`}>
+              <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50/80 transition">
+                <td className="px-3.5 py-2">
+                  <span className={`px-2 py-0.5 rounded-[3px] text-[10.5px] font-bold ${TYPE_COLOR[u.type] ?? "bg-slate-100 text-slate-600"}`}>
                     {TYPE_LABEL[u.type] ?? u.type}
                   </span>
                 </td>
-                <td className="px-4 py-2.5 font-mono text-xs font-bold text-blue-700">{u.code}</td>
-                <td className="px-4 py-2.5 font-medium text-slate-900">{u.name}</td>
-                <td className="px-4 py-2.5 text-xs text-slate-500">
+                <td className="px-3.5 py-2 font-mono text-xs font-bold text-[#A57C50]">{u.code}</td>
+                <td className="px-3.5 py-2 font-medium text-slate-900">{u.name}</td>
+                <td className="px-3.5 py-2 text-xs text-slate-500">
                   {u.companyCode ? (
                     <span className="font-mono font-bold text-slate-700">{u.companyCode}</span>
                   ) : (
                     companies.find((c) => c.id === u.companyId)?.name ?? `#${u.companyId}`
                   )}
                 </td>
-                <td className="px-4 py-2.5 text-center">
-                  <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${u.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                <td className="px-3.5 py-2 text-center">
+                  <span className={`px-2 py-0.5 rounded-[3px] text-[10.5px] font-bold ${u.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
                     {u.status === "active" ? "Active" : "Inactive"}
                   </span>
                 </td>
                 {canWrite && (
-                  <td className="px-4 py-2.5 text-center">
+                  <td className="px-3.5 py-2 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      <button onClick={() => openEdit(u)} className="p-1.5 hover:bg-blue-100 rounded-lg text-blue-600 transition" title="Edit">
-                        <Edit2 size={14} />
+                      <button onClick={() => openEdit(u)} className="p-1 hover:bg-[#A57C50]/10 rounded-[3px] text-[#A57C50] transition cursor-pointer" title="Edit">
+                        <Edit2 size={13} />
                       </button>
-                      <button onClick={() => setDeleteTarget(u)} className="p-1.5 hover:bg-rose-100 rounded-lg text-rose-600 transition" title="Hapus">
-                        <Trash2 size={14} />
+                      <button onClick={() => setDeleteTarget(u)} className="p-1 hover:bg-rose-100 rounded-[3px] text-rose-600 transition cursor-pointer" title="Hapus">
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </td>
@@ -277,15 +282,15 @@ export function OrgUnitsPage({
 
       {/* Modal Create/Edit */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
-                <Building2 size={20} className="text-blue-600" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="bg-white rounded-[4px] max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                <Building2 size={18} className="text-[#A57C50]" />
                 {modalMode === "create" ? "Tambah Org Unit Baru" : "Edit Org Unit"}
               </h3>
-              <button onClick={() => setModalOpen(false)} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700">
-                <X size={18} />
+              <button onClick={() => setModalOpen(false)} className="p-1 hover:bg-slate-100 rounded-[3px] text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X size={16} />
               </button>
             </div>
             <div className="space-y-3">
@@ -294,7 +299,7 @@ export function OrgUnitsPage({
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-[3px] text-xs focus:outline-hidden focus:border-[#A57C50] bg-white"
                 >
                   {ORG_UNIT_TYPES.map((t) => (
                     <option key={t} value={t}>{TYPE_LABEL[t] ?? t}</option>
@@ -306,7 +311,7 @@ export function OrgUnitsPage({
                 <select
                   value={formData.companyId}
                   onChange={(e) => setFormData({ ...formData, companyId: Number(e.target.value) })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-[3px] text-xs focus:outline-hidden focus:border-[#A57C50] bg-white"
                 >
                   {companies.length === 0 && <option value={0}>Perusahaan belum tersedia</option>}
                   {companies.map((c) => (
@@ -316,23 +321,23 @@ export function OrgUnitsPage({
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Code *</label>
-                <input type="text" required value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })} placeholder="Contoh: JKT / FIN-AP / CC-MINING" className="w-full px-3 py-2 border border-slate-200 rounded-xl font-mono text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                <input type="text" required value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })} placeholder="Contoh: JKT / FIN-AP / CC-MINING" className="w-full px-3 py-2 border border-slate-300 rounded-[3px] font-mono text-xs focus:outline-hidden focus:border-[#A57C50]" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Nama *</label>
-                <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Contoh: Site Jakarta" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Contoh: Site Jakarta" className="w-full px-3 py-2 border border-slate-300 rounded-[3px] text-xs focus:outline-hidden focus:border-[#A57C50]" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Parent ID</label>
-                  <input type="number" value={formData.parentId} onChange={(e) => setFormData({ ...formData, parentId: e.target.value })} placeholder="Opsional" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+                  <input type="number" value={formData.parentId} onChange={(e) => setFormData({ ...formData, parentId: e.target.value })} placeholder="Opsional" className="w-full px-3 py-2 border border-slate-300 rounded-[3px] text-xs focus:outline-hidden focus:border-[#A57C50]" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Status</label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-[3px] text-xs focus:outline-hidden focus:border-[#A57C50] bg-white"
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
@@ -340,10 +345,20 @@ export function OrgUnitsPage({
                 </div>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button onClick={() => setModalOpen(false)} className="px-4 py-2 border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-700 transition">Batal</button>
-              <button onClick={handleSave} disabled={submitting || !formData.code || !formData.name || !formData.companyId} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition disabled:opacity-50 flex items-center gap-2">
-                {submitting ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
+
+            {modalError && (
+              <div className="p-2.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-[3px] flex items-center justify-between text-xs font-bold">
+                <span>{modalError}</span>
+                <button type="button" onClick={() => setModalError(null)} className="p-0.5 hover:bg-rose-100 rounded-[3px]">
+                  <X size={13} />
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button onClick={() => setModalOpen(false)} className="px-4 py-1.5 border border-slate-300 hover:bg-slate-100 rounded-[3px] text-xs font-bold text-slate-700 transition cursor-pointer">Batal</button>
+              <button onClick={handleSave} disabled={submitting || !formData.code || !formData.name || !formData.companyId} className="px-4 py-1.5 bg-[#A57C50] hover:bg-[#8e6941] text-white rounded-[3px] text-xs font-bold shadow-xs transition disabled:opacity-50 flex items-center gap-1.5 cursor-pointer">
+                {submitting ? <RefreshCw size={13} className="animate-spin" /> : <Check size={13} />}
                 {modalMode === "create" ? "Buat Org Unit" : "Simpan"}
               </button>
             </div>
@@ -353,19 +368,19 @@ export function OrgUnitsPage({
 
       {/* Modal Delete Confirm */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-center">
-            <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto"><Trash2 size={24} /></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="bg-white rounded-[4px] max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4 text-center">
+            <div className="w-10 h-10 rounded-[3px] bg-rose-100 text-rose-600 flex items-center justify-center mx-auto"><Trash2 size={20} /></div>
             <div className="space-y-1">
-              <h3 className="font-bold text-slate-900 text-lg">Hapus Org Unit?</h3>
+              <h3 className="font-bold text-slate-900 text-base">Hapus Org Unit?</h3>
               <p className="text-xs text-slate-500">
                 <strong className="font-mono text-rose-600">{deleteTarget.code}</strong> ({TYPE_LABEL[deleteTarget.type] ?? deleteTarget.type}) akan dihapus permanen.
               </p>
             </div>
-            <div className="flex items-center justify-center gap-2 pt-2">
-              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 border border-slate-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-700 transition">Batal</button>
-              <button onClick={handleDelete} disabled={submitting} className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-sm transition disabled:opacity-50">
-                {submitting ? <RefreshCw size={14} className="animate-spin" /> : "Hapus"}
+            <div className="flex items-center justify-center gap-2 pt-2 border-t border-slate-100">
+              <button onClick={() => setDeleteTarget(null)} className="px-4 py-1.5 border border-slate-300 hover:bg-slate-100 rounded-[3px] text-xs font-bold text-slate-700 transition cursor-pointer">Batal</button>
+              <button onClick={handleDelete} disabled={submitting} className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-[3px] text-xs font-bold shadow-xs transition disabled:opacity-50 cursor-pointer">
+                {submitting ? <RefreshCw size={13} className="animate-spin" /> : "Hapus"}
               </button>
             </div>
           </div>

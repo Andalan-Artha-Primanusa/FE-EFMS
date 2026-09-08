@@ -14,9 +14,11 @@ export const resolveDocumentUrl = (path: string | undefined | null) => {
   return `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
 };
 
-export const formatIDR = (val: number) => {
-  if (!val && val !== 0) return "Rp 0";
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val);
+export const formatIDR = (val: any) => {
+  if (val === undefined || val === null || val === "") return "Rp 0";
+  const num = typeof val === "number" ? val : Number(val);
+  if (isNaN(num)) return "Rp 0";
+  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(num);
 };
 
 export const parseNumber = (str: any): number => {
@@ -33,6 +35,31 @@ export const formatThousand = (val: any): string => {
   return new Intl.NumberFormat("id-ID").format(num);
 };
 
+export const getCustomerOfficialName = (code: string | undefined | null): string => {
+  const c = String(code || "").toUpperCase().trim();
+  switch (c) {
+    case "POS":
+      return "PT Position";
+    case "IBP":
+      return "PT Indo Bhumi Pasifik";
+    case "BBA":
+      return "PT Bara Batubara Aditama";
+    case "SBS":
+      return "PT Satria Bahana Sarana";
+    case "BGG":
+      return "PT Budi Gema Gempita";
+    case "PTRO":
+    case "DBK":
+      return "PT Petrosea";
+    case "ABN":
+      return "PT Andalan Bhumi Nusantara";
+    case "AAP":
+      return "PT Andalan Artha Primanusa";
+    default:
+      return c;
+  }
+};
+
 export const formatDateInput = (dateStr: any) => {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -45,6 +72,95 @@ export const indonesianMonths = [
   "Juli", "Agustus", "September", "Oktober", "November", "Desember"
 ];
 
+const shortMonthsEN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const shortMonthsID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+
+export function parsePeriodToYYYYMM(periodStr: string): string {
+  if (!periodStr) return "";
+  const trimmed = periodStr.trim();
+  if (/^\d{4}-\d{2}$/.test(trimmed)) return trimmed;
+
+  const parts = trimmed.split(/[\s-]+/);
+  if (parts.length >= 2) {
+    const monthPart = parts[0].toLowerCase();
+    let yearPart = parts[1];
+    if (yearPart.length === 2) yearPart = `20${yearPart}`;
+
+    let mIdx = indonesianMonths.findIndex(m => m.toLowerCase().startsWith(monthPart));
+    if (mIdx === -1) {
+      mIdx = shortMonthsEN.findIndex(m => m.toLowerCase().startsWith(monthPart));
+    }
+    if (mIdx === -1) {
+      mIdx = shortMonthsID.findIndex(m => m.toLowerCase().startsWith(monthPart));
+    }
+    if (mIdx !== -1) {
+      return `${yearPart}-${String(mIdx + 1).padStart(2, "0")}`;
+    }
+  }
+  return "";
+}
+
+export function formatYYYYMMToPeriod(yyyyMm: string, format: "short" | "long" = "short"): string {
+  if (!yyyyMm || !yyyyMm.includes("-")) return yyyyMm;
+  const [year, monthStr] = yyyyMm.split("-");
+  const monthIndex = parseInt(monthStr, 10) - 1;
+  if (monthIndex < 0 || monthIndex > 11) return yyyyMm;
+
+  if (format === "long") {
+    return `${indonesianMonths[monthIndex]} ${year}`;
+  }
+  const shortM = shortMonthsID[monthIndex] || shortMonthsEN[monthIndex];
+  const shortY = year.length === 4 ? year.substring(2) : year;
+  return `${shortM}-${shortY}`;
+}
+
+export function MonthPickerInput({
+  label,
+  value,
+  onChange,
+  required,
+  format = "short",
+  className,
+  placeholder,
+  helperText
+}: {
+  label?: string;
+  value: string;
+  onChange: (val: string) => void;
+  required?: boolean;
+  format?: "short" | "long";
+  className?: string;
+  placeholder?: string;
+  helperText?: string;
+}) {
+  const yyyyMm = parsePeriodToYYYYMM(value);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (!val) {
+      onChange("");
+      return;
+    }
+    const formatted = formatYYYYMMToPeriod(val, format);
+    onChange(formatted);
+  };
+
+  return (
+    <div className="space-y-1">
+      {label && <label className="block text-xs font-bold text-slate-700">{label}</label>}
+      <input
+        type="month"
+        value={yyyyMm}
+        onChange={handleChange}
+        required={required}
+        placeholder={placeholder}
+        className={className || "w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-medium text-slate-900 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none text-xs"}
+      />
+      {helperText && <p className="text-[10px] text-slate-400 font-normal">{helperText}</p>}
+    </div>
+  );
+}
+
 export function formatMonthLabel(yyyyMm: string): string {
   if (!yyyyMm || !yyyyMm.includes("-")) return yyyyMm;
   const [year, monthStr] = yyyyMm.split("-");
@@ -56,20 +172,7 @@ export function formatMonthLabel(yyyyMm: string): string {
 }
 
 export function formatMonthInput(label: string): string {
-  if (!label) return "";
-  if (/^\d{4}-\d{2}$/.test(label)) return label;
-  const parts = label.trim().split(/[\s-]+/);
-  if (parts.length >= 2) {
-    let monthName = parts[0].toLowerCase();
-    let year = parts[1];
-    if (year.length === 2) year = `20${year}`;
-    const mIdx = indonesianMonths.findIndex(m => m.toLowerCase().startsWith(monthName));
-    if (mIdx !== -1) {
-      const monthNum = String(mIdx + 1).padStart(2, '0');
-      return `${year}-${monthNum}`;
-    }
-  }
-  return label;
+  return parsePeriodToYYYYMM(label);
 }
 
 export function getRomanMonth(periodOrDateStr: string): string {
@@ -144,19 +247,27 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
       createdMiningInv: null,
       createdMDOInv: null,
       createdInvoices: [],
-      remainingCount: 0,
+      remainingCount: 1,
     };
   }
 
   const baNum = (ba.baNumber || "").trim().toLowerCase();
   const linkedNo = (ba.invoiceNoLinked || "").trim().toLowerCase();
-
   const custCode = (ba.customerCode || "").trim().toUpperCase();
 
-  // Find all invoices that reference this BA or whose invoiceNo matches linkedNo AND customer
+  const isCustMatch = (c1: string, c2: string) => {
+    if (!c1 || !c2) return true;
+    if (c1 === c2) return true;
+    if ((c1 === "PTRO" || c1 === "DBK") && (c2 === "PTRO" || c2 === "DBK")) return true;
+    if ((c1 === "BGG" || c1 === "PT BGG") && (c2 === "BGG" || c2 === "PT BGG")) return true;
+    return false;
+  };
+
+  // Find all invoices that reference this BA or whose invoiceNo matches linkedNo OR matches baID
   const matchedInvoices = (allInvoices || []).filter((inv) => {
+    if (inv.baID && ba.id && Number(inv.baID) === Number(ba.id)) return true;
     const invCust = (inv.customerCode || "").trim().toUpperCase();
-    if (custCode && invCust && custCode !== invCust) return false;
+    if (custCode && invCust && !isCustMatch(custCode, invCust)) return false;
     const invRef = (inv.baNoReference || "").trim().toLowerCase();
     const invNo = (inv.invoiceNo || "").trim().toLowerCase();
     if (baNum && invRef === baNum) return true;
@@ -180,8 +291,8 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
       (inv.invoiceNo || "").includes("MDO")
     ) || null;
 
-    const isFullyInvoiced = Boolean(createdMiningInv && createdMDOInv);
-    const isPartiallyInvoiced = Boolean((createdMiningInv || createdMDOInv) && !isFullyInvoiced);
+    const isFullyInvoiced = Boolean((createdMiningInv && createdMDOInv) || (linkedNo && linkedNo !== "-" && linkedNo.includes("&")));
+    const isPartiallyInvoiced = Boolean((createdMiningInv || createdMDOInv || (linkedNo && linkedNo !== "-")) && !isFullyInvoiced);
 
     return {
       isFullyInvoiced,
@@ -192,7 +303,7 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
       remainingCount: (createdMiningInv ? 0 : 1) + (createdMDOInv ? 0 : 1),
     };
   } else {
-    const isFullyInvoiced = matchedInvoices.length > 0;
+    const isFullyInvoiced = matchedInvoices.length > 0 || Boolean(linkedNo && linkedNo !== "-");
     return {
       isFullyInvoiced,
       isPartiallyInvoiced: false,
@@ -206,6 +317,7 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
 
 export function renderBAStatusBadge(status: string, invoiceNoLinked?: string, isInvoiced?: boolean, baRow?: any, allInvoices?: any[]) {
   const s = (status || "").trim();
+  const linked = (invoiceNoLinked || baRow?.invoiceNoLinked || "").trim();
   const isPOS = baRow?.customerCode === "POS";
 
   if (allInvoices && baRow) {
@@ -213,111 +325,86 @@ export function renderBAStatusBadge(status: string, invoiceNoLinked?: string, is
     if (isPOS) {
       if (invStatus.isFullyInvoiced) {
         return (
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-purple-100 text-purple-900 border border-purple-300 inline-flex items-center gap-1 shadow-2xs">
-              <Archive size={11} className="text-purple-700" /> Arsip (2/2 Terbit)
-            </span>
-            <span className="text-[9px] font-mono text-purple-800 font-bold text-center leading-tight">
-              {invStatus.createdMiningInv?.invoiceNo} &<br/>{invStatus.createdMDOInv?.invoiceNo}
-            </span>
-          </div>
+          <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300 inline-flex items-center gap-1.5 shadow-2xs whitespace-nowrap">
+            <Archive size={12} className="text-purple-700 shrink-0" />
+            <span>Arsip (2/2 Terbit)</span>
+          </span>
         );
       } else if (invStatus.isPartiallyInvoiced) {
         const created = invStatus.createdMiningInv ? "Mining" : "MDO";
-        const missing = invStatus.createdMiningInv ? "MDO" : "Mining";
-        const createdInvNo = invStatus.createdMiningInv?.invoiceNo || invStatus.createdMDOInv?.invoiceNo;
+        const createdInvNo = invStatus.createdMiningInv?.invoiceNo || invStatus.createdMDOInv?.invoiceNo || "";
 
         return (
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1 shadow-2xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-              1/2 Inv Terbit
-            </span>
-            <div className="text-[9px] flex flex-col items-center leading-tight">
-              <span className="text-emerald-700 font-bold">✓ {created}: {createdInvNo}</span>
-              <span className="text-amber-800 font-extrabold">⏳ Belum: Inv {missing}</span>
-            </div>
-          </div>
+          <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1.5 shadow-2xs whitespace-nowrap" title={`Terbit: ${created} (${createdInvNo})`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+            <span>1/2 Inv ({created})</span>
+          </span>
         );
       }
     } else {
-      // Non-POS (BGG, SBS, DBK)
-      if (invStatus.isFullyInvoiced) {
+      // Non-POS (BGG, SBS, PTRO/DBK, ABN)
+      if (invStatus.isFullyInvoiced || (linked && linked !== "-")) {
         const inv = invStatus.createdInvoices[0];
         const isDraft = inv?.status === "Draft" || inv?.status === "Submitted" || inv?.status === "Pending Approval";
+        const invNo = inv?.invoiceNo || linked;
         if (isDraft) {
           return (
-            <div className="flex flex-col items-center gap-0.5">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1 shadow-2xs">
-                <Clock size={11} className="text-amber-700" /> Invoice Draft (Menunggu Mgr)
-              </span>
-              <span className="text-[10px] font-mono text-amber-800 font-bold">
-                {inv.invoiceNo}
-              </span>
-            </div>
+            <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1.5 shadow-2xs whitespace-nowrap" title={`Draft Invoice: ${invNo}`}>
+              <Clock size={12} className="text-amber-700 shrink-0" />
+              <span>Draf Inv ({invNo})</span>
+            </span>
           );
         }
         return (
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-purple-100 text-purple-900 border border-purple-300 inline-flex items-center gap-1 shadow-2xs">
-              <Archive size={11} className="text-purple-700" /> Arsip (Inv Terbit)
-            </span>
-            <span className="text-[10px] font-mono text-purple-700 font-bold">
-              {inv?.invoiceNo || invoiceNoLinked}
-            </span>
-          </div>
+          <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300 inline-flex items-center gap-1.5 shadow-2xs whitespace-nowrap" title={`Arsip Invoice: ${invNo}`}>
+            <Archive size={12} className="text-purple-700 shrink-0" />
+            <span>Arsip ({invNo})</span>
+          </span>
         );
       }
     }
   }
 
-  const linked = (invoiceNoLinked || "").trim();
-  if (isInvoiced || s === "Arsip" || s === "Invoiced") {
+  if (isInvoiced || (linked && linked !== "-") || s === "Arsip" || s === "Invoiced") {
     return (
-      <div className="flex flex-col items-center gap-0.5">
-        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-purple-100 text-purple-900 border border-purple-300 inline-flex items-center gap-1 shadow-2xs">
-          <Archive size={11} className="text-purple-700" /> Arsip
-        </span>
-        {linked && linked !== "-" && (
-          <span className="text-[10px] font-mono text-purple-700 font-bold">
-            {linked}
-          </span>
-        )}
-      </div>
+      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300 inline-flex items-center gap-1.5 shadow-2xs whitespace-nowrap">
+        <Archive size={12} className="text-purple-700 shrink-0" />
+        <span>Arsip {linked && linked !== "-" ? `(${linked})` : ""}</span>
+      </span>
     );
   }
 
   if (s === "Submit" || s.startsWith("Draft") || s.startsWith("Siap") || s.startsWith("Submited") || s.startsWith("Submitted")) {
     return (
-      <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-300 inline-block whitespace-nowrap shadow-2xs">
-        Submit
+      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-300 inline-flex items-center gap-1 shadow-2xs whitespace-nowrap">
+        Draft
       </span>
     );
   }
   if (s === "Pending Berita Acara" || s.startsWith("Pending") || s.startsWith("Verified")) {
     return (
-      <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-block whitespace-nowrap shadow-2xs">
-        Pending Berita Acara
+      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1 shadow-2xs whitespace-nowrap">
+        Pending BA
       </span>
     );
   }
   if (s === "Ready to Invoice" || s.startsWith("Approved")) {
     return (
-      <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-block whitespace-nowrap shadow-2xs">
+      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1 shadow-2xs whitespace-nowrap">
         Ready to Invoice
       </span>
     );
   }
   if (s === "Revisi" || s.startsWith("Reject")) {
     return (
-      <span className="px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-block whitespace-nowrap shadow-2xs">
+      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-flex items-center gap-1 shadow-2xs whitespace-nowrap">
         Revisi
       </span>
     );
   }
   return (
-    <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-300 inline-block whitespace-nowrap shadow-2xs">
-      {status || "Submit"}
+    <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-300 inline-flex items-center gap-1 shadow-2xs whitespace-nowrap">
+      {status || "Draft"}
     </span>
   );
 }
@@ -358,13 +445,7 @@ export function getBAStatusForExport(ba: any, allInvoices: any[]) {
   if (s === "Ready to Invoice" || s === "Approved") {
     return { label: "READY TO INVOICE", badgeClass: "bg-emerald", subtext: "" };
   }
-  if (s === "Pending Berita Acara" || s === "Verified" || s === "Pending") {
-    return { label: "PENDING BERITA ACARA", badgeClass: "bg-amber", subtext: "" };
-  }
-  if (s === "Revisi" || s.startsWith("Reject")) {
-    return { label: "REVISI", badgeClass: "bg-rose", subtext: "" };
-  }
-  return { label: "SUBMIT", badgeClass: "bg-slate", subtext: "" };
+  return { label: "ON PROGRESS", badgeClass: "bg-amber", subtext: "" };
 }
 
 export function renderInvoiceStatusBadge(status: string) {
@@ -372,14 +453,13 @@ export function renderInvoiceStatusBadge(status: string) {
   if (s === "Paid") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-block whitespace-nowrap">Paid (Lunas)</span>;
   if (s === "Tax_Reported") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-300 font-extrabold inline-block whitespace-nowrap">Tax Reported (SPT)</span>;
   if (s === "Overdue") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-block whitespace-nowrap">Overdue</span>;
-  if (s === "Verified") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-100 text-cyan-800 border border-cyan-300 inline-block whitespace-nowrap">Verified SPV</span>;
-  if (s === "Approved_Tier1") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-300 inline-block whitespace-nowrap">Approved Mgr (Tier 1)</span>;
-  if (s === "Issued" || s === "Approved_Tier2" || s === "Approved") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300 font-extrabold inline-block whitespace-nowrap">Issued (Approved Dir)</span>;
+  if (s === "Verified") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-100 text-cyan-800 border border-cyan-300 inline-block whitespace-nowrap">Verified Finance</span>;
+  if (s === "Approved" || s === "Issued" || s === "Approved_Tier1" || s === "Approved_Tier2") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300 font-extrabold inline-block whitespace-nowrap">Disetujui Manager FATB</span>;
   if (s === "Rejected") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-block whitespace-nowrap">Rejected</span>;
   if (s === "Draft" || s === "Draft Invoice" || !s || s === "Pending" || s === "Submitted") {
-    return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-block whitespace-nowrap">Draft (Menunggu Mgr)</span>;
+    return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-block whitespace-nowrap">Draft (Menunggu Approval FATB)</span>;
   }
-  return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-block whitespace-nowrap">{status}</span>;
+  return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-800 border border-slate-300 inline-block whitespace-nowrap">{status}</span>;
 }
 
 export function parsePeriodToMonthIndex(periodStr: string): number {
@@ -440,7 +520,7 @@ export function RupiahInput({
         <span className="absolute left-3 top-2.5 text-xs font-extrabold text-slate-400">Rp</span>
         <input
           type="text"
-          className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 pl-9 text-slate-900 font-mono font-bold focus:border-cyan-700 focus:bg-white outline-none text-xs"
+          className="w-full bg-white border border-slate-300 rounded-[3px] p-2 pl-9 text-slate-900 font-mono font-bold focus:border-[#A57C50] outline-none text-xs"
           placeholder={placeholder || "0"}
           value={displayVal}
           onFocus={(e) => e.target.select()}
@@ -450,6 +530,243 @@ export function RupiahInput({
       </div>
       {helperText && <p className="text-[10px] text-slate-400 mt-0.5 font-medium">{helperText}</p>}
     </div>
+  );
+}
+
+export const parseDecimalNumber = (val: any): number => {
+  if (val === undefined || val === null || val === "") return 0;
+  if (typeof val === "number") return isNaN(val) ? 0 : val;
+  const str = String(val).trim();
+  if (!str) return 0;
+
+  const isNegative = str.startsWith("-");
+  const clean = str.replace(/[^0-9.,]/g, "");
+  if (!clean) return 0;
+
+  let num = 0;
+  if (clean.includes(",")) {
+    // Koma adalah pemisah desimal standar Indonesia (contoh: "12.511,250", "0,250", "12511,25")
+    const [intPart, ...decParts] = clean.split(",");
+    const decPart = decParts.join("").slice(0, 3);
+    const cleanInt = intPart.replace(/\./g, "") || "0";
+    num = parseFloat(decPart.length > 0 ? `${cleanInt}.${decPart}` : cleanInt);
+  } else if (clean.includes(".")) {
+    const dotParts = clean.split(".");
+    if (dotParts.length === 2) {
+      const [intPart, decPart] = dotParts;
+      // Jika 1 titik dengan tepat 3 digit dan integer <= 3 digit serta bukan "0" -> diasumsikan titik ribuan ("12.511", "1.000")
+      if (decPart.length === 3 && intPart.length <= 3 && intPart !== "0") {
+        num = parseFloat(`${intPart}${decPart}`);
+      } else {
+        // Jika tidak, diasumsikan titik desimal ("12.5", "0.25", "12511.250")
+        num = parseFloat(`${intPart}.${decPart.slice(0, 3)}`);
+      }
+    } else {
+      // Lebih dari 1 titik -> titik ribuan ("1.234.567")
+      num = parseFloat(clean.replace(/\./g, ""));
+    }
+  } else {
+    num = parseFloat(clean);
+  }
+
+  if (isNaN(num)) return 0;
+  return isNegative ? -num : num;
+};
+
+export const formatDecimalDisplay = (val: any, allowDecimals: boolean = true, maxDecimals: number = 3): string => {
+  if (val === undefined || val === null || val === "") return "";
+  const num = typeof val === "number" ? val : parseDecimalNumber(val);
+  if (isNaN(num) || num === 0) return "";
+  if (!allowDecimals) {
+    return Math.round(num).toLocaleString("id-ID");
+  }
+  return num.toLocaleString("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maxDecimals,
+  });
+};
+
+// Component helper input Volume dengan Auto Thousand Separator (.) & Desimal (,)
+export function VolumeInput({
+  label,
+  value,
+  onChange,
+  unit = "BCM",
+  required,
+  placeholder,
+  helperText
+}: {
+  label: string;
+  value: number | string;
+  onChange: (val: number) => void;
+  unit?: string;
+  required?: boolean;
+  placeholder?: string;
+  helperText?: string;
+}) {
+  const [localStr, setLocalStr] = React.useState<string>(() => {
+    if (value === 0 || value === "0" || !value) return "";
+    const n = typeof value === "number" ? value : parseDecimalNumber(value);
+    if (isNaN(n) || n === 0) return "";
+    return n.toLocaleString("id-ID", { maximumFractionDigits: 3 });
+  });
+
+  React.useEffect(() => {
+    if (value === 0 || value === "0" || !value) {
+      if (localStr === "" || localStr === "0") return;
+    }
+    const currentNum = parseDecimalNumber(localStr);
+    const propNum = typeof value === "number" ? value : parseDecimalNumber(value);
+    if (currentNum !== propNum && !isNaN(propNum)) {
+      setLocalStr(propNum.toLocaleString("id-ID", { maximumFractionDigits: 3 }));
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let clean = e.target.value.replace(/[^0-9.,]/g, "");
+    const commaCount = (clean.match(/,/g) || []).length;
+    if (commaCount > 1) {
+      const firstIdx = clean.indexOf(",");
+      clean = clean.slice(0, firstIdx + 1) + clean.slice(firstIdx + 1).replace(/,/g, "");
+    }
+    if (clean.includes(",")) {
+      const [i, d] = clean.split(",");
+      clean = `${i},${d.slice(0, 3)}`;
+    }
+    setLocalStr(clean);
+    const num = parseDecimalNumber(clean);
+    onChange(num);
+  };
+
+  const handleBlur = () => {
+    const num = parseDecimalNumber(localStr);
+    if (!isNaN(num) && num > 0) {
+      setLocalStr(num.toLocaleString("id-ID", { maximumFractionDigits: 3 }));
+    } else if (isNaN(num) || num === 0) {
+      setLocalStr("");
+    }
+  };
+
+  return (
+    <div>
+      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+        {label} {required && <span className="text-rose-600">*</span>}
+      </label>
+      <div className="relative">
+        <input
+          type="text"
+          className="w-full bg-white border border-slate-300 rounded-[3px] p-2.5 pr-14 text-slate-900 font-mono font-bold focus:border-[#A57C50] outline-none text-xs"
+          placeholder={placeholder || "0,000"}
+          value={localStr}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          required={required}
+        />
+        {unit && (
+          <span className="absolute right-3 top-2.5 text-[11px] font-bold text-slate-400 pointer-events-none font-mono">
+            {unit}
+          </span>
+        )}
+      </div>
+      {helperText && <p className="text-[10px] text-slate-400 mt-0.5 font-medium">{helperText}</p>}
+    </div>
+  );
+}
+
+// Minimalist Table & Form Number Input dengan Auto Thousand Separator (.) & Desimal (,)
+export function FormattedNumberInput({
+  value,
+  onChange,
+  placeholder = "0",
+  allowDecimals = true,
+  maxDecimals = 3,
+  className = "",
+  onFocus,
+  onBlur,
+}: {
+  value: number | string | undefined | null;
+  onChange: (val: number) => void;
+  placeholder?: string;
+  allowDecimals?: boolean;
+  maxDecimals?: number;
+  className?: string;
+  onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
+}) {
+  const [localStr, setLocalStr] = React.useState<string>(() => formatDecimalDisplay(value, allowDecimals, maxDecimals));
+  const [isFocused, setIsFocused] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isFocused) {
+      setLocalStr(formatDecimalDisplay(value, allowDecimals, maxDecimals));
+    }
+  }, [value, isFocused, allowDecimals, maxDecimals]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    if (allowDecimals) {
+      let clean = raw.replace(/[^0-9.,-]/g, "");
+      const commaCount = (clean.match(/,/g) || []).length;
+      if (commaCount > 1) {
+        const firstIdx = clean.indexOf(",");
+        clean = clean.slice(0, firstIdx + 1) + clean.slice(firstIdx + 1).replace(/,/g, "");
+      }
+      if (clean.includes(",")) {
+        const [i, d] = clean.split(",");
+        clean = `${i},${d.slice(0, maxDecimals)}`;
+      }
+      setLocalStr(clean);
+      onChange(parseDecimalNumber(clean));
+    } else {
+      const cleanDigits = raw.replace(/[^0-9-]/g, "");
+      if (!cleanDigits || cleanDigits === "-") {
+        setLocalStr(cleanDigits);
+        onChange(0);
+        return;
+      }
+      const isNeg = cleanDigits.startsWith("-");
+      const numOnly = parseInt(cleanDigits.replace(/-/g, ""), 10);
+      if (isNaN(numOnly)) {
+        setLocalStr("");
+        onChange(0);
+        return;
+      }
+      const formatted = (isNeg ? "-" : "") + numOnly.toLocaleString("id-ID");
+      setLocalStr(formatted);
+      onChange(isNeg ? -numOnly : numOnly);
+    }
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    setIsFocused(false);
+    const parsed = parseDecimalNumber(localStr);
+    onChange(parsed);
+    setLocalStr(formatDecimalDisplay(parsed, allowDecimals, maxDecimals));
+    onBlur?.(e);
+  };
+
+  return (
+    <input
+      type="text"
+      className={className || "w-full bg-white border border-slate-300 rounded-[3px] p-2 text-slate-900 font-mono font-bold focus:border-[#A57C50] outline-none text-xs"}
+      value={isFocused ? localStr : formatDecimalDisplay(value, allowDecimals, maxDecimals)}
+      placeholder={placeholder}
+      onFocus={(e) => {
+        setIsFocused(true);
+        const curNum = typeof value === "number" ? value : parseDecimalNumber(value);
+        if (!curNum && curNum !== 0) {
+          setLocalStr("");
+        } else if (curNum === 0) {
+          setLocalStr("");
+        } else {
+          setLocalStr(formatDecimalDisplay(curNum, allowDecimals, maxDecimals));
+        }
+        e.target.select();
+        onFocus?.(e);
+      }}
+      onChange={handleChange}
+      onBlur={handleBlur}
+    />
   );
 }
 
@@ -501,9 +818,8 @@ export const generateAuditTimeline = (type: string, item: any) => {
   }
 
   if (type === "invoice") {
-    const isVerified = Boolean(item.verifiedBy || ["Verified", "Approved_Tier1", "Issued", "Paid"].includes(item.status));
-    const isTier1 = Boolean(item.approvedManagerBy || ["Approved_Tier1", "Issued", "Paid"].includes(item.status));
-    const isTier2 = Boolean(item.approvedDirectorBy || ["Issued", "Paid"].includes(item.status));
+    const isApproved = Boolean(item.approvedManagerBy || ["Approved", "Approved_Tier1", "Approved_Tier2", "Issued", "Paid"].includes(item.status));
+    const isPaid = item.status === "Paid" || (item.totalPaid && item.totalPaid >= item.totalInvoice);
     const isRejected = item.status === "Rejected";
 
     return [
@@ -511,43 +827,32 @@ export const generateAuditTimeline = (type: string, item: any) => {
         step: 1,
         title: "Invoice Diterbitkan (Draft)",
         user: item.createdBy || "Admin Finance Site / HO",
-        role: "Admin Finance",
+        role: "Admin Finance Site / HO",
         time: item.createdAt ? formatDateDisplay(item.createdAt) : formatDateDisplay(item.invoiceDate),
         status: "completed",
         desc: `Master Invoice ${item.invoiceNo} dibuat berdasarkan BA Ref: ${item.baNoReference || "-"}.`
       },
       {
         step: 2,
-        title: "Verifikasi SPV Site",
-        user: item.verifiedBy ? item.verifiedBy : (isVerified ? "SPV Verifikator (Verified)" : "Belum Diverifikasi"),
-        role: "SPV Verifikator",
-        time: item.verifiedAt ? formatDateDisplay(item.verifiedAt) : (isVerified ? "Terverifikasi" : "Menunggu SPV"),
-        status: isVerified ? "completed" : (isRejected ? "rejected" : "pending"),
-        desc: item.verifiedBy
-          ? `Rincian Invoice & kesesuaian BA diverifikasi oleh akun: ${item.verifiedBy}.`
-          : (isVerified ? "Verifikasi rincian volume & nilai invoice disetujui SPV." : "Menunggu verifikasi rincian invoice oleh SPV Site.")
+        title: "Persetujuan Manager FATB",
+        user: item.approvedManagerBy ? item.approvedManagerBy : (isApproved ? "Manager FATB (Approved)" : "Belum Disetujui"),
+        role: "Manager FATB",
+        time: item.approvedManagerAt ? formatDateDisplay(item.approvedManagerAt) : (isApproved ? "Disetujui" : "Menunggu Manager FATB"),
+        status: isApproved ? "completed" : (isRejected ? "rejected" : "pending"),
+        desc: item.approvedManagerBy
+          ? `Invoice disetujui sah oleh ${item.approvedManagerBy}. Jurnal piutang AR diposting ke buku besar.`
+          : (isApproved ? "Persetujuan Manager FATB selesai. Invoice resmi terbit." : "Menunggu pengesahan dan persetujuan tunggal Manager FATB.")
       },
       {
         step: 3,
-        title: "Approval Tier 1 (Manager)",
-        user: item.approvedManagerBy ? item.approvedManagerBy : (isTier1 ? "Finance Manager (Approved T1)" : "Belum Disetujui"),
-        role: "Manager",
-        time: item.approvedManagerAt ? formatDateDisplay(item.approvedManagerAt) : (isTier1 ? "Disetujui T1" : "Menunggu Manager"),
-        status: isTier1 ? "completed" : (isRejected ? "rejected" : "pending"),
-        desc: item.approvedManagerBy
-          ? `Persetujuan Tier 1 diberikan oleh akun: ${item.approvedManagerBy}.`
-          : (isTier1 ? "Approval Tier 1 Manager selesai, siap lanjut ke Direktur." : "Menunggu persetujuan utama (Tier 1) Finance Manager.")
-      },
-      {
-        step: 4,
-        title: "Approval Tier 2 (Direktur)",
-        user: item.approvedDirectorBy ? item.approvedDirectorBy : (isTier2 ? "Direktur Utama (Approved T2)" : "Belum Disetujui"),
-        role: "Direktur",
-        time: item.approvedDirectorAt ? formatDateDisplay(item.approvedDirectorAt) : (isTier2 ? "Disetujui T2" : "Menunggu Direktur"),
-        status: isTier2 ? "completed" : (isRejected ? "rejected" : "pending"),
-        desc: item.approvedDirectorBy
-          ? `Persetujuan Tier 2 (Eksekutif) disahkan oleh akun: ${item.approvedDirectorBy}. Status resmi: Issued.`
-          : (isTier2 ? "Approval Tier 2 Direktur selesai. Invoice terbit resmi (Issued)." : "Menunggu persetujuan eksekutif (Tier 2) Direktur.")
+        title: "Penerimaan & Pelunasan AR",
+        user: isPaid ? "Treasury Dept (Lunas)" : "AR Treasury",
+        role: "Treasury Dept",
+        time: isPaid ? formatDateDisplay(new Date()) : "Menunggu Pelunasan",
+        status: isPaid ? "completed" : (isApproved ? "active" : "pending"),
+        desc: isPaid
+          ? `Pembayaran piutang lunas terverifikasi di mutasi rekening koran.`
+          : `Saldo tagihan berjalan: ${formatIDR(item.outstanding || item.totalInvoice)}.`
       }
     ];
   }

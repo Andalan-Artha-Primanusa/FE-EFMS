@@ -77,7 +77,7 @@ interface RaiseFallData {
 
 const DEFAULT_POS_CUSTOMER: CustomerData = {
   code: "POS",
-  fullName: "PT Position / PT Paramitha Bangun Persada",
+  fullName: "PT Position",
   groupParent: "Paramitha Group",
   projectSite: "Site WM1 / Pit Nikel",
   terminDays: 30,
@@ -257,54 +257,40 @@ export function SiteSetupPage({
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val);
   };
 
+  const setupTabs = [
+    { id: "profile", label: "1. Profil & Kontrak Klien", icon: Building2 },
+    { id: "sow", label: `2. Katalog SOW & Tarif Material (${siteSOWItems.length})`, icon: Layers },
+    { id: "formula", label: "3. Formula Penagihan & Eskalasi Khusus", icon: Calculator },
+    { id: "simulation", label: "4. Simulasi BA & Kalkulasi Invoice", icon: Zap },
+  ];
+
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-cyan-950 to-slate-900 text-white p-6 rounded-2xl shadow-md border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-cyan-400 font-extrabold uppercase text-xs tracking-wider">
-            <Sliders size={15} /> Master Data & Configuration Engine
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight mt-1">{viewTitle}</h1>
-          <p className="text-xs sm:text-sm text-slate-300 mt-1">
-            Pusat konfigurasi parameter kontrak, aturan Berita Acara, formula invoice, dan tarif SOW spesifik per site (POS Nikel & BGG Batubara).
-          </p>
-        </div>
-
-        <button
-          onClick={loadData}
-          disabled={loading}
-          className="px-4 py-2 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-2 shrink-0 cursor-pointer"
-        >
-          <RefreshCw size={14} className={loading ? "animate-spin text-cyan-400" : "text-slate-400"} />
-          <span>Sinkronisasi Data</span>
-        </button>
-      </div>
-
-      {/* SITE SELECTOR CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+    <div className="space-y-4">
+      {/* Top Site Selector Grid — Enterprise Clean */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* POS Site Card */}
         <button
           type="button"
           onClick={() => setActiveSite("POS")}
-          className={`p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer relative overflow-hidden ${
+          className={`p-4 bg-white border text-left transition-all duration-140 cursor-pointer relative ${
             activeSite === "POS"
-              ? "bg-cyan-900/10 border-cyan-600 ring-2 ring-cyan-600/30 shadow-md"
-              : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
+              ? "border-[#A57C50] ring-1 ring-[#A57C50] shadow-sm bg-[#FBF6F0]/40"
+              : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
           }`}
+          style={{ borderRadius: 4 }}
         >
           <div className="flex justify-between items-start">
-            <span className="p-2 rounded-xl bg-cyan-100 text-cyan-900 font-black text-xs">POS</span>
+            <span className="px-2 py-0.5 rounded-[3px] bg-slate-100 text-slate-800 font-bold text-xs border border-slate-200">POS</span>
             {activeSite === "POS" && (
-              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-cyan-700 text-white">
+              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-[3px] bg-[#A57C50] text-white">
                 Aktif Dipilih
               </span>
             )}
           </div>
-          <h3 className="font-extrabold text-slate-900 text-sm mt-2">Site POS (Paramitha)</h3>
+          <h3 className="font-bold text-slate-900 text-sm mt-2">Site POS (Paramitha)</h3>
           <p className="text-[11px] text-slate-500 font-medium mt-0.5">Komoditas: Nikel (WM1)</p>
-          <div className="mt-3 pt-2 border-t border-slate-100 flex items-center gap-1.5 text-[10px] font-bold text-cyan-800">
-            <Pickaxe size={12} /> Dual Invoice Scheme (Mining & MDO)
+          <div className="mt-3 pt-2 border-t border-slate-100 flex items-center gap-1.5 text-[11px] font-semibold text-[#8C6740]">
+            <Pickaxe className="w-3.5 h-3.5 text-[#A57C50]" /> Dual Invoice (Mining & MDO)
           </div>
         </button>
 
@@ -312,118 +298,94 @@ export function SiteSetupPage({
         <button
           type="button"
           onClick={() => setActiveSite("BGG")}
-          className={`p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer relative overflow-hidden ${
+          className={`p-4 bg-white border text-left transition-all duration-140 cursor-pointer relative ${
             activeSite === "BGG"
-              ? "bg-emerald-900/10 border-emerald-600 ring-2 ring-emerald-600/30 shadow-md"
-              : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
+              ? "border-[#2E7D53] ring-1 ring-[#2E7D53] shadow-sm bg-emerald-50/30"
+              : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
           }`}
+          style={{ borderRadius: 4 }}
         >
           <div className="flex justify-between items-start">
-            <span className="p-2 rounded-xl bg-emerald-100 text-emerald-900 font-black text-xs">BGG</span>
+            <span className="px-2 py-0.5 rounded-[3px] bg-emerald-50 text-emerald-900 font-bold text-xs border border-emerald-200">BGG</span>
             {activeSite === "BGG" && (
-              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-700 text-white">
+              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-[3px] bg-[#2E7D53] text-white">
                 Aktif Dipilih
               </span>
             )}
           </div>
-          <h3 className="font-extrabold text-slate-900 text-sm mt-2">Site BGG (Budi Gema Gempita)</h3>
+          <h3 className="font-bold text-slate-900 text-sm mt-2">Site BGG (Budi Gema Gempita)</h3>
           <p className="text-[11px] text-slate-500 font-medium mt-0.5">Komoditas: Batubara (Pit KKL)</p>
-          <div className="mt-3 pt-2 border-t border-slate-100 flex items-center gap-1.5 text-[10px] font-bold text-emerald-800">
-            <TrendingUp size={12} /> Multi-Tier Coal Index & SR 3:1 Quota
+          <div className="mt-3 pt-2 border-t border-slate-100 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800">
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-700" /> Multi-Tier Coal Index & SR 3:1 Quota
           </div>
         </button>
 
-        {/* DBK Site Card (Future expansion) */}
-        <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/70 text-left opacity-75">
+        {/* PTRO Site Card (Petrosea) */}
+        <div className="p-4 bg-white border border-slate-200 opacity-70 text-left" style={{ borderRadius: 4 }}>
           <div className="flex justify-between items-start">
-            <span className="p-2 rounded-xl bg-blue-100 text-blue-900 font-black text-xs">DBK</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">Terjadwal</span>
+            <span className="px-2 py-0.5 rounded-[3px] bg-slate-100 text-slate-700 font-bold text-xs border border-slate-200">PTRO</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-[3px] bg-slate-100 text-slate-500 border border-slate-200">Terjadwal</span>
           </div>
-          <h3 className="font-bold text-slate-700 text-sm mt-2">Site DBK (Petrosea)</h3>
+          <h3 className="font-bold text-slate-700 text-sm mt-2">Site PTRO (PT Petrosea)</h3>
           <p className="text-[11px] text-slate-400 mt-0.5">Komoditas: Batubara (Dual Currency USD/IDR)</p>
         </div>
 
-        {/* SBS Site Card (Future expansion) */}
-        <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/70 text-left opacity-75">
+        {/* SBS Site Card */}
+        <div className="p-4 bg-white border border-slate-200 opacity-70 text-left" style={{ borderRadius: 4 }}>
           <div className="flex justify-between items-start">
-            <span className="p-2 rounded-xl bg-purple-100 text-purple-900 font-black text-xs">SBS</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">Terjadwal</span>
+            <span className="px-2 py-0.5 rounded-[3px] bg-slate-100 text-slate-700 font-bold text-xs border border-slate-200">SBS</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-[3px] bg-slate-100 text-slate-500 border border-slate-200">Terjadwal</span>
           </div>
           <h3 className="font-bold text-slate-700 text-sm mt-2">Site SBS (Satria Bahana Sarana)</h3>
           <p className="text-[11px] text-slate-400 mt-0.5">Komoditas: Batubara (OB & Jasa Penunjang)</p>
         </div>
       </div>
 
-      {/* TABBED INTERFACE PER SITE */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-        {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-200 bg-slate-50/80 px-4 pt-3 gap-2 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab("profile")}
-            className={`px-4 py-2.5 font-extrabold text-xs rounded-t-xl transition flex items-center gap-1.5 cursor-pointer ${
-              activeTab === "profile"
-                ? "bg-white text-cyan-900 border-t-2 border-cyan-700 shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <Building2 size={15} />
-            <span>1. Profil & Kontrak Klien</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("sow")}
-            className={`px-4 py-2.5 font-extrabold text-xs rounded-t-xl transition flex items-center gap-1.5 cursor-pointer ${
-              activeTab === "sow"
-                ? "bg-white text-cyan-900 border-t-2 border-cyan-700 shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <Layers size={15} />
-            <span>2. Katalog SOW & Tarif Material ({siteSOWItems.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("formula")}
-            className={`px-4 py-2.5 font-extrabold text-xs rounded-t-xl transition flex items-center gap-1.5 cursor-pointer ${
-              activeTab === "formula"
-                ? "bg-white text-cyan-900 border-t-2 border-cyan-700 shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <Calculator size={15} />
-            <span>3. Formula Penagihan & Eskalasi Khusus</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("simulation")}
-            className={`px-4 py-2.5 font-extrabold text-xs rounded-t-xl transition flex items-center gap-1.5 cursor-pointer ${
-              activeTab === "simulation"
-                ? "bg-white text-cyan-900 border-t-2 border-cyan-700 shadow-xs"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <Zap size={15} className="text-amber-500" />
-            <span>4. Simulasi BA & Kalkulasi Invoice</span>
-          </button>
+      {/* TABBED INTERFACE PER SITE — FEAST Enterprise Tab Bar */}
+      <div className="bg-white border border-slate-200 shadow-sm overflow-hidden" style={{ borderRadius: 4 }}>
+        {/* Navigation Sub-Tabs */}
+        <div className="flex border-b border-slate-200 bg-slate-50 px-4 pt-3 gap-1 overflow-x-auto">
+          {setupTabs.map((t) => {
+            const Icon = t.icon;
+            const isActive = activeTab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setActiveTab(t.id as any)}
+                className={`px-4 py-2.5 font-semibold text-xs border-t border-l border-r transition-all flex items-center gap-2 cursor-pointer ${
+                  isActive
+                    ? "bg-white text-slate-900 border-slate-200 -mb-px z-10 shadow-sm"
+                    : "bg-slate-50 text-slate-500 border-slate-200 hover:text-slate-900 hover:bg-slate-100"
+                }`}
+                style={{ borderRadius: "4px 4px 0 0" }}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? "text-[#A57C50]" : "text-slate-400"}`} />
+                <span>{t.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* TAB 1: PROFIL & KONTRAK */}
         {activeTab === "profile" && (
           <form onSubmit={handleSaveCustomer} className="p-6 space-y-5 text-xs">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
               <div>
-                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                  <Building2 className="text-cyan-700" size={18} /> Profil Identitas & Legalitas Kontrak: Site {activeSite}
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <Building2 className="text-[#A57C50] w-4 h-4" /> Profil Identitas & Legalitas Kontrak: Site {activeSite}
                 </h3>
                 <p className="text-slate-500 text-[11px] mt-0.5">Informasi ini otomatis mengisi kop dokumen BA, invoice, dan batas credit terms.</p>
               </div>
               <button
                 type="submit"
-                className="px-5 py-2.5 bg-cyan-700 hover:bg-cyan-800 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                className="px-4 py-2 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition hover:brightness-95 cursor-pointer"
+                style={{ background: "#A57C50", borderRadius: 3 }}
               >
-                <Save size={14} /> Simpan Perubahan Profil
+                <Save className="w-3.5 h-3.5" /> Simpan Perubahan Profil
               </button>
             </div>
+
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
@@ -562,9 +524,9 @@ export function SiteSetupPage({
                   });
                   setIsSowModalOpen(true);
                 }}
-                className="px-4 py-2 bg-cyan-700 hover:bg-cyan-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer shrink-0"
+                className="px-3 py-1.5 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold rounded-[3px] text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer shrink-0"
               >
-                <Plus size={14} /> Tambah Material SOW Baru
+                <Plus size={13} /> Tambah Material SOW Baru
               </button>
             </div>
 
@@ -755,20 +717,23 @@ export function SiteSetupPage({
                   </h4>
                   <p className="text-slate-700 text-[11px]">
                     Volume pengupasan OB yang dapat ditagihkan langsung dibatasi sebesar <strong>3x Volume Batubara (Ton)</strong>.
-                    Jika volume survei OB melebihi rasio 3:1, kelebihan volume otomatis dialokasikan ke <strong>Pending Volume Ledger (Carry-Forward)</strong> dan diserap saat periode berikutnya memiliki surplus kuota.
+                    Jika volume survei OB melebihi rasio 3:1, kelebihan volume dicatat ke <strong>Pending Volume Ledger (Carry-Forward)</strong> dan dialokasikan secara manual oleh Finance Site saat periode penagihan berikutnya mencukupi.
                   </p>
                 </div>
 
                 {/* 3. Raise & Fall Formula Settings */}
                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 text-xs">
                   <h4 className="font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                    <Calculator size={16} className="text-cyan-700" /> Parameter Rumus Eskalasi Raise & Fall (RF Factor)
+                    <Calculator size={16} className="text-cyan-700" /> Formula Eskalasi Raise & Fall: 1-Faktor BBM Murni (BGG)
                   </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-[11px]">
-                    <div><span className="text-slate-500 block font-bold">Bobot BBM (A):</span> <strong className="font-mono font-black text-cyan-900">{currentRF.weightFuelA * 100}%</strong></div>
-                    <div><span className="text-slate-500 block font-bold">Bobot Tenaga Kerja (B):</span> <strong className="font-mono font-black text-cyan-900">{currentRF.weightLaborB * 100}%</strong></div>
-                    <div><span className="text-slate-500 block font-bold">Bobot Tetap (C):</span> <strong className="font-mono font-black text-cyan-900">{currentRF.weightFixedC * 100}%</strong></div>
-                    <div><span className="text-slate-500 block font-bold">RF Index Multiplier:</span> <strong className="font-mono font-black text-emerald-800 text-sm">{currentRF.rfIndexResult.toFixed(3)}x</strong></div>
+                  <div className="p-2.5 bg-white border border-slate-200 rounded-xl font-mono text-[11px] text-slate-800">
+                    <code>Index = 0,60 + 0,40 × (Fn / Fo)</code>
+                    <span className="text-slate-500 font-sans ml-2 text-[10px]">(Tanpa komponen Upah/Labor & tanpa faktor kurs)</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] pt-1">
+                    <div><span className="text-slate-500 font-bold">Base Fuel (Fo):</span> <strong className="font-mono">Rp 9.000 / Liter</strong></div>
+                    <div><span className="text-slate-500 font-bold">Aktual Fuel (Fn):</span> <strong className="font-mono">Rp 21.601,53</strong></div>
+                    <div><span className="text-slate-500 font-bold">Faktor Pengali RF:</span> <strong className="font-mono text-emerald-800">1.560x</strong></div>
                   </div>
                 </div>
               </div>
@@ -1039,13 +1004,13 @@ export function SiteSetupPage({
                 <button
                   type="button"
                   onClick={() => setIsSowModalOpen(false)}
-                  className="px-4 py-2 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-xs cursor-pointer"
+                  className="px-3.5 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-[3px] text-xs cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-cyan-700 hover:bg-cyan-800 text-white font-black rounded-xl text-xs shadow-sm cursor-pointer"
+                  className="px-4 py-1.5 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold rounded-[3px] text-xs shadow-xs cursor-pointer"
                 >
                   Simpan Material
                 </button>

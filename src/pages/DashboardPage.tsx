@@ -1,6 +1,7 @@
-import { BarChart3, RefreshCw, TrendingUp, WalletCards } from "lucide-react";
+import { BarChart3, RefreshCw, TrendingUp, WalletCards, LayoutTemplate, Activity } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, LineChart, PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { DataTable, statusClass } from "../components/DataTable";
+import { MiningEbitdaDashboard } from "../components/MiningEbitdaDashboard";
 import { api, compactMoney, money, type Dashboard, type Transaction } from "../lib/api";
 import { useMemo, useState } from "react";
 
@@ -31,6 +32,7 @@ export function DashboardPage({
   onCreate: () => void;
   onNotice: (message: string) => void;
 }) {
+  const [activeTab, setActiveTab] = useState<"mockup" | "standard">("mockup");
   const [statusFilter, setStatusFilter] = useState("All");
   const kpis = dashboard?.kpis ?? [];
   const monthlyFinance = dashboard?.monthlyFinance ?? [];
@@ -114,15 +116,58 @@ export function DashboardPage({
     }))
   ];
 
-  return <section className="daily-finance">
-    <header className="daily-hero">
-      <div className="daily-mark"><WalletCards size={34} /></div>
-      <div>
-        <p>Finance Command Center</p>
-        <h1>Summary Daily Financial [{summaryDate}]</h1>
+  return (
+    <section className="space-y-3">
+      {/* Dashboard View Switcher */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-2.5 rounded-lg border border-slate-200 shadow-xs">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab("mockup")}
+            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold transition ${
+              activeTab === "mockup"
+                ? "bg-[#1e2b4d] text-white shadow-xs"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+          >
+            <LayoutTemplate size={14} /> Mining EBITDA Dashboard (Mockup)
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("standard")}
+            className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-md text-xs font-bold transition ${
+              activeTab === "standard"
+                ? "bg-[#1e2b4d] text-white shadow-xs"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+          >
+            <Activity size={14} /> Live Financial Command Center
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 transition shadow-xs"
+          >
+            <RefreshCw size={13} /> Refresh Data
+          </button>
+        </div>
       </div>
-      <button className="daily-refresh" onClick={onRefresh}><RefreshCw size={16} /> Refresh</button>
-    </header>
+
+      {activeTab === "mockup" ? (
+        <MiningEbitdaDashboard onRefresh={onRefresh} />
+      ) : (
+        <section className="daily-finance">
+          <header className="daily-hero">
+            <div className="daily-mark"><WalletCards size={34} /></div>
+            <div>
+              <p>Finance Command Center</p>
+              <h1>Summary Daily Financial [{summaryDate}]</h1>
+            </div>
+            <button className="daily-refresh" onClick={onRefresh}><RefreshCw size={16} /> Refresh</button>
+          </header>
 
     <div className="daily-board">
       <section className="daily-left">
@@ -300,5 +345,8 @@ export function DashboardPage({
         </div>
       </section>
     </div>
-  </section>;
+  </section>
+      )}
+    </section>
+  );
 }

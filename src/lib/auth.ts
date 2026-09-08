@@ -1,10 +1,47 @@
 import { useEffect, useState } from "react";
 import { menuPermissionMap } from "../data/navigation";
-import { getCompanies, type Company, type Permission, type RoleAccess, type TCode, type User } from "./api";
+import { DEFAULT_COMPANIES, getCompanies, type Company, type Permission, type RoleAccess, type TCode, type User } from "./api";
 
 export function isSuperAdminRole(role: string) {
   const normalized = role?.toLowerCase() ?? "";
   return normalized === "super admin" || normalized === "super_admin" || normalized === "system administrator" || normalized === "erp super admin" || normalized.includes("super admin") || normalized.includes("super_admin");
+}
+
+// RBAC check for Coal Index: driven by RBAC permissions (coal_index:write / master_data:write) + fallback
+export function canManageCoalIndex(user?: User): boolean {
+  if (!user) return false;
+  const role = (user.role ?? "").toLowerCase().trim();
+  if (isSuperAdminRole(role)) return true;
+
+  // Dynamic RBAC Permission Check (Authoritative)
+  if (
+    authorized(user, "coal_index", "write") ||
+    authorized(user, "coal_index", "*") ||
+    authorized(user, "master_data", "write") ||
+    authorized(user, "master_data", "*")
+  ) {
+    return true;
+  }
+
+  // Legacy Role Name Fallback (if permissions not loaded)
+  if (
+    role.includes("spv") ||
+    role.includes("supervisor") ||
+    role.includes("superintendent") ||
+    role.includes("finance specialist") ||
+    role.includes("manager") ||
+    role.includes("fatb") ||
+    role.includes("director") ||
+    role.includes("direktur") ||
+    role.includes("c-level") ||
+    role.includes("general manager") ||
+    role.includes("cfo") ||
+    role.includes("ceo")
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 // Audit Trail (dan Notification) access driven by permission/T-Code — backend module
@@ -79,8 +116,29 @@ export function authorized(
   return hasPermission(userPermissionsOf(user), module, action);
 }
 
-export function canAccessMenu(item: string, role: string, permissions: Permission[], tcodes?: TCode[]) {
+export function canAccessMenu(item: string, role: string, permissions: Permission[], tcodes?: TCode[], user?: User) {
   if (isSuperAdminRole(role)) return true;
+
+  // Site-specific Master Data restrictions:
+  // For site accounts (scope SITE / role includes "site"):
+  // Master data only allows "RAISE & FALL", and even then strictly for BGG and POS sites.
+  const isSiteUser = (user && !isHeadOfficeUser(user)) || (role && role.toLowerCase().includes("site"));
+  if (isSiteUser) {
+    const isMasterDataItem = [
+      "Chart of Accounts", "Company", "Site", "Department", "Cost Center", "Project",
+      "Vendor", "Client Setup", "Customer Master & Credit Terms", "Customer", "Employee",
+      "Bank", "Tax", "Currency", "Coal Index", "Variable SOW", "RAISE & FALL"
+    ].includes(item);
+
+    if (isMasterDataItem) {
+      if (item !== "RAISE & FALL") return false;
+      const userSite = (user?.companyCode || (user ? companyScopeOf(user).codes[0] : "") || "").toUpperCase();
+      const roleUpper = (role || "").toUpperCase();
+      const isBGGorPOS = userSite === "BGG" || userSite === "POS" || roleUpper.includes("BGG") || roleUpper.includes("POS");
+      if (!isBGGorPOS) return false;
+      return true;
+    }
+  }
 
   if (tcodes && tcodes.length > 0) {
     const itemSlug = item.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -90,8 +148,10 @@ export function canAccessMenu(item: string, role: string, permissions: Permissio
     });
   }
 
-  const required = menuPermissionMap[item] ?? [];
-  if (!required.length) return true;
+  // Fail-closed RBAC: unmapped menu item => access denied by default
+  const required = menuPermissionMap[item] ?? null;
+  if (required === null) return false;
+  if (!required.length) return true; // explicitly-empty = intentionally open
   return required.some((grant) => {
     const [module, action] = grant.split(":");
     return permissions.some((permission) => permission.module === module && (permission.action === action || permission.action === "*"));
@@ -127,7 +187,7 @@ export function companyScopeOf(user: User) {
   return { all: false, codes: codes.map((code) => code.toUpperCase()), ids, names };
 }
 
-let cachedCompanies: Company[] = [];
+let cachedCompanies: Company[] = [...DEFAULT_COMPANIES];
 let companyLoadPromise: Promise<Company[]> | null = null;
 
 // Loads the company list from the backend (/api/companies) once and caches it.
@@ -135,14 +195,14 @@ let companyLoadPromise: Promise<Company[]> | null = null;
 export function loadCompanies(): Promise<Company[]> {
   if (!companyLoadPromise) {
     companyLoadPromise = getCompanies()
-      .then((companies) => (Array.isArray(companies) ? companies : []))
+      .then((companies) => (Array.isArray(companies) && companies.length > 0 ? companies : DEFAULT_COMPANIES))
       .then((companies) => {
         cachedCompanies = companies;
         return companies;
       })
       .catch(() => {
-        cachedCompanies = [];
-        return [];
+        cachedCompanies = DEFAULT_COMPANIES;
+        return DEFAULT_COMPANIES;
       });
   }
   return companyLoadPromise;

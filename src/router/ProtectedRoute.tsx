@@ -19,7 +19,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ requiredView, children }: ProtectedRouteProps) {
   const { user, permissions } = useOutletContext<AppContext>();
 
-  if (!canAccessMenu(requiredView, user.role, permissions)) {
+  if (!canAccessMenu(requiredView, user.role, permissions, undefined, user)) {
     return <PermissionDeniedPage requiredView={requiredView} />;
   }
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
   Calendar,
   CheckCircle2,
@@ -12,6 +12,7 @@ import {
   TrendingUp,
   TrendingDown,
   Unlock,
+  Upload,
   X,
   FileSpreadsheet,
   AlertCircle,
@@ -23,7 +24,9 @@ import {
 } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
-import { api } from "../lib/api";
+import { api, type User } from "../lib/api";
+import { canManageCoalIndex } from "../lib/auth";
+import { MonthPickerInput } from "./finance/helpers";
 
 export interface CoalIndexWeekly {
   id?: number;
@@ -36,30 +39,103 @@ export interface CoalIndexWeekly {
 }
 
 export interface CoalIndexMonthly {
-  id: number;
+  id?: number;
   period: string;
   avgIci3: number;
   avgIci4: number;
   avgR3: number;
-  activeTier: "Tier 1" | "Tier 2" | "Tier 3" | string;
-  status: "Draft" | "Verified" | "Locked" | string;
+  activeTier: string;
+  status: string;
   notes?: string;
-  weeks: CoalIndexWeekly[];
   updatedAt?: string;
+  weeks: CoalIndexWeekly[];
+}
+
+const MONTH_NAMES_MAP: Record<string, number> = {
+  januari: 0, january: 0, jan: 0,
+  februari: 1, february: 1, feb: 1,
+  maret: 2, march: 2, mar: 2,
+  april: 3, apr: 3,
+  mei: 4, may: 4,
+  juni: 5, june: 5, jun: 5,
+  juli: 6, july: 6, jul: 6,
+  agustus: 7, august: 7, aug: 7,
+  september: 8, sep: 8, sept: 8,
+  oktober: 9, october: 9, okt: 9, oct: 9,
+  november: 10, nov: 10,
+  desember: 11, december: 11, des: 11, dec: 11
+};
+
+export function getFridaysForPeriod(periodStr: string): string[] {
+  let year = new Date().getFullYear();
+  let month = new Date().getMonth();
+
+  if (periodStr) {
+    const parts = periodStr.toLowerCase().trim().split(/[\s-]+/);
+    if (parts.length >= 2) {
+      if (MONTH_NAMES_MAP[parts[0]] !== undefined) {
+        month = MONTH_NAMES_MAP[parts[0]];
+        const y = parseInt(parts[1], 10);
+        if (!isNaN(y)) year = y;
+      } else if (MONTH_NAMES_MAP[parts[1]] !== undefined) {
+        month = MONTH_NAMES_MAP[parts[1]];
+        const y = parseInt(parts[0], 10);
+        if (!isNaN(y)) year = y;
+      } else {
+        const p0 = parseInt(parts[0], 10);
+        const p1 = parseInt(parts[1], 10);
+        if (p0 > 1000) {
+          year = p0;
+          month = Math.max(0, Math.min(11, p1 - 1));
+        } else if (p1 > 1000) {
+          year = p1;
+          month = Math.max(0, Math.min(11, p0 - 1));
+        }
+      }
+    }
+  }
+
+  const fridays: string[] = [];
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dt = new Date(year, month, d);
+    if (dt.getDay() === 5) {
+      const yyyy = dt.getFullYear();
+      const mm = String(dt.getMonth() + 1).padStart(2, "0");
+      const dd = String(dt.getDate()).padStart(2, "0");
+      fridays.push(`${yyyy}-${mm}-${dd}`);
+    }
+  }
+
+  while (fridays.length < 4) {
+    const base = fridays.length > 0 ? new Date(fridays[fridays.length - 1]) : new Date(year, month, 7);
+    base.setDate(base.getDate() + 7);
+    const yyyy = base.getFullYear();
+    const mm = String(base.getMonth() + 1).padStart(2, "0");
+    const dd = String(base.getDate()).padStart(2, "0");
+    fridays.push(`${yyyy}-${mm}-${dd}`);
+  }
+
+  return fridays.slice(0, 4);
 }
 
 export function CoalIndexPage({
   viewTitle,
   query,
-  onNotice
+  onNotice,
+  user
 }: {
   viewTitle: string;
   query: string;
   onNotice: (msg: string) => void;
+  user?: User;
 }) {
   const [loading, setLoading] = useState(true);
   const [indexList, setIndexList] = useState<CoalIndexMonthly[]>([]);
   const [selectedPeriod, setSelectedPeriod] = useState("Juni 2026");
+
+  // RBAC permission check: Finance SPV, FATB Manager, Direktur (+ Super Admin)
+  const canEdit = canManageCoalIndex(user);
 
   // Modal / Form state
   const [modalOpen, setModalOpen] = useState(false);
@@ -70,14 +146,14 @@ export function CoalIndexPage({
     avgIci3: 0,
     avgIci4: 0,
     avgR3: 0,
-    activeTier: "Tier 3",
+    activeTier: "Tier 1",
     status: "Draft",
     notes: "",
     weeks: [
-      { weekNumber: 1, releaseDate: "2026-06-05", ici3Price: 92.50, ici4Price: 61.20, r3Price: 76.85 },
-      { weekNumber: 2, releaseDate: "2026-06-12", ici3Price: 91.80, ici4Price: 60.50, r3Price: 76.15 },
-      { weekNumber: 3, releaseDate: "2026-06-19", ici3Price: 93.00, ici4Price: 61.00, r3Price: 77.00 },
-      { weekNumber: 4, releaseDate: "2026-06-26", ici3Price: 91.30, ici4Price: 60.15, r3Price: 75.725 },
+      { weekNumber: 1, releaseDate: "2026-06-05", ici3Price: 0, ici4Price: 0, r3Price: 0 },
+      { weekNumber: 2, releaseDate: "2026-06-12", ici3Price: 0, ici4Price: 0, r3Price: 0 },
+      { weekNumber: 3, releaseDate: "2026-06-19", ici3Price: 0, ici4Price: 0, r3Price: 0 },
+      { weekNumber: 4, releaseDate: "2026-06-26", ici3Price: 0, ici4Price: 0, r3Price: 0 },
     ]
   });
 
@@ -108,30 +184,57 @@ export function CoalIndexPage({
     (item) => item.period.toLowerCase() === selectedPeriod.toLowerCase()
   ) || indexList[0];
 
+  const handlePeriodChange = (newPeriod: string) => {
+    const fridays = getFridaysForPeriod(newPeriod);
+    const updatedWeeks = formData.weeks.map((w, idx) => ({
+      ...w,
+      releaseDate: fridays[idx] || w.releaseDate
+    }));
+    setFormData({
+      ...formData,
+      period: newPeriod,
+      weeks: updatedWeeks
+    });
+  };
+
   const handleOpenCreateModal = () => {
+    if (!canEdit) {
+      onNotice("Akses ditolak: Pengisian Coal Index hanya dapat dilakukan oleh Finance SPV, FATB Manager, dan Direktur.");
+      return;
+    }
     setIsEditing(false);
+    const targetPeriod = "Agustus 2026";
+    const fridays = getFridaysForPeriod(targetPeriod);
     setFormData({
       id: 0,
-      period: "Juli 2026",
-      avgIci3: 91.5,
-      avgIci4: 60.5,
-      avgR3: 76.0,
-      activeTier: "Tier 3",
+      period: targetPeriod,
+      avgIci3: 0,
+      avgIci4: 0,
+      avgR3: 0,
+      activeTier: "Tier 1",
       status: "Draft",
-      notes: "Publikasi mingguan Argus / Coalindo",
+      notes: "",
       weeks: [
-        { weekNumber: 1, releaseDate: "2026-07-03", ici3Price: 91.8, ici4Price: 60.8, r3Price: 76.3 },
-        { weekNumber: 2, releaseDate: "2026-07-10", ici3Price: 91.2, ici4Price: 60.4, r3Price: 75.8 },
-        { weekNumber: 3, releaseDate: "2026-07-17", ici3Price: 92.0, ici4Price: 61.0, r3Price: 76.5 },
-        { weekNumber: 4, releaseDate: "2026-07-24", ici3Price: 91.0, ici4Price: 59.8, r3Price: 75.4 },
+        { weekNumber: 1, releaseDate: fridays[0] || "2026-08-07", ici3Price: 0, ici4Price: 0, r3Price: 0 },
+        { weekNumber: 2, releaseDate: fridays[1] || "2026-08-14", ici3Price: 0, ici4Price: 0, r3Price: 0 },
+        { weekNumber: 3, releaseDate: fridays[2] || "2026-08-21", ici3Price: 0, ici4Price: 0, r3Price: 0 },
+        { weekNumber: 4, releaseDate: fridays[3] || "2026-08-28", ici3Price: 0, ici4Price: 0, r3Price: 0 },
       ]
     });
     setModalOpen(true);
   };
 
   const handleOpenEditModal = (item: CoalIndexMonthly) => {
+    if (!canEdit) {
+      onNotice("Akses ditolak: Pengubahan Coal Index hanya dapat dilakukan oleh Finance SPV, FATB Manager, dan Direktur.");
+      return;
+    }
     setIsEditing(true);
-    setFormData(JSON.parse(JSON.stringify(item)));
+    const itemCopy = JSON.parse(JSON.stringify(item));
+    if (itemCopy.status === "Locked" || itemCopy.status === "Verified") {
+      itemCopy.status = "Final";
+    }
+    setFormData(itemCopy);
     setModalOpen(true);
   };
 
@@ -140,9 +243,11 @@ export function CoalIndexPage({
     if (field === "releaseDate") {
       updatedWeeks[index].releaseDate = val;
     } else {
-      const numVal = parseFloat(val) || 0;
+      const numVal = val === "" ? 0 : parseFloat(val) || 0;
       updatedWeeks[index][field] = numVal;
-      updatedWeeks[index].r3Price = (updatedWeeks[index].ici3Price + updatedWeeks[index].ici4Price) / 2.0;
+      const p3 = updatedWeeks[index].ici3Price || 0;
+      const p4 = updatedWeeks[index].ici4Price || 0;
+      updatedWeeks[index].r3Price = (p3 > 0 || p4 > 0) ? (p3 + p4) / 2.0 : 0;
     }
 
     // Recalculate summary averages
@@ -176,6 +281,10 @@ export function CoalIndexPage({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEdit) {
+      onNotice("Akses ditolak: Anda tidak memiliki izin untuk menyimpan data Coal Index.");
+      return;
+    }
     try {
       await api("/api/master-data/coal-index", {
         method: "POST",
@@ -190,7 +299,12 @@ export function CoalIndexPage({
   };
 
   const handleToggleLock = async (item: CoalIndexMonthly) => {
-    const nextStatus = item.status === "Locked" ? "Verified" : "Locked";
+    if (!canEdit) {
+      onNotice("Akses ditolak: Hanya Finance SPV, FATB Manager, dan Direktur yang dapat mengubah status Coal Index.");
+      return;
+    }
+    const currentIsFinal = item.status === "Final" || item.status === "Locked" || item.status === "Verified";
+    const nextStatus = currentIsFinal ? "Draft" : "Final";
     try {
       await api("/api/master-data/coal-index/lock", {
         method: "POST",
@@ -207,354 +321,333 @@ export function CoalIndexPage({
   const r3Val = currentIndex?.avgR3 || 0;
   const tierPercentage = Math.min(100, Math.max(0, ((r3Val - 30) / (100 - 30)) * 100));
 
+  const isCurrentFinal = currentIndex?.status === "Final" || currentIndex?.status === "Locked" || currentIndex?.status === "Verified";
+
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto pb-12">
-      {/* Top Banner Header */}
-      <div className="relative overflow-hidden bg-slate-900 p-6 sm:p-7 rounded-3xl border border-slate-700/60 shadow-xl text-white">
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-cyan-500/10 pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
-          <div className="space-y-2 max-w-2xl">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <span className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center gap-1.5 shadow-sm">
-                <Flame size={14} className="text-amber-400 animate-pulse" />
-                Indonesian Coal Index (ICI) Engine
-              </span>
-              <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-white/10 text-cyan-200 border border-white/10 flex items-center gap-1">
-                <ShieldCheck size={13} />
-                Argus / Coalindo Standard
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-              Master Benchmark Coal Index
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed">
-              Acuan resmi penentuan formula tarif bertingkat (<strong>Tier 1 / 2 / 3</strong>) pada penambangan batubara PT BGG dan perhitungan penyesuaian invoice penambangan.
-            </p>
+    <div className="space-y-5 max-w-[1600px] mx-auto pb-12">
+      {/* Top Header */}
+      <PageHeader
+        title="Master Benchmark Coal Index"
+      >
+        <div className="flex items-center gap-2">
+          {/* History Coal Index Dropdown */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white shadow-2xs hover:border-slate-300 transition">
+            <Calendar size={13} className="text-slate-500 shrink-0" />
+            <select
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer pr-1"
+              title="Pilih Riwayat Periode Coal Index"
+            >
+              {indexList.map((idx) => (
+                <option key={idx.id || idx.period} value={idx.period}>
+                  Periode: {idx.period} [{idx.activeTier || "Tier 1"}]
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <button
-              onClick={() => loadData()}
-              className="p-3 rounded-2xl border border-white/15 bg-white/10 hover:bg-white/20 text-white font-bold transition shadow-sm active:scale-95 cursor-pointer backdrop-blur-md"
-              title="Perbarui Data"
-            >
-              <RefreshCw size={17} className={loading ? "animate-spin" : ""} />
-            </button>
+          {/* Refresh Button */}
+          <button
+            onClick={() => loadData()}
+            className="p-1.5 rounded-[3px] border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition cursor-pointer"
+            title="Perbarui Data"
+          >
+            <RefreshCw size={15} className={loading ? "animate-spin text-[#A57C50]" : ""} />
+          </button>
+
+          {/* Action Button: Input Periode Baru */}
+          {canEdit ? (
             <button
               onClick={handleOpenCreateModal}
-              className="px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-amber-500/25 transition active:scale-95 cursor-pointer"
+              className="px-4 py-2 text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition hover:brightness-95 cursor-pointer whitespace-nowrap"
+              style={{ background: "#A57C50", borderRadius: 3 }}
             >
-              <Plus size={18} className="stroke-[3]" />
-              <span>+ Input Periode Baru</span>
+              <Plus size={15} />
+              <span>Input Periode Baru</span>
             </button>
-          </div>
+          ) : (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] bg-slate-100 border border-slate-200 text-slate-600 text-xs font-medium whitespace-nowrap">
+              <Lock size={13} className="text-slate-400" />
+              <span>Mode Lihat (Read-Only)</span>
+            </div>
+          )}
         </div>
-      </div>
+      </PageHeader>
 
-      {/* Period Selection Pill Navigation */}
-      <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
-        {indexList.map((idx) => {
-          const isSelected = idx.period === selectedPeriod;
-          const isTier3 = idx.activeTier === "Tier 3";
-          return (
-            <button
-              key={idx.id || idx.period}
-              onClick={() => setSelectedPeriod(idx.period)}
-              className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2.5 transition-all whitespace-nowrap border cursor-pointer ${
-                isSelected
-                  ? "bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-amber-400/40"
-                  : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300 shadow-2xs"
-              }`}
-            >
-              <Calendar size={15} className={isSelected ? "text-amber-400" : "text-slate-400"} />
-              <span>{idx.period}</span>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full font-black tracking-wide ${
-                isTier3
-                  ? isSelected ? "bg-amber-400 text-slate-950 shadow-xs" : "bg-amber-100 text-amber-900 border border-amber-300"
-                  : isSelected ? "bg-cyan-400 text-slate-950" : "bg-slate-100 text-slate-700"
-              }`}>
-                {idx.activeTier}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* KPI Cards Grid */}
+      {/* KPI Cards Grid — FEAST Enterprise High Density Standard */}
       {currentIndex && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Active Tier Highlight Card */}
-          <div className="relative overflow-hidden bg-amber-50 p-5 sm:p-6 rounded-3xl border-2 border-amber-300/90 shadow-sm flex flex-col justify-between">
+          <div className="bg-white p-4 border border-slate-200 shadow-sm flex flex-col justify-between space-y-2" style={{ borderRadius: 4 }}>
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-black uppercase tracking-wider text-amber-900 flex items-center gap-1.5">
-                <Sparkles size={14} className="text-amber-600" />
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 Active Pricing Tier
               </span>
-              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border ${
-                currentIndex.status === "Locked"
-                  ? "bg-slate-900 text-white border-slate-800"
-                  : "bg-emerald-100 text-emerald-900 border-emerald-300"
+              <span className={`px-2 py-0.5 rounded-[3px] text-[10px] font-bold border ${
+                isCurrentFinal
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                  : "bg-amber-50 text-amber-800 border-amber-200"
               }`}>
-                {currentIndex.status || "Verified"}
+                {isCurrentFinal ? "Final" : "Draft"}
               </span>
             </div>
 
-            <div className="my-3">
-              <div className="text-3xl sm:text-4xl font-black text-amber-950 tracking-tight flex items-baseline gap-2">
-                <span>{currentIndex.activeTier || "Tier 3"}</span>
+            <div>
+              <div className="text-2xl font-bold text-slate-900 tracking-tight">
+                {currentIndex.activeTier || "Tier 3"}
               </div>
-              <p className="text-xs font-semibold text-amber-800 mt-1">
+              <p className="text-[11px] font-medium text-slate-600 mt-0.5">
                 {currentIndex.activeTier === "Tier 3"
-                  ? "🔥 R3 > $75 / MT — Tarif Tertinggi Berlaku"
+                  ? "R3 > $75 / MT (Tarif Tertinggi)"
                   : currentIndex.activeTier === "Tier 2"
-                  ? "⚡ $50 ≤ R3 ≤ $75 / MT — Tarif Menengah"
-                  : "🌱 R3 < $50 / MT — Tarif Dasar"}
+                  ? "$50 ≤ R3 ≤ $75 / MT (Tarif Menengah)"
+                  : "R3 < $50 / MT (Tarif Dasar)"}
               </p>
             </div>
 
-            <div className="pt-2 border-t border-amber-200/80 text-[11px] font-bold text-slate-600 flex items-center justify-between">
-              <span>OB 1: Rp 29.500/Bcm</span>
-              <span>OB 2: Rp 28.750/Bcm</span>
+            <div className="pt-2 border-t border-slate-100 text-[11px] font-tabular text-slate-600 flex items-center justify-between">
+              <span>OB 1: Rp 29.500</span>
+              <span>OB 2: Rp 28.750</span>
             </div>
           </div>
 
           {/* Average R3 Monthly Card */}
-          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-xs flex flex-col justify-between">
+          <div className="bg-white p-4 border border-slate-200 shadow-sm flex flex-col justify-between space-y-2" style={{ borderRadius: 4 }}>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
                 Monthly Average R3
               </span>
-              <span className="p-1.5 bg-amber-50 rounded-xl text-amber-700">
-                <BarChart3 size={16} />
+              <span className="p-1 bg-slate-100 rounded text-slate-600">
+                <BarChart3 size={14} />
               </span>
             </div>
-            <div className="my-2">
-              <div className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+            <div>
+              <div className="text-2xl font-bold text-slate-900 font-tabular tracking-tight">
                 ${currentIndex.avgR3 ? currentIndex.avgR3.toFixed(2) : "0.00"}
-                <span className="text-xs font-sans font-bold text-slate-400 ml-1.5">USD/MT</span>
+                <span className="text-xs font-sans font-normal text-slate-400 ml-1">USD/MT</span>
               </div>
-              <p className="text-[11px] font-mono text-slate-500 mt-1">
-                Formula: R3 = (ICI 3 + ICI 4) / 2
+              <p className="text-[11px] font-mono text-slate-500 mt-0.5">
+                Formula: (ICI 3 + ICI 4) / 2
               </p>
             </div>
-            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-1">
+            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
               <div
-                className="h-full bg-amber-500 rounded-full"
-                style={{ width: `${tierPercentage}%` }}
+                className="h-full rounded-full"
+                style={{ width: `${tierPercentage}%`, background: "#A57C50" }}
               />
             </div>
           </div>
 
           {/* ICI 3 Average Card */}
-          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-xs flex flex-col justify-between">
+          <div className="bg-white p-4 border border-slate-200 shadow-sm flex flex-col justify-between space-y-2" style={{ borderRadius: 4 }}>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-cyan-700 uppercase tracking-wider">
-                ICI 3 Average (5.000 GAR)
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                ICI 3 (5.000 GAR)
               </span>
-              <span className="p-1.5 bg-cyan-50 rounded-xl text-cyan-700">
-                <TrendingUp size={16} />
+              <span className="p-1 bg-slate-100 rounded text-slate-600">
+                <TrendingUp size={14} />
               </span>
             </div>
-            <div className="my-2">
-              <div className="text-3xl sm:text-4xl font-black text-cyan-900 font-mono tracking-tight">
+            <div>
+              <div className="text-2xl font-bold text-slate-900 font-tabular tracking-tight">
                 ${currentIndex.avgIci3 ? currentIndex.avgIci3.toFixed(2) : "0.00"}
-                <span className="text-xs font-sans font-bold text-slate-400 ml-1.5">USD/MT</span>
+                <span className="text-xs font-sans font-normal text-slate-400 ml-1">USD/MT</span>
               </div>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Kualitas Batubara 5.000 kcal/kg GAR
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Rata-rata 4 Minggu Rilis
               </p>
             </div>
-            <div className="text-[11px] font-bold text-cyan-800 bg-cyan-50/80 px-2.5 py-1 rounded-xl">
-              Rata-rata 4 Minggu Rilis
+            <div className="text-[11px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded-[3px] border border-slate-200">
+              Kualitas 5.000 kcal/kg
             </div>
           </div>
 
           {/* ICI 4 Average Card */}
-          <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-xs flex flex-col justify-between">
+          <div className="bg-white p-4 border border-slate-200 shadow-sm flex flex-col justify-between space-y-2" style={{ borderRadius: 4 }}>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">
-                ICI 4 Average (4.200 GAR)
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                ICI 4 (4.200 GAR)
               </span>
-              <span className="p-1.5 bg-blue-50 rounded-xl text-blue-700">
-                <TrendingUp size={16} />
+              <span className="p-1 bg-slate-100 rounded text-slate-600">
+                <TrendingUp size={14} />
               </span>
             </div>
-            <div className="my-2">
-              <div className="text-3xl sm:text-4xl font-black text-blue-900 font-mono tracking-tight">
+            <div>
+              <div className="text-2xl font-bold text-slate-900 font-tabular tracking-tight">
                 ${currentIndex.avgIci4 ? currentIndex.avgIci4.toFixed(2) : "0.00"}
-                <span className="text-xs font-sans font-bold text-slate-400 ml-1.5">USD/MT</span>
+                <span className="text-xs font-sans font-normal text-slate-400 ml-1">USD/MT</span>
               </div>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Kualitas Batubara 4.200 kcal/kg GAR
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Rata-rata 4 Minggu Rilis
               </p>
             </div>
-            <div className="text-[11px] font-bold text-blue-800 bg-blue-50/80 px-2.5 py-1 rounded-xl">
-              Rata-rata 4 Minggu Rilis
+            <div className="text-[11px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+              Kualitas 4.200 kcal/kg
             </div>
           </div>
         </div>
       )}
 
       {/* Tier Benchmark Visual Range Scale */}
-      <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-xs space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-2.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
           <div className="flex items-center gap-2">
-            <h3 className="font-extrabold text-sm text-slate-900">
-              Skala Ambang Batas Tiering Indonesian Coal Index
+            <h3 className="font-bold text-xs text-slate-900">
+              Ambang Batas Tiering Indonesian Coal Index (Kontrak SOW PT BGG)
             </h3>
-            <span className="text-xs text-slate-400 font-medium">(Sesuai Klausul Kontrak SOW PT BGG)</span>
           </div>
-          <span className="text-xs font-black text-amber-800 bg-amber-100 px-3 py-1 rounded-xl">
-            Posisi Saat Ini: R3 = ${r3Val.toFixed(2)} / MT ({currentIndex?.activeTier})
+          <span className="text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200 font-mono">
+            R3 Periode: ${r3Val.toFixed(2)} / MT ({currentIndex?.activeTier})
           </span>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 text-xs pt-1">
+        <div className="grid grid-cols-3 gap-2.5 text-xs pt-0.5">
           {/* Tier 1 Box */}
-          <div className={`p-3.5 rounded-2xl border transition-all ${
+          <div className={`p-3 rounded-lg border transition-all ${
             currentIndex?.activeTier === "Tier 1"
-              ? "bg-emerald-500 text-white border-emerald-600 shadow-md ring-2 ring-emerald-400"
+              ? "bg-emerald-50 border-emerald-300 text-emerald-950 font-bold"
               : "bg-slate-50 text-slate-700 border-slate-200"
           }`}>
-            <div className="font-black text-sm">TIER 1 (R3 &lt; $50)</div>
-            <p className="text-[11px] opacity-90 mt-0.5">Tarif Dasar OB 1: Rp 27.000 / Bcm</p>
+            <div className="font-bold text-xs">TIER 1 (R3 &lt; $50)</div>
+            <p className="text-[11px] text-slate-500 mt-0.5">Tarif Dasar OB 1: Rp 27.000 / Bcm</p>
           </div>
 
           {/* Tier 2 Box */}
-          <div className={`p-3.5 rounded-2xl border transition-all ${
+          <div className={`p-3 rounded-lg border transition-all ${
             currentIndex?.activeTier === "Tier 2"
-              ? "bg-blue-600 text-white border-blue-700 shadow-md ring-2 ring-blue-400"
+              ? "bg-cyan-50 border-cyan-300 text-cyan-950 font-bold"
               : "bg-slate-50 text-slate-700 border-slate-200"
           }`}>
-            <div className="font-black text-sm">TIER 2 ($50 ≤ R3 ≤ $75)</div>
-            <p className="text-[11px] opacity-90 mt-0.5">Tarif OB 1: Rp 27.250 / Bcm (Feb-26 Carryover)</p>
+            <div className="font-bold text-xs">TIER 2 ($50 ≤ R3 ≤ $75)</div>
+            <p className="text-[11px] text-slate-500 mt-0.5">Tarif OB 1: Rp 27.250 / Bcm</p>
           </div>
 
           {/* Tier 3 Box */}
-          <div className={`p-3.5 rounded-2xl border transition-all ${
+          <div className={`p-3 rounded-lg border transition-all ${
             currentIndex?.activeTier === "Tier 3"
-              ? "bg-amber-500 text-slate-950 border-amber-600 shadow-lg ring-2 ring-amber-400"
+              ? "bg-amber-50 border-amber-300 text-amber-950 font-bold"
               : "bg-slate-50 text-slate-700 border-slate-200"
           }`}>
-            <div className="font-black text-sm">TIER 3 (R3 &gt; $75) 🔥 AKTIF</div>
-            <p className="text-[11px] opacity-90 mt-0.5">Tarif OB 1: Rp 29.500 / Bcm (Juni 2026)</p>
+            <div className="font-bold text-xs">TIER 3 (R3 &gt; $75) — AKTIF</div>
+            <p className="text-[11px] text-slate-500 mt-0.5">Tarif OB 1: Rp 29.500 / Bcm</p>
           </div>
         </div>
       </div>
 
       {/* Weekly Data Table & Actions */}
       {currentIndex && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-black text-slate-900 text-base sm:text-lg">
-                  Rincian Publikasi Mingguan — {currentIndex.period}
-                </h3>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-slate-100 text-slate-700">
-                  {currentIndex.weeks ? currentIndex.weeks.length : 0} Minggu Rilis
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-1">
-                Data resmi dari laporan Indonesian Coal Index setiap hari Jumat yang digunakan sebagai dasar penagihan.
-              </p>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
+          <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-slate-900 text-sm">
+                Rincian Publikasi Mingguan — {currentIndex.period}
+              </h3>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                {currentIndex.weeks ? currentIndex.weeks.length : 0} Minggu Rilis
+              </span>
             </div>
 
-            <div className="flex items-center gap-2.5">
-              <button
-                onClick={() => handleToggleLock(currentIndex)}
-                className={`px-4 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2 border transition shadow-2xs cursor-pointer ${
-                  currentIndex.status === "Locked"
-                    ? "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200"
-                    : "bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100"
-                }`}
-              >
-                {currentIndex.status === "Locked" ? (
-                  <>
-                    <Unlock size={15} /> Buka Kunci Periode
-                  </>
-                ) : (
-                  <>
-                    <Lock size={15} /> Kunci Data Periode
-                  </>
-                )}
-              </button>
-              <button
-                onClick={() => handleOpenEditModal(currentIndex)}
-                className="px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black transition shadow-sm cursor-pointer"
-              >
-                Edit Rilis Mingguan
-              </button>
-            </div>
+            {canEdit && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleToggleLock(currentIndex)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 border transition shadow-2xs cursor-pointer ${
+                    isCurrentFinal
+                      ? "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200"
+                      : "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
+                  }`}
+                >
+                  {isCurrentFinal ? (
+                    <>
+                      <Unlock size={13} /> Ubah ke Draft
+                    </>
+                  ) : (
+                    <>
+                      <Lock size={13} /> Finalisasi (Kunci)
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => handleOpenEditModal(currentIndex)}
+                  className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-2xs cursor-pointer"
+                >
+                  Edit Mingguan
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="bg-slate-50/80 text-slate-600 font-extrabold uppercase text-[11px] tracking-wider border-b border-slate-200">
-                <tr>
-                  <th className="p-4 pl-6">Minggu</th>
-                  <th className="p-4">Tanggal Rilis (Jumat)</th>
-                  <th className="p-4 font-mono text-right text-cyan-800">ICI 3 (USD/T)</th>
-                  <th className="p-4 font-mono text-right text-blue-800">ICI 4 (USD/T)</th>
-                  <th className="p-4 font-mono text-right text-amber-900 bg-amber-50/50">Kalkulasi R3 (USD/T)</th>
-                  <th className="p-4 pr-6 text-center">Status Audit</th>
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                  <th className="p-3 pl-4">Minggu</th>
+                  <th className="p-3">Tanggal Rilis</th>
+                  <th className="p-3 font-mono text-right">ICI 3 (USD/T)</th>
+                  <th className="p-3 font-mono text-right">ICI 4 (USD/T)</th>
+                  <th className="p-3 font-mono text-right">Kalkulasi R3 (USD/T)</th>
+                  <th className="p-3 pr-4 text-center">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
                 {currentIndex.weeks && currentIndex.weeks.length > 0 ? (
                   currentIndex.weeks.map((week, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/80 transition">
-                      <td className="p-4 pl-6 font-black text-slate-900">
+                    <tr key={idx} className="hover:bg-slate-50 transition">
+                      <td className="p-3 pl-4 font-bold text-slate-900">
                         Minggu ke-{week.weekNumber || idx + 1}
                       </td>
-                      <td className="p-4 text-slate-700 font-semibold">
-                        <span className="inline-flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-lg font-mono text-xs">
-                          <Calendar size={13} className="text-slate-400" />
+                      <td className="p-3 text-slate-700">
+                        <span className="inline-flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded font-mono text-xs border border-slate-200">
+                          <Calendar size={12} className="text-slate-400" />
                           {week.releaseDate || "-"}
                         </span>
                       </td>
-                      <td className="p-4 text-right font-mono font-bold text-cyan-700 text-sm">
+                      <td className="p-3 text-right font-mono font-bold text-slate-800">
                         ${week.ici3Price ? week.ici3Price.toFixed(2) : "0.00"}
                       </td>
-                      <td className="p-4 text-right font-mono font-bold text-blue-700 text-sm">
+                      <td className="p-3 text-right font-mono font-bold text-slate-800">
                         ${week.ici4Price ? week.ici4Price.toFixed(2) : "0.00"}
                       </td>
-                      <td className="p-4 text-right font-mono font-black text-amber-950 text-sm bg-amber-50/40">
+                      <td className="p-3 text-right font-mono font-bold text-slate-900">
                         ${week.r3Price ? week.r3Price.toFixed(3) : "0.000"}
                       </td>
-                      <td className="p-4 pr-6 text-center">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-900 border border-emerald-300">
-                          <CheckCircle2 size={12} className="text-emerald-700" />
-                          Tervalidasi
+                      <td className="p-3 pr-4 text-center">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
+                          isCurrentFinal
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                            : "bg-amber-50 text-amber-800 border-amber-200"
+                        }`}>
+                          <CheckCircle2 size={11} className={isCurrentFinal ? "text-emerald-700" : "text-amber-600"} />
+                          {isCurrentFinal ? "Final" : "Draft"}
                         </span>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-slate-400 font-medium">
+                    <td colSpan={6} className="p-6 text-center text-slate-400">
                       Belum ada data rincian mingguan untuk periode ini.
                     </td>
                   </tr>
                 )}
               </tbody>
-              <tfoot className="bg-slate-900 text-white font-black border-t-2 border-slate-800">
+              <tfoot className="bg-slate-900 text-white font-bold border-t border-slate-800">
                 <tr>
-                  <td colSpan={2} className="p-4 pl-6 uppercase tracking-wider text-xs font-black">
+                  <td colSpan={2} className="p-3 pl-4 uppercase tracking-wider text-[10px]">
                     Rata-Rata Bulanan (Monthly Average)
                   </td>
-                  <td className="p-4 text-right font-mono text-cyan-300 text-sm">
+                  <td className="p-3 text-right font-mono text-cyan-300">
                     ${currentIndex.avgIci3 ? currentIndex.avgIci3.toFixed(2) : "0.00"}
                   </td>
-                  <td className="p-4 text-right font-mono text-blue-300 text-sm">
+                  <td className="p-3 text-right font-mono text-cyan-300">
                     ${currentIndex.avgIci4 ? currentIndex.avgIci4.toFixed(2) : "0.00"}
                   </td>
-                  <td className="p-4 text-right font-mono text-base text-amber-300 bg-slate-800">
+                  <td className="p-3 text-right font-mono text-amber-300">
                     ${currentIndex.avgR3 ? currentIndex.avgR3.toFixed(2) : "0.00"}
                   </td>
-                  <td className="p-4 pr-6 text-center">
-                    <span className="px-3 py-1 rounded-xl text-xs font-black bg-amber-400 text-slate-950 shadow-sm">
+                  <td className="p-3 pr-4 text-center">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-400 text-slate-950">
                       {currentIndex.activeTier}
                     </span>
                   </td>
@@ -567,66 +660,72 @@ export function CoalIndexPage({
 
       {/* Modal Form Edit / Tambah Periode */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-2xl w-full p-6 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-xl w-full p-5 max-h-[92vh] overflow-y-auto space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <span className="text-[11px] font-black uppercase text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
-                  Form Input Coal Index
-                </span>
-                <h3 className="text-xl font-black text-slate-900 mt-1">
+                <h3 className="text-base font-bold text-slate-900">
                   {isEditing ? `Edit Coal Index — ${formData.period}` : "Tambah Periode Coal Index"}
                 </h3>
               </div>
               <button
                 onClick={() => setModalOpen(false)}
-                className="p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition cursor-pointer"
               >
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Nama Periode (Bulan & Tahun)
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.period}
-                    onChange={(e) => setFormData({ ...formData, period: e.target.value })}
-                    placeholder="e.g. Juli 2026"
-                    className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold outline-none focus:border-amber-500 focus:bg-white transition"
-                  />
-                </div>
+            <form onSubmit={handleSave} className="space-y-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <MonthPickerInput
+                  label="Nama Periode (Bulan & Tahun)"
+                  value={formData.period}
+                  onChange={(val) => handlePeriodChange(val)}
+                  format="long"
+                  className="w-full p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-bold outline-none focus:border-cyan-700 focus:bg-white transition"
+                  required
+                />
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
                     Status Validasi
                   </label>
                   <select
-                    value={formData.status}
+                    value={formData.status === "Locked" || formData.status === "Verified" ? "Final" : (formData.status || "Draft")}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold outline-none focus:border-amber-500 focus:bg-white transition"
+                    className="w-full p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-bold outline-none focus:border-cyan-700 focus:bg-white transition"
                   >
                     <option value="Draft">Draft</option>
-                    <option value="Verified">Verified</option>
-                    <option value="Locked">Locked (Final)</option>
+                    <option value="Final">Final</option>
                   </select>
                 </div>
               </div>
 
               {/* Weekly Input Matrix */}
-              <div className="border border-slate-200 rounded-2xl overflow-hidden">
-                <div className="bg-slate-900 text-white px-4 py-2.5 text-xs font-black flex items-center justify-between">
-                  <span>INPUT HARGA MINGGUAN (ICI 3 & ICI 4)</span>
-                  <span className="text-[11px] text-amber-300 font-mono">Auto-Calculate R3</span>
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <div className="bg-slate-900 text-white px-3 py-2 text-xs font-bold flex items-center justify-between">
+                  <span>Input Harga Mingguan Indonesian Coal Index</span>
+                  <span className="text-[11px] text-amber-300 font-mono">Auto Live R3</span>
                 </div>
-                <div className="p-4 space-y-3 bg-slate-50/50">
+
+                {/* Sub-Header Kolom Acuan & Tier */}
+                <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-slate-100 border-b border-slate-200 text-[10px] font-extrabold uppercase text-slate-600 tracking-wider items-end">
+                  <div className="col-span-3">Minggu</div>
+                  <div className="col-span-3">Tgl Rilis (Jumat)</div>
+                  <div className="col-span-3">
+                    <span className="text-slate-900 font-bold block">ICI 3 (5.000 GAR)</span>
+                    <span className="text-[9px] text-slate-500 font-normal lowercase">USD/MT</span>
+                  </div>
+                  <div className="col-span-3">
+                    <span className="text-slate-900 font-bold block">ICI 4 (4.200 GAR)</span>
+                    <span className="text-[9px] text-slate-500 font-normal lowercase">USD/MT</span>
+                  </div>
+                </div>
+
+                <div className="p-3 space-y-2 bg-slate-50/50">
                   {formData.weeks.map((w, idx) => (
-                    <div key={idx} className="grid grid-cols-12 gap-2.5 items-center text-xs">
-                      <div className="col-span-3 font-black text-slate-800">
+                    <div key={idx} className="grid grid-cols-12 gap-2 items-center text-xs">
+                      <div className="col-span-3 font-bold text-slate-800">
                         Minggu ke-{w.weekNumber || idx + 1}
                       </div>
                       <div className="col-span-3">
@@ -634,27 +733,27 @@ export function CoalIndexPage({
                           type="date"
                           value={w.releaseDate}
                           onChange={(e) => handleWeekPriceChange(idx, "releaseDate", e.target.value)}
-                          className="w-full p-2 rounded-xl bg-white border border-slate-200 text-[11px] font-mono font-bold"
+                          className="w-full p-1.5 rounded-lg bg-white border border-slate-200 text-[11px] font-mono shadow-2xs focus:border-cyan-700 outline-none"
                         />
                       </div>
                       <div className="col-span-3">
                         <input
                           type="number"
                           step="0.01"
-                          placeholder="ICI 3 ($)"
-                          value={w.ici3Price || ""}
+                          placeholder="0.00"
+                          value={w.ici3Price > 0 ? w.ici3Price : ""}
                           onChange={(e) => handleWeekPriceChange(idx, "ici3Price", e.target.value)}
-                          className="w-full p-2 rounded-xl bg-white border border-slate-200 text-xs font-mono font-bold text-cyan-800"
+                          className="w-full p-1.5 rounded-lg bg-white border border-slate-200 text-xs font-mono font-bold text-slate-900 shadow-2xs focus:border-cyan-700 outline-none"
                         />
                       </div>
                       <div className="col-span-3">
                         <input
                           type="number"
                           step="0.01"
-                          placeholder="ICI 4 ($)"
-                          value={w.ici4Price || ""}
+                          placeholder="0.00"
+                          value={w.ici4Price > 0 ? w.ici4Price : ""}
                           onChange={(e) => handleWeekPriceChange(idx, "ici4Price", e.target.value)}
-                          className="w-full p-2 rounded-xl bg-white border border-slate-200 text-xs font-mono font-bold text-blue-800"
+                          className="w-full p-1.5 rounded-lg bg-white border border-slate-200 text-xs font-mono font-bold text-slate-900 shadow-2xs focus:border-cyan-700 outline-none"
                         />
                       </div>
                     </div>
@@ -663,31 +762,32 @@ export function CoalIndexPage({
               </div>
 
               {/* Live Preview Card in Modal */}
-              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 flex items-center justify-between text-xs">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
                 <div>
-                  <p className="font-extrabold text-amber-950">
+                  <p className="font-bold text-slate-900">
                     Kalkulasi Rata-Rata: Avg R3 = ${formData.avgR3 ? formData.avgR3.toFixed(2) : "0.00"} USD/MT
                   </p>
-                  <p className="text-[11px] text-amber-800 mt-0.5">
-                    Tier yang otomatis aktif: <strong className="font-black uppercase">{formData.activeTier}</strong>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Tier yang otomatis aktif: <strong className="font-bold uppercase text-slate-800">{formData.activeTier}</strong>
                   </p>
                 </div>
-                <span className="px-4 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-black text-xs shadow-sm">
+                <span className="px-2.5 py-1 rounded bg-slate-900 text-white font-bold text-xs">
                   {formData.activeTier}
                 </span>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-5 py-2.5 rounded-2xl border border-slate-200 text-xs font-bold hover:bg-slate-50 transition cursor-pointer"
+                  className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-bold hover:bg-slate-50 transition cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-md transition active:scale-95 cursor-pointer"
+                  disabled={!canEdit}
+                  className="px-4 py-2 rounded-lg bg-cyan-800 hover:bg-cyan-900 disabled:opacity-50 text-white font-bold text-xs shadow-2xs transition active:scale-95 cursor-pointer"
                 >
                   Simpan Data Index
                 </button>

@@ -29,6 +29,8 @@ dist-ssr/
 .vite/
 deps_temp_*
 coverage/
+test-results/
+playwright-report/
 .turbo/
 
 # Editor & OS files
@@ -54,3 +56,4 @@ yarn-error.log*
 pnpm-debug.log*
 vite-dev.log
 vite-dev.err
+run-vite.mjs

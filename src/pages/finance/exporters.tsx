@@ -18,16 +18,46 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
     const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
     const logoUrl = `${window.location.origin}/andalan-logo.png`;
 
-    const activeItems = (itemData?.items && Array.isArray(itemData.items) && itemData.items.length > 0)
+    const targetBA = baRows?.find((b: any) => b.baNumber === itemData?.baNoReference || b.baNumber === itemData?.baNumber || b.id === itemData?.baID);
+    const rawItems = (itemData?.items && Array.isArray(itemData.items) && itemData.items.length > 0)
       ? itemData.items
+      : (itemData?.lineItems && Array.isArray(itemData.lineItems) && itemData.lineItems.length > 0)
+        ? itemData.lineItems
+        : null;
+    let activeItems = rawItems
+      ? rawItems
       : (invLineItems && invLineItems.length > 0 && (!itemData?.invoiceNo || formData?.invoiceNo === itemData?.invoiceNo)
           ? invLineItems
           : (typeof buildInvoiceItemsFromBA === "function"
-              ? buildInvoiceItemsFromBA(baRows?.find((b: any) => b.baNumber === itemData?.baNoReference) || itemData, custCode, itemData?.invoiceCategory)
-              : (itemData?.items || []))
+              ? buildInvoiceItemsFromBA(targetBA || itemData, custCode, itemData?.invoiceCategory)
+              : (itemData?.items || itemData?.lineItems || []))
         );
 
-    const c = getCustomerCalculations(activeItems, custCode);
+    if ((!activeItems || activeItems.length === 0 || activeItems.every((i: any) => !(i.volume > 0 || i.amount > 0 || i.unitRateIDR > 0))) && typeof buildInvoiceItemsFromBA === "function") {
+      activeItems = buildInvoiceItemsFromBA(itemData, custCode, itemData?.invoiceCategory);
+    }
+
+    let c = getCustomerCalculations(activeItems, custCode);
+
+    if (c.totalGross === 0 && (itemData?.revenueGross > 0 || itemData?.subTotalDPP > 0 || itemData?.totalInvoice > 0)) {
+      const gross = Number(itemData.revenueGross || itemData.subTotalDPP || 0);
+      const dpp = Number(itemData.subTotalDPP || Math.round(gross * 11 / 12));
+      const vat = Number(itemData.ppn11 || Math.round(dpp * 0.12));
+      const pph = Number(itemData.pph23 || Math.round(gross * 0.02));
+      const totInv = Number(itemData.totalInvoice || (gross + vat - pph));
+      const totPay = Number(itemData.totalReceipt || itemData.outstanding || totInv);
+      c = {
+        ...c,
+        totalGross: gross,
+        subtotalA: gross,
+        dpp11_12: dpp,
+        vat12: vat,
+        pph23: pph,
+        totalInvoice: totInv,
+        totalDibayar: totPay,
+      };
+    }
+
     const contractInfo = customerContractMap[custCode];
 
     let tableBodyHTML = "";
@@ -43,8 +73,8 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
       const secEItems = activeItems.filter((i: any) => i.section === "E");
       const secFItems = activeItems.filter((i: any) => i.section === "F");
 
-      const volA = secAItems.reduce((s: number, i: any) => s + (getItemEffectiveVolume(i) || i.volume || 0), 0);
-      const volB = secBItems.reduce((s: number, i: any) => s + (getItemEffectiveVolume(i) || i.volume || 0), 0);
+      const volA = secAItems.reduce((s: number, i: any) => s + (getItemEffectiveVolume(i, activeItems) || i.volume || 0), 0);
+      const volB = secBItems.reduce((s: number, i: any) => s + (getItemEffectiveVolume(i, activeItems) || i.volume || 0), 0);
 
       tableBodyHTML = `
         <tr class="sec-hdr">
@@ -56,8 +86,8 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         </tr>
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">A1. Pit Kungkilan</td></tr>
         ${secAItems.map((i: any) => {
-          const effVol = getItemEffectiveVolume(i);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+          const effVol = getItemEffectiveVolume(i, activeItems);
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
           return `
             <tr>
               <td style="padding-left: 20px;">${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.period || ""}</span></td>
@@ -78,8 +108,8 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         </tr>
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">B1. Pit Kungkilan</td></tr>
         ${secBItems.map((i: any) => {
-          const effVol = getItemEffectiveVolume(i);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+          const effVol = getItemEffectiveVolume(i, activeItems);
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
           return `
             <tr>
               <td style="padding-left: 20px;">${i.description}</td>
@@ -100,10 +130,10 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         </tr>
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">C1. Over Distance For OB Removal</td></tr>
         ${secCItems.filter((i: any) => i.subSection?.includes("OB") || i.description?.includes("OB")).map((i: any) => {
-          const effVol = getItemEffectiveVolume(i);
+          const effVol = getItemEffectiveVolume(i, activeItems);
           const effMtr = getItemEffectiveOverhaulMtr(i);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
-          const diffMtr = effMtr - 1000;
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
+          const diffMtr = Number((effMtr - 1000).toFixed(3));
           return `
             <tr>
               <td style="padding-left: 20px;">
@@ -119,10 +149,10 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         }).join("")}
         <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">C2. Over Distance For Coal Winning</td></tr>
         ${secCItems.filter((i: any) => !i.subSection?.includes("OB") && !i.description?.includes("OB")).map((i: any) => {
-          const effVol = getItemEffectiveVolume(i);
+          const effVol = getItemEffectiveVolume(i, activeItems);
           const effMtr = getItemEffectiveOverhaulMtr(i);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
-          const diffMtr = effMtr - 1000;
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
+          const diffMtr = Number((effMtr - 1000).toFixed(3));
           return `
             <tr>
               <td style="padding-left: 20px;">
@@ -145,8 +175,8 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           <td class="text-right font-mono font-black">${c.subtotalD.toLocaleString("id-ID")}</td>
         </tr>
         ${secDItems.map((i: any) => {
-          const effVol = getItemEffectiveVolume(i);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG");
+          const effVol = getItemEffectiveVolume(i, activeItems);
+          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
           return `
             <tr>
               <td style="padding-left: 20px;">${i.subSection || ""} ${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.period || ""}</span></td>
@@ -163,7 +193,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           <td class="text-right font-mono font-black">(${Math.abs(c.subtotalE).toLocaleString("id-ID")})</td>
         </tr>
         ${secEItems.map((i: any) => {
-          const { amount } = calculateItemRateAndAmount(i, "BGG");
+          const { amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
           return `
             <tr>
               <td colspan="4" style="padding-left: 20px;">${i.description}</td>
@@ -177,7 +207,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           <td class="text-right font-mono font-black">(${Math.abs(c.subtotalF).toLocaleString("id-ID")})</td>
         </tr>
         ${secFItems.map((i: any) => {
-          const { amount } = calculateItemRateAndAmount(i, "BGG");
+          const { amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
           return `
             <tr>
               <td colspan="4" style="padding-left: 20px;">${i.description}</td>
@@ -217,11 +247,15 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           2. Raise & Fall's Factor Juni 26: <strong>1,560</strong>
         </div>
       `;
-    } else if (custCode === "DBK") {
-      // DBK Table Layout (Gambar 3 - Dual Currency USD & IDR)
+    } else if (custCode === "PTRO" || custCode === "DBK") {
+      // PTRO / DBK Table Layout (Petrosea - Dual Currency USD & IDR)
       const secAItems = activeItems.filter((i: any) => i.section === "A");
       const secBItems = activeItems.filter((i: any) => i.section === "B");
-      const secCItems = activeItems.filter((i: any) => i.section === "C");
+      const secCItems = activeItems.filter((i: any) => {
+        if (i.section !== "C") return false;
+        const baseM = i.baseMtr || ((i.subSection || i.description || "").toLowerCase().includes("coal") ? 3000 : 1000);
+        return (i.overhaulMtr ?? baseM) > baseM;
+      });
 
       const volA = secAItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
       const volB = secBItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
@@ -267,6 +301,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           </tr>
         `).join("")}
 
+        ${secCItems.length > 0 ? `
         <tr class="sec-hdr">
           <td>C. OVER DISTANCE</td>
           <td></td>
@@ -276,23 +311,32 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           <td class="text-right font-mono font-black">${c.subtotalC.toLocaleString("id-ID")}</td>
         </tr>
         ${secCItems.map((i: any) => {
-          const baseM = i.baseMtr || 1000;
-          const diff = (i.overhaulMtr || baseM) - baseM;
+          const isCoal = (i.subSection || i.description || "").toLowerCase().includes("coal") || (i.subSection || i.description || "").toLowerCase().includes("batubara");
+          const baseM = i.baseMtr || (isCoal ? 3000 : 1000);
+          const diff = Math.max(0, (i.overhaulMtr || baseM) - baseM);
+          const usdRate = i.unitRateUSD || 0.028;
+          const idrRate = i.unitRateIDR || 230;
+          const kurs = i.kursBI || 17923.30;
+          const amount = !isCoal
+            ? Math.round((i.volume || 0) * (diff / 100) * usdRate * kurs)
+            : Math.round((i.volume || 0) * (diff / 100) * idrRate);
+
           return `
             <tr>
               <td style="padding-left: 20px;">
-                <strong>${i.subSection || ""}</strong><br/>
+                <strong>${i.subSection || i.description || ""}</strong><br/>
                 PIT SAPAN<br/>
-                <span style="font-size: 8.5px; color: #475569;">${(i.overhaulMtr || baseM).toLocaleString("id-ID", { minimumFractionDigits: 2 })} mtr - ${baseM} mtr = ${diff < 0 ? `(${Math.abs(diff).toFixed(2)})` : diff.toFixed(2)} mtr</span>
+                <span style="font-size: 8.5px; color: #475569;">${(i.overhaulMtr || baseM).toLocaleString("id-ID", { minimumFractionDigits: 2 })} mtr - ${baseM} mtr = ${diff.toFixed(2)} mtr</span>
               </td>
-              <td class="text-center font-mono">${i.volume ? i.volume.toLocaleString("id-ID", { minimumFractionDigits: 3 }) : ""}</td>
-              <td class="text-center">${i.volume ? (i.unit || "") : ""}</td>
-              <td></td>
-              <td class="text-right font-mono">${i.unitRateIDR ? i.unitRateIDR.toFixed(2) : ""}</td>
-              <td class="text-right font-mono">${i.volume && i.unitRateIDR ? Math.round(i.volume * i.unitRateIDR).toLocaleString("id-ID") : "-"}</td>
+              <td class="text-center font-mono">${i.volume ? i.volume.toLocaleString("id-ID", { minimumFractionDigits: 3 }) : "0.000"}</td>
+              <td class="text-center">${i.unit || (isCoal ? "Ton" : "Bcm")}</td>
+              <td class="text-right font-mono">${!isCoal ? usdRate.toFixed(3) : "-"}</td>
+              <td class="text-right font-mono">${!isCoal ? kurs.toLocaleString("id-ID", { minimumFractionDigits: 2 }) : idrRate.toLocaleString("id-ID")}</td>
+              <td class="text-right font-mono font-bold">${amount.toLocaleString("id-ID")}</td>
             </tr>
           `;
         }).join("")}
+        ` : ""}
       `;
 
       totalsFooterHTML = `
@@ -328,34 +372,37 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
 
       tableBodyHTML = `
         <tr class="sec-hdr">
-          <td>OB REMOVAL</td>
-          <td class="text-center font-mono">${volA.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-          <td class="text-center">UoM</td>
+          <td>OB REMOVAL (Per Area Kerja)</td>
+          <td class="text-center font-mono">-</td>
+          <td class="text-center font-mono">${volA.toLocaleString("id-ID", { minimumFractionDigits: 2 })} BCM</td>
           <td></td>
           <td class="text-right font-mono font-black">${c.subtotalA.toLocaleString("id-ID")}</td>
         </tr>
-        ${secAItems.map((i: any) => `
+        ${secAItems.map((i: any) => {
+          const dist = i.distanceM ?? i.overhaulMtr;
+          return `
           <tr>
             <td style="padding-left: 20px;">${i.description}</td>
-            <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-            <td class="text-center">${i.unit || "BCM"}</td>
+            <td class="text-center font-mono font-bold">${dist ? Number(dist).toLocaleString("id-ID") + " m" : "-"}</td>
+            <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} ${i.unit || "BCM"}</td>
             <td class="text-right font-mono">${(i.unitRateIDR || 0).toLocaleString("id-ID")}</td>
             <td class="text-right font-mono">${Math.round((i.volume || 0) * (i.unitRateIDR || 0)).toLocaleString("id-ID")}</td>
           </tr>
-        `).join("")}
+          `;
+        }).join("")}
 
         <tr class="sec-hdr">
-          <td>JASA PENUNJANG PRODUKSI</td>
-          <td class="text-center font-mono">${volB.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-          <td class="text-center">UoM</td>
+          <td>JASA PENUNJANG PRODUKSI (Rental Alat)</td>
+          <td class="text-center font-mono">-</td>
+          <td class="text-center font-mono">${volB.toLocaleString("id-ID", { minimumFractionDigits: 2 })} Hours</td>
           <td></td>
           <td class="text-right font-mono font-black">${c.subtotalB.toLocaleString("id-ID")}</td>
         </tr>
         ${secBItems.map((i: any) => `
           <tr>
             <td style="padding-left: 20px;">${i.description}</td>
-            <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-            <td class="text-center">${i.unit || "Hours"}</td>
+            <td class="text-center font-mono">-</td>
+            <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} ${i.unit || "Hours"}</td>
             <td class="text-right font-mono">${(i.unitRateIDR || 0).toLocaleString("id-ID")}</td>
             <td class="text-right font-mono">${Math.round((i.volume || 0) * (i.unitRateIDR || 0)).toLocaleString("id-ID")}</td>
           </tr>
@@ -364,7 +411,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
 
       totalsFooterHTML = `
         <tr class="tot-row">
-          <td colspan="4"><strong>TOTAL</strong></td>
+          <td colspan="4"><strong>TOTAL (NILAI PEKERJAAN BRUTO)</strong></td>
           <td class="text-right font-mono"><strong>${c.totalGross.toLocaleString("id-ID")}</strong></td>
         </tr>
         <tr class="tot-row">
@@ -372,45 +419,60 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           <td class="text-right font-mono">${c.dpp11_12.toLocaleString("id-ID")}</td>
         </tr>
         <tr class="tot-row">
-          <td colspan="4">VAT ( 12%)</td>
+          <td colspan="4">VAT ( 12% ) (+)</td>
           <td class="text-right font-mono">${c.vat12.toLocaleString("id-ID")}</td>
         </tr>
         <tr class="tot-row">
-          <td colspan="4">WITH HOLDING TAX ART 23 (2%)</td>
+          <td colspan="4">WITH HOLDING TAX ART 23 (2%) (-)</td>
           <td class="text-right font-mono">(${c.pph23.toLocaleString("id-ID")})</td>
         </tr>
         <tr class="net-row">
           <td colspan="4"><strong>TOTAL INVOICE</strong></td>
-          <td class="text-right net-val"><strong>${c.totalInvoice.toLocaleString("id-ID")}</strong></td>
+          <td class="text-right net-val font-mono"><strong>${c.totalInvoice.toLocaleString("id-ID")}</strong></td>
         </tr>
       `;
 
       noteHTML = `
         <div style="margin-top: 10px; margin-bottom: 6px;">
-          <table class="main-table">
+          <table class="main-table" style="margin-bottom: 0;">
             <thead>
+              <tr class="sec-hdr">
+                <th colspan="4" style="text-align: left; padding: 4px 6px;">BLOK 2: TABEL KHUSUS PENGURANG PEMBAYARAN (DENDA & BBM)</th>
+              </tr>
               <tr style="background: #f8fafc;">
-                <th width="45%" style="text-align: left;">Pengurang Pembayaran</th>
-                <th width="20%" style="text-align: center;">Claimed Unit</th>
-                <th width="15%" style="text-align: right;">Unit Rate (IDR)</th>
-                <th width="20%" style="text-align: right;">Amount (IDR)</th>
+                <th width="45%" style="text-align: left;">PENGURANG PEMBAYARAN</th>
+                <th width="20%" style="text-align: center;">CLAIMED UNIT</th>
+                <th width="15%" style="text-align: right;">UNIT RATE (IDR)</th>
+                <th width="20%" style="text-align: right;">AMOUNT (IDR)</th>
               </tr>
             </thead>
             <tbody>
               ${secPItems.map((p: any) => `
                 <tr>
-                  <td>${p.description}</td>
-                  <td class="text-center">${p.unit || ""}</td>
-                  <td></td>
+                  <td style="padding-left: 15px;">${p.description}</td>
+                  <td class="text-center font-mono">${p.unit || "-"}</td>
+                  <td class="text-right font-mono">-</td>
                   <td class="text-right font-mono font-bold">${p.amount ? `(${Math.abs(p.amount).toLocaleString("id-ID")})` : "-"}</td>
                 </tr>
               `).join("")}
-              <tr class="net-row" style="background: #ecfdf5; border-top: 2px solid #059669; border-bottom: 2px solid #059669;">
-                <td colspan="3"><strong>TOTAL DIBAYAR</strong></td>
-                <td class="text-right font-mono" style="font-size: 12.5px; font-weight: 900; color: #047857;">${c.totalDibayar.toLocaleString("id-ID")}</td>
-              </tr>
             </tbody>
+            <tfoot>
+              <tr class="tot-row">
+                <td colspan="3"><strong>TOTAL PENGURANG PEMBAYARAN</strong></td>
+                <td class="text-right font-mono font-bold">(${Math.abs(c.subtotalP).toLocaleString("id-ID")})</td>
+              </tr>
+            </tfoot>
           </table>
+        </div>
+
+        <div style="margin-top: 6px; margin-bottom: 8px; border: 1.5px solid #0f172a; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+          <div>
+            <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #0f172a;">BLOK 3: TOTAL DIBAYAR (KAS BERSIH DITERIMA)</div>
+            <div style="font-size: 8.5px; color: #475569;">TOTAL INVOICE (Rp ${c.totalInvoice.toLocaleString("id-ID")}) - PENGURANG PEMBAYARAN (Rp ${Math.abs(c.subtotalP).toLocaleString("id-ID")})</div>
+          </div>
+          <div style="font-size: 13px; font-weight: 900; color: #0f172a; font-family: monospace;">
+            Rp ${c.totalDibayar.toLocaleString("id-ID")}
+          </div>
         </div>
       `;
     } else {
@@ -420,26 +482,29 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
       const secCItems = activeItems.filter((i: any) => i.section === "C");
       const secDItems = activeItems.filter((i: any) => i.section === "D");
 
-      const volA = secAItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
+      const isFacility = (itemData?.jobType || "").toLowerCase().includes("mess") || (itemData?.jobType || "").toLowerCase().includes("mob") || (itemData?.jobType || "").toLowerCase().includes("facility") || (itemData?.invoiceNo || "").toLowerCase().includes("bc-");
       const isMDO = (itemData?.invoiceCategory === "MDO" || itemData?.activityGroup?.includes("MDO") || formData?.invoiceCategory === "MDO");
+      const volA = secAItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
 
       const secAHTML = secAItems.length > 0 ? `
         <tr class="sec-hdr">
-          <td>${isMDO ? "A. MINE DEVELOPMENT (MDO)" : "A. PRODUCTION"}</td>
-          <td class="text-center font-mono">${isMDO ? "" : volA.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-          <td class="text-center">${isMDO ? "" : "Bcm"}</td>
+          <td>${isFacility ? "A. PEKERJAAN FASILITAS / KLAIM PROYEK" : isMDO ? "A. MINE DEVELOPMENT (MDO)" : "A. PRODUCTION"}</td>
+          <td class="text-center font-mono">${(isMDO || isFacility) ? "" : volA.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
+          <td class="text-center">${(isMDO || isFacility) ? "" : "Bcm"}</td>
           <td></td>
           <td class="text-right font-mono font-black">${c.subtotalA.toLocaleString("id-ID")}</td>
         </tr>
         ${secAItems.map((item: any, idx: number) => {
           const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
+          const effUnitRate = unitRate > 0 ? unitRate : Number(item.unitRateIDR || (item.volume > 0 ? Math.round((item.amount || 0) / item.volume) : 0));
+          const effAmount = amount !== 0 ? amount : Number(item.amount || Math.round((item.volume || 0) * effUnitRate));
           const cleanDesc = (item.description || "").replace(/^[A-Z][0-9]*[\.\s\-]+\s*/i, "").trim();
           return `<tr>
             <td style="padding-left: 15px;"><strong>A${idx + 1}.</strong> ${cleanDesc}</td>
             <td class="text-center font-mono">${(item.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
             <td class="text-center">${item.unit || "Bcm"}</td>
-            <td class="text-right font-mono">${unitRate.toLocaleString("id-ID")}</td>
-            <td class="text-right font-mono"><strong>${amount.toLocaleString("id-ID")}</strong></td>
+            <td class="text-right font-mono">${effUnitRate.toLocaleString("id-ID")}</td>
+            <td class="text-right font-mono"><strong>${effAmount.toLocaleString("id-ID")}</strong></td>
           </tr>`;
         }).join("")}
       ` : "";
@@ -554,121 +619,135 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         <title>INVOICE - ${itemData?.invoiceNo || "Invoice"}</title>
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..900;1,300..900&display=swap');
-          @page { size: A4 portrait; margin: 8mm 10mm; }
+          @page { size: A4 portrait; margin: 6mm 8mm; }
           * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; }
-          body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; color: #0f172a; margin: 0; padding: 5px; font-size: 9.5px; line-height: 1.2; }
-          .logo-header { text-align: center; margin-bottom: 8px; }
+          body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; color: #0f172a; margin: 0; padding: 4px; font-size: 9.5px; line-height: 1.25; }
+          .page-container { border: 1.5px solid #0f172a; padding: 12px 14px; min-height: 98vh; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; }
+          .logo-header { text-align: center; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1.5px solid #0f172a; }
           .logo-img { height: 42px; width: auto; object-fit: contain; }
-          .info-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 9.5px; }
-          .info-table td { padding: 2.5px 0; vertical-align: top; }
-          .title-box { text-align: center; margin-bottom: 8px; margin-top: 2px; }
-          .title-box h2 { font-size: 15px; font-weight: 900; text-transform: uppercase; text-decoration: underline; margin: 0; letter-spacing: 1.5px; color: #0f172a; }
-          .contract-sub { font-size: 10.5px; font-weight: 700; margin-top: 3px; color: #334155; }
-          .main-table { width: 100%; border-collapse: collapse; border: 1.5px solid #0f172a; margin-bottom: 8px; page-break-inside: avoid; }
-          .main-table th { background: #f1f5f9; color: #0f172a; border: 1.5px solid #0f172a; padding: 6px 7px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; }
-          .main-table td { border: 1.2px solid #334155; padding: 5px 7px; font-size: 9.5px; color: #0f172a; }
-          .sec-hdr { background: #f8fafc; font-weight: 800; text-decoration: underline; border-top: 1.5px solid #0f172a; border-bottom: 1.5px solid #0f172a; }
+          .info-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; font-size: 9.5px; }
+          .info-table td { padding: 2px 0; vertical-align: top; }
+          .title-box { text-align: center; margin-bottom: 6px; margin-top: 2px; }
+          .title-box h2 { font-size: 14px; font-weight: 900; text-transform: uppercase; text-decoration: underline; margin: 0; letter-spacing: 1.5px; color: #0f172a; }
+          .contract-sub { font-size: 10px; font-weight: 700; margin-top: 2px; color: #334155; }
+          .main-table { width: 100%; border-collapse: collapse; border: 1.5px solid #0f172a; margin-bottom: 6px; page-break-inside: avoid; }
+          .main-table th { background: #f1f5f9; color: #0f172a; border: 1.2px solid #0f172a; padding: 5px 6px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; }
+          .main-table td { border: 1px solid #334155; padding: 4px 6px; font-size: 9.5px; color: #0f172a; }
+          .sec-hdr { background: #e2e8f0; font-weight: 800; border-top: 1.5px solid #0f172a; border-bottom: 1.5px solid #0f172a; }
           .tot-row { background: #ffffff; font-weight: 700; border-top: 1.2px solid #334155; }
-          .net-row { background: #f1f5f9; color: #0f172a; border-top: 2.5px solid #0f172a; border-bottom: 2.5px solid #0f172a; font-weight: 900; font-size: 11.5px; }
-          .net-row td { padding: 7px; font-size: 11.5px; font-weight: 900; border: 1.5px solid #0f172a; }
-          .net-val { font-size: 13px; font-weight: 900; color: #0f172a; text-decoration: underline; }
+          .net-row { background: #f1f5f9; color: #0f172a; border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a; font-weight: 900; font-size: 11px; }
+          .net-row td { padding: 6px; font-size: 11px; font-weight: 900; border: 1.2px solid #0f172a; }
+          .net-val { font-size: 12.5px; font-weight: 900; color: #0f172a; text-decoration: underline; }
           .text-right { text-align: right; }
           .text-center { text-align: center; }
           .font-mono, td, th, span, div, p, strong { font-family: 'Plus Jakarta Sans', sans-serif !important; font-variant-numeric: tabular-nums; }
-          .note-box { font-size: 9px; margin-bottom: 8px; font-weight: 600; }
-          .footer-box { border: 2px solid #0f172a; display: table; width: 100%; box-sizing: border-box; page-break-inside: avoid; }
-          .footer-cell { display: table-cell; width: 50%; padding: 8px 12px; vertical-align: top; font-size: 9.5px; }
-          .footer-left { border-right: 2px solid #0f172a; }
-          .sig-space { height: 48px; border-bottom: 1.2px dashed #64748b; margin: 6px 0; }
-          .btn-print { background: #0e7490; color: white; border: none; padding: 7px 16px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
-          @media print { .btn-print { display: none; } }
+          .note-box { font-size: 9px; margin-bottom: 6px; font-weight: 600; }
+          .footer-box { border: 1.5px solid #0f172a; display: table; width: 100%; box-sizing: border-box; page-break-inside: avoid; }
+          .footer-cell { display: table-cell; width: 50%; padding: 6px 10px; vertical-align: top; font-size: 9.5px; }
+          .footer-left { border-right: 1.5px solid #0f172a; }
+          .sig-space { height: 42px; border-bottom: 1.2px dashed #64748b; margin: 4px 0; }
+          .btn-print { background: #A57C50; color: white; border: none; padding: 7px 16px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
+          .btn-print:hover { background: #8e6941; }
+          @media print { .btn-print { display: none; } body { padding: 0; } .page-container { min-height: auto; } }
         </style>
       </head>
       <body>
         <button class="btn-print" onclick="window.print()">Cetak / Simpan PDF Dokumen Official (1 Halaman A4)</button>
 
-        <div class="logo-header">
-          <img src="${logoUrl}" alt="ANDALAN Logo" class="logo-img" />
-        </div>
+        <div class="page-container">
+          <div>
+            <div class="logo-header">
+              <img src="${logoUrl}" alt="ANDALAN Logo" class="logo-img" />
+            </div>
 
-        <table class="info-table">
-          <tr>
-            <td width="13%"><strong>Company</strong></td>
-            <td width="37%">: <strong>${itemData?.customerCode === "POS" ? "PT. POSITION" : itemData?.customerCode === "BGG" ? "PT. BUDI GEMA GEMPITA" : itemData?.customerCode === "DBK" ? "PT. PETROSEA TBK" : itemData?.customerCode === "SBS" ? "PT SATRIA BAHANA SARANA" : (itemData?.customerCode || "—")}</strong></td>
-            <td width="16%"><strong>Invoice No.</strong></td>
-            <td width="34%">: <strong>${itemData?.invoiceNo || "001/INV/2026"}</strong></td>
-          </tr>
-          <tr>
-            <td><strong>Contractor</strong></td>
-            <td>: <strong>PT. ANDALAN ARTHA PRIMANUSA</strong></td>
-            <td><strong>PO Number</strong></td>
-            <td>: <strong>${itemData?.noPO || itemData?.poNumber || (custCode === "SBS" ? "I05790/0002" : custCode === "POS" ? "PO-POS/2026/001" : "-")}</strong></td>
-          </tr>
-          <tr>
-            <td><strong>Project</strong></td>
-            <td>: <strong>${itemData?.projectSite || contractInfo?.project || "MINING PROJECT"}</strong></td>
-            <td><strong>Activity Group</strong></td>
-            <td>: <strong>${(itemData?.activityGroup || itemData?.jobType || (itemData?.invoiceCategory === "MDO" ? "MINE DEVELOPMENT OPERATION (MDO)" : "OPERATION & MINING")).toUpperCase()}</strong></td>
-          </tr>
-          <tr>
-            <td><strong>Period Covered</strong></td>
-            <td>: <strong>${itemData?.workPeriod || "Juni 2026"}</strong></td>
-            <td></td>
-            <td></td>
-          </tr>
-        </table>
-
-        <div class="title-box">
-          <h2>INVOICE</h2>
-          ${custCode === "SBS" ? `
-            <div class="contract-sub">(NO KONTRAK : <strong>${itemData?.contractNo || "SPPH-05852"}</strong>)</div>
-          ` : `
-            <div class="contract-sub">Contract Number : <strong>${itemData?.contractNo || contractInfo?.contract || "001/AAP/2025"}</strong></div>
-          `}
-        </div>
-
-        <table class="main-table">
-          <thead>
-            <tr>
-              <th width="${custCode === "DBK" ? "35%" : "40%"}">DESCRIPTION</th>
-              <th width="16%" class="text-center">${custCode === "SBS" ? "CLAIMED UNIT" : "CLAIMED VOLUME"}</th>
-              <th width="8%" class="text-center">UoM</th>
-              ${custCode === "DBK" ? `
-                <th width="11%" class="text-right">UNIT RATE (USD)</th>
-                <th width="13%" class="text-right">KURS (USD to IDR)</th>
-              ` : `
-                <th width="16%" class="text-right">UNIT RATE (IDR)</th>
-              `}
-              <th width="20%" class="text-right">AMOUNT (IDR)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${tableBodyHTML}
-          </tbody>
-          <tfoot>
-            ${totalsFooterHTML}
-          </tfoot>
-        </table>
-
-        ${noteHTML}
-
-        <div class="footer-box">
-          <div class="footer-cell footer-left">
-            <strong style="text-transform: uppercase;">PLEASE MAKE PAYMENT TO THIS ACCOUNT:</strong><br/><br/>
-            <table style="width: 100%; font-size: 9.5px;">
-              <tr><td width="85">Bank Name</td><td>: <strong>${itemData?.bankName || contractInfo?.bankName || "Bank BNI"}</strong></td></tr>
-              <tr><td>A/C Name</td><td>: <strong>${itemData?.bankAccountName || "PT Andalan Artha Primanusa"}</strong></td></tr>
-              <tr><td>A/C No</td><td>: <strong style="font-size: 11px;">${itemData?.bankAccountNo || contractInfo?.bankAccountNo || "8188788882"}</strong></td></tr>
-              <tr><td>Branch</td><td>: <strong>${itemData?.bankBranch || contractInfo?.bankBranch || "Harmoni, Jakarta"}</strong></td></tr>
+            <table class="info-table">
+              <tr>
+                <td width="14%"><strong>Company</strong></td>
+                <td width="36%">: <strong>${itemData?.customerCode === "POS" ? "PT. POSITION" : itemData?.customerCode === "BGG" ? "PT. BUDI GEMA GEMPITA" : (itemData?.customerCode === "PTRO" || itemData?.customerCode === "DBK") ? "PT. PETROSEA" : itemData?.customerCode === "SBS" ? "PT. SATRIA BAHANA SARANA" : (itemData?.customerCode || "—")}</strong></td>
+                <td width="16%"><strong>Invoice No.</strong></td>
+                <td width="34%">: <strong>${itemData?.invoiceNo || "001/INV/2026"}</strong></td>
+              </tr>
+              <tr>
+                <td><strong>Contractor</strong></td>
+                <td>: <strong>PT. ANDALAN ARTHA PRIMANUSA</strong></td>
+                <td><strong>PO Number</strong></td>
+                <td>: <strong>${itemData?.noPO || itemData?.poNumber || (custCode === "SBS" ? "I05790/0002" : custCode === "POS" ? "PO-POS/2026/001" : "-")}</strong></td>
+              </tr>
+              <tr>
+                <td><strong>Project / Site</strong></td>
+                <td>: <strong>${itemData?.projectSite || contractInfo?.project || "MINING PROJECT"}</strong></td>
+                <td><strong>Activity Group</strong></td>
+                <td>: <strong>${(itemData?.activityGroup || itemData?.jobType || (itemData?.invoiceCategory === "MDO" ? "MINE DEVELOPMENT OPERATION (MDO)" : "OPERATION & MINING")).toUpperCase()}</strong></td>
+              </tr>
+              <tr>
+                <td><strong>Period Covered</strong></td>
+                <td>: <strong>${itemData?.workPeriod || "Juni 2026"}</strong></td>
+                <td></td>
+                <td></td>
+              </tr>
             </table>
+
+            <div class="title-box">
+              <h2>INVOICE</h2>
+              ${custCode === "SBS" ? `
+                <div class="contract-sub">(NO KONTRAK : <strong>${itemData?.contractNo || "SPPH-05852"}</strong>)</div>
+              ` : `
+                <div class="contract-sub">Contract Number : <strong>${itemData?.contractNo || contractInfo?.contract || "001/AAP/2025"}</strong></div>
+              `}
+            </div>
+
+            <table class="main-table">
+              <thead>
+                <tr>
+                  ${custCode === "SBS" ? `
+                    <th width="35%">DESCRIPTION</th>
+                    <th width="12%" class="text-center">JARAK (M)</th>
+                    <th width="18%" class="text-center">CLAIMED UNIT</th>
+                    <th width="15%" class="text-right">UNIT RATE (IDR)</th>
+                    <th width="20%" class="text-right">AMOUNT (IDR)</th>
+                  ` : `
+                    <th width="${(custCode === "PTRO" || custCode === "DBK") ? "35%" : "40%"}">DESCRIPTION</th>
+                    <th width="16%" class="text-center">CLAIMED VOLUME</th>
+                    <th width="8%" class="text-center">UoM</th>
+                    ${(custCode === "PTRO" || custCode === "DBK") ? `
+                      <th width="11%" class="text-right">UNIT RATE (USD)</th>
+                      <th width="13%" class="text-right">KURS (USD to IDR)</th>
+                    ` : `
+                      <th width="16%" class="text-right">UNIT RATE (IDR)</th>
+                    `}
+                    <th width="20%" class="text-right">AMOUNT (IDR)</th>
+                  `}
+                </tr>
+              </thead>
+              <tbody>
+                ${tableBodyHTML}
+              </tbody>
+              <tfoot>
+                ${totalsFooterHTML}
+              </tfoot>
+            </table>
+
+            ${noteHTML}
           </div>
-          <div class="footer-cell" style="text-align: center;">
-            <div style="text-align: right; font-size: 9px; font-weight: bold; margin-bottom: 4px;">Jakarta, ${formattedDate}</div>
-            <strong style="font-size: 9.5px;">SUBMITTED BY,</strong><br/>
-            <strong style="font-size: 10px;">PT ANDALAN ARTHA PRIMANUSA</strong>
-            <div class="sig-space"></div>
-            <strong style="text-decoration: underline; font-size: 10px;">${itemData?.directorName || contractInfo?.directorName || "GAHARI CHRISTINE"}</strong><br/>
-            <span style="font-size: 9px;">${itemData?.directorTitle || contractInfo?.directorTitle || "DIRECTOR"}</span>
+
+          <div class="footer-box">
+            <div class="footer-cell footer-left">
+              <strong style="text-transform: uppercase;">PLEASE MAKE PAYMENT TO THIS ACCOUNT:</strong><br/><br/>
+              <table style="width: 100%; font-size: 9.5px;">
+                <tr><td width="85">Bank Name</td><td>: <strong>${itemData?.bankName || contractInfo?.bankName || "Bank BNI"}</strong></td></tr>
+                <tr><td>A/C Name</td><td>: <strong>${itemData?.bankAccountName || "PT Andalan Artha Primanusa"}</strong></td></tr>
+                <tr><td>A/C No</td><td>: <strong style="font-size: 11px;">${itemData?.bankAccountNo || contractInfo?.bankAccountNo || "8188788882"}</strong></td></tr>
+                <tr><td>Branch</td><td>: <strong>${itemData?.bankBranch || contractInfo?.bankBranch || "Harmoni, Jakarta"}</strong></td></tr>
+              </table>
+            </div>
+            <div class="footer-cell" style="text-align: center;">
+              <div style="text-align: right; font-size: 9px; font-weight: bold; margin-bottom: 4px;">Jakarta, ${formattedDate}</div>
+              <strong style="font-size: 9.5px;">SUBMITTED BY,</strong><br/>
+              <strong style="font-size: 10px;">PT ANDALAN ARTHA PRIMANUSA</strong>
+              <div class="sig-space"></div>
+              <strong style="text-decoration: underline; font-size: 10px;">${itemData?.directorName || contractInfo?.directorName || "GAHARI CHRISTINE"}</strong><br/>
+              <span style="font-size: 9px;">${itemData?.directorTitle || contractInfo?.directorTitle || "DIRECTOR"}</span>
+            </div>
           </div>
         </div>
       </body>
@@ -677,6 +756,213 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
 
     printWin.document.write(htmlContent);
     printWin.document.close();
+}
+
+export function exportBADocumentPDFImpl(ctx: any, baData: any) {
+  const printWin = window.open("", "_blank", "width=1000,height=800");
+  if (!printWin) return;
+
+  const custCode = (baData?.customerCode || "BGG").toUpperCase();
+  const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+  const logoUrl = `${window.location.origin}/andalan-logo.png`;
+
+  const clientNames: Record<string, string> = {
+    BGG: "PT. BUDI GEMA GEMPITA",
+    SBS: "PT. SATRIA BAHANA SARANA",
+    POS: "PT. POSITION",
+    PTRO: "PT. PETROSEA TBK",
+    DBK: "PT. PETROSEA TBK"
+  };
+  const clientName = clientNames[custCode] || `PT. ${custCode}`;
+  const siteName = baData?.projectSite || (custCode === "BGG" ? "Pit Kungkilan / IUP BGG Lahat" : custCode === "SBS" ? "Pit E / Tanjung Enim" : custCode === "POS" ? "POS Mining Site" : "DBK Mining Project");
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>BERITA ACARA - ${baData?.baNumber || "BA"}</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..900;1,300..900&display=swap');
+        @page { size: A4 portrait; margin: 8mm 10mm; }
+        * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; }
+        body { color: #0f172a; margin: 0; padding: 6px; font-size: 9.5px; line-height: 1.3; }
+        .page-container { border: 1.5px solid #0f172a; padding: 16px 20px; min-height: 98vh; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; }
+        .kop-table { width: 100%; border-collapse: collapse; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 10px; }
+        .kop-table td { vertical-align: middle; }
+        .logo-img { height: 38px; width: auto; object-fit: contain; }
+        .doc-header { text-align: center; margin-bottom: 12px; }
+        .doc-header h2 { font-size: 13px; font-weight: 900; text-transform: uppercase; text-decoration: underline; margin: 0; letter-spacing: 0.8px; color: #0f172a; }
+        .doc-header .doc-num { font-size: 10.5px; font-weight: 700; margin-top: 3px; color: #334155; }
+        .narrative { font-size: 9.5px; line-height: 1.4; text-align: justify; margin-bottom: 10px; }
+        .narrative p { margin: 0 0 5px 0; }
+        .narrative ol { margin: 3px 0 8px 16px; padding: 0; }
+        .narrative li { margin-bottom: 3px; }
+        .vol-table { width: 100%; border-collapse: collapse; border: 1.5px solid #0f172a; margin: 10px 0; page-break-inside: avoid; }
+        .vol-table th { background: #f1f5f9; color: #0f172a; border: 1.2px solid #0f172a; padding: 6px 8px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; text-align: center; }
+        .vol-table td { border: 1.2px solid #334155; padding: 5px 8px; font-size: 9.5px; color: #0f172a; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .font-mono { font-variant-numeric: tabular-nums; }
+        .sig-section { margin-top: 12px; page-break-inside: avoid; }
+        .sig-loc-date { text-align: right; font-size: 9.5px; font-weight: 700; margin-bottom: 6px; }
+        .sig-grid { display: table; width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        .sig-party-title { font-size: 10px; font-weight: 900; text-transform: uppercase; margin-bottom: 4px; color: #0f172a; }
+        .sig-box-row { display: table-row; }
+        .sig-cell { display: table-cell; width: 33.33%; padding: 4px 6px; text-align: center; vertical-align: top; }
+        .sig-role { font-size: 9px; font-weight: 700; color: #475569; min-height: 13px; }
+        .sig-space { height: 40px; border-bottom: 1px dashed #94a3b8; margin: 4px auto; width: 85%; }
+        .sig-name { font-size: 9.5px; font-weight: 900; text-decoration: underline; text-transform: uppercase; }
+        .sig-title { font-size: 8.5px; color: #475569; }
+        .btn-print { background: #A57C50; color: white; border: none; padding: 7px 16px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
+        .btn-print:hover { background: #8e6941; }
+        @media print { .btn-print { display: none; } body { padding: 0; } .page-container { min-height: auto; } }
+      </style>
+    </head>
+    <body>
+      <button class="btn-print" onclick="window.print()">Cetak / Simpan PDF Berita Acara Official (A4 Portrait)</button>
+      <div class="page-container">
+        <div>
+          <table class="kop-table">
+            <tr>
+              <td width="55%">
+                <strong style="font-size: 13px; text-transform: uppercase; color: #0f172a;">${clientName}</strong><br/>
+                <span style="font-size: 8.5px; color: #475569;">Joint Survey & Operational Mining Report</span>
+              </td>
+              <td width="45%" style="text-align: right;">
+                <img src="${logoUrl}" alt="ANDALAN" class="logo-img" /><br/>
+                <span style="font-size: 8.5px; font-weight: 700; color: #334155;">PT ANDALAN ARTHA PRIMANUSA</span>
+              </td>
+            </tr>
+          </table>
+
+          <div class="doc-header">
+            <h2>BERITA ACARA KESEPAKATAN PERHITUNGAN JOINT SURVEY</h2>
+            <div class="doc-num">Nomor : <strong>${baData?.baNumber || "SRV-OB/001/2026"}</strong></div>
+          </div>
+
+          <div class="narrative">
+            <p>
+              Pada hari ini, <strong>${formattedDate}</strong> telah selesai dilakukan perhitungan bersama (Joint Survey) hasil pelaksanaan pekerjaan penambangan batubara oleh Kontraktor <strong>PT. Andalan Artha Primanusa</strong> di area operasional <strong>${siteName}</strong> milik <strong>${clientName}</strong> untuk periode kerja <strong>${baData?.workPeriod || "Juni 2026"}</strong> dengan rincian kesepakatan sebagai berikut:
+            </p>
+            <ol>
+              <li>Pengukuran topografi original, progres penggalian (cut), dan penimbunan (fill) dilakukan secara bersama-sama oleh Tim Surveyor kedua belah pihak.</li>
+              <li>Hasil perhitungan volume telah diverifikasi dan disepakati bersama memenuhi standar toleransi batas deviasi (&le; 2%).</li>
+              <li>Jarak angkut rata-rata (Hauling Distance) dan rute disposal telah diukur dan disetujui sesuai peta situasi kerja tambang.</li>
+            </ol>
+          </div>
+
+          <table class="vol-table">
+            <thead>
+              <tr>
+                <th width="8%">No</th>
+                <th width="42%">Uraian Pekerjaan / Lokasi</th>
+                <th width="20%">Volume Kesepakatan</th>
+                <th width="12%">Satuan</th>
+                <th width="18%">Nilai Klaim (IDR)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="text-center font-mono">1</td>
+                <td><strong>Pemindahan Overburden (OB Removal)</strong><br/><span style="font-size: 8.5px; color: #475569;">${siteName}</span></td>
+                <td class="text-center font-mono font-bold">${(baData?.claimedVolume || baData?.volumeOB || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
+                <td class="text-center">BCM</td>
+                <td class="text-right font-mono font-bold">${formatIDR(baData?.workAmount || 0)}</td>
+              </tr>
+              ${baData?.coalVolume ? `
+              <tr>
+                <td class="text-center font-mono">2</td>
+                <td><strong>Pengangkutan Batubara (Coal Winning)</strong></td>
+                <td class="text-center font-mono font-bold">${Number(baData.coalVolume).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
+                <td class="text-center">MT / Ton</td>
+                <td class="text-right font-mono font-bold">-</td>
+              </tr>
+              ` : ""}
+              ${baData?.rentalHours ? `
+              <tr>
+                <td class="text-center font-mono">3</td>
+                <td><strong>Jasa Penunjang & Rental Alat Berat</strong></td>
+                <td class="text-center font-mono font-bold">${Number(baData.rentalHours).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
+                <td class="text-center">Hours</td>
+                <td class="text-right font-mono font-bold">-</td>
+              </tr>
+              ` : ""}
+            </tbody>
+            <tfoot>
+              <tr style="background: #f8fafc; font-weight: 900;">
+                <td colspan="4" class="text-right" style="padding: 6px 8px; font-size: 9.5px;">TOTAL NILAI KESEPAKATAN PEKERJAAN (BRUTO):</td>
+                <td class="text-right font-mono" style="padding: 6px 8px; font-size: 10px; color: #0f172a; text-decoration: underline;">${formatIDR(baData?.workAmount || 0)}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <div class="narrative" style="margin-top: 6px;">
+            <p>Demikian Berita Acara ini dibuat dengan sebenarnya dan ditandatangani oleh kedua belah pihak untuk dipergunakan sebagai dasar penerbitan Tagihan / Invoice resmi.</p>
+          </div>
+        </div>
+
+        <div class="sig-section">
+          <div class="sig-loc-date">${baData?.siteLocation || "Lahat"}, ${formattedDate}</div>
+          
+          <div style="margin-bottom: 8px;">
+            <div class="sig-party-title">1. Pihak ${clientName}</div>
+            <div class="sig-grid">
+              <div class="sig-box-row">
+                <div class="sig-cell">
+                  <div class="sig-role">Diketahui oleh,</div>
+                  <div class="sig-space"></div>
+                  <div class="sig-name">${baData?.clientKTT || "M. Idris E.K. Ode"}</div>
+                  <div class="sig-title">Kepala Teknik Tambang (KTT)</div>
+                </div>
+                <div class="sig-cell">
+                  <div class="sig-role">Disetujui oleh,</div>
+                  <div class="sig-space"></div>
+                  <div class="sig-name">${baData?.clientKabag || "Mahbub Junaedi"}</div>
+                  <div class="sig-title">Kabag. Produksi / Operational</div>
+                </div>
+                <div class="sig-cell">
+                  <div class="sig-role">Disiapkan oleh,</div>
+                  <div class="sig-space"></div>
+                  <div class="sig-name">${baData?.clientSurveyor || "DN. Wilopo"}</div>
+                  <div class="sig-title">Surveyor Tambang</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="sig-party-title">2. Pihak PT. Andalan Artha Primanusa</div>
+            <div class="sig-grid">
+              <div class="sig-box-row">
+                <div class="sig-cell">
+                  <div class="sig-role">Diketahui oleh,</div>
+                  <div class="sig-space"></div>
+                  <div class="sig-name">${baData?.aapPJO || "Eko Guswandono"}</div>
+                  <div class="sig-title">Project Manager / PJO</div>
+                </div>
+                <div class="sig-cell">
+                  <div class="sig-role">Disetujui oleh,</div>
+                  <div class="sig-space"></div>
+                  <div class="sig-name">${baData?.aapKabag || "Alexander Galingging"}</div>
+                  <div class="sig-title">Kabag. Engineering & Produksi</div>
+                </div>
+                <div class="sig-cell">
+                  <div class="sig-role">Disiapkan oleh,</div>
+                  <div class="sig-space"></div>
+                  <div class="sig-name">${baData?.picAAP || "Agus Prasetyo"}</div>
+                  <div class="sig-title">Surveyor / Finance PIC</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  printWin.document.write(htmlContent);
+  printWin.document.close();
 }
 
 export function exportARBAIMonitoringExcelImpl(ctx: any) {
@@ -750,6 +1036,8 @@ export function exportARBAIMonitoringExcelImpl(ctx: any) {
       const matchQ = JSON.stringify(r).toLowerCase().includes(query.toLowerCase());
       if (!matchQ) return false;
       if (periodFilter !== "All" && r.workPeriod !== periodFilter) return false;
+      const st = getBAStatusForExport(r, invoiceRows);
+      if (st.label.startsWith("ARSIP")) return false;
       return true;
     });
 
@@ -941,9 +1229,17 @@ export function exportARBAIMonitoringPDFImpl(ctx: any) {
     });
 
     let pdfRowsBA = "";
-    const groupedBACust = Array.from(new Set(baRows.map((r) => r.customerCode || "OTHER")));
+    const targetBARows = baRows.filter((r) => {
+      const matchQ = JSON.stringify(r).toLowerCase().includes(query.toLowerCase());
+      if (!matchQ) return false;
+      if (periodFilter !== "All" && r.workPeriod !== periodFilter) return false;
+      const st = getBAStatusForExport(r, invoiceRows);
+      if (st.label.startsWith("ARSIP")) return false;
+      return true;
+    });
+    const groupedBACust = Array.from(new Set(targetBARows.map((r) => r.customerCode || "OTHER")));
     groupedBACust.forEach((custCode) => {
-      const custRows = baRows.filter((r) => (r.customerCode || "OTHER") === custCode);
+      const custRows = targetBARows.filter((r) => (r.customerCode || "OTHER") === custCode);
       const custSubtotal = custRows.reduce((sum, r) => sum + (r.workAmount || 0), 0);
 
       pdfRowsBA += `
@@ -987,10 +1283,10 @@ export function exportARBAIMonitoringPDFImpl(ctx: any) {
           @page { size: A4 landscape; margin: 6mm 8mm; }
           * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; }
           body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; color: #0f172a; margin: 0; padding: 8px; font-size: 9px; line-height: 1.25; }
-          .header-box { display: table; width: 100%; margin-bottom: 10px; border-bottom: 2.5px solid #0f172a; padding-bottom: 6px; }
-          .header-cell { display: table-cell; vertical-align: middle; }
-          .logo-img { height: 40px; width: auto; }
-          .title-area { text-align: right; }
+          .header-box { position: relative; margin-bottom: 12px; border-bottom: 2.5px solid #0f172a; padding-bottom: 8px; min-height: 44px; }
+          .logo-area { position: absolute; right: 0; top: 0; }
+          .logo-img { height: 38px; width: auto; }
+          .title-area { width: 100%; text-align: center; }
           .title-area h1 { font-size: 14px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 1px; color: #0f172a; }
           .title-area p { font-size: 10px; margin: 2px 0 0 0; color: #475569; font-weight: 700; }
 
@@ -1022,7 +1318,8 @@ export function exportARBAIMonitoringPDFImpl(ctx: any) {
           .sig-table th { background: #f1f5f9; color: #0f172a; border: 1.5px solid #0f172a; padding: 6px; font-size: 9px; font-weight: 800; }
           .sig-table td { border: 1.5px solid #0f172a; padding: 8px; text-align: center; height: 55px; vertical-align: bottom; font-weight: 800; font-size: 9px; }
 
-          .btn-print { background: #1e2b4d; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
+          .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
+          .btn-print:hover { background: #8e6941; }
           @media print { .btn-print { display: none; } }
         </style>
       </head>
@@ -1030,12 +1327,12 @@ export function exportARBAIMonitoringPDFImpl(ctx: any) {
         <button class="btn-print" onclick="window.print()">Cetak / Simpan Laporan PDF Official (A4 Landscape)</button>
 
         <div class="header-box">
-          <div class="header-cell" style="width: 40%;">
-            <img src="${logoUrl}" alt="ANDALAN Logo" class="logo-img" />
-          </div>
-          <div class="header-cell title-area" style="width: 60%;">
+          <div class="title-area">
             <h1>AR & BAI OUTSTANDING MONITORING REPORT</h1>
             <p>PT ANDALAN ARTHA PRIMANUSA — As of Date: ${formattedDate}</p>
+          </div>
+          <div class="logo-area">
+            <img src="${logoUrl}" alt="ANDALAN Logo" class="logo-img" />
           </div>
         </div>
 
@@ -1089,8 +1386,8 @@ export function exportARBAIMonitoringPDFImpl(ctx: any) {
           </thead>
           <tbody>
             <tr>
-              <td><u>Finance Specialist</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance & Verification Specialist</span></td>
-              <td><u>FATB Manager</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance, Accounting, Tax & Budgeting</span></td>
+              <td><u>Lambang Hermawan</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance Supervisor</span></td>
+              <td><u>M Axel Valentino</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">FATB Manager</span></td>
               <td><u>Direktur</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Board of Directors</span></td>
             </tr>
           </tbody>
@@ -1107,16 +1404,19 @@ export function exportARBAIMonitoringPDFImpl(ctx: any) {
 export function exportBAOnlyExcelImpl(ctx: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { 
-    baRows: rawBaRows, periodFilter = "Jul-26", query = "", onNotice = () => {}
+    baRows: rawBaRows, invoiceRows: rawInvoiceRows, periodFilter = "Jul-26", query = "", onNotice = () => {}
   } = ctx || {};
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
+  const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
   const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
   
-  // Export includes all BA rows for the selected periodFilter (not constrained by card status filter)
+  // Export includes only active BA rows for the selected periodFilter (BA On Progress & BA Ready to Invoice, excluding ARSIP)
   const targetRows = baRows.filter((r) => {
       const matchQ = JSON.stringify(r).toLowerCase().includes(query.toLowerCase());
       if (!matchQ) return false;
       if (periodFilter !== "All" && r.workPeriod !== periodFilter) return false;
+      const st = getBAStatusForExport(r, invoiceRows);
+      if (st.label.startsWith("ARSIP")) return false;
       return true;
     });
 
@@ -1140,7 +1440,8 @@ export function exportBAOnlyExcelImpl(ctx: any) {
 
       custRows.forEach((ba) => {
         const nominal = ba.workAmount || 0;
-        const statusBA = ba.statusBA || "Draft";
+        const st = getBAStatusForExport(ba, invoiceRows);
+        const statusBA = st.label;
         const notes = ba.notesBottleneck ? `${ba.notesBottleneck} - ${ba.notes || ""}` : (ba.notes || "-");
         excelRows += `
           <tr>
@@ -1159,16 +1460,16 @@ export function exportBAOnlyExcelImpl(ctx: any) {
       <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
         <style>
-          table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 11px; }
-          th { background-color: #0f172a; color: #ffffff; padding: 8px; border: 1px solid #0f172a; text-align: center; }
-          td { border: 1px solid #cbd5e1; padding: 6px; }
-          .title { font-size: 16px; font-weight: bold; color: #0f172a; margin-bottom: 5px; }
-          .subtitle { font-size: 12px; color: #475569; margin-bottom: 15px; }
-          .grand-total { background-color: #0f172a; color: #ffffff; font-weight: bold; font-size: 12px; }
+          table { border-collapse: collapse; width: 100%; font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-size: 11px; }
+          th { background-color: #A57C50; color: #ffffff; padding: 8px; border: 1px solid #8C6740; text-align: center; font-weight: bold; }
+          td { border: 1px solid #D6CFC7; padding: 6px; }
+          .title { font-size: 15px; font-weight: 900; color: #1A1612; margin-bottom: 3px; }
+          .subtitle { font-size: 11px; color: #6B6055; margin-bottom: 12px; }
+          .grand-total { background-color: #1A1612; color: #ffffff; font-weight: bold; font-size: 11.5px; }
         </style>
       </head>
       <body>
-        <div class="title">PT ANDALAN ARTHA PRIMANUSA</div>
+        <div class="title">PT ANDALAN ARTHA PRIMANUSA — FATB DIVISION</div>
         <div class="title">BERITA ACARA INVOICE (BAI) MONITORING REPORT</div>
         <div class="subtitle">Periode: ${periodFilter === "All" ? "Semua Periode" : periodFilter} | As of Date: ${formattedDate}</div>
 
@@ -1185,9 +1486,9 @@ export function exportBAOnlyExcelImpl(ctx: any) {
           <tbody>
             ${excelRows}
             <tr class="grand-total">
-              <td colspan="2" style="text-align: right; padding: 8px; border: 1px solid #0f172a;">TOTAL PROYEKSI PENDAPATAN BA:</td>
-              <td style="text-align: right; padding: 8px; border: 1px solid #0f172a; color: #38bdf8;">${formatIDR(totalBAMoney)}</td>
-              <td colspan="2" style="border: 1px solid #0f172a;"></td>
+              <td colspan="2" style="text-align: right; padding: 8px; border: 1px solid #1A1612;">TOTAL PROYEKSI PENDAPATAN BA:</td>
+              <td style="text-align: right; padding: 8px; border: 1px solid #1A1612; color: #FBF6F0; font-weight: 900;">${formatIDR(totalBAMoney)}</td>
+              <td colspan="2" style="border: 1px solid #1A1612;"></td>
             </tr>
           </tbody>
         </table>
@@ -1218,11 +1519,13 @@ export function exportBAOnlyPDFImpl(ctx: any) {
   const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
   const logoUrl = `${window.location.origin}/andalan-logo.png`;
 
-  // Export includes all BA rows for the selected periodFilter (not constrained by card status filter)
+  // Export includes only active BA rows for the selected periodFilter (BA On Progress & BA Ready to Invoice, excluding ARSIP)
   const targetRows = baRows.filter((r) => {
       const matchQ = JSON.stringify(r).toLowerCase().includes(query.toLowerCase());
       if (!matchQ) return false;
       if (periodFilter !== "All" && r.workPeriod !== periodFilter) return false;
+      const st = getBAStatusForExport(r, invoiceRows);
+      if (st.label.startsWith("ARSIP")) return false;
       return true;
     });
     const groupedCust = Array.from(new Set(targetRows.map((r) => r.customerCode || "OTHER")));
@@ -1276,10 +1579,10 @@ export function exportBAOnlyPDFImpl(ctx: any) {
           @page { size: A4 landscape; margin: 8mm 10mm; }
           * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; }
           body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; color: #0f172a; margin: 0; padding: 8px; font-size: 9.5px; line-height: 1.25; }
-          .header-box { display: table; width: 100%; margin-bottom: 12px; border-bottom: 2.5px solid #0f172a; padding-bottom: 6px; }
-          .header-cell { display: table-cell; vertical-align: middle; }
-          .logo-img { height: 42px; width: auto; }
-          .title-area { text-align: right; }
+          .header-box { position: relative; margin-bottom: 12px; border-bottom: 2.5px solid #0f172a; padding-bottom: 8px; min-height: 46px; }
+          .logo-area { position: absolute; right: 0; top: 0; }
+          .logo-img { height: 38px; width: auto; }
+          .title-area { width: 100%; text-align: center; }
           .title-area h1 { font-size: 15px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 1px; color: #0f172a; }
           .title-area p { font-size: 10px; margin: 2px 0 0 0; color: #475569; font-weight: 700; }
 
@@ -1309,7 +1612,8 @@ export function exportBAOnlyPDFImpl(ctx: any) {
           .sig-table th { background: #f1f5f9; color: #0f172a; border: 1.5px solid #0f172a; padding: 7px; font-size: 10px; font-weight: 800; }
           .sig-table td { border: 1.5px solid #0f172a; padding: 8px; text-align: center; height: 2.2cm; min-height: 2.2cm; vertical-align: bottom; font-weight: 800; font-size: 10px; }
 
-          .btn-print { background: #1e2b4d; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
+          .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
+          .btn-print:hover { background: #8e6941; }
           @media print { .btn-print { display: none; } }
         </style>
       </head>
@@ -1317,12 +1621,12 @@ export function exportBAOnlyPDFImpl(ctx: any) {
         <button class="btn-print" onclick="window.print()">Cetak Laporan PDF Official BA Tracker (A4 Landscape)</button>
 
         <div class="header-box">
-          <div class="header-cell" style="width: 40%;">
-            <img src="${logoUrl}" alt="ANDALAN Logo" class="logo-img" />
-          </div>
-          <div class="header-cell title-area" style="width: 60%;">
+          <div class="title-area">
             <h1>BERITA ACARA INVOICE (BAI) MONITORING REPORT</h1>
             <p>PT ANDALAN ARTHA PRIMANUSA — As of Date: ${formattedDate}</p>
+          </div>
+          <div class="logo-area">
+            <img src="${logoUrl}" alt="ANDALAN Logo" class="logo-img" />
           </div>
         </div>
 
@@ -1355,8 +1659,8 @@ export function exportBAOnlyPDFImpl(ctx: any) {
           </thead>
           <tbody>
             <tr>
-              <td><u>Finance Specialist</u><br/><span style="font-size: 8px; color: #64748b;">Finance & Verification Specialist</span></td>
-              <td><u>FATB Manager</u><br/><span style="font-size: 8px; color: #64748b;">Finance, Accounting, Tax & Budgeting</span></td>
+              <td><u>Lambang Hermawan</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance Supervisor</span></td>
+              <td><u>M Axel Valentino</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">FATB Manager</span></td>
             </tr>
           </tbody>
         </table>
@@ -1439,16 +1743,16 @@ export function exportAROnlyExcelImpl(ctx: any) {
       <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
         <style>
-          table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 11px; }
-          th { background-color: #0f172a; color: #ffffff; padding: 8px; border: 1px solid #0f172a; text-align: center; }
-          td { border: 1px solid #cbd5e1; padding: 6px; }
-          .title { font-size: 16px; font-weight: bold; color: #0f172a; margin-bottom: 5px; }
-          .subtitle { font-size: 12px; color: #475569; margin-bottom: 15px; }
-          .grand-total { background-color: #0f172a; color: #ffffff; font-weight: bold; font-size: 13px; }
+          table { border-collapse: collapse; width: 100%; font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-size: 11px; }
+          th { background-color: #A57C50; color: #ffffff; padding: 8px; border: 1px solid #8C6740; text-align: center; font-weight: bold; }
+          td { border: 1px solid #D6CFC7; padding: 6px; }
+          .title { font-size: 15px; font-weight: 900; color: #1A1612; margin-bottom: 3px; }
+          .subtitle { font-size: 11px; color: #6B6055; margin-bottom: 12px; }
+          .grand-total { background-color: #1A1612; color: #ffffff; font-weight: bold; font-size: 12px; }
         </style>
       </head>
       <body>
-        <div class="title">PT ANDALAN ARTHA PRIMANUSA</div>
+        <div class="title">PT ANDALAN ARTHA PRIMANUSA — FATB DIVISION</div>
         <div class="title">AR OUTSTANDING MONITORING REPORT</div>
         <div class="subtitle">As of Date: ${formattedDate}</div>
 
@@ -1469,8 +1773,8 @@ export function exportAROnlyExcelImpl(ctx: any) {
           <tbody>
             ${excelRowsAR}
             <tr class="grand-total">
-              <td colspan="8" style="text-align: right; padding: 8px; border: 1px solid #0f172a;">GRAND TOTAL AR OUTSTANDING ANDALAN:</td>
-              <td style="text-align: right; padding: 8px; border: 1px solid #0f172a; color: #38bdf8;">${formatIDR(totalARAndalan)}</td>
+              <td colspan="8" style="text-align: right; padding: 8px; border: 1px solid #1A1612;">GRAND TOTAL AR OUTSTANDING ANDALAN:</td>
+              <td style="text-align: right; padding: 8px; border: 1px solid #1A1612; color: #FBF6F0; font-weight: 900;">${formatIDR(totalARAndalan)}</td>
             </tr>
           </tbody>
         </table>
@@ -1592,7 +1896,8 @@ export function exportAROnlyPDFImpl(ctx: any) {
           .sig-table th { background: #f1f5f9; color: #0f172a; border: 1.5px solid #0f172a; padding: 7px; font-size: 10px; font-weight: 800; }
           .sig-table td { border: 1.5px solid #0f172a; padding: 8px; text-align: center; height: 2.2cm; min-height: 2.2cm; vertical-align: bottom; font-weight: 800; font-size: 10px; }
 
-          .btn-print { background: #0e7490; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
+          .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
+          .btn-print:hover { background: #8e6941; }
           @media print { .btn-print { display: none; } }
         </style>
       </head>
@@ -1642,8 +1947,8 @@ export function exportAROnlyPDFImpl(ctx: any) {
           </thead>
           <tbody>
             <tr>
-              <td><u>Finance Specialist</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance & Verification Specialist</span></td>
-              <td><u>FATB Manager</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance, Accounting, Tax & Budgeting</span></td>
+              <td><u>Lambang Hermawan</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance Supervisor</span></td>
+              <td><u>M Axel Valentino</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">FATB Manager</span></td>
               <td><u>Direktur</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Board of Directors</span></td>
             </tr>
           </tbody>
@@ -1655,5 +1960,151 @@ export function exportAROnlyPDFImpl(ctx: any) {
     printWin.document.open();
     printWin.document.write(htmlContent);
     printWin.document.close();
+}
+
+// =============================================================================
+// MODUL PAJAK TERPADU: DJP CORETAX 2025/2026 E-FAKTUR & E-BUPOT PPH 23 EXPORTERS
+// =============================================================================
+
+export function exportCoretaxEFakturCSVImpl(ctx: any, targetInvoices?: any[] | any) {
+  const invoices: any[] = Array.isArray(targetInvoices)
+    ? targetInvoices
+    : (targetInvoices ? [targetInvoices] : (ctx?.invoiceRows || []));
+
+  if (invoices.length === 0) {
+    alert("Tidak ada data invoice untuk diexport ke e-Faktur Coretax.");
+    return;
+  }
+
+  // Tax Master Customer Mapping Grounded in Official Tax Registry
+  const taxCustomerRegistry: Record<string, { npwp: string; name: string; address: string; trxType: string }> = {
+    BGG: {
+      npwp: "027359184012000",
+      name: "PT BUDI GEMA GEMPITA",
+      address: "Plaza Mandiri Lt. 28, Jl. Jend. Gatot Subroto Kav. 36-38, Jakarta Selatan",
+      trxType: "01"
+    },
+    SBS: {
+      npwp: "010718495313000",
+      name: "PT SATRIA BAHANA SARANA",
+      address: "Jl. Raya Tanjung Enim, Muara Enim, Sumatera Selatan",
+      trxType: "04" // DPP Nilai Lain 11/12
+    },
+    PTRO: {
+      npwp: "013092817054000",
+      name: "PT PETROSEA TBK",
+      address: "Indy Bintaro Office Park, Gedung B, Tangerang Selatan",
+      trxType: "01"
+    },
+    POS: {
+      npwp: "028842196064000",
+      name: "PT POSITION",
+      address: "Wisma Argo Manunggal Lt. 15, Jakarta Selatan",
+      trxType: "01"
+    }
+  };
+
+  const sellerNPWP = "024178800041000";
+  const sellerName = "PT ANDALAN ARTHA PRIMANUSA";
+
+  let csvContent = "FK;KD_JENIS_TRANSAKSI;FG_PENGGANTI;NOMOR_FAKTUR;MASA_PAJAK;TAHUN_PAJAK;TANGGAL_FAKTUR;NPWP_PENJUAL;NAMA_PENJUAL;NPWP_PEMBELI;NAMA_PEMBELI;ALAMAT_PEMBELI;JUMLAH_DPP;JUMLAH_PPN;JUMLAH_PPNBM;ID_KETERANGAN_TAMBAHAN;FG_UANG_MUKA;UANG_MUKA_DPP;UANG_MUKA_PPN;UANG_MUKA_PPNBM;REFERENSI\r\n";
+  csvContent += "LT;KODE_OBJEK;NAMA_BARANG;HARGA_SATUAN;JUMLAH_BARANG;HARGA_TOTAL;DISKON;DPP;TARIF_PPN;PPN;TARIF_PPNBM;PPNBM\r\n";
+
+  invoices.forEach((inv) => {
+    const custCode = (inv.customerCode || "BGG").toUpperCase();
+    const custInfo = taxCustomerRegistry[custCode] || taxCustomerRegistry.BGG;
+    const invDate = inv.invoiceDate ? new Date(inv.invoiceDate) : new Date();
+    const masaPajak = invDate.getMonth() + 1;
+    const tahunPajak = invDate.getFullYear();
+    const tglFaktur = `${String(invDate.getDate()).padStart(2, "0")}/${String(masaPajak).padStart(2, "0")}/${tahunPajak}`;
+    const cleanInvNo = (inv.invoiceNo || "").replace(/[^0-9]/g, "").padEnd(16, "0").slice(0, 16);
+
+    let dpp = Number(inv.subTotalDPP || inv.revenueGross || 0);
+    let ppn = Number(inv.ppn12 || inv.ppn11 || 0);
+    if (custCode === "SBS") {
+      const gross = Number(inv.revenueGross || inv.subTotalDPP || 0);
+      dpp = Math.round(gross * 11 / 12);
+      ppn = Math.round(dpp * 0.12);
+    } else if (ppn === 0 && dpp > 0) {
+      ppn = Math.round(dpp * 0.12);
+    }
+
+    const ref = `${inv.invoiceNo || "-"} (${inv.workPeriod || "-"})`;
+
+    // FK Row
+    csvContent += `FK;${custInfo.trxType};0;${cleanInvNo};${masaPajak};${tahunPajak};${tglFaktur};${sellerNPWP};${sellerName};${custInfo.npwp};${custInfo.name};"${custInfo.address}";${Math.round(dpp)};${Math.round(ppn)};0;${custCode === "SBS" ? "DPP_NILAI_LAIN_11_12" : ""};0;0;0;0;"${ref}"\r\n`;
+
+    // OF Row (Line Item)
+    const itemName = custCode === "SBS" ? "JASA PENAMBANGAN & PENUNJANG PRODUKSI SBS" : `JASA PENAMBANGAN MINING ${custCode}`;
+    csvContent += `OF;MINING_SRV;"${itemName}";${Math.round(dpp)};1;${Math.round(dpp)};0;${Math.round(dpp)};12;${Math.round(ppn)};0;0\r\n`;
+  });
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", `CORETAX_EFAKTUR_${invoices.length > 1 ? "BATCH" : (invoices[0]?.customerCode || "INVOICE")}_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+export function exportEBupotPPh23CSVImpl(ctx: any, targetInvoices?: any[] | any) {
+  const invoices: any[] = Array.isArray(targetInvoices)
+    ? targetInvoices
+    : (targetInvoices ? [targetInvoices] : (ctx?.invoiceRows || []));
+
+  if (invoices.length === 0) {
+    alert("Tidak ada data invoice untuk diexport ke e-Bupot PPh 23.");
+    return;
+  }
+
+  const taxCustomerRegistry: Record<string, { npwp: string; name: string }> = {
+    BGG: { npwp: "027359184012000", name: "PT BUDI GEMA GEMPITA" },
+    SBS: { npwp: "010718495313000", name: "PT SATRIA BAHANA SARANA" },
+    PTRO: { npwp: "013092817054000", name: "PT PETROSEA TBK" },
+    POS: { npwp: "028842196064000", name: "PT POSITION" }
+  };
+
+  const sellerNPWP = "024178800041000";
+  const sellerName = "PT ANDALAN ARTHA PRIMANUSA";
+
+  let csvContent = "KODE_OBJEK_PAJAK;NPWP_PEMOTONG;NAMA_PEMOTONG;NPWP_BERHAK;NAMA_BERHAK;NO_DOKUMEN_DASAR;TGL_DOKUMEN;JUMLAH_BRUTO;TARIF;JUMLAH_PPH;STATUS_PEMOTONGAN\r\n";
+
+  invoices.forEach((inv) => {
+    const custCode = (inv.customerCode || "BGG").toUpperCase();
+    const custInfo = taxCustomerRegistry[custCode] || taxCustomerRegistry.BGG;
+    const invDate = inv.invoiceDate ? new Date(inv.invoiceDate) : new Date();
+    const tglDok = `${String(invDate.getDate()).padStart(2, "0")}/${String(invDate.getMonth() + 1).padStart(2, "0")}/${invDate.getFullYear()}`;
+
+    const gross = Number(inv.revenueGross || inv.subTotalDPP || 0);
+    const pph = Number(inv.pph23 || Math.round(gross * 0.02));
+
+    csvContent += `24-104-01;${custInfo.npwp};"${custInfo.name}";${sellerNPWP};"${sellerName}";"${inv.invoiceNo || "-"}";${tglDok};${Math.round(gross)};2%;${Math.round(pph)};DIPOTONG\r\n`;
+  });
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", `CORETAX_EBUPOT_PPH23_${invoices.length > 1 ? "BATCH" : (invoices[0]?.customerCode || "INVOICE")}_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+export function createFinanceExporters(exportCtx: any) {
+  return {
+    exportPaymentDetailPDF: (itemData: any) => exportPaymentDetailPDFImpl(exportCtx, itemData),
+    exportBADocumentPDF: (baData: any) => exportBADocumentPDFImpl(exportCtx, baData),
+    exportARBAIMonitoringExcel: () => exportARBAIMonitoringExcelImpl(exportCtx),
+    exportARBAIMonitoringPDF: () => exportARBAIMonitoringPDFImpl(exportCtx),
+    exportBAOnlyExcel: () => exportBAOnlyExcelImpl(exportCtx),
+    exportBAOnlyPDF: () => exportBAOnlyPDFImpl(exportCtx),
+    exportAROnlyExcel: () => exportAROnlyExcelImpl(exportCtx),
+    exportAROnlyPDF: () => exportAROnlyPDFImpl(exportCtx),
+    exportCoretaxEFakturCSV: (itemData?: any) => exportCoretaxEFakturCSVImpl(exportCtx, itemData),
+    exportEBupotPPh23CSV: (itemData?: any) => exportEBupotPPh23CSVImpl(exportCtx, itemData),
+  };
 }
 

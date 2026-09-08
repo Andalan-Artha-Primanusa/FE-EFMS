@@ -92,7 +92,7 @@ export function RekapAapView({ c }: Props) {
             <option value="">Semua Site</option>
             <option value="BGG">BGG</option>
             <option value="POS">POS</option>
-            <option value="DBK KALTENG">DBK KALTENG</option>
+            <option value="PTRO">PTRO</option>
             <option value="HO">HO</option>
           </select>
 
