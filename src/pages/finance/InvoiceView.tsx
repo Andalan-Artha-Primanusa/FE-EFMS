@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Truck, BookOpen } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Truck, BookOpen, Loader2 } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, User as UserType } from "../../lib/api";
@@ -22,7 +22,7 @@ export function InvoiceView({ c }: { c: any }) {
     setDetailViewItem, templateRows: rawTemplateRows, exportAROnlyExcel, exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV, openCreateModal,
     openEditModal, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, handleDelete,
     sbsPenalties: rawSbsPenalties, sbsPenaltyModalOpen, sbsPenaltyEditItem, handleSaveSBSPenalty, handleDeleteSBSPenalty, openSBSPenaltyModal, closeSBSPenaltyModal,
-    query = "", accountingJournals: rawAccountingJournals
+    query = "", accountingJournals: rawAccountingJournals, deletingKey, actionLoadingKey
   } = (c || {}) as Record<string, any>;
   const templateRows = typeof rawTemplateRows === "function" ? rawTemplateRows : () => [];
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
@@ -128,22 +128,30 @@ export function InvoiceView({ c }: { c: any }) {
                   const rowPeriodIndex = parsePeriodToMonthIndex(ba?.workPeriod || "");
                   if (rowPeriodIndex > targetPeriodIndex) return false;
                 }
-                const isUnlinked = !ba.invoiceNoLinked || ba.invoiceNoLinked === "-" || ba.invoiceNoLinked.trim() === "";
-                return isUnlinked;
+                const invStatus = getBAInvoiceStatus(ba, safeInvoiceRows);
+                return !invStatus.isFullyInvoiced;
               })
-              .map((ba) => ({
-                id: `sti-ba-${ba.id}`,
-                customerCode: (ba.customerCode || "POS").toUpperCase(),
-                workPeriod: ba.workPeriod || "-",
-                invoiceNo: ba.baNumber || ba.draftBARefNo || "-",
-                remarks: ba.notes || `Klaim BA Lapangan (${ba.activityGroup || "OB & Coal"})`,
-                amount: Number(ba.workAmount || 0),
-                invoiceDate: ba.baSubmittedDate || ba.createdAt || "-",
-                invoiceSubmission: "-",
-                dueDate: "-",
-                outstanding: Number(ba.workAmount || 0),
-                status: ba.statusBA === "Approved" || ba.statusBA === "Ready to Invoice" ? "Ready to Invoice" : (ba.statusBA || "Draft")
-              }));
+              .map((ba) => {
+                const invStatus = getBAInvoiceStatus(ba, safeInvoiceRows);
+                const totalWork = Number(ba.workAmount || 0);
+                const isPart = ba.customerCode === "POS" && invStatus.isPartiallyInvoiced;
+                const stiAmount = isPart ? Math.round(totalWork / 2) : totalWork;
+                return {
+                  id: `sti-ba-${ba.id}`,
+                  customerCode: (ba.customerCode || "POS").toUpperCase(),
+                  workPeriod: ba.workPeriod || "-",
+                  invoiceNo: ba.baNumber || ba.draftBARefNo || "-",
+                  remarks: isPart
+                    ? `Klaim BA Lapangan (Sisa 1/2 Inv ${invStatus.createdMiningInv ? "MDO" : "Mining"})`
+                    : (ba.notes || `Klaim BA Lapangan (${ba.activityGroup || "OB & Coal"})`),
+                  amount: stiAmount,
+                  invoiceDate: ba.baSubmittedDate || ba.createdAt || "-",
+                  invoiceSubmission: "-",
+                  dueDate: "-",
+                  outstanding: stiAmount,
+                  status: ba.statusBA === "Approved" || ba.statusBA === "Ready to Invoice" ? "Ready to Invoice" : (ba.statusBA || "Draft")
+                };
+              });
             const totalSubjectToInvoice = subjectToInvoiceDataRows.reduce((acc, r) => acc + (r.outstanding || 0), 0);
 
             return (
@@ -466,8 +474,15 @@ export function InvoiceView({ c }: { c: any }) {
                               const s = (r.status || "").trim();
                               if (invStatusFilter === "Draft") {
                                 if (s !== "Draft" && s !== "Draft Invoice" && s !== "Pending" && s !== "Submitted" && s !== "") return false;
-                              } else if (invStatusFilter === "Issued") {
-                                if (s !== "Issued" && s !== "Approved_Tier2" && s !== "Approved") return false;
+                              } else if (invStatusFilter === "Issued" || invStatusFilter === "Approved") {
+                                if (s !== "Issued" && s !== "Approved_Tier2" && s !== "Approved" && s !== "Approved_FATB" && s !== "Approved_Tier1") return false;
+                              } else if (invStatusFilter === "Paid") {
+                                if (s !== "Paid" && s !== "Lunas") return false;
+                              } else if (invStatusFilter === "Tax_Reported") {
+                                if (s !== "Tax_Reported" && s !== "Faktur Pajak Terlapor") return false;
+                              } else if (invStatusFilter === "Overdue") {
+                                const isOverdue = (r.agingDays > 0 && r.status !== "Paid" && r.status !== "Tax_Reported") || (r.dueDate && new Date(r.dueDate) < new Date() && r.status !== "Paid" && r.status !== "Tax_Reported");
+                                if (!isOverdue) return false;
                               } else if (s !== invStatusFilter) {
                                 return false;
                               }
@@ -477,12 +492,6 @@ export function InvoiceView({ c }: { c: any }) {
                             if (invPeriodFilter !== "All") {
                               const rowPeriodIndex = parsePeriodToMonthIndex(r.workPeriod || "");
                               if (rowPeriodIndex > targetPeriodIndex) return false;
-                            }
-
-                            // Khusus filter "All": Tampilkan invoice yang belum lunas (outstanding > 0 dan status bukan Paid/Tax_Reported)
-                            const outstandingAmount = r.outstanding !== undefined ? Number(r.outstanding) : ((Number(r.totalInvoice) || 0) - (Number(r.totalPaid) || 0));
-                            if (invStatusFilter === "All" && (outstandingAmount <= 0 || r.status === "Paid" || r.status === "Tax_Reported")) {
-                              return false;
                             }
 
                             return true;
@@ -566,15 +575,20 @@ export function InvoiceView({ c }: { c: any }) {
                                         </td>
                                         <td className="p-2.5 text-right whitespace-nowrap sticky right-0 z-10 bg-white group-hover:bg-slate-50 transition-colors shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] border-l border-slate-200">
                                           <div className="flex items-center justify-end gap-1.5 flex-nowrap min-w-[150px]">
-                                            {(isManager || isDirector || isSuper) && (row.status === "Draft" || !row.status || row.status === "Pending" || row.status === "Submitted" || row.status === "Verified") && (
-                                              <button
-                                                className="px-2.5 py-1 bg-purple-700 hover:bg-purple-800 text-white font-bold text-[11px] rounded shadow-xs inline-flex items-center gap-1 transition shrink-0 whitespace-nowrap font-sans cursor-pointer"
-                                                onClick={() => handleApproveInvoice(row.id)}
-                                                title="Setujui Invoice (Manager FATB)"
-                                              >
-                                                <UserCheck size={12} /> Approve FATB
-                                              </button>
-                                            )}
+                                             {(isManager || isDirector || isSuper) && (row.status === "Draft" || !row.status || row.status === "Pending" || row.status === "Submitted" || row.status === "Verified") && (() => {
+                                               const isApproving = actionLoadingKey === `approve-inv-${row.id}`;
+                                               return (
+                                                 <button
+                                                   disabled={isApproving}
+                                                   className={`px-2.5 py-1 bg-purple-700 hover:bg-purple-800 text-white font-bold text-[11px] rounded shadow-xs inline-flex items-center gap-1 transition shrink-0 whitespace-nowrap font-sans cursor-pointer ${isApproving ? "opacity-60 cursor-not-allowed" : ""}`}
+                                                   onClick={() => handleApproveInvoice(row.id)}
+                                                   title="Setujui Invoice (Manager FATB)"
+                                                 >
+                                                   {isApproving ? <Loader2 size={12} className="animate-spin text-white" /> : <UserCheck size={12} />}
+                                                   <span>{isApproving ? "Menyetujui..." : "Approve FATB"}</span>
+                                                 </button>
+                                               );
+                                             })()}
                                             <button className="p-1.5 rounded border border-cyan-200 bg-cyan-50 text-cyan-800 hover:bg-cyan-100 transition shrink-0 cursor-pointer" onClick={() => setDetailViewItem({ type: "invoice", data: row })} title="Lihat Detail & Tracking Log">
                                               <Eye size={14} />
                                             </button>
@@ -587,9 +601,19 @@ export function InvoiceView({ c }: { c: any }) {
                                                 <button className="p-1.5 rounded border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition shrink-0 cursor-pointer" onClick={() => openEditModal("invoice", row)} title="Edit Invoice">
                                                   <Edit2 size={14} />
                                                 </button>
-                                                <button className="p-1.5 rounded border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition shrink-0 cursor-pointer" onClick={() => handleDelete("invoice", row.id)} title="Hapus Invoice">
-                                                  <Trash2 size={14} />
-                                                </button>
+                                                {(() => {
+                                                  const isDeleting = deletingKey === `invoice-${row.id}`;
+                                                  return (
+                                                    <button
+                                                      disabled={isDeleting}
+                                                      className={`p-1.5 rounded border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition shrink-0 cursor-pointer ${isDeleting ? "opacity-60 cursor-not-allowed" : ""}`}
+                                                      onClick={() => handleDelete("invoice", row.id)}
+                                                      title="Hapus Invoice"
+                                                    >
+                                                      {isDeleting ? <Loader2 size={14} className="animate-spin text-rose-600" /> : <Trash2 size={14} />}
+                                                    </button>
+                                                  );
+                                                })()}
                                               </>
                                             )}
                                           </div>
@@ -674,14 +698,20 @@ export function InvoiceView({ c }: { c: any }) {
                                           >
                                             <Edit2 size={14} />
                                           </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => handleDeleteSBSPenalty(row.id)}
-                                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition cursor-pointer"
-                                            title="Hapus Klaim Penalti"
-                                          >
-                                            <Trash2 size={14} />
-                                          </button>
+                                          {(() => {
+                                            const isDeletingSBS = deletingKey === `sbs-penalty-${row.id}`;
+                                            return (
+                                              <button
+                                                type="button"
+                                                disabled={isDeletingSBS}
+                                                onClick={() => handleDeleteSBSPenalty(row.id)}
+                                                className={`p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition cursor-pointer ${isDeletingSBS ? "opacity-60 cursor-not-allowed" : ""}`}
+                                                title="Hapus Klaim Penalti"
+                                              >
+                                                {isDeletingSBS ? <Loader2 size={14} className="animate-spin text-rose-600" /> : <Trash2 size={14} />}
+                                              </button>
+                                            );
+                                          })()}
                                         </div>
                                       </td>
                                     </tr>

@@ -72,12 +72,35 @@ export function PendingVolumeModal({ c }: { c: any }) {
     }
   };
 
+  useEffect(() => {
+    if (!showPendingVolumeDrawer && !allocatingItem) return;
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (allocatingItem) {
+          setAllocatingItem(null);
+        } else if (showPendingVolumeDrawer) {
+          setShowPendingVolumeDrawer(false);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown);
+    };
+  }, [showPendingVolumeDrawer, allocatingItem, setShowPendingVolumeDrawer]);
+
   return (
     <>
       {/* ================= MODAL KARTU KONTROL PENDING VOLUME ================= */}
       {showPendingVolumeDrawer && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white border border-slate-200 rounded-[4px] shadow-2xl w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-6">
+        <div
+          onClick={() => setShowPendingVolumeDrawer(false)}
+          className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white border border-slate-200 rounded-[4px] shadow-2xl w-full max-w-5xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 my-6"
+          >
             
             {/* Modal Header - AAP Brand Ink Header with Bronze Accent */}
             <div className="p-4 sm:p-5 bg-[#1A1612] text-white flex items-center justify-between border-b border-amber-900/30">
@@ -360,8 +383,14 @@ export function PendingVolumeModal({ c }: { c: any }) {
 
       {/* ================= SUB-MODAL ALOKASI KE INVOICE ================= */}
       {allocatingItem && (
-        <div className="fixed inset-0 z-60 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-[4px] shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div
+          onClick={() => setAllocatingItem(null)}
+          className="fixed inset-0 z-60 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-[4px] shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+          >
             <div className="p-4 bg-[#1A1612] text-white flex items-center justify-between border-b border-amber-900/30">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-[3px] bg-[#A57C50]/20 border border-[#A57C50]/40 flex items-center justify-center text-[#A57C50]">

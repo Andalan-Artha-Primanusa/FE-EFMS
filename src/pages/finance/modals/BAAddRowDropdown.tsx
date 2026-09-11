@@ -71,7 +71,7 @@ export function BAAddRowDropdown({
     switch (sectionType) {
       // ================= BGG SITE PRESETS =================
       case "BGG_OB":
-        const bggObRate = getSowMasterRate ? getSowMasterRate("BGG", "OVER BURDEN REMOVAL 1 (75%)", 29500) : 29500;
+        const bggObRate = getSowMasterRate ? getSowMasterRate("BGG", "Over Burden Removal", 27250) : 27250;
         setBaOperatingItems((prev) => [
           ...prev,
           {
@@ -79,7 +79,7 @@ export function BAAddRowDropdown({
             section: "A",
             category: "Operating & Mining",
             area: "Pit KKL",
-            material: "OVER BURDEN REMOVAL 1 (75%)",
+            material: "Over Burden Removal",
             period: curPeriod,
             notes: "",
             keterangan: "",
@@ -94,7 +94,7 @@ export function BAAddRowDropdown({
         break;
 
       case "BGG_COAL":
-        const bggCoalRate = getSowMasterRate ? getSowMasterRate("BGG", "Coal Winning Pit Kungkilan", 17500) : 17500;
+        const bggCoalRate = getSowMasterRate ? getSowMasterRate("BGG", "Coal Winning", 16500) : 16500;
         setBaOperatingItems((prev) => [
           ...prev,
           {
@@ -117,7 +117,7 @@ export function BAAddRowDropdown({
         break;
 
       case "BGG_OD":
-        const bggOdRate = getSowMasterRate ? getSowMasterRate("BGG", "Over Distance For OB Removal", 1550) : 1550;
+        const bggOdRate = getSowMasterRate ? getSowMasterRate("BGG", "Over Distance For OB Removal", 600) : 600;
         setBaOperatingItems((prev) => [
           ...prev,
           {

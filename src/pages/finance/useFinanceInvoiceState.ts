@@ -20,6 +20,10 @@ interface UseFinanceInvoiceStateProps {
   detailViewItem: any;
   setDetailViewItem: (item: any) => void;
   getSowMasterRate: (cust: string, name: string, fb: number, isUSD?: boolean) => number;
+  actionLoadingKey?: string | null;
+  setActionLoadingKey?: (key: string | null) => void;
+  setInvoiceRows?: (rows: any[] | ((prev: any[]) => any[])) => void;
+  setBaRows?: (rows: any[] | ((prev: any[]) => any[])) => void;
 }
 
 export function useFinanceInvoiceState({
@@ -40,7 +44,11 @@ export function useFinanceInvoiceState({
   loadData,
   detailViewItem,
   setDetailViewItem,
-  getSowMasterRate
+  getSowMasterRate,
+  actionLoadingKey,
+  setActionLoadingKey,
+  setInvoiceRows,
+  setBaRows
 }: UseFinanceInvoiceStateProps) {
   const [posInvoiceCategory, setPosInvoiceCategory] = useState<"Operation & Mining" | "MDO">("Operation & Mining");
   const [invLineItems, setInvLineItems] = useState<any[]>(blankPOSItems);
@@ -262,43 +270,70 @@ export function useFinanceInvoiceState({
   };
 
   const handleGenerateInvoiceFromBA = async (baId: number) => {
+    const key = `generate-inv-${baId}`;
+    if (setActionLoadingKey) setActionLoadingKey(key);
+    onNotice("⏳ Sedang menerbitkan draft invoice dari Berita Acara...");
     try {
       const newInv: any = await generateInvoiceFromBA(baId);
-      onNotice(`Berhasil membuat Draft Mining Invoice No. ${newInv?.invoiceNo || "091/BGG-AAP/VI/2026"} dari Berita Acara.`);
+      onNotice(`✅ Berhasil membuat Draft Mining Invoice No. ${newInv?.invoiceNo || "091/BGG-AAP/VI/2026"} dari Berita Acara.`);
+      if (setInvoiceRows && newInv) {
+        setInvoiceRows((prev) => [newInv, ...prev.filter((i) => i.id !== newInv.id)]);
+      }
+      if (setBaRows && newInv) {
+        setBaRows((prev) => prev.map((b) => b.id === baId ? { ...b, statusBA: "Arsip (Ditautkan Invoice)", invoiceNoLinked: newInv.invoiceNo, invoiceID: newInv.id } : b));
+      }
       await loadData();
     } catch (err: any) {
       onNotice(`Gagal membuat invoice: ${err?.message || err}`);
+    } finally {
+      if (setActionLoadingKey) setActionLoadingKey(null);
     }
   };
 
   const handleVerifyInvoice = async (id: number) => {
+    const key = `verify-inv-${id}`;
+    if (setActionLoadingKey) setActionLoadingKey(key);
+    onNotice("⏳ Sedang memverifikasi invoice...");
     try {
-      const updated = await verifyInvoice(id, "verify", "Verifikasi rincian Invoice oleh Finance Specialist");
-      onNotice("Invoice berhasil diverifikasi oleh Finance Specialist. Menunggu Approval Manager FATB.");
-      await loadData();
-      if (detailViewItem && detailViewItem.type === "invoice" && detailViewItem.data.id === id) {
-        setDetailViewItem({ type: "invoice", data: updated });
+      const updated: any = await verifyInvoice(id, "verify", "Verifikasi rincian Invoice oleh Finance Specialist");
+      onNotice("✅ Invoice berhasil diverifikasi oleh Finance Specialist. Menunggu Approval Manager FATB.");
+      if (setInvoiceRows) {
+        setInvoiceRows((prev) => prev.map((i) => i.id === id ? { ...i, ...(updated || {}), status: updated?.status || "Verified (Review HO)" } : i));
       }
+      if (detailViewItem && detailViewItem.type === "invoice" && (detailViewItem.data?.id === id || detailViewItem.id === id)) {
+        setDetailViewItem({ type: "invoice", data: { ...(detailViewItem.data || detailViewItem), ...(updated || {}), status: updated?.status || "Verified (Review HO)" } });
+      }
+      await loadData();
     } catch (err: any) {
       onNotice(err?.message || "Gagal memverifikasi Invoice");
+    } finally {
+      if (setActionLoadingKey) setActionLoadingKey(null);
     }
   };
 
   const handleApproveInvoice = async (id: number) => {
+    const key = `approve-inv-${id}`;
+    if (setActionLoadingKey) setActionLoadingKey(key);
+    onNotice("⏳ Sedang memproses persetujuan invoice & penerbitan jurnal piutang...");
     try {
-      const updated = await approveInvoice(id, "approve", "Persetujuan Invoice oleh Manager FATB");
+      const updated: any = await approveInvoice(id, "approve", "Persetujuan Invoice oleh Manager FATB");
       try {
         await generateJournalFromInvoice(id);
       } catch (jErr: any) {
         console.warn("Auto-journal info/warning:", jErr);
       }
-      onNotice("Invoice berhasil disetujui oleh Manager FATB. Status: Disetujui & Jurnal Piutang AR Terbit.");
-      await loadData();
-      if (detailViewItem && detailViewItem.type === "invoice" && detailViewItem.data.id === id) {
-        setDetailViewItem({ type: "invoice", data: updated });
+      onNotice("✅ Invoice berhasil disetujui oleh Manager FATB. Status: Disetujui & Jurnal Piutang AR Terbit.");
+      if (setInvoiceRows) {
+        setInvoiceRows((prev) => prev.map((i) => i.id === id ? { ...i, ...(updated || {}), status: updated?.status || "Unpaid" } : i));
       }
+      if (detailViewItem && detailViewItem.type === "invoice" && (detailViewItem.data?.id === id || detailViewItem.id === id)) {
+        setDetailViewItem({ type: "invoice", data: { ...(detailViewItem.data || detailViewItem), ...(updated || {}), status: updated?.status || "Unpaid" } });
+      }
+      await loadData();
     } catch (err: any) {
       onNotice(err?.message || "Gagal menyetujui Invoice");
+    } finally {
+      if (setActionLoadingKey) setActionLoadingKey(null);
     }
   };
 

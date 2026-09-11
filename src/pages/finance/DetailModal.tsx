@@ -36,10 +36,10 @@ export function DetailModal({ c }: { c: any }) {
       : `Customer: ${data.fullName}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-2 sm:p-4">
-      <div className="bg-white border border-slate-200 rounded-[4px] p-4 sm:p-5 w-full max-w-[96vw] 2xl:max-w-[1550px] shadow-2xl space-y-4 max-h-[94vh] overflow-y-auto transition-all">
-        {/* Modal Header */}
-        <div className="flex justify-between items-start border-b border-slate-200 pb-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-2 sm:p-4 overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-[4px] w-full max-w-[96vw] 2xl:max-w-[1550px] shadow-2xl flex flex-col max-h-[94vh] overflow-hidden transition-all">
+        {/* Modal Header (Sticky Top) */}
+        <div className="flex justify-between items-start border-b border-slate-200 p-4 sm:p-5 pb-3 bg-white shrink-0 sticky top-0 z-20">
           <div>
             <span className="inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-[#A57C50] bg-[#A57C50]/10 px-2.5 py-0.5 rounded-[3px] border border-[#A57C50]/30">
               <FileText size={13} /> Detail View & Audit Log Tracking
@@ -72,100 +72,104 @@ export function DetailModal({ c }: { c: any }) {
           </div>
         </div>
 
-        {/* 2-COLUMN LAYOUT: 8 cols Left (Tables/Data) + 4 cols Right (Summaries/Timeline/Audit) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          {/* LEFT COLUMN: 8 cols */}
-          <div className="lg:col-span-8 space-y-4 border-b lg:border-b-0 lg:border-r border-slate-200 pb-4 lg:pb-0 lg:pr-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2">
-              <div className="flex items-center gap-2">
-                <h4 className="text-xs font-black uppercase tracking-wider text-slate-500">Rincian Dokumen & Nilai Transaksi</h4>
-                <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                  ID: #{data.id}
-                </span>
+        {/* Scrollable Body: 2-COLUMN LAYOUT: 8 cols Left (Tables/Data) + 4 cols Right (Summaries/Timeline/Audit) */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            {/* LEFT COLUMN: 8 cols */}
+            <div className="lg:col-span-8 space-y-4 border-b lg:border-b-0 lg:border-r border-slate-200 pb-4 lg:pb-0 lg:pr-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-500">Rincian Dokumen & Nilai Transaksi</h4>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                    ID: #{data.id}
+                  </span>
+                </div>
+                {type === "invoice" && (
+                  <button
+                    onClick={() => exportPaymentDetailPDF(data)}
+                    className="px-3 py-1.5 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs transition flex items-center gap-1 shadow-xs cursor-pointer"
+                  >
+                    <FileText size={13} /> Cetak / Simpan PDF
+                  </button>
+                )}
+                {type === "ba" && (
+                  <button
+                    onClick={() => exportBADocumentPDF(data)}
+                    className="px-3 py-1.5 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs transition flex items-center gap-1 shadow-xs cursor-pointer"
+                  >
+                    <FileText size={13} /> Cetak Dokumen BA (PDF)
+                  </button>
+                )}
               </div>
-              {type === "invoice" && (
-                <button
-                  onClick={() => exportPaymentDetailPDF(data)}
-                  className="px-3 py-1.5 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs transition flex items-center gap-1 shadow-xs cursor-pointer"
-                >
-                  <FileText size={13} /> Cetak / Simpan PDF
-                </button>
-              )}
+
+              {/* Sheets */}
               {type === "ba" && (
-                <button
-                  onClick={() => exportBADocumentPDF(data)}
-                  className="px-3 py-1.5 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs transition flex items-center gap-1 shadow-xs cursor-pointer"
-                >
-                  <FileText size={13} /> Cetak Dokumen BA (PDF)
-                </button>
+                <BADetailSheet
+                  data={data}
+                  invoiceRows={invoiceRows}
+                  exportBADocumentPDF={exportBADocumentPDF}
+                  createInvoiceFromBA={createInvoiceFromBA}
+                  setDetailViewItem={setDetailViewItem}
+                />
+              )}
+
+              {type === "invoice" && (
+                <InvoiceDetailSheet
+                  data={data}
+                  baRows={baRows}
+                  invLineItems={invLineItems}
+                  formData={formData}
+                  buildInvoiceItemsFromBA={buildInvoiceItemsFromBA}
+                  customerContractMap={customerContractMap}
+                  getItemEffectiveVolume={getItemEffectiveVolume}
+                  getItemEffectiveOverhaulMtr={getItemEffectiveOverhaulMtr}
+                  calculateItemRateAndAmount={calculateItemRateAndAmount}
+                  getCustomerCalculations={getCustomerCalculations}
+                  rfIndexCalculated={rfIndexCalculated}
+                />
+              )}
+
+              {(type === "payment" || type === "customer") && (
+                <PaymentCustomerDetailSheet type={type} data={data} />
               )}
             </div>
 
-            {/* Sheets */}
-            {type === "ba" && (
-              <BADetailSheet
-                data={data}
-                invoiceRows={invoiceRows}
-                exportBADocumentPDF={exportBADocumentPDF}
-                createInvoiceFromBA={createInvoiceFromBA}
-                setDetailViewItem={setDetailViewItem}
-              />
-            )}
+            {/* RIGHT COLUMN: 4 cols */}
+            <div className="lg:col-span-4 space-y-4">
+              {type === "invoice" && (
+                <DetailPaymentTracker
+                  detailData={data}
+                  paymentRows={paymentRows}
+                  showAddPartialPayment={showAddPartialPayment}
+                  setShowAddPartialPayment={setShowAddPartialPayment}
+                  partialPaymentForm={partialPaymentForm}
+                  setPartialPaymentForm={setPartialPaymentForm}
+                  handleSavePartialPayment={handleSavePartialPayment}
+                  handleVerifyPartialPayment={handleVerifyPartialPayment}
+                />
+              )}
 
-            {type === "invoice" && (
-              <InvoiceDetailSheet
-                data={data}
-                baRows={baRows}
-                invLineItems={invLineItems}
-                formData={formData}
-                buildInvoiceItemsFromBA={buildInvoiceItemsFromBA}
-                customerContractMap={customerContractMap}
-                getItemEffectiveVolume={getItemEffectiveVolume}
-                getItemEffectiveOverhaulMtr={getItemEffectiveOverhaulMtr}
-                calculateItemRateAndAmount={calculateItemRateAndAmount}
-                getCustomerCalculations={getCustomerCalculations}
-                rfIndexCalculated={rfIndexCalculated}
-              />
-            )}
-
-            {(type === "payment" || type === "customer") && (
-              <PaymentCustomerDetailSheet type={type} data={data} />
-            )}
-          </div>
-
-          {/* RIGHT COLUMN: 4 cols */}
-          <div className="lg:col-span-4 space-y-4">
-            {type === "invoice" && (
-              <DetailPaymentTracker
-                detailData={data}
-                paymentRows={paymentRows}
-                showAddPartialPayment={showAddPartialPayment}
-                setShowAddPartialPayment={setShowAddPartialPayment}
-                partialPaymentForm={partialPaymentForm}
-                setPartialPaymentForm={setPartialPaymentForm}
-                handleSavePartialPayment={handleSavePartialPayment}
-                handleVerifyPartialPayment={handleVerifyPartialPayment}
-              />
-            )}
-
-            <DetailAuditTimeline type={type} data={data} />
+              <DetailAuditTimeline type={type} data={data} />
+            </div>
           </div>
         </div>
 
-        {/* Modal Footer (Sticky at bottom) */}
-        <DetailModalActions
-          type={type}
-          data={data}
-          isSuper={isSuper}
-          isFinanceSpecialist={isFinanceSpecialist}
-          isSPV={isSPV}
-          isManager={isManager}
-          isDirector={isDirector}
-          handleVerifyBA={handleVerifyBA}
-          handleApproveBA={handleApproveBA}
-          handleApproveInvoice={handleApproveInvoice}
-          onClose={() => setDetailViewItem(null)}
-        />
+        {/* Modal Footer (Sticky Bottom) */}
+        <div className="p-4 sm:p-5 pt-3 border-t border-slate-200 bg-white shrink-0 sticky bottom-0 z-20">
+          <DetailModalActions
+            type={type}
+            data={data}
+            isSuper={isSuper}
+            isFinanceSpecialist={isFinanceSpecialist}
+            isSPV={isSPV}
+            isManager={isManager}
+            isDirector={isDirector}
+            handleVerifyBA={handleVerifyBA}
+            handleApproveBA={handleApproveBA}
+            handleApproveInvoice={handleApproveInvoice}
+            onClose={() => setDetailViewItem(null)}
+          />
+        </div>
       </div>
     </div>
   );

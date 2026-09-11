@@ -1,5 +1,6 @@
 import { getSBSTarifByDistance } from "./calculations";
 import { buildBGGInvoiceItemsFromBA } from "./invoiceItemGeneratorBGG";
+import { getBAEffectiveVolume } from "./ba_calculations";
 
 export interface InvoiceItemGeneratorContext {
   baRows?: any[];
@@ -11,6 +12,9 @@ export interface InvoiceItemGeneratorContext {
   demoDBKItems?: any[];
   blankSBSItems?: any[];
   demoSBSItems?: any[];
+  blankBGGItems?: any[];
+  blankPTROItems?: any[];
+  blankPOSItems?: any[];
 }
 
 export function buildInvoiceItemsFromBA(
@@ -29,7 +33,10 @@ export function buildInvoiceItemsFromBA(
     demoPTROItems = [],
     demoDBKItems = [],
     blankSBSItems = [],
-    demoSBSItems = []
+    demoSBSItems = [],
+    blankBGGItems = [],
+    blankPTROItems = [],
+    blankPOSItems = []
   } = ctx;
 
   // 1. POS/IBP/BBA MDO (Mine Development Operation)
@@ -45,7 +52,7 @@ export function buildInvoiceItemsFromBA(
 
     if (mdoItems.length > 0) {
       return mdoItems.map((bi: any, idx: number) => {
-        const vol = Number(bi.adjustedVolume ?? bi.initialVolume ?? bi.volume ?? 0);
+        const vol = getBAEffectiveVolume(bi, sourceItems || [], true);
         const rate = Number(bi.rate || bi.unitRateIDR || (bi.subtotalAdjusted && vol > 0 ? Math.round(bi.subtotalAdjusted / vol) : 0));
         const amt = Number(bi.subtotalAdjusted || bi.subtotalInitial || Math.round(vol * rate));
         return {
@@ -66,15 +73,15 @@ export function buildInvoiceItemsFromBA(
     }
 
     return [
-      { id: "MDO_1", section: "A", code: "MDO1", description: "Mine Development (MDO Cut & Fill & Access Road)", volume: 0, unit: "Ha", baseRateUSD: 0, unitRateIDR: 15500000, amount: 0, amountIDR: 0 },
-      { id: "MDO_2", section: "A", code: "MDO2", description: "Rocks for construction - under/overhaul", volume: 0, unit: "USD/1KM", baseRateUSD: 0.526, unitRateIDR: 9450, amount: 0, amountIDR: 0 }
+      { id: "MDO_1", section: "A", code: "MDO1", description: "Mine Development (MDO Cut & Fill & Access Road)", volume: 0, unit: "Ha", baseRateUSD: 0, unitRateIDR: 0, amount: 0, amountIDR: 0 },
+      { id: "MDO_2", section: "A", code: "MDO2", description: "Rocks for construction - under/overhaul", volume: 0, unit: "USD/1KM", baseRateUSD: 0, unitRateIDR: 0, amount: 0, amountIDR: 0 }
     ];
   }
 
   // 2. POS/IBP/BBA Facility / Backcharge / Non-Mining
   const isPOSFacility = (code === "POS" || code === "IBP" || code === "BBA") && ((ba?.jobType || "").toLowerCase().includes("mess") || (ba?.jobType || "").toLowerCase().includes("mob") || (ba?.jobType || "").toLowerCase().includes("facility") || (ba?.invoiceNo || "").toLowerCase().includes("bc-"));
   if (isPOSFacility) {
-    const gross = Number(ba.revenueGross || ba.workAmount || 2313397963);
+    const gross = Number(ba.revenueGross || ba.workAmount || 0);
     const vol = Number(ba.volume || 1);
     const rate = Number(ba.rate || (vol > 0 ? Math.round(gross / vol) : gross));
     return [
@@ -93,19 +100,25 @@ export function buildInvoiceItemsFromBA(
     ];
   }
 
-  // 3. POS Standard Production (Operation & Mining)
+  // 3. POS Standard Production (Operation & Mining / MDO)
   if (code === "POS" || code === "IBP" || code === "BBA") {
     if (ba?.items && Array.isArray(ba.items) && ba.items.length > 0) {
-      const posItems: any[] = [];
-      const miningItems = ba.items.filter((bi: any) =>
-        bi.category !== "MDO" &&
-        !(bi.material || "").toLowerCase().includes("mine dev") &&
-        !(bi.material || "").toLowerCase().includes("mdo")
-      );
+      const isMDOCat = category === "MDO";
+      const targetItems = ba.items.filter((bi: any) => {
+        const mat = (bi.material || bi.description || "").toLowerCase();
+        const cat = (bi.category || "").toLowerCase();
+        const isMDO = cat === "mdo" || mat.includes("mine dev") || mat.includes("mdo");
+        return isMDOCat ? isMDO : !isMDO;
+      });
 
-      miningItems.forEach((bi: any, idx: number) => {
+      const itemsToUse = (targetItems.length > 0)
+        ? targetItems
+        : (isMDOCat && ctx?.baMDOItems && ctx.baMDOItems.length > 0 ? ctx.baMDOItems : targetItems);
+
+      const posItems: any[] = [];
+      itemsToUse.forEach((bi: any, idx: number) => {
         const isDist = bi.isDistanceVar || bi.category === "Over Distance";
-        const vol = Number(bi.adjustedVolume ?? bi.initialVolume ?? bi.volume ?? 0);
+        const vol = getBAEffectiveVolume(bi, itemsToUse, true);
         const overhaulMtr = Number(bi.distanceWeightAvg ?? 1000);
         const rate = Number(bi.rate || bi.unitRateIDR || 0);
         // Omit distance items if amount is 0 (vol == 0, distance <= 1000, or rate == 0)
@@ -120,9 +133,9 @@ export function buildInvoiceItemsFromBA(
           id: bi.id || `pos_inv_${idx}`,
           section: isDist ? "B" : "A",
           code: bi.code || `POS_${idx}`,
-          description: bi.material || bi.description || "Pekerjaan Penambangan POS",
-          sowDescription: bi.material || bi.description || "Pekerjaan Penambangan POS",
-          unit: bi.unit || "BCM",
+          description: bi.material || bi.description || (isMDOCat ? "Pekerjaan Mine Development POS" : "Pekerjaan Penambangan POS"),
+          sowDescription: bi.material || bi.description || (isMDOCat ? "Pekerjaan Mine Development POS" : "Pekerjaan Penambangan POS"),
+          unit: bi.unit || (isMDOCat ? "Ha" : "BCM"),
           volume: vol,
           overhaulMtr: isDist ? overhaulMtr : 1000,
           baseRateUSD: bi.baseRateUSD || 0,
@@ -154,7 +167,7 @@ export function buildInvoiceItemsFromBA(
         const isDist = bi.isDistanceVar || bi.category === "Over Distance" || mLow.includes("overhaul") || mLow.includes("distance");
         const isCoal = mLow.includes("coal") || mLow.includes("batubara");
         const isOB = mLow.includes("ob") || mLow.includes("overburden") || mLow.includes("waste") || mLow.includes("over burden");
-        const vol = Number(bi.adjustedVolume ?? bi.initialVolume ?? bi.volume ?? 0);
+        const vol = getBAEffectiveVolume(bi, itemsToProcess, true);
 
         if (isDist) {
           const baseM = isCoal ? 3000 : 1000;
@@ -247,7 +260,7 @@ export function buildInvoiceItemsFromBA(
       });
       return invItems;
     }
-    return (demoPTROItems.length > 0 ? demoPTROItems : demoDBKItems).map(i => ({ ...i }));
+    return (blankPTROItems && blankPTROItems.length > 0 ? blankPTROItems : []).map(i => ({ ...i }));
   }
 
   // 6. SBS Customer
@@ -279,7 +292,7 @@ export function buildInvoiceItemsFromBA(
         const matLower = (bi.material || bi.description || "").toLowerCase();
         const isHours = unit.toLowerCase().includes("hour") || unit.toLowerCase() === "jam" || matLower.includes("dozer") || matLower.includes("excavator") || matLower.includes("grader") || bi.category === "Penunjang";
         const section = isHours ? "B" : "A";
-        const vol = Number(bi.adjustedVolume ?? bi.initialVolume ?? bi.volume ?? 0);
+        const vol = getBAEffectiveVolume(bi, itemsToProcess, true);
         const dist = Number(bi.distanceM ?? bi.distance ?? bi.distanceWeightAvg ?? 0);
         let rate = Number(bi.rate || bi.unitRateIDR || 0);
         if (section === "A" && dist > 0 && rate === 0) {
@@ -305,7 +318,7 @@ export function buildInvoiceItemsFromBA(
 
       return invItems;
     }
-    return (demoSBSItems.length > 0 ? demoSBSItems : blankSBSItems).map(i => ({ ...i }));
+    return (blankSBSItems && blankSBSItems.length > 0 ? blankSBSItems : []).map(i => ({ ...i }));
   }
 
   return [];

@@ -135,9 +135,14 @@ export function InvoiceTableBGG({
           />
           <td className="p-2 font-bold text-slate-800">
             <div>{item.description}</div>
+            {item.notes && (
+              <div className="text-[10px] text-[#A57C50] font-mono font-bold mt-0.5">
+                {item.notes}
+              </div>
+            )}
             <div className="flex items-center gap-1.5 mt-1">
               <FormattedNumberInput
-                className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
+                className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-[#A57C50] outline-none"
                 placeholder="00.00"
                 value={item.overhaulMtr === 0 ? "" : (item.overhaulMtr ?? "")}
                 onChange={(val) => updateInvItemOverhaul(item.id, val)}

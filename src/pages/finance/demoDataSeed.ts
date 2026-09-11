@@ -1,17 +1,17 @@
 export const FALLBACK_BLANK_PTRO_ITEMS = [
-  { id: "ptro_inv_a1", section: "A", description: "OVER BURDEN REMOVAL", unit: "Bcm", volume: 0, unitRateUSD: 1.490, kursBI: 17923.30 },
-  { id: "ptro_inv_b1", section: "B", description: "COAL GETTING", unit: "Ton", volume: 0, unitRateUSD: 0.840, kursBI: 17923.30 },
-  { id: "ptro_inv_c1", section: "C", subSection: "C1. Over Distance For OB Removal", description: "Overhaul OB", unit: "Bcm", volume: 0, overhaulMtr: 1000, baseMtr: 1000, unitRateUSD: 0.028, kursBI: 17923.30 },
-  { id: "ptro_inv_c2", section: "C", subSection: "C2. Over Distance For Coal Winning", description: "Overhaul Coal Getting", unit: "Ton", volume: 0, overhaulMtr: 3000, baseMtr: 3000, unitRateIDR: 230 },
+  { id: "ptro_inv_a1", section: "A", description: "OVER BURDEN REMOVAL", unit: "Bcm", volume: 0, unitRateUSD: 0, kursBI: 0 },
+  { id: "ptro_inv_b1", section: "B", description: "COAL GETTING", unit: "Ton", volume: 0, unitRateUSD: 0, kursBI: 0 },
+  { id: "ptro_inv_c1", section: "C", subSection: "C1. Over Distance For OB Removal", description: "Overhaul OB", unit: "Bcm", volume: 0, overhaulMtr: 0, baseMtr: 1000, unitRateUSD: 0, kursBI: 0 },
+  { id: "ptro_inv_c2", section: "C", subSection: "C2. Over Distance For Coal Winning", description: "Overhaul Coal Getting", unit: "Ton", volume: 0, overhaulMtr: 0, baseMtr: 3000, unitRateIDR: 0 },
 ];
 export const FALLBACK_BLANK_DBK_ITEMS = FALLBACK_BLANK_PTRO_ITEMS;
 
 export const FALLBACK_BLANK_BGG_ITEMS = [
-  { id: "bgg_inv_a1", section: "A", description: "OVER BURDEN REMOVAL 1 (75%)", period: "Jun-26", unit: "Bcm", volume: 0, unitRateIDR: 29500 },
-  { id: "bgg_inv_a2", section: "A", description: "OVER BURDEN REMOVAL 2 (25%)", period: "Jun-26", unit: "Bcm", volume: 0, unitRateIDR: 28750 },
-  { id: "bgg_inv_b1", section: "B", description: "Coal Winning Pit Kungkilan", period: "Jun-26", unit: "Ton", volume: 0, unitRateIDR: 17500 },
-  { id: "bgg_inv_c1", section: "C", subSection: "C1. Over Distance For OB Removal", description: "Over Distance For OB Removal", unit: "Bcm", volume: 0, overhaulMtr: 1000, unitRateIDR: 155.00 },
-  { id: "bgg_inv_c2", section: "C", subSection: "C2. Over Distance For Coal Winning", description: "Over Distance For Coal Winning", unit: "Ton", volume: 0, overhaulMtr: 4000, unitRateIDR: 19700 },
+  { id: "bgg_inv_a1", section: "A", description: "OVER BURDEN REMOVAL 1 (75%)", period: "Jun-26", unit: "Bcm", volume: 0, unitRateIDR: 0 },
+  { id: "bgg_inv_a2", section: "A", description: "OVER BURDEN REMOVAL 2 (25%)", period: "Jun-26", unit: "Bcm", volume: 0, unitRateIDR: 0 },
+  { id: "bgg_inv_b1", section: "B", description: "Coal Winning Pit Kungkilan", period: "Jun-26", unit: "Ton", volume: 0, unitRateIDR: 0 },
+  { id: "bgg_inv_c1", section: "C", subSection: "C1. Over Distance For OB Removal", description: "Over Distance For OB Removal", unit: "Bcm", volume: 0, overhaulMtr: 0, unitRateIDR: 0 },
+  { id: "bgg_inv_c2", section: "C", subSection: "C2. Over Distance For Coal Winning", description: "Over Distance For Coal Winning", unit: "Ton", volume: 0, overhaulMtr: 0, unitRateIDR: 0 },
   { id: "bgg_inv_d1", section: "D", description: "Raise & Fall Factor (BBM)", unit: "Bcm", volume: 0, unitRateIDR: 0 },
   { id: "bgg_inv_e1", section: "E", description: "Discount on Overdistance (Deduction 25%)", amount: 0 },
   { id: "bgg_inv_f1", section: "F", description: "DP Fuel & Transport (Deduction)", amount: 0 },
@@ -26,34 +26,34 @@ export const FALLBACK_BLANK_SBS_ITEMS = [
   { id: "sbs_inv_a6", section: "A", description: "PIT E - TS MAHONI", unit: "BCM", volume: 0, distanceM: 0, overhaulMtr: 0, unitRateIDR: 0 },
   { id: "sbs_inv_a7", section: "A", description: "PIT E - IPD WARWEFILL", unit: "BCM", volume: 0, distanceM: 0, overhaulMtr: 0, unitRateIDR: 0 },
   { id: "sbs_inv_a8", section: "A", description: "PIT E - SEKATAN", unit: "BCM", volume: 0, distanceM: 0, overhaulMtr: 0, unitRateIDR: 0 },
-  { id: "sbs_inv_b1", section: "B", description: "Dozer CAT D10 - BDCT 1001", unit: "Hours", volume: 0, unitRateIDR: 1980000 },
-  { id: "sbs_inv_b2", section: "B", description: "Dozer CAT D10 - BDCT 1002", unit: "Hours", volume: 0, unitRateIDR: 1980000 },
-  { id: "sbs_inv_b3", section: "B", description: "Excavator CAT 395 - EXCT 3901", unit: "Hours", volume: 0, unitRateIDR: 1425000 },
-  { id: "sbs_inv_b4", section: "B", description: "Excavator CAT 395 - EXCT 3902", unit: "Hours", volume: 0, unitRateIDR: 1425000 },
-  { id: "sbs_inv_p1", section: "P", description: "1. Denda Ketidaktercapaian MA", unit: "Lot", volume: 1, unitRateIDR: 0, amount: 0, isDeduction: true },
-  { id: "sbs_inv_p2", section: "P", description: "2. Kelebihan Pemakaian BBM Loader (Fuel Ratio)", unit: "Lot", volume: 1, unitRateIDR: 0, amount: 0, isDeduction: true },
-  { id: "sbs_inv_p3", section: "P", description: "3. Kelebihan Pemakaian BBM Hauler (Fuel Consumption)", unit: "Lot", volume: 1, unitRateIDR: 0, amount: 0, isDeduction: true },
-  { id: "sbs_inv_p4", section: "P", description: "4. Denda Ketidakcapaian Volume", unit: "Lot", volume: 1, unitRateIDR: 0, amount: 0, isDeduction: true },
+  { id: "sbs_inv_b1", section: "B", description: "Dozer CAT D10 - BDCT 1001", unit: "Hours", volume: 0, unitRateIDR: 0 },
+  { id: "sbs_inv_b2", section: "B", description: "Dozer CAT D10 - BDCT 1002", unit: "Hours", volume: 0, unitRateIDR: 0 },
+  { id: "sbs_inv_b3", section: "B", description: "Excavator CAT 395 - EXCT 3901", unit: "Hours", volume: 0, unitRateIDR: 0 },
+  { id: "sbs_inv_b4", section: "B", description: "Excavator CAT 395 - EXCT 3902", unit: "Hours", volume: 0, unitRateIDR: 0 },
+  { id: "sbs_inv_p1", section: "P", description: "1. Denda Ketidaktercapaian MA", unit: "Lot", volume: 0, unitRateIDR: 0, amount: 0, isDeduction: true },
+  { id: "sbs_inv_p2", section: "P", description: "2. Kelebihan Pemakaian BBM Loader (Fuel Ratio)", unit: "Lot", volume: 0, unitRateIDR: 0, amount: 0, isDeduction: true },
+  { id: "sbs_inv_p3", section: "P", description: "3. Kelebihan Pemakaian BBM Hauler (Fuel Consumption)", unit: "Lot", volume: 0, unitRateIDR: 0, amount: 0, isDeduction: true },
+  { id: "sbs_inv_p4", section: "P", description: "4. Denda Ketidakcapaian Volume", unit: "Lot", volume: 0, unitRateIDR: 0, amount: 0, isDeduction: true },
 ];
 
 export const FALLBACK_BLANK_POS_ITEMS = [
-  { id: "pos_inv_a1", section: "A", description: "Topsoil Removal - Base Rate (1000m)", unit: "USD/BCM", baseRateUSD: 3.380, volume: 0 },
-  { id: "pos_inv_a2", section: "A", description: "Overburden/Waste - Base Rate (1000m)", unit: "USD/BCM", baseRateUSD: 3.327, volume: 0 },
-  { id: "pos_inv_a3", section: "A", description: "Limonite - Base Rate (1000m)", unit: "USD/BCM", baseRateUSD: 3.363, volume: 0 },
-  { id: "pos_inv_a4", section: "A", description: "Saprolite - Base Rate (1000m)", unit: "USD/BCM", baseRateUSD: 3.472, volume: 0 },
-  { id: "pos_inv_a5", section: "A", description: "Clear & Grub", unit: "USD/m2", baseRateUSD: 0.381, volume: 0 },
-  { id: "pos_inv_b1", section: "B", description: "Over/Underhaul For OB Removal", unit: "USD/1KM", baseRateUSD: 0.538, volume: 0, overhaulMtr: 1000 },
-  { id: "pos_inv_b2", section: "B", description: "Over/Underhaul For Top Soil Removal", unit: "USD/1KM", baseRateUSD: 0.538, volume: 0, overhaulMtr: 1000 },
-  { id: "pos_inv_b3", section: "B", description: "Over/Underhaul For Limonite", unit: "USD/1KM", baseRateUSD: 0.526, volume: 0, overhaulMtr: 1000 },
-  { id: "pos_inv_b4", section: "B", description: "Over/Underhaul For Saprolite", unit: "USD/1KM", baseRateUSD: 0.526, volume: 0, overhaulMtr: 1000 },
+  { id: "pos_inv_a1", section: "A", description: "Topsoil Removal - Base Rate (1000m)", unit: "USD/BCM", baseRateUSD: 0, volume: 0 },
+  { id: "pos_inv_a2", section: "A", description: "Overburden/Waste - Base Rate (1000m)", unit: "USD/BCM", baseRateUSD: 0, volume: 0 },
+  { id: "pos_inv_a3", section: "A", description: "Limonite - Base Rate (1000m)", unit: "USD/BCM", baseRateUSD: 0, volume: 0 },
+  { id: "pos_inv_a4", section: "A", description: "Saprolite - Base Rate (1000m)", unit: "USD/BCM", baseRateUSD: 0, volume: 0 },
+  { id: "pos_inv_a5", section: "A", description: "Clear & Grub", unit: "USD/m2", baseRateUSD: 0, volume: 0 },
+  { id: "pos_inv_b1", section: "B", description: "Over/Underhaul For OB Removal", unit: "USD/1KM", baseRateUSD: 0, volume: 0, overhaulMtr: 0 },
+  { id: "pos_inv_b2", section: "B", description: "Over/Underhaul For Top Soil Removal", unit: "USD/1KM", baseRateUSD: 0, volume: 0, overhaulMtr: 0 },
+  { id: "pos_inv_b3", section: "B", description: "Over/Underhaul For Limonite", unit: "USD/1KM", baseRateUSD: 0, volume: 0, overhaulMtr: 0 },
+  { id: "pos_inv_b4", section: "B", description: "Over/Underhaul For Saprolite", unit: "USD/1KM", baseRateUSD: 0, volume: 0, overhaulMtr: 0 },
 ];
 
 export const FALLBACK_BGG_BA_ITEMS = [
-  { id: "bgg_op1", category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 1 (75%)", period: "Jun-26", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 29500, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "bgg_op2", category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 2 (25%)", period: "Jun-26", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 28750, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "bgg_cw", category: "Operating & Mining", area: "Pit KKL", material: "Coal Winning Pit Kungkilan", period: "Jun-26", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: 17500, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "bgg_od_ob", category: "Over Distance", area: "Pit KKL", material: "Over Distance For OB Removal", period: "Jun-26", unit: "BCM", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 1550, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "bgg_od_cw", category: "Over Distance", area: "Pit KKL", material: "Over Distance For Coal Winning", period: "Jun-26", unit: "Ton", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 19700, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
+  { id: "bgg_op1", category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 1 (75%)", period: "Aug-26", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 27250, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "bgg_op2", category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 2 (25%)", period: "Aug-26", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 26500, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "bgg_cw", category: "Operating & Mining", area: "Pit KKL", material: "Coal Winning", period: "Aug-26", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: 16500, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "bgg_od_ob", category: "Over Distance", area: "Pit KKL", material: "Over Distance For OB Removal", period: "Aug-26", unit: "BCM", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 600, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "bgg_od_cw", category: "Over Distance", area: "Pit KKL", material: "Over Distance For Coal Winning", period: "Aug-26", unit: "Ton", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 500, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
 ];
 
 export const FALLBACK_POS_OPERATING_ITEMS = [
@@ -73,31 +73,44 @@ export const FALLBACK_POS_MDO_ITEMS = [
 ];
 
 export const FALLBACK_SBS_BA_ITEMS = [
-  { id: "sbs_ba_a1", category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL SEKATAN", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "sbs_ba_a2", category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA JALAN", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "sbs_ba_a3", category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA CSA", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "sbs_ba_a4", category: "Operating & Mining", area: "Pit E", material: "PIT E - JALAN BARITO", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "sbs_ba_a5", category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "sbs_ba_a6", category: "Operating & Mining", area: "Pit E", material: "PIT E - TS MAHONI", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "sbs_ba_a7", category: "Operating & Mining", area: "Pit E", material: "PIT E - IPD WARWEFILL", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "sbs_ba_a8", category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 }
+  { id: "sbs_ba_a1", category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL SELATAN", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 18362, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_ba_a2", category: "Operating & Mining", area: "Pit E", material: "PIT E - IPD EXTENSION", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 21223, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_ba_a3", category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL BARAT", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 22654, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_ba_a4", category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL BARAT LAUT", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 12638, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_ba_a5", category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL BANKO BARAT", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 8346, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_ba_a6", category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL BARAT LAUT BARU", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 15500, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_ba_a7", category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL INPIT", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 19375, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_ba_a8", category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL TS BARU", unit: "BCM", distance: 0, initialVolume: 0, adjustedVolume: 0, rate: 15500, subtotalInitial: 0, subtotalAdjusted: 0 }
 ];
 
 export const FALLBACK_SBS_RENTAL_ITEMS = [
-  { id: "sbs_rent_1", category: "Penunjang", area: "Pit E", material: "Bulldozer DZ709", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1980000, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "sbs_rent_2", category: "Penunjang", area: "Pit E", material: "Bulldozer DZ716", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1980000, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "sbs_rent_3", category: "Penunjang", area: "Pit E", material: "Excavator EX815", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1425000, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "sbs_rent_4", category: "Penunjang", area: "Pit E", material: "Excavator EX816", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1425000, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "sbs_rent_5", category: "Penunjang", area: "Pit E", material: "Excavator EX817", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1425000, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "sbs_rent_6", category: "Penunjang", area: "Pit E", material: "Motor Grader MG607", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1250000, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "sbs_rent_7", category: "Penunjang", area: "Pit E", material: "Motor Grader MG608", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1250000, subtotalInitial: 0, subtotalAdjusted: 0 }
+  { id: "sbs_rent_1", category: "Penunjang", area: "Pit E", material: "BULLDOZER CAT D10T (BDCT1001)", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1980000, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_2", category: "Penunjang", area: "Pit E", material: "BULLDOZER CAT D10T (BDCT1002)", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1980000, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_3", category: "Penunjang", area: "Pit E", material: "EXCAVATOR CAT 395 (EXCT3091)", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1425000, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_4", category: "Penunjang", area: "Pit E", material: "EXCAVATOR CAT 395 (EXCT3092)", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1425000, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_5", category: "Penunjang", area: "Pit E", material: "EXCAVATOR HITACHI ZX870LCH (EX815)", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 987900, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_6", category: "Penunjang", area: "Pit E", material: "EXCAVATOR HITACHI ZX870LCH (EX816)", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 987900, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_7", category: "Penunjang", area: "Pit E", material: "EXCAVATOR HITACHI ZX870LCH (EX818)", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 987900, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_8", category: "Penunjang", area: "Pit E", material: "BULLDOZER KOMATSU D85ESS-2 (DZ709)", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 470000, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_9", category: "Penunjang", area: "Pit E", material: "BULLDOZER CAT D8 (DZ716)", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1032200, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_10", category: "Penunjang", area: "Pit E", material: "BULLDOZER CAT D8 (DZ717)", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1032200, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_11", category: "Penunjang", area: "Pit E", material: "BULLDOZER CAT D8 (DZ718)", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 1032200, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_12", category: "Penunjang", area: "Pit E", material: "MOTORGRADER CAT MG160 (GD607)", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 767800, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_13", category: "Penunjang", area: "Pit E", material: "MOTORGRADER CAT MG160 (GD608)", unit: "Hours", initialVolume: 0, adjustedVolume: 0, rate: 767800, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_14", category: "Penunjang", area: "Pit E", material: "HIMOINSA APOLO (LIGHTING TOWER 08)", unit: "Month", initialVolume: 0, adjustedVolume: 0, rate: 12000000, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_15", category: "Penunjang", area: "Pit E", material: "HIMOINSA APOLO (LIGHTING TOWER 14)", unit: "Month", initialVolume: 0, adjustedVolume: 0, rate: 12000000, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_16", category: "Penunjang", area: "Pit E", material: "ATLAS COPCO (LIGHTING TOWER 15)", unit: "Month", initialVolume: 0, adjustedVolume: 0, rate: 12000000, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_17", category: "Penunjang", area: "Pit E", material: "ATLAS COPCO (LIGHTING TOWER 16)", unit: "Month", initialVolume: 0, adjustedVolume: 0, rate: 12000000, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_18", category: "Penunjang", area: "Pit E", material: "HIMOINSA APOLO (LIGHTING TOWER 17)", unit: "Month", initialVolume: 0, adjustedVolume: 0, rate: 12000000, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_19", category: "Penunjang", area: "Pit E", material: "HIMOINSA APOLO (LIGHTING TOWER 18)", unit: "Month", initialVolume: 0, adjustedVolume: 0, rate: 12000000, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_rent_20", category: "Penunjang", area: "Pit E", material: "HINO FUEL TRUCK (FT06)", unit: "Month", initialVolume: 0, adjustedVolume: 0, rate: 80000000, subtotalInitial: 0, subtotalAdjusted: 0 }
 ];
 
 export const FALLBACK_SBS_DEDUCTION_ITEMS = [
-  { id: "sbs_ded_1", category: "Pengurang Biaya", area: "Pit E", material: "Denda ketidaktercapaian MA", unit: "Lot", initialVolume: 1, adjustedVolume: 1, rate: 0, isDeduction: true, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "sbs_ded_2", category: "Pengurang Biaya", area: "Pit E", material: "Kelebihan Pemakaian BBM Loader", unit: "Lot", initialVolume: 1, adjustedVolume: 1, rate: 0, isDeduction: true, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "sbs_ded_3", category: "Pengurang Biaya", area: "Pit E", material: "Kelebihan Pemakaian BBM Hauler", unit: "Lot", initialVolume: 1, adjustedVolume: 1, rate: 0, isDeduction: true, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "sbs_ded_4", category: "Pengurang Biaya", area: "Pit E", material: "Denda ketidakcapaian Volume", unit: "Lot", initialVolume: 1, adjustedVolume: 1, rate: 0, isDeduction: true, subtotalInitial: 0, subtotalAdjusted: 0 }
+  { id: "sbs_ded_1", category: "Pengurang Biaya", area: "Pit E", material: "1. Denda Ketidaktercapaian MA", unit: "Hours", initialVolume: 1, adjustedVolume: 1, rate: 191073864, isDeduction: true, subtotalInitial: 191073864, subtotalAdjusted: 191073864 },
+  { id: "sbs_ded_2", category: "Pengurang Biaya", area: "Pit E", material: "2. Kelebihan Pemakaian BBM Loader", unit: "Hours", initialVolume: 1, adjustedVolume: 1, rate: 0, isDeduction: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "sbs_ded_3", category: "Pengurang Biaya", area: "Pit E", material: "3. Kelebihan Pemakaian BBM Hauler", unit: "Hours", initialVolume: 1, adjustedVolume: 1, rate: 520428670, isDeduction: true, subtotalInitial: 520428670, subtotalAdjusted: 520428670 },
+  { id: "sbs_ded_4", category: "Pengurang Biaya", area: "Pit E", material: "4. Denda ketidakcapaian volume April 2025 - Juni 2026", unit: "Lot", initialVolume: 1, adjustedVolume: 1, rate: 60674886, isDeduction: true, subtotalInitial: 60674886, subtotalAdjusted: 60674886 }
 ];
 
 export const FALLBACK_PTRO_BA_ITEMS = [

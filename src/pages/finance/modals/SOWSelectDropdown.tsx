@@ -2,11 +2,11 @@ import React, { useMemo } from "react";
 
 export const SITE_SOW_DEFAULTS: Record<string, Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean }>> = {
   BGG: [
-    { name: "OVER BURDEN REMOVAL 1 (75%)", unit: "BCM", defaultRate: 29500, category: "Operating & Mining", isDistanceVar: false },
-    { name: "OVER BURDEN REMOVAL 2 (25%)", unit: "BCM", defaultRate: 28750, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Coal Winning", unit: "Ton", defaultRate: 17500, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Over Distance For OB Removal", unit: "BCM", defaultRate: 1550, category: "Over Distance", isDistanceVar: true },
-    { name: "Over Distance For Coal Winning", unit: "Ton", defaultRate: 19700, category: "Over Distance", isDistanceVar: true },
+    { name: "OVER BURDEN REMOVAL 1 (75%)", unit: "BCM", defaultRate: 27250, category: "Operating & Mining", isDistanceVar: false },
+    { name: "OVER BURDEN REMOVAL 2 (25%)", unit: "BCM", defaultRate: 26500, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Coal Winning", unit: "Ton", defaultRate: 16500, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Over Distance For OB Removal", unit: "BCM", defaultRate: 600, category: "Over Distance", isDistanceVar: true },
+    { name: "Over Distance For Coal Winning", unit: "Ton", defaultRate: 500, category: "Over Distance", isDistanceVar: true },
   ],
   POS: [
     { name: "Top Soil Removal", unit: "BCM", defaultRate: 60500, category: "Operating & Mining", isDistanceVar: false },
@@ -127,14 +127,19 @@ export function getSiteSOWList(
     (parentItems || []).forEach(p => {
       const pMat = (p.material || "").trim();
       if (!pMat || pMat === "Lainnya" || p.isDistanceVar || (p.category || "").includes("Distance")) return;
-      const distName = pMat.toLowerCase().startsWith("over") ? pMat : `Over/Underhaul For ${pMat}`;
+      const isCoal = pMat.toLowerCase().includes("coal") || pMat.toLowerCase().includes("batubara");
+      const distName = pMat.toLowerCase().startsWith("over") ? pMat : (code === "BGG" ? (isCoal ? "Over Distance For Coal Winning" : "Over Distance For OB Removal") : `Over/Underhaul For ${pMat}`);
       const distKey = distName.toLowerCase();
       if (!seen.has(distKey)) {
         seen.add(distKey);
-        const defDistRate = code === "PTRO" || code === "DBK" ? (pMat.toLowerCase().includes("coal") ? 230 : 500) : code === "BGG" ? (pMat.toLowerCase().includes("coal") ? 19700 : 1550) : 8608;
+        const defDistRate = code === "PTRO" || code === "DBK" 
+          ? (isCoal ? 230 : 500) 
+          : code === "BGG" 
+            ? (isCoal ? 500 : 600) 
+            : 8608;
         merged.push({
           name: distName,
-          unit: p.unit || "BCM",
+          unit: p.unit || (isCoal ? "Ton" : "BCM"),
           defaultRate: defDistRate,
           category: "Over Distance",
           isDistanceVar: true,

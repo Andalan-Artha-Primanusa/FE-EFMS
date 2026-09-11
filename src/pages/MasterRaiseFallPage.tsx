@@ -248,7 +248,7 @@ export function MasterRaiseFallPage({
   });
 
   const activeRf = filteredRfRows[0] || rfRows.find((r) => r.customerCode === selectedCustomer) || rfRows[0] || {
-    period: "Juni 2026",
+    period: "-",
     customerCode: selectedCustomer === "ALL" ? "" : selectedCustomer,
     projectSite: customerContractOptions.find((c) => c.code === selectedCustomer)?.project || "",
     contractNo: customerContractOptions.find((c) => c.code === selectedCustomer)?.contract || "",
@@ -256,19 +256,19 @@ export function MasterRaiseFallPage({
     weightFuelA: 0.34,
     weightLaborB: 0.25,
     weightFixedC: 0.41,
-    baseFuelFo: 10699.97,
-    baseLaborLo: 3594536,
-    baseForexXo: 15388.75,
-    actualFuelFn: 1.422,
-    actualLaborLn: 3721423,
-    actualMRateXn: 17923.30,
-    rfIndexResult: 1.479
+    baseFuelFo: 0,
+    baseLaborLo: 0,
+    baseForexXo: 0,
+    actualFuelFn: 0,
+    actualLaborLn: 0,
+    actualMRateXn: 0,
+    rfIndexResult: 0
   };
 
   // Average M-Rate calculation
   const avgMRateCalc = mrateRows.length > 0
     ? mrateRows.reduce((sum, r) => sum + (r.kursTengah || (r.kursJual + r.kursBeli) / 2), 0) / mrateRows.length
-    : 17923.30;
+    : 0;
 
   // Real-time formula calculations
   const isBGGStyle = rfForm.formulaScheme === "SINGLE_FACTOR_FUEL" || rfForm.customerCode === "BGG";
@@ -278,19 +278,23 @@ export function MasterRaiseFallPage({
   const bggTotalP2 = (Number(rfForm.bggFuelP2) || 0) + (Number(rfForm.bggTransportP2) || 0);
   const bggAvgFn = (bggTotalP1 > 0 && bggTotalP2 > 0)
     ? (bggTotalP1 + bggTotalP2) / 2
-    : (bggTotalP1 || bggTotalP2 || Number(rfForm.actualFuelFn) || 21601.53);
+    : (bggTotalP1 || bggTotalP2 || Number(rfForm.actualFuelFn) || 0);
 
   const bggBaseFo = 9000;
   // BGG 1-Factor: Index = 0.60 + 0.40 * (Fn / 9000)
-  const calcBGGRF = 0.60 + (0.40 * (bggAvgFn / bggBaseFo));
+  const calcBGGRF = bggAvgFn > 0 ? (0.60 + (0.40 * (bggAvgFn / bggBaseFo))) : 0;
 
-  // POS 3-Factor: D + L + F where L = b * (Ln / Lo) (pure IDR ratio, NO Forex Xn/Xo)
-  const calcFuelD = rfForm.baseFuelFo > 0
-    ? (rfForm.weightFuelA * rfForm.actualFuelFn * (rfForm.actualFuelFn < 100 ? rfForm.actualMRateXn : 1)) / rfForm.baseFuelFo
+  // POS 3-Factor: D + L + F as verified in Excel cell G20:
+  // D = (a * Fn * Xn) / Fo
+  // L = (b * Ln * Xn) / (Lo * Xo)
+  // F = c
+  const calcFuelD = (rfForm.baseFuelFo || 10699.970229) > 0
+    ? (rfForm.weightFuelA * rfForm.actualFuelFn * (rfForm.actualFuelFn < 100 ? (rfForm.actualMRateXn || avgMRateCalc) : 1)) / (rfForm.baseFuelFo || 10699.970229)
     : 0;
 
-  const calcLaborL = rfForm.baseLaborLo > 0
-    ? (rfForm.weightLaborB * rfForm.actualLaborLn) / rfForm.baseLaborLo
+  const loXo = ((rfForm.baseLaborLo || 3594536) * (rfForm.baseForexXo || 15388.75));
+  const calcLaborL = loXo > 0
+    ? (rfForm.weightLaborB * rfForm.actualLaborLn * (rfForm.actualMRateXn || avgMRateCalc)) / loXo
     : 0;
 
   const calcFixedF = rfForm.weightFixedC || 0.41;
@@ -301,6 +305,10 @@ export function MasterRaiseFallPage({
     try {
       const payload = { ...rfForm };
       if (isBGGStyle) {
+        payload.bggFuelP1 = Number(rfForm.bggFuelP1) || 0;
+        payload.bggTransportP1 = Number(rfForm.bggTransportP1) || 0;
+        payload.bggFuelP2 = Number(rfForm.bggFuelP2) || 0;
+        payload.bggTransportP2 = Number(rfForm.bggTransportP2) || 0;
         payload.actualFuelFn = bggAvgFn;
         payload.baseFuelFo = 9000;
         payload.weightFuelA = 0.40;
@@ -316,16 +324,21 @@ export function MasterRaiseFallPage({
       }
 
       let endpoint = "/api/master-data/raise-fall";
+      let saved: any = null;
       if (editItem?.id) {
         endpoint += `/${editItem.id}`;
-        await api(endpoint, { method: "PUT", body: JSON.stringify(payload) });
+        saved = await api(endpoint, { method: "PUT", body: JSON.stringify(payload) });
+        // 🚀 Optimistic UI Update
+        setRfRows((prev) => prev.map((r) => r.id === editItem.id ? (saved || { ...r, ...payload }) : r));
         onNotice("Master Raise & Fall berhasil diperbarui!");
       } else {
-        await api(endpoint, { method: "POST", body: JSON.stringify(payload) });
+        saved = await api(endpoint, { method: "POST", body: JSON.stringify(payload) });
+        // 🚀 Optimistic UI Update
+        setRfRows((prev) => [saved || { id: Date.now(), ...payload } as any, ...prev]);
         onNotice("Periode Raise & Fall baru berhasil ditambahkan!");
       }
       setModalOpen(false);
-      loadData();
+      await loadData();
     } catch (err: any) {
       onNotice(err?.message || "Gagal menyimpan data Raise & Fall");
     }
@@ -335,30 +348,36 @@ export function MasterRaiseFallPage({
     e.preventDefault();
     try {
       let endpoint = "/api/master-data/min-wages";
+      let saved: any = null;
       if (editItem?.id) {
         endpoint += `/${editItem.id}`;
-        await api(endpoint, { method: "PUT", body: JSON.stringify(umkForm) });
+        saved = await api(endpoint, { method: "PUT", body: JSON.stringify(umkForm) });
+        // 🚀 Optimistic UI Update
+        setUmkRows((prev) => prev.map((r) => r.id === editItem.id ? (saved || { ...r, ...umkForm }) : r));
         onNotice("Referensi UMK berhasil diperbarui!");
       } else {
-        await api(endpoint, { method: "POST", body: JSON.stringify(umkForm) });
+        saved = await api(endpoint, { method: "POST", body: JSON.stringify(umkForm) });
+        // 🚀 Optimistic UI Update
+        setUmkRows((prev) => [saved || { id: Date.now(), ...umkForm } as any, ...prev]);
         onNotice("Referensi UMK baru berhasil ditambahkan!");
       }
       setModalOpen(false);
-      loadData();
+      await loadData();
     } catch (err: any) {
       onNotice(err?.message || "Gagal menyimpan Referensi UMK");
     }
   };
 
   const handleDeleteUmk = async (id: number) => {
+    setUmkRows((prev) => prev.filter((r) => r.id !== id));
+    setDeleteUmkTarget(null);
     try {
       await api(`/api/master-data/min-wages/${id}`, { method: "DELETE" });
       onNotice("Referensi UMK berhasil dihapus");
-      loadData();
+      await loadData();
     } catch (err: any) {
       onNotice(err?.message || "Gagal menghapus UMK");
-    } finally {
-      setDeleteUmkTarget(null);
+      await loadData();
     }
   };
 
@@ -366,30 +385,36 @@ export function MasterRaiseFallPage({
     e.preventDefault();
     try {
       let endpoint = "/api/master-data/daily-exchange-rates";
+      let saved: any = null;
       if (editItem?.id) {
         endpoint += `/${editItem.id}`;
-        await api(endpoint, { method: "PUT", body: JSON.stringify(mrateForm) });
+        saved = await api(endpoint, { method: "PUT", body: JSON.stringify(mrateForm) });
+        // 🚀 Optimistic UI Update
+        setMrateRows((prev) => prev.map((r) => r.id === editItem.id ? (saved || { ...r, ...mrateForm }) : r));
         onNotice("Kurs Harian M-Rate berhasil diperbarui!");
       } else {
-        await api(endpoint, { method: "POST", body: JSON.stringify(mrateForm) });
+        saved = await api(endpoint, { method: "POST", body: JSON.stringify(mrateForm) });
+        // 🚀 Optimistic UI Update
+        setMrateRows((prev) => [saved || { id: Date.now(), ...mrateForm } as any, ...prev]);
         onNotice("Kurs Harian M-Rate baru berhasil ditambahkan!");
       }
       setModalOpen(false);
-      loadData();
+      await loadData();
     } catch (err: any) {
       onNotice(err?.message || "Gagal menyimpan Kurs Harian");
     }
   };
 
   const handleDeleteRf = async (id: number) => {
+    setRfRows((prev) => prev.filter((r) => r.id !== id));
+    setDeleteRfTarget(null);
     try {
       await api(`/api/master-data/raise-fall/${id}`, { method: "DELETE" });
       onNotice("Data Raise & Fall berhasil dihapus");
-      loadData();
+      await loadData();
     } catch (err: any) {
       onNotice(err?.message || "Gagal menghapus data");
-    } finally {
-      setDeleteRfTarget(null);
+      await loadData();
     }
   };
 
@@ -418,13 +443,13 @@ export function MasterRaiseFallPage({
       baseFuelFo: isBGG ? 9000 : 10699.97,
       baseLaborLo: isBGG ? 0 : 3594536,
       baseForexXo: 15388.75,
-      actualFuelFn: isBGG ? 21601.53 : 1.450,
-      actualLaborLn: autoLn,
-      actualMRateXn: Math.round(avgMRateCalc),
-      bggFuelP1: 19800,
-      bggTransportP1: 1800,
-      bggFuelP2: 19800,
-      bggTransportP2: 1803.06,
+      actualFuelFn: 0,
+      actualLaborLn: 0,
+      actualMRateXn: 0,
+      bggFuelP1: 0,
+      bggTransportP1: 0,
+      bggFuelP2: 0,
+      bggTransportP2: 0,
       notes: isBGG ? "Kalkulasi RF BGG 1-Faktor BBM" : "Kalkulasi RF POS 3-Faktor DLF"
     });
     setModalOpen(true);
@@ -436,7 +461,7 @@ export function MasterRaiseFallPage({
     setUmkForm({
       site: "POS PROJECT",
       year: 2026,
-      amountIdr: 3721423,
+      amountIdr: 0,
       skNumber: "",
       effectiveDate: "2026-01-01",
       notes: ""
@@ -450,11 +475,11 @@ export function MasterRaiseFallPage({
     const isBGG = item.customerCode === "BGG" || item.formulaScheme === "SINGLE_FACTOR_FUEL";
     setRfForm({
       ...item,
-      bggFuelP1: item.bggFuelP1 ?? 19800,
-      bggTransportP1: item.bggTransportP1 ?? 1800,
-      bggFuelP2: item.bggFuelP2 ?? 19800,
-      bggTransportP2: item.bggTransportP2 ?? (item.actualFuelFn ? Math.round((item.actualFuelFn * 2 - 19800 - 1800 - 19800) * 100) / 100 : 1803.06),
-      baseFuelFo: isBGG ? 9000 : (item.baseFuelFo || 10699.97)
+      bggFuelP1: item.bggFuelP1 ?? 0,
+      bggTransportP1: item.bggTransportP1 ?? 0,
+      bggFuelP2: item.bggFuelP2 ?? 0,
+      bggTransportP2: item.bggTransportP2 ?? 0,
+      baseFuelFo: isBGG ? 9000 : (item.baseFuelFo || 0)
     });
     setModalOpen(true);
   };
@@ -1233,36 +1258,38 @@ export function MasterRaiseFallPage({
                   )}
 
                   {/* Real-time Calculation Breakdown Preview */}
-                  <div className="p-3 bg-slate-900 text-white rounded-[4px] space-y-2 font-mono text-[11px]">
-                    <div className="text-[10px] font-bold uppercase text-[#A57C50]">Live Calculation Preview:</div>
+                  <div className="p-3 bg-amber-50/80 border border-amber-200/90 rounded-[4px] space-y-2 font-mono text-[11px] text-slate-800">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-amber-900">Live Calculation Preview:</div>
                     {isBGGStyle ? (
-                      <div className="space-y-1 text-slate-300">
+                      <div className="space-y-1 text-slate-700">
                         <div className="flex justify-between items-center">
                           <span>Formula: 0,60 + 0,40 × (Fn / Fo):</span>
-                          <strong className="text-amber-300 tabular-nums">
+                          <strong className="text-amber-950 tabular-nums font-bold">
                             0,60 + 0,40 × ({bggAvgFn.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / 9.000)
                           </strong>
                         </div>
                       </div>
                     ) : (
                       <>
-                        <div className="flex justify-between text-slate-300">
+                        <div className="flex justify-between text-slate-700">
                           <span>D = (34% × {rfForm.actualFuelFn} × {rfForm.actualMRateXn}) / Fo:</span>
-                          <strong className="text-amber-300 tabular-nums">{calcFuelD.toFixed(3)}</strong>
+                          <strong className="text-amber-900 tabular-nums font-bold">{calcFuelD.toFixed(3)}</strong>
                         </div>
-                        <div className="flex justify-between text-slate-300">
+                        <div className="flex justify-between text-slate-700">
                           <span>L = 25% × ({rfForm.actualLaborLn} / {rfForm.baseLaborLo}) (Murni IDR):</span>
-                          <strong className="text-teal-300 tabular-nums">{calcLaborL.toFixed(3)}</strong>
+                          <strong className="text-teal-800 tabular-nums font-bold">{calcLaborL.toFixed(3)}</strong>
                         </div>
-                        <div className="flex justify-between text-slate-300">
+                        <div className="flex justify-between text-slate-700">
                           <span>F = Fixed (41%):</span>
-                          <strong className="text-slate-300 tabular-nums">{calcFixedF.toFixed(3)}</strong>
+                          <strong className="text-slate-700 tabular-nums font-bold">{calcFixedF.toFixed(3)}</strong>
                         </div>
                       </>
                     )}
-                    <div className="pt-2 border-t border-slate-800 flex justify-between text-sm font-bold text-white">
-                      <span>INDEX RF RESULT =</span>
-                      <span className="text-emerald-400 underline tabular-nums">{calcTotalRF.toFixed(3)}</span>
+                    <div className="pt-2 border-t border-amber-200 flex justify-between text-xs font-bold text-amber-950 items-center">
+                      <span className="uppercase text-[11px]">INDEX RF RESULT =</span>
+                      <span className="text-sm font-black text-amber-950 bg-white px-2.5 py-0.5 rounded-[3px] border border-amber-300 shadow-2xs tabular-nums">
+                        {calcTotalRF.toFixed(3)}
+                      </span>
                     </div>
                   </div>
 

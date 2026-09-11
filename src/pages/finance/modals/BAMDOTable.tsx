@@ -25,11 +25,17 @@ export function BAMDOTable({
 
   if (!isCustomerPOS && !isCustomerSBS) return null;
 
+  const totalMDO = baMDOItems.reduce((acc, it) => {
+    const vol = Number(it.initialVolume || 0);
+    const r = Number(it.rate || 0);
+    return acc + Math.round(vol * r);
+  }, 0);
+
   return (
     <div className="space-y-2 pt-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-black uppercase text-indigo-900 flex items-center gap-1.5">
-          <Building2 size={14} className="text-indigo-700" />
+        <span className="text-xs font-black uppercase text-[#1A1612] flex items-center gap-1.5">
+          <Building2 size={14} className="text-[#A57C50]" />
           {isCustomerSBS
             ? "Kategori 2: Jasa Penunjang Produksi (Rental Alat)"
             : "Kategori 2: Mine Development Operation (MDO)"}
@@ -57,37 +63,49 @@ export function BAMDOTable({
                 },
               ]);
             }}
-            className="text-[11px] font-bold text-cyan-800 bg-cyan-100 hover:bg-cyan-200 px-2.5 py-1 rounded-lg flex items-center gap-1 transition cursor-pointer"
+            className="text-xs font-bold text-white bg-[#A57C50] hover:bg-[#8e6941] px-2.5 py-1 rounded-[3px] flex items-center gap-1 transition cursor-pointer shadow-xs"
           >
             <Plus size={13} /> {isCustomerSBS ? "Tambah Baris Alat" : "Tambah Baris MDO"}
           </button>
         )}
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-xs">
+      <div className="overflow-x-auto rounded-[4px] border border-slate-200 shadow-xs bg-white">
         <table className="w-full text-xs text-left">
           <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
             <tr>
-              <th className="p-2">Area / Lokasi</th>
+              {isInlineEditingBA && <th className="p-2 w-16 text-center">Aksi</th>}
+              <th className="p-2 w-24">Area / Lokasi</th>
               <th className="p-2 min-w-[180px]">
                 {isCustomerSBS ? "Peralatan / Unit (Master SOW)" : "Material / Pekerjaan MDO (Master SOW)"}
               </th>
-              <th className="p-2 text-center">Satuan</th>
-              <th className="p-2 text-right">{isCustomerSBS ? "Volume Awal (Jam)" : "Volume Awal"}</th>
-              <th className="p-2 text-right">SOW Rate (Rp)</th>
-              <th className="p-2 text-right">Subtotal (Rp)</th>
-              {isInlineEditingBA && <th className="p-2 text-center">#</th>}
+              <th className="p-2 text-center w-16">Satuan</th>
+              <th className="p-2 text-right w-24">{isCustomerSBS ? "Volume (Jam)" : "Volume"}</th>
+              <th className="p-2 text-right w-28">SOW Rate (Rp)</th>
+              <th className="p-2 text-right w-32">Subtotal (Rp)</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {baMDOItems.map((item, idx) => (
               <tr key={item.id || idx} className="hover:bg-slate-50/80 transition">
+                {isInlineEditingBA && (
+                  <td className="p-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setBaMDOItems(baMDOItems.filter((_, i) => i !== idx))}
+                      className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-100 rounded-[3px] transition cursor-pointer"
+                      title="Hapus baris"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </td>
+                )}
                 <td className="p-2 font-bold text-slate-800">
                   {!isInlineEditingBA ? (
                     item.area || (isCustomerSBS ? "Pit E" : "Site POS")
                   ) : (
                     <input
-                      className="w-20 bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs font-bold focus:border-cyan-700 outline-none"
+                      className="w-20 bg-slate-50 border border-slate-300 rounded-[3px] px-1.5 py-1 text-xs font-bold focus:border-[#A57C50] outline-none"
                       value={item.area || ""}
                       placeholder={isCustomerSBS ? "Pit E" : "Site POS"}
                       onChange={(e) => {
@@ -104,7 +122,7 @@ export function BAMDOTable({
                   ) : (
                     <div className="space-y-1">
                       <SOWSelectDropdown
-                        className="w-full bg-indigo-50/60 hover:bg-indigo-50 focus:bg-white border border-indigo-300 focus:border-indigo-700 rounded px-2 py-1 text-xs font-bold text-slate-900 outline-none transition cursor-pointer"
+                        className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#A57C50] rounded-[3px] px-2 py-1 text-xs font-bold text-slate-900 outline-none transition cursor-pointer"
                         value={item.isCustom ? "Lainnya" : (item.material || "")}
                         customerCode={formData.customerCode || ""}
                         activeSOWCatalog={activeSOWCatalog}
@@ -140,7 +158,7 @@ export function BAMDOTable({
                       />
                       {(item.isCustom || item.material === "Lainnya") && (
                         <input
-                          className="w-full bg-amber-50 border border-amber-300 focus:border-amber-600 rounded px-2 py-1 text-xs font-bold text-slate-900 outline-none placeholder:text-amber-700/60 placeholder:italic"
+                          className="w-full bg-amber-50/50 border border-amber-300 focus:border-[#A57C50] rounded-[3px] px-2 py-1 text-xs font-bold text-slate-900 outline-none placeholder:text-amber-700/60 placeholder:italic"
                           placeholder="Ketik nama pekerjaan / alat lainnya..."
                           value={item.customName !== undefined ? item.customName : (item.material !== "Lainnya" ? item.material : "")}
                           onChange={(e) => {
@@ -156,12 +174,12 @@ export function BAMDOTable({
                 </td>
                 <td className="p-2 text-center font-mono font-bold text-slate-800">
                   {!isInlineEditingBA ? (
-                    <span className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-xs inline-block text-center min-w-[45px]">
+                    <span className="font-bold text-slate-700">
                       {item.unit || (isCustomerSBS ? "Hours" : "Ha")}
                     </span>
                   ) : (
                     <select
-                      className="w-16 sm:w-20 bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-indigo-600 rounded-[3px] px-1 py-1 text-xs font-bold text-slate-900 outline-none transition cursor-pointer text-center font-mono"
+                      className="w-16 sm:w-20 bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#A57C50] rounded-[3px] px-1 py-1 text-xs font-bold text-slate-900 outline-none transition cursor-pointer text-center font-mono"
                       value={item.unit || (isCustomerSBS ? "Hours" : "Ha")}
                       onChange={(e) => {
                         const updated = [...baMDOItems];
@@ -188,7 +206,7 @@ export function BAMDOTable({
                     <FormattedNumberInput
                       allowDecimals
                       maxDecimals={3}
-                      className="w-24 bg-white border border-slate-300 rounded px-2 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none"
+                      className="w-20 sm:w-24 bg-slate-50 border border-slate-300 rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none"
                       value={item.initialVolume ? item.initialVolume : ""}
                       placeholder="00.00"
                       onChange={(val) => {
@@ -205,12 +223,12 @@ export function BAMDOTable({
                 </td>
                 <td className="p-2 text-right font-mono">
                   {!isInlineEditingBA ? (
-                    <span>{formatIDR(item.rate || 0)}</span>
+                    <span className="font-bold">{formatIDR(item.rate || 0)}</span>
                   ) : (
                     <FormattedNumberInput
                       allowDecimals
                       maxDecimals={3}
-                      className={`w-24 border rounded px-2 py-1 text-right font-mono font-bold text-xs focus:border-cyan-700 outline-none ${item.isCustom && (!item.rate || item.rate === 0) ? "bg-amber-50 border-amber-400 text-amber-900" : "bg-slate-50 hover:bg-white border-slate-300"}`}
+                      className={`w-20 sm:w-24 border rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none ${item.isCustom && (!item.rate || item.rate === 0) ? "bg-amber-50 border-amber-400 text-amber-900" : "bg-slate-50 hover:bg-white border-slate-300"}`}
                       value={item.rate === 0 ? "" : (item.rate ?? "")}
                       placeholder="00.00"
                       onChange={(r) => {
@@ -224,20 +242,9 @@ export function BAMDOTable({
                     />
                   )}
                 </td>
-                <td className="p-2 text-right font-mono font-extrabold text-emerald-800">
+                <td className="p-2 text-right font-mono font-extrabold text-slate-900">
                   {formatIDR(Math.round((Number(item.initialVolume) || 0) * (Number(item.rate) || 0)))}
                 </td>
-                {isInlineEditingBA && (
-                  <td className="p-2 text-center">
-                    <button
-                      type="button"
-                      onClick={() => setBaMDOItems(baMDOItems.filter((_, i) => i !== idx))}
-                      className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </td>
-                )}
               </tr>
             ))}
             {baMDOItems.length === 0 && (
@@ -248,6 +255,19 @@ export function BAMDOTable({
               </tr>
             )}
           </tbody>
+          {baMDOItems.length > 0 && (
+            <tfoot>
+              <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
+                {isInlineEditingBA && <td className="p-2 text-center text-slate-400">#</td>}
+                <td colSpan={5} className="p-2 uppercase font-extrabold tracking-wider">
+                  {isCustomerSBS ? "Subtotal Jasa Penunjang (Rental Alat)" : "Subtotal MDO"}
+                </td>
+                <td className="p-2 text-right font-mono font-extrabold text-slate-950">
+                  {formatIDR(totalMDO)}
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>

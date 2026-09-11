@@ -89,12 +89,27 @@ export function parsePeriodToYYYYMM(periodStr: string): string {
   if (!periodStr) return "";
   const trimmed = periodStr.trim();
   if (/^\d{4}-\d{2}$/.test(trimmed)) return trimmed;
+  if (/^\d{2}-\d{4}$/.test(trimmed)) {
+    const [m, y] = trimmed.split("-");
+    return `${y}-${m.padStart(2, "0")}`;
+  }
 
-  const parts = trimmed.split(/[\s-]+/);
+  const parts = trimmed.split(/[\s-_/]+/);
   if (parts.length >= 2) {
-    const monthPart = parts[0].toLowerCase();
+    let monthPart = parts[0].toLowerCase();
     let yearPart = parts[1];
-    if (yearPart.length === 2) yearPart = `20${yearPart}`;
+
+    if (/^\d{4}$/.test(parts[0]) && isNaN(Number(parts[1]))) {
+      yearPart = parts[0];
+      monthPart = parts[1].toLowerCase();
+    } else if (parts[0].length === 2 && /^\d{2}$/.test(parts[0]) && isNaN(Number(parts[1]))) {
+      yearPart = `20${parts[0]}`;
+      monthPart = parts[1].toLowerCase();
+    }
+
+    if (yearPart.length === 2 && /^\d{2}$/.test(yearPart)) {
+      yearPart = `20${yearPart}`;
+    }
 
     let mIdx = indonesianMonths.findIndex(m => m.toLowerCase().startsWith(monthPart));
     if (mIdx === -1) {
@@ -103,11 +118,61 @@ export function parsePeriodToYYYYMM(periodStr: string): string {
     if (mIdx === -1) {
       mIdx = shortMonthsID.findIndex(m => m.toLowerCase().startsWith(monthPart));
     }
-    if (mIdx !== -1) {
+    if (mIdx !== -1 && /^\d{4}$/.test(yearPart)) {
       return `${yearPart}-${String(mIdx + 1).padStart(2, "0")}`;
     }
   }
   return "";
+}
+
+export function matchPeriod(p1?: string, p2?: string): boolean {
+  if (!p1 || !p2) return false;
+  const s1 = p1.trim().toLowerCase();
+  const s2 = p2.trim().toLowerCase();
+  if (s1 === s2) return true;
+
+  const ym1 = parsePeriodToYYYYMM(p1);
+  const ym2 = parsePeriodToYYYYMM(p2);
+  if (ym1 && ym2 && ym1 === ym2) return true;
+
+  const getMonthKey = (s: string) => {
+    if (s.includes("jan")) return 1;
+    if (s.includes("feb")) return 2;
+    if (s.includes("mar")) return 3;
+    if (s.includes("apr")) return 4;
+    if (s.includes("may") || s.includes("mei")) return 5;
+    if (s.includes("jun")) return 6;
+    if (s.includes("jul")) return 7;
+    if (s.includes("aug") || s.includes("agt") || s.includes("agus")) return 8;
+    if (s.includes("sep")) return 9;
+    if (s.includes("oct") || s.includes("okt")) return 10;
+    if (s.includes("nov")) return 11;
+    if (s.includes("dec") || s.includes("des")) return 12;
+    const m = s.match(/(?:^|\D)(0?[1-9]|1[0-2])(?:\D|$)/);
+    return m ? parseInt(m[1], 10) : 0;
+  };
+
+  const getYear = (s: string) => {
+    const m4 = s.match(/20\d{2}/);
+    if (m4) return parseInt(m4[0], 10);
+    const m2 = s.match(/(?:^|\D)(\d{2})(?:\D|$)/);
+    if (m2) {
+      const y = parseInt(m2[1], 10);
+      if (y >= 20 && y <= 35) return 2000 + y;
+    }
+    return 0;
+  };
+
+  const m1 = getMonthKey(s1);
+  const m2 = getMonthKey(s2);
+  const y1 = getYear(s1);
+  const y2 = getYear(s2);
+
+  if (m1 > 0 && m2 > 0 && m1 === m2) {
+    if (y1 > 0 && y2 > 0) return y1 === y2;
+    return true;
+  }
+  return s1.includes(s2) || s2.includes(s1);
 }
 
 export function formatYYYYMMToPeriod(yyyyMm: string, format: "short" | "long" = "short"): string {
@@ -301,8 +366,8 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
       (inv.invoiceNo || "").includes("MDO")
     ) || null;
 
-    const isFullyInvoiced = Boolean((createdMiningInv && createdMDOInv) || (linkedNo && linkedNo !== "-" && linkedNo.includes("&")));
-    const isPartiallyInvoiced = Boolean((createdMiningInv || createdMDOInv || (linkedNo && linkedNo !== "-")) && !isFullyInvoiced);
+    const isFullyInvoiced = Boolean(createdMiningInv && createdMDOInv);
+    const isPartiallyInvoiced = Boolean((createdMiningInv || createdMDOInv) && !isFullyInvoiced);
 
     return {
       isFullyInvoiced,
@@ -313,7 +378,7 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
       remainingCount: (createdMiningInv ? 0 : 1) + (createdMDOInv ? 0 : 1),
     };
   } else {
-    const isFullyInvoiced = matchedInvoices.length > 0 || Boolean(linkedNo && linkedNo !== "-");
+    const isFullyInvoiced = matchedInvoices.length > 0;
     return {
       isFullyInvoiced,
       isPartiallyInvoiced: false,
@@ -353,7 +418,7 @@ export function renderBAStatusBadge(status: string, invoiceNoLinked?: string, is
       }
     } else {
       // Non-POS (BGG, SBS, PTRO/DBK, ABN)
-      if (invStatus.isFullyInvoiced || (linked && linked !== "-")) {
+      if (invStatus.isFullyInvoiced) {
         const inv = invStatus.createdInvoices[0];
         const isDraft = inv?.status === "Draft" || inv?.status === "Submitted" || inv?.status === "Pending Approval";
         const invNo = inv?.invoiceNo || linked;
@@ -375,7 +440,7 @@ export function renderBAStatusBadge(status: string, invoiceNoLinked?: string, is
     }
   }
 
-  if (isInvoiced || (linked && linked !== "-") || s === "Arsip" || s === "Invoiced") {
+  if (allInvoices === undefined && (isInvoiced || (linked && linked !== "-") || s === "Arsip" || s === "Invoiced")) {
     return (
       <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300 inline-flex items-center gap-1.5 shadow-2xs whitespace-nowrap">
         <Archive size={12} className="text-purple-700 shrink-0" />
@@ -554,24 +619,28 @@ export const parseDecimalNumber = (val: any): number => {
   if (!clean) return 0;
 
   let num = 0;
-  if (clean.includes(",")) {
-    // Koma adalah pemisah desimal standar Indonesia (contoh: "12.511,250", "0,250", "12511,25")
-    const [intPart, ...decParts] = clean.split(",");
-    const decPart = decParts.join("").slice(0, 3);
-    const cleanInt = intPart.replace(/\./g, "") || "0";
-    num = parseFloat(decPart.length > 0 ? `${cleanInt}.${decPart}` : cleanInt);
-  } else if (clean.includes(".")) {
-    const dotParts = clean.split(".");
-    if (dotParts.length === 2) {
-      const [intPart, decPart] = dotParts;
-      if (decPart.length === 3 && intPart !== "0") {
-        num = parseFloat(`${intPart}${decPart}`);
-      } else {
-        num = parseFloat(`${intPart}.${decPart.slice(0, 3)}`);
-      }
+  if (clean.includes(".") && clean.includes(",")) {
+    const lastDot = clean.lastIndexOf(".");
+    const lastComma = clean.lastIndexOf(",");
+    if (lastComma > lastDot) {
+      const intP = clean.slice(0, lastComma).replace(/\./g, "");
+      const decP = clean.slice(lastComma + 1);
+      num = parseFloat(`${intP}.${decP}`);
     } else {
-      // Lebih dari 1 titik -> titik ribuan ("1.234.567")
+      const intP = clean.slice(0, lastDot).replace(/,/g, "");
+      const decP = clean.slice(lastDot + 1);
+      num = parseFloat(`${intP}.${decP}`);
+    }
+  } else if (clean.includes(",")) {
+    const [intPart, ...decParts] = clean.split(",");
+    const decPart = decParts.join("");
+    num = parseFloat(`${intPart}.${decPart}`);
+  } else if (clean.includes(".")) {
+    const dotCount = (clean.match(/\./g) || []).length;
+    if (dotCount > 1) {
       num = parseFloat(clean.replace(/\./g, ""));
+    } else {
+      num = parseFloat(clean);
     }
   } else {
     num = parseFloat(clean);
@@ -714,19 +783,6 @@ export function FormattedNumberInput({
     const raw = e.target.value;
     if (allowDecimals) {
       let clean = raw.replace(/[^0-9.,-]/g, "");
-      if (!clean.includes(",") && (clean.match(/\./g) || []).length === 1) {
-        const [intPart, decPart] = clean.split(".");
-        clean = `${intPart},${decPart}`;
-      }
-      const commaCount = (clean.match(/,/g) || []).length;
-      if (commaCount > 1) {
-        const firstIdx = clean.indexOf(",");
-        clean = clean.slice(0, firstIdx + 1) + clean.slice(firstIdx + 1).replace(/,/g, "");
-      }
-      if (clean.includes(",")) {
-        const [i, d] = clean.split(",");
-        clean = `${i},${d.slice(0, maxDecimals)}`;
-      }
       setLocalStr(clean);
       onChange(parseDecimalNumber(clean));
     } else {

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Loader2 } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, User as UserType } from "../../lib/api";
@@ -17,7 +17,7 @@ import {
 export function PaymentView({ c }: { c: any }) {
   const {
     invoiceRows: rawInvoiceRows, paymentRows: rawPaymentRows, setDetailViewItem, openEditModal, handleDelete,
-    query
+    query, deletingKey
   } = c as Record<string, any>;
   const paymentRows = Array.isArray(rawPaymentRows) ? rawPaymentRows : [];
   const invoiceRows = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
@@ -91,13 +91,19 @@ export function PaymentView({ c }: { c: any }) {
                             <button className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition cursor-pointer" onClick={() => openEditModal("payment", row)} title="Edit Payment">
                               <Edit2 size={14} />
                             </button>
-                            <button
-                              className="p-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition cursor-pointer"
-                              onClick={() => handleDelete("payment", row.id)}
-                              title="Hapus Payment"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                            {(() => {
+                              const isDeleting = deletingKey === `payment-${row.id}`;
+                              return (
+                                <button
+                                  className={`p-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition cursor-pointer ${isDeleting ? "opacity-60 cursor-not-allowed" : ""}`}
+                                  onClick={() => handleDelete("payment", row.id)}
+                                  disabled={isDeleting}
+                                  title="Hapus Payment"
+                                >
+                                  {isDeleting ? <Loader2 size={14} className="animate-spin text-rose-600" /> : <Trash2 size={14} />}
+                                </button>
+                              );
+                            })()}
                           </td>
                         </tr>
                       );

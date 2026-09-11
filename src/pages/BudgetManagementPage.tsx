@@ -198,8 +198,15 @@ export function BudgetManagementPage({ viewTitle, onNotice }: { viewTitle: strin
       return;
     }
     try {
-      if (editing) await updateBudget(editing.id, form);
-      else await createBudget(form);
+      if (editing) {
+        const updated: any = await updateBudget(editing.id, form);
+        // 🚀 Optimistic UI Update
+        setRows((prev) => prev.map((r) => r.id === editing.id ? (updated || { ...r, ...form }) : r));
+      } else {
+        const created: any = await createBudget(form);
+        // 🚀 Optimistic UI Update
+        setRows((prev) => [created || { id: Date.now(), ...form } as any, ...prev]);
+      }
       setModalOpen(false);
       setNoticeMsg(editing ? "Budget diperbarui." : "Budget berhasil dibuat.");
       await load();
@@ -221,12 +228,15 @@ export function BudgetManagementPage({ viewTitle, onNotice }: { viewTitle: strin
 
   async function remove(b: Budget) {
     if (!window.confirm(`Hapus budget ${b.accountCode ?? b.accountId}?`)) return;
+    // 🚀 Optimistic UI Update
+    setRows((prev) => prev.filter((item) => item.id !== b.id));
     try {
       await deleteBudget(b.id);
       setNoticeMsg("Budget dihapus.");
       await load();
     } catch (err: any) {
       setNoticeMsg(err?.message || "Gagal menghapus budget.");
+      await load();
     }
   }
 

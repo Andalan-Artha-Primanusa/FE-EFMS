@@ -421,7 +421,9 @@ export function RBACPage({
   const handleCreateTCode = async () => {
     setTcodeModalError(null);
     try {
-      await createTCode(tcodeForm);
+      const created: any = await createTCode(tcodeForm);
+      // 🚀 Optimistic UI Update
+      setTcodesList((prev) => [created || { id: Date.now(), ...tcodeForm } as any, ...prev]);
       setTcodeModalOpen(false);
       setTcodeForm({ code: "", description: "", route: "", module: "", action: "read" });
       showToast("success", `T-Code ${tcodeForm.code} berhasil dibuat.`);
@@ -435,7 +437,9 @@ export function RBACPage({
     if (!tcodeTarget) return;
     setTcodeModalError(null);
     try {
-      await updateTCode(tcodeTarget.id, tcodeForm);
+      const updated: any = await updateTCode(tcodeTarget.id, tcodeForm);
+      // 🚀 Optimistic UI Update
+      setTcodesList((prev) => prev.map((t) => t.id === tcodeTarget.id ? (updated || { ...t, ...tcodeForm }) : t));
       setTcodeModalOpen(false);
       setTcodeTarget(null);
       setTcodeForm({ code: "", description: "", route: "", module: "", action: "read" });
@@ -448,14 +452,18 @@ export function RBACPage({
 
   const handleDeleteTCode = async () => {
     if (!deleteTcodeTarget) return;
+    const targetId = deleteTcodeTarget.id;
+    const code = deleteTcodeTarget.code;
+    // 🚀 Optimistic UI Update
+    setTcodesList((prev) => prev.filter((t) => t.id !== targetId));
+    setDeleteTcodeTarget(null);
     try {
-      await deleteTCode(deleteTcodeTarget.id);
-      const code = deleteTcodeTarget.code;
-      setDeleteTcodeTarget(null);
+      await deleteTCode(targetId);
       showToast("success", `T-Code ${code} berhasil dihapus.`);
       await loadTcodes();
     } catch (err: any) {
       showToast("error", err?.message || "Gagal hapus T-Code");
+      await loadTcodes();
     }
   };
 
@@ -718,10 +726,14 @@ export function RBACPage({
         permissions: userGrants
       };
       if (modalMode === "create") {
-        await createUser(payload);
+        const created: any = await createUser(payload);
+        // 🚀 Optimistic UI Update
+        setUserList((prev) => [created || { id: Date.now(), ...payload } as any, ...prev]);
         showToast("success", `User '${formData.name}' berhasil ditambahkan dengan role '${formData.role}'!`);
       } else if (selectedUser) {
-        await updateUser(selectedUser.id, payload);
+        const updated: any = await updateUser(selectedUser.id, payload);
+        // 🚀 Optimistic UI Update
+        setUserList((prev) => prev.map((u) => u.id === selectedUser.id ? (updated || { ...u, ...payload }) : u));
         showToast("success", `Data user '${formData.name}' berhasil diperbarui!`);
       }
       setModalOpen(false);
@@ -735,15 +747,19 @@ export function RBACPage({
 
   const handleDeleteUser = async () => {
     if (!deleteTarget) return;
+    const targetId = deleteTarget.id;
+    const name = deleteTarget.name;
     setSubmitting(true);
+    // 🚀 Optimistic UI Update
+    setUserList((prev) => prev.filter((u) => u.id !== targetId));
+    setDeleteTarget(null);
     try {
-      await deleteUser(deleteTarget.id);
-      const name = deleteTarget.name;
-      setDeleteTarget(null);
+      await deleteUser(targetId);
       showToast("success", `User '${name}' berhasil dihapus dari sistem.`);
       await loadAllUsers();
     } catch (err: any) {
       showToast("error", err?.message || "Gagal menghapus user");
+      await loadAllUsers();
     } finally {
       setSubmitting(false);
     }
@@ -778,10 +794,14 @@ export function RBACPage({
     setSubmitting(true);
     try {
       if (roleModalMode === "create") {
-        await createRole({ name: roleForm.name.trim(), description: roleForm.description, permissions: roleGrants });
+        const created: any = await createRole({ name: roleForm.name.trim(), description: roleForm.description, permissions: roleGrants });
+        // 🚀 Optimistic UI Update
+        setRoleList((prev) => [created || { role: roleForm.name.trim(), permissions: roleGrants.map(g => ({ module: g.split(":")[0], action: g.split(":")[1], description: "" })) } as any, ...prev]);
         showToast("success", `Role '${roleForm.name}' berhasil dibuat.`);
       } else if (roleTarget) {
         await updateRolePermissions(roleTarget, roleGrants);
+        // 🚀 Optimistic UI Update
+        setRoleList((prev) => prev.map((r) => r.role === roleTarget ? { ...r, permissions: roleGrants.map(g => ({ module: g.split(":")[0], action: g.split(":")[1], description: "" })) } : r));
         showToast("success", `Permission role '${roleTarget}' berhasil diperbarui.`);
       }
       setRoleModalOpen(false);
@@ -795,15 +815,18 @@ export function RBACPage({
 
   const handleDeleteRole = async () => {
     if (!deleteRoleTarget) return;
+    const targetRole = deleteRoleTarget.role;
     setSubmitting(true);
+    // 🚀 Optimistic UI Update
+    setRoleList((prev) => prev.filter((r) => r.role !== targetRole));
+    setDeleteRoleTarget(null);
     try {
-      await deleteRoleApi(deleteRoleTarget.role);
-      const r = deleteRoleTarget.role;
-      setDeleteRoleTarget(null);
-      showToast("success", `Role '${r}' berhasil dihapus.`);
+      await deleteRoleApi(targetRole);
+      showToast("success", `Role '${targetRole}' berhasil dihapus.`);
       await loadAllRoles();
     } catch (err: any) {
       showToast("error", err?.message || "Gagal menghapus role");
+      await loadAllRoles();
     } finally {
       setSubmitting(false);
     }

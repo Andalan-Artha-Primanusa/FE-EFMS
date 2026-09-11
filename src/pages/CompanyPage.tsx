@@ -78,10 +78,14 @@ export function CompanyPage({
     setModalError(null);
     try {
       if (modalMode === "create") {
-        await createCompany(formData);
+        const created: any = await createCompany(formData);
+        // 🚀 Optimistic UI Update
+        setCompanies((prev) => [created || { id: Date.now(), ...formData } as any, ...prev]);
         onNotice("Perusahaan berhasil dibuat");
       } else if (editTarget) {
-        await updateCompany(editTarget.id, formData);
+        const updated: any = await updateCompany(editTarget.id, formData);
+        // 🚀 Optimistic UI Update
+        setCompanies((prev) => prev.map((c) => c.id === editTarget.id ? (updated || { ...c, ...formData }) : c));
         onNotice("Perusahaan berhasil diupdate");
       }
       setModalOpen(false);
@@ -95,14 +99,18 @@ export function CompanyPage({
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
+    const targetId = deleteTarget.id;
     setSubmitting(true);
+    // 🚀 Optimistic UI Update
+    setCompanies((prev) => prev.filter((c) => c.id !== targetId));
+    setDeleteTarget(null);
     try {
-      await deleteCompany(deleteTarget.id);
-      setDeleteTarget(null);
+      await deleteCompany(targetId);
       onNotice("Perusahaan berhasil dihapus");
       await loadCompanies();
     } catch (err: any) {
       setFeedback({ type: "error", message: err?.message || "Gagal menghapus perusahaan" });
+      await loadCompanies();
     } finally {
       setSubmitting(false);
     }

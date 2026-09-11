@@ -214,12 +214,15 @@ export function SiteSetupPage({
   const handleDeleteSOW = async (id: number | string | undefined) => {
     if (!id) return;
     if (!window.confirm("Hapus item material SOW ini dari konfigurasi site?")) return;
+    // 🚀 Optimistic UI Update
+    setSowItems((prev) => prev.filter((item) => String(item.id) !== String(id)));
     try {
       await api(`/api/master-data/variable-sow/${id}`, { method: "DELETE" });
       onNotice(`Item material SOW berhasil dihapus.`);
       await loadData();
     } catch (err: any) {
       onNotice(`Gagal menghapus SOW: ${err?.message}`);
+      await loadData();
     }
   };
 
