@@ -152,10 +152,14 @@ export function OrgUnitsPage({
         status: formData.status
       };
       if (modalMode === "create") {
-        await createOrgUnit(payload);
+        const created: any = await createOrgUnit(payload);
+        // 🚀 Optimistic UI Update
+        setUnits((prev) => [created || { id: Date.now(), ...payload } as any, ...prev]);
         onNotice("Org unit berhasil dibuat");
       } else if (editTarget) {
-        await updateOrgUnit(editTarget.id, payload);
+        const updated: any = await updateOrgUnit(editTarget.id, payload);
+        // 🚀 Optimistic UI Update
+        setUnits((prev) => prev.map((u) => u.id === editTarget.id ? (updated || { ...u, ...payload }) : u));
         onNotice("Org unit berhasil diupdate");
       }
       setModalOpen(false);
@@ -169,14 +173,18 @@ export function OrgUnitsPage({
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
+    const targetId = deleteTarget.id;
     setSubmitting(true);
+    // 🚀 Optimistic UI Update
+    setUnits((prev) => prev.filter((u) => u.id !== targetId));
+    setDeleteTarget(null);
     try {
-      await deleteOrgUnit(deleteTarget.id);
-      setDeleteTarget(null);
+      await deleteOrgUnit(targetId);
       onNotice("Org unit berhasil dihapus");
       await loadUnits();
     } catch (err: any) {
       setFeedback({ type: "error", message: err?.message || "Gagal menghapus org unit" });
+      await loadUnits();
     } finally {
       setSubmitting(false);
     }

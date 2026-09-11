@@ -4,7 +4,7 @@ import {
   Building2, Pickaxe, Layers, Calculator, Zap, TrendingUp, Scale,
   Eye, Edit2, Trash2, Plus, RefreshCw, Save, DollarSign, Sliders,
   CheckCircle2, AlertTriangle, ShieldCheck, ArrowRight, Info, Check,
-  ExternalLink
+  ExternalLink, Loader2
 } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { api, getCompanies, type Company } from "../../lib/api";
@@ -47,7 +47,7 @@ interface RaiseFallData {
 export function CustomerView({ c }: { c: any }) {
   const {
     customerRows, setDetailViewItem, openCreateModal, openEditModal, handleDelete,
-    query, onNotice = () => {}
+    query, onNotice = () => {}, deletingKey, setDeletingKey
   } = c as Record<string, any>;
   const safeCustomerRows = Array.isArray(customerRows) ? customerRows : [];
 
@@ -120,12 +120,21 @@ export function CustomerView({ c }: { c: any }) {
     e.preventDefault();
     if (!editingSOW) return;
     try {
-      await api("/api/master-data/variable-sow", {
+      const saved: any = await api("/api/master-data/variable-sow", {
         method: "POST",
         body: JSON.stringify(editingSOW)
       });
       onNotice(`Tarif material SOW [${editingSOW.itemName}] untuk ${selectedClientCode} berhasil disimpan.`);
       setIsSowModalOpen(false);
+      // 🚀 Optimistic UI Update
+      setSowList((prev) => {
+        const targetId = editingSOW.id || saved?.id;
+        const exists = prev.some((it) => (targetId && it.id === targetId) || (it.itemName === editingSOW.itemName && it.customerCode === editingSOW.customerCode));
+        if (exists) {
+          return prev.map((it) => ((targetId && it.id === targetId) || (it.itemName === editingSOW.itemName && it.customerCode === editingSOW.customerCode)) ? (saved || editingSOW) : it);
+        }
+        return [saved || editingSOW, ...prev];
+      });
       setEditingSOW(null);
       await loadSetupData();
       if (c && typeof c.reloadMasterData === "function") {
@@ -139,15 +148,25 @@ export function CustomerView({ c }: { c: any }) {
   const handleDeleteSOW = async (id: number | string | undefined) => {
     if (!id) return;
     if (!window.confirm("Hapus item material SOW ini dari konfigurasi client?")) return;
+    const key = `sow-${id}`;
+    if (setDeletingKey) setDeletingKey(key);
+    onNotice("⏳ Sedang menghapus item material SOW...");
+
+    // 🚀 Optimistic UI Update
+    setSowList((prev) => prev.filter((item) => String(item.id) !== String(id)));
+
     try {
       await api(`/api/master-data/variable-sow/${id}`, { method: "DELETE" });
-      onNotice(`Item material SOW berhasil dihapus.`);
+      onNotice(`✅ Item material SOW berhasil dihapus.`);
       await loadSetupData();
       if (c && typeof c.reloadMasterData === "function") {
         await c.reloadMasterData();
       }
     } catch (err: any) {
       onNotice(`Gagal menghapus SOW: ${err?.message}`);
+      await loadSetupData();
+    } finally {
+      if (setDeletingKey) setDeletingKey(null);
     }
   };
 
@@ -318,12 +337,19 @@ export function CustomerView({ c }: { c: any }) {
                       >
                         <Edit2 size={13} /> Edit
                       </button>
-                      <button
-                        className="text-xs font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1 px-2.5 py-1 rounded-[3px] bg-rose-50 border border-rose-200 cursor-pointer"
-                        onClick={() => handleDelete("customer", c.id)}
-                      >
-                        <Trash2 size={13} /> Hapus
-                      </button>
+                      {(() => {
+                        const isDeleting = deletingKey === `customer-${c.id}`;
+                        return (
+                          <button
+                            disabled={isDeleting}
+                            className={`text-xs font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1 px-2.5 py-1 rounded-[3px] bg-rose-50 border border-rose-200 cursor-pointer ${isDeleting ? "opacity-60 cursor-not-allowed" : ""}`}
+                            onClick={() => handleDelete("customer", c.id)}
+                          >
+                            {isDeleting ? <Loader2 size={13} className="animate-spin text-rose-600" /> : <Trash2 size={13} />}
+                            <span>{isDeleting ? "Menghapus..." : "Hapus"}</span>
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -497,14 +523,20 @@ export function CustomerView({ c }: { c: any }) {
                               >
                                 <Edit2 size={13} />
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteSOW(item.id)}
-                                className="p-1 rounded-[3px] text-rose-600 hover:bg-rose-50 transition cursor-pointer"
-                                title="Hapus"
-                              >
-                                <Trash2 size={13} />
-                              </button>
+                              {(() => {
+                                const isDeleting = deletingKey === `sow-${item.id}`;
+                                return (
+                                  <button
+                                    type="button"
+                                    disabled={isDeleting}
+                                    onClick={() => handleDeleteSOW(item.id)}
+                                    className={`p-1 rounded-[3px] text-rose-600 hover:bg-rose-50 transition cursor-pointer ${isDeleting ? "opacity-60 cursor-not-allowed" : ""}`}
+                                    title="Hapus"
+                                  >
+                                    {isDeleting ? <Loader2 size={13} className="animate-spin text-rose-600" /> : <Trash2 size={13} />}
+                                  </button>
+                                );
+                              })()}
                             </div>
                           </td>
                         </tr>

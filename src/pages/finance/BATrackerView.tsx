@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Truck } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Truck, Loader2, StickyNote } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, User as UserType } from "../../lib/api";
+import { BANotesUpdateModal } from "./modals/BANotesUpdateModal";
 
 import {
   resolveDocumentUrl, formatIDR, parseNumber, formatThousand, formatDateInput,
@@ -20,8 +21,10 @@ export function BATrackerView({ c }: { c: any }) {
     setBaFilter, periodFilter, setPeriodFilter, showExportBADropdown, setShowExportBADropdown,
     showInputBADropdown, setShowInputBADropdown, baRowActionDropdownId, setBaRowActionDropdownId, setDetailViewItem,
     exportBAOnlyExcel, exportBAOnlyPDF, exportBADocumentPDF, createInvoiceFromBA, openBAModal, openCreateModal,
-    handleGenerateInvoiceFromBA, handleDelete, query = "", onNotice, handleAccrueBA, accountingJournals: rawAccountingJournals
+    handleGenerateInvoiceFromBA, handleDelete, query = "", onNotice, handleAccrueBA, accountingJournals: rawAccountingJournals,
+    deletingKey, actionLoadingKey, loadData
   } = (c || {}) as Record<string, any>;
+  const [quickNoteModalItem, setQuickNoteModalItem] = useState<any | null>(null);
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
   const pendingVolumeLedgers: any[] = Array.isArray(rawPendingVolumeLedgers) ? rawPendingVolumeLedgers : [];
@@ -554,7 +557,7 @@ export function BATrackerView({ c }: { c: any }) {
                           {custRows.map((row: any) => {
                             const invStatus = getBAInvoiceStatus(row, invoiceRows);
                             const isInvoiced = invStatus.isFullyInvoiced;
-                            const isReady = (row.statusBA === "Ready to Invoice" || row.statusBA === "Approved") && !isInvoiced;
+                            const isReady = (row.statusBA === "Ready to Invoice" || row.statusBA === "Approved" || row.statusBA === "Arsip" || Boolean(row.verifiedBy)) && !isInvoiced;
                             const linkedInvoice = invStatus.createdMiningInv || invStatus.createdMDOInv || invStatus.createdInvoices[0] || null;
                             const isDropdownOpen = baRowActionDropdownId === row.id;
 
@@ -686,11 +689,18 @@ export function BATrackerView({ c }: { c: any }) {
                                   </div>
                                 </td>
 
-                                {/* Kolom 7: Catatan & Bottleneck */}
-                                <td className="p-2 min-w-[180px]">
+                                {/* Kolom 7: Catatan & Bottleneck (Click-to-Edit) */}
+                                <td
+                                  className="p-2 min-w-[180px] cursor-pointer group/note hover:bg-amber-50/70 transition rounded-lg"
+                                  onClick={() => setQuickNoteModalItem(row)}
+                                  title="Klik untuk cepat update Catatan & Bottleneck Harian"
+                                >
                                   <div className="text-[10px] line-clamp-2">
                                     {row.notesBottleneck && <span className="font-bold text-slate-800 block">{row.notesBottleneck}</span>}
-                                    <span className="text-slate-500">{row.notes || "-"}</span>
+                                    <span className="text-slate-600 group-hover/note:text-amber-900">{row.notes || "-"}</span>
+                                    <span className="inline-flex items-center gap-0.5 text-[9px] text-amber-600 font-bold opacity-0 group-hover/note:opacity-100 transition mt-0.5 ml-1">
+                                      <StickyNote size={10} /> Edit Keterangan
+                                    </span>
                                   </div>
                                 </td>
 
@@ -796,17 +806,21 @@ export function BATrackerView({ c }: { c: any }) {
                                     )}
 
                                      {/* Tombol Akrualkan Pendapatan (Unbilled AR) */}
-                                     {(isReady || row.statusBA === "Approved") && !accountingJournals.some((j: any) => j.sourceModule === "BA_ACCRUAL" && j.sourceReference === row.baNumber && j.status !== "Void") && (
-                                       <button
-                                         type="button"
-                                         className="px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-300 font-bold text-[10px] shadow-2xs flex items-center gap-1 transition cursor-pointer"
-                                         onClick={() => handleAccrueBA && handleAccrueBA(row.id)}
-                                         title="Akrualkan Pendapatan (Unbilled AR) ke General Ledger"
-                                       >
-                                         <Scale size={11} className="text-blue-700" />
-                                         <span>Akrual AR</span>
-                                       </button>
-                                     )}
+                                     {(isReady || row.statusBA === "Approved") && !accountingJournals.some((j: any) => j.sourceModule === "BA_ACCRUAL" && j.sourceReference === row.baNumber && j.status !== "Void") && (() => {
+                                       const isAccruing = actionLoadingKey === `accrue-ba-${row.id}`;
+                                       return (
+                                         <button
+                                           type="button"
+                                           disabled={isAccruing}
+                                           className={`px-2 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-300 font-bold text-[10px] shadow-2xs flex items-center gap-1 transition cursor-pointer ${isAccruing ? "opacity-60 cursor-not-allowed" : ""}`}
+                                           onClick={() => handleAccrueBA && handleAccrueBA(row.id)}
+                                           title="Akrualkan Pendapatan (Unbilled AR) ke General Ledger"
+                                         >
+                                           {isAccruing ? <Loader2 size={11} className="text-blue-700 animate-spin" /> : <Scale size={11} className="text-blue-700" />}
+                                           <span>{isAccruing ? "Mengakrualkan..." : "Akrual AR"}</span>
+                                         </button>
+                                       );
+                                     })()}
 
                                     {/* Non-POS: Ready to Invoice (1-Click) */}
                                     {row.customerCode !== "POS" && isReady && (
@@ -921,19 +935,32 @@ export function BATrackerView({ c }: { c: any }) {
                                       <Eye size={14} />
                                     </button>
                                     <button
+                                      className="p-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:border-amber-300 transition cursor-pointer"
+                                      onClick={() => setQuickNoteModalItem(row)}
+                                      title="Update Keterangan & Bottleneck Harian (Cepat)"
+                                    >
+                                      <StickyNote size={14} className="text-amber-700" />
+                                    </button>
+                                    <button
                                       className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
                                       onClick={() => openBAModal(row, true)}
                                       title="Edit Berita Acara (Mode Edit)"
                                     >
                                       <Edit2 size={14} />
                                     </button>
-                                    <button
-                                      className="p-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition cursor-pointer"
-                                      onClick={() => handleDelete("ba", row.id)}
-                                      title="Hapus BA"
-                                    >
-                                      <Trash2 size={14} />
-                                    </button>
+                                    {(() => {
+                                       const isDeletingBA = deletingKey === `ba-${row.id}`;
+                                       return (
+                                         <button
+                                           className={`p-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition cursor-pointer ${isDeletingBA ? "opacity-60 cursor-not-allowed" : ""}`}
+                                           onClick={() => handleDelete("ba", row.id)}
+                                           disabled={isDeletingBA}
+                                           title="Hapus BA"
+                                         >
+                                           {isDeletingBA ? <Loader2 size={14} className="animate-spin text-rose-600" /> : <Trash2 size={14} />}
+                                         </button>
+                                       );
+                                     })()}
                                   </div>
                                 </td>
                               </tr>
@@ -991,6 +1018,15 @@ export function BATrackerView({ c }: { c: any }) {
                 </table>
               </div>
             </Panel>
+            <BANotesUpdateModal
+              isOpen={Boolean(quickNoteModalItem)}
+              baItem={quickNoteModalItem}
+              onClose={() => setQuickNoteModalItem(null)}
+              onSuccess={() => {
+                if (loadData) loadData();
+              }}
+              onNotice={onNotice}
+            />
           </>
         );
 }

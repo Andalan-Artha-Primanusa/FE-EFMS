@@ -56,6 +56,7 @@ export function BATrackerModal({ c }: { c: any }) {
     fuelPriceUSD = 1.15,
     laborPriceIDR = 29500,
     raiseFallMaster,
+    raiseFallMasters = [],
     getBGGActiveCoalTier,
     getSowMasterRate,
   } = c || {};
@@ -79,7 +80,7 @@ export function BATrackerModal({ c }: { c: any }) {
       .catch(() => {});
   }, [formData?.id, editItem?.id]);
 
-  const calcSubtotal = (it: any, vol: number) => getBAItemSubtotal(it, vol, isCustomerDBK);
+  const calcSubtotal = (it: any, vol: number) => getBAItemSubtotal(it, vol, isCustomerDBK, formData.customerCode);
   const sumInitial = allBAItems.reduce((acc, it) => acc + calcSubtotal(it, getBAEffectiveVolume(it, allBAItems, false)), 0);
   const sumAdjusted = allBAItems.reduce((acc, it) => acc + calcSubtotal(it, getBAEffectiveVolume(it, allBAItems, true)), 0);
   const deltaAmount = sumAdjusted - sumInitial;
@@ -98,9 +99,9 @@ export function BATrackerModal({ c }: { c: any }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-1.5 sm:p-3">
-      <div className="bg-white border border-slate-200 rounded-[4px] p-4 sm:p-5 w-full max-w-[96vw] 2xl:max-w-[1550px] shadow-2xl space-y-4 max-h-[96vh] overflow-y-auto transition-all">
-        {/* Modal Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-200 pb-3">
+      <div className="bg-white border border-slate-200 rounded-[4px] w-full max-w-[96vw] 2xl:max-w-[1550px] shadow-2xl flex flex-col max-h-[96vh] transition-all overflow-hidden">
+        {/* Modal Header (Sticky Top) */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-200 p-4 sm:p-5 pb-3 bg-white shrink-0 sticky top-0 z-20">
           <div className="flex items-center gap-2.5 flex-wrap min-w-0">
             <h3 className="text-lg sm:text-xl font-black text-slate-900 truncate">
               {editItem ? `Berita Acara: ${formData.baNumber || formData.signedBANumber || formData.draftBARefNo || "Draft BA"}` : "Input Berita Acara Baru"}
@@ -124,127 +125,133 @@ export function BATrackerModal({ c }: { c: any }) {
         </div>
 
         {/* Modal Form Content */}
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-            {/* Left Column: Forms */}
-            <div className="xl:col-span-9 2xl:col-span-9 space-y-4 border-b xl:border-b-0 xl:border-r border-slate-200 pb-6 xl:pb-0 xl:pr-6">
-              <BATrackerHeaderForm
-                activeBAStep={activeBAStep}
-                setActiveBAStep={setActiveBAStep}
-                isInlineEditingBA={isInlineEditingBA}
-                formData={formData}
-                setFormData={setFormData}
-                baOperatingItems={baOperatingItems}
-                setBaOperatingItems={setBaOperatingItems}
-                baMDOItems={baMDOItems}
-                setBaMDOItems={setBaMDOItems}
-                baDeductionItems={baDeductionItems}
-                setBaDeductionItems={setBaDeductionItems}
-                latestKursBI={latestKursBI}
-                user={user}
-                rfIndexCalculated={rfIndexCalculated}
-                coalIndexMaster={coalIndexMaster}
-                fuelPriceUSD={fuelPriceUSD}
-                laborPriceIDR={laborPriceIDR}
-                defaultPOSBAOperatingItems={defaultPOSBAOperatingItems}
-                defaultPOSBAMDOItems={defaultPOSBAMDOItems}
-                defaultDBKBAItems={defaultDBKBAItems}
-                defaultPTROBAItems={defaultPTROBAItems}
-                defaultBGGBAItems={defaultBGGBAItems}
-                defaultSBSBAOperatingItems={defaultSBSBAOperatingItems}
-                defaultSBSBAMDOItems={defaultSBSBAMDOItems}
-                defaultSBSBADeductionItems={defaultSBSBADeductionItems}
-                raiseFallMaster={raiseFallMaster}
-                getBGGActiveCoalTier={getBGGActiveCoalTier}
-              />
-
-              {activeBAStep === 1 && (
-                <BATrackerSurveyItems
-                  formData={formData}
-                  baOperatingItems={baOperatingItems}
-                  setBaOperatingItems={setBaOperatingItems}
-                  baMDOItems={baMDOItems}
-                  setBaMDOItems={setBaMDOItems}
-                  baDeductionItems={baDeductionItems}
-                  setBaDeductionItems={setBaDeductionItems}
-                  isInlineEditingBA={isInlineEditingBA}
-                  activeSOWCatalog={activeSOWCatalog}
-                  mRate={mRate}
-                  allBAItems={allBAItems}
-                  isDistanceItem={isDistanceItem}
-                  getBAEffectiveVolume={getBAEffectiveVolume}
-                  getBAItemSubtotal={calcSubtotal}
-                  sumInitial={sumInitial}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden text-xs">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+              {/* Left Column: Forms */}
+              <div className="xl:col-span-9 2xl:col-span-9 space-y-4 border-b xl:border-b-0 xl:border-r border-slate-200 pb-6 xl:pb-0 xl:pr-6">
+                <BATrackerHeaderForm
+                  activeBAStep={activeBAStep}
                   setActiveBAStep={setActiveBAStep}
-                  rfIndexCalculated={rfIndexCalculated}
-                  latestKursBI={latestKursBI}
-                  reorderBAItems={reorderBAItems}
-                  moveBAItem={moveBAItem}
-                  getSowMasterRate={getSowMasterRate}
-                />
-              )}
-
-              {activeBAStep === 2 && (
-                <BATrackerSurveyMatrix
-                  allBAItems={allBAItems}
-                  baOperatingItems={baOperatingItems}
-                  setBaOperatingItems={setBaOperatingItems}
-                  baMDOItems={baMDOItems}
-                  setBaMDOItems={setBaMDOItems}
-                  baDeductionItems={baDeductionItems}
-                  setBaDeductionItems={setBaDeductionItems}
                   isInlineEditingBA={isInlineEditingBA}
-                  formData={formData}
-                  isCustomerBGG={isCustomerBGG}
-                  isDistanceItem={isDistanceItem}
-                  getBAEffectiveVolume={getBAEffectiveVolume}
-                  getBAItemSubtotal={calcSubtotal}
-                  sumInitial={sumInitial}
-                  sumAdjusted={sumAdjusted}
-                  deltaAmount={deltaAmount}
-                  handleFileUpload={handleFileUpload}
-                  setActiveBAStep={setActiveBAStep}
-                />
-              )}
-
-              {activeBAStep === 3 && (
-                <BATrackerFinancialRecap
                   formData={formData}
                   setFormData={setFormData}
-                  editItem={editItem}
-                  isInlineEditingBA={isInlineEditingBA}
-                  isFinanceSpecialist={isFinanceSpecialist}
-                  user={user}
-                  invoiceRows={invoiceRows}
-                  setModalType={setModalType}
-                  setDetailViewItem={setDetailViewItem}
-                  createInvoiceFromBA={createInvoiceFromBA}
-                  setActiveBAStep={setActiveBAStep}
-                  baAuditLogs={baAuditLogs}
-                  auditTab={auditTab}
-                  setAuditTab={setAuditTab}
-                  allBAItems={allBAItems}
-                  rfIndexCalculated={rfIndexCalculated}
+                  baOperatingItems={baOperatingItems}
+                  setBaOperatingItems={setBaOperatingItems}
+                  baMDOItems={baMDOItems}
+                  setBaMDOItems={setBaMDOItems}
+                  baDeductionItems={baDeductionItems}
+                  setBaDeductionItems={setBaDeductionItems}
                   latestKursBI={latestKursBI}
+                  user={user}
+                  rfIndexCalculated={rfIndexCalculated}
+                  coalIndexMaster={coalIndexMaster}
+                  fuelPriceUSD={fuelPriceUSD}
+                  laborPriceIDR={laborPriceIDR}
+                  defaultPOSBAOperatingItems={defaultPOSBAOperatingItems}
+                  defaultPOSBAMDOItems={defaultPOSBAMDOItems}
+                  defaultDBKBAItems={defaultDBKBAItems}
+                  defaultPTROBAItems={defaultPTROBAItems}
+                  defaultBGGBAItems={defaultBGGBAItems}
+                  defaultSBSBAOperatingItems={defaultSBSBAOperatingItems}
+                  defaultSBSBAMDOItems={defaultSBSBAMDOItems}
+                  defaultSBSBADeductionItems={defaultSBSBADeductionItems}
+                  raiseFallMaster={raiseFallMaster}
+                  raiseFallMasters={raiseFallMasters}
+                  getBGGActiveCoalTier={getBGGActiveCoalTier}
                 />
-              )}
-            </div>
 
-            {/* Right Column: Sidebar */}
-            <BATrackerSidebar
-              formData={formData}
-              editItem={editItem}
-              invoiceRows={invoiceRows}
-              sumInitial={totalClaimInitial}
-              sumAdjusted={totalClaimAdjusted}
-              auditTab={auditTab}
-              setAuditTab={setAuditTab}
-              baAuditLogs={baAuditLogs}
-            />
+                {activeBAStep === 1 && (
+                  <BATrackerSurveyItems
+                    formData={formData}
+                    setFormData={setFormData}
+                    baOperatingItems={baOperatingItems}
+                    setBaOperatingItems={setBaOperatingItems}
+                    baMDOItems={baMDOItems}
+                    setBaMDOItems={setBaMDOItems}
+                    baDeductionItems={baDeductionItems}
+                    setBaDeductionItems={setBaDeductionItems}
+                    isInlineEditingBA={isInlineEditingBA}
+                    activeSOWCatalog={activeSOWCatalog}
+                    mRate={mRate}
+                    allBAItems={allBAItems}
+                    isDistanceItem={isDistanceItem}
+                    getBAEffectiveVolume={getBAEffectiveVolume}
+                    getBAItemSubtotal={calcSubtotal}
+                    sumInitial={sumInitial}
+                    setActiveBAStep={setActiveBAStep}
+                    rfIndexCalculated={rfIndexCalculated}
+                    latestKursBI={latestKursBI}
+                    raiseFallMasters={raiseFallMasters}
+                    reorderBAItems={reorderBAItems}
+                    moveBAItem={moveBAItem}
+                    getSowMasterRate={getSowMasterRate}
+                    getBGGActiveCoalTier={getBGGActiveCoalTier}
+                  />
+                )}
+
+                {activeBAStep === 2 && (
+                  <BATrackerSurveyMatrix
+                    allBAItems={allBAItems}
+                    baOperatingItems={baOperatingItems}
+                    setBaOperatingItems={setBaOperatingItems}
+                    baMDOItems={baMDOItems}
+                    setBaMDOItems={setBaMDOItems}
+                    baDeductionItems={baDeductionItems}
+                    setBaDeductionItems={setBaDeductionItems}
+                    isInlineEditingBA={isInlineEditingBA}
+                    formData={formData}
+                    isCustomerBGG={isCustomerBGG}
+                    isDistanceItem={isDistanceItem}
+                    getBAEffectiveVolume={getBAEffectiveVolume}
+                    getBAItemSubtotal={calcSubtotal}
+                    sumInitial={sumInitial}
+                    sumAdjusted={sumAdjusted}
+                    deltaAmount={deltaAmount}
+                    handleFileUpload={handleFileUpload}
+                    setActiveBAStep={setActiveBAStep}
+                  />
+                )}
+
+                {activeBAStep === 3 && (
+                  <BATrackerFinancialRecap
+                    formData={formData}
+                    setFormData={setFormData}
+                    editItem={editItem}
+                    isInlineEditingBA={isInlineEditingBA}
+                    isFinanceSpecialist={isFinanceSpecialist}
+                    user={user}
+                    invoiceRows={invoiceRows}
+                    setModalType={setModalType}
+                    setDetailViewItem={setDetailViewItem}
+                    createInvoiceFromBA={createInvoiceFromBA}
+                    setActiveBAStep={setActiveBAStep}
+                    baAuditLogs={baAuditLogs}
+                    auditTab={auditTab}
+                    setAuditTab={setAuditTab}
+                    allBAItems={allBAItems}
+                    rfIndexCalculated={rfIndexCalculated}
+                    latestKursBI={latestKursBI}
+                  />
+                )}
+              </div>
+
+              {/* Right Column: Sidebar */}
+              <BATrackerSidebar
+                formData={formData}
+                editItem={editItem}
+                invoiceRows={invoiceRows}
+                sumInitial={totalClaimInitial}
+                sumAdjusted={totalClaimAdjusted}
+                auditTab={auditTab}
+                setAuditTab={setAuditTab}
+                baAuditLogs={baAuditLogs}
+              />
+            </div>
           </div>
 
-          {/* Form Action Buttons */}
-          <div className="flex items-center justify-between pt-5 border-t border-slate-200">
+          {/* Form Action Buttons (Sticky Bottom) */}
+          <div className="flex items-center justify-between p-4 sm:p-5 pt-3 border-t border-slate-200 bg-white shrink-0 sticky bottom-0 z-20">
             <div>
               {editItem && !isInlineEditingBA && (
                 <button

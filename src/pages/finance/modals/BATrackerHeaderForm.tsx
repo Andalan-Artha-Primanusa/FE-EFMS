@@ -1,6 +1,6 @@
 import React from "react";
-import { Layers, Calculator, UserCheck, DollarSign, CheckCircle2 } from "lucide-react";
-import { MonthPickerInput, formatThousand, formatIDR } from "../helpers";
+import { Layers, Calculator, UserCheck } from "lucide-react";
+import { MonthPickerInput, matchPeriod } from "../helpers";
 
 interface BATrackerHeaderFormProps {
   activeBAStep: number;
@@ -29,6 +29,7 @@ interface BATrackerHeaderFormProps {
   defaultSBSBAMDOItems: any[];
   defaultSBSBADeductionItems: any[];
   raiseFallMaster?: any;
+  raiseFallMasters?: any[];
   getBGGActiveCoalTier?: (period?: string) => string;
 }
 
@@ -56,6 +57,7 @@ export function BATrackerHeaderForm({
   defaultSBSBAMDOItems = [],
   defaultSBSBADeductionItems = [],
   raiseFallMaster,
+  raiseFallMasters = [],
   getBGGActiveCoalTier,
 }: BATrackerHeaderFormProps) {
   const isCustomerDBK = formData.customerCode === "PTRO" || formData.customerCode === "DBK";
@@ -107,18 +109,101 @@ export function BATrackerHeaderForm({
                 onChange={(e) => {
                   const code = e.target.value;
                   const isBGG = code === "BGG" || code === "PT BGG";
+                  const isPOS = code === "POS" || code === "PT POSITION" || code === "PT. POSITION" || code === "PT POS";
                   const isPTRO = code === "PTRO" || code === "PT Petrosea";
                   const isDBK = code === "DBK";
                   const isSBS = code === "SBS";
                   const currentPeriod = formData.workPeriod || "Agustus 2026";
-                  setFormData({ ...formData, customerCode: code });
+                  
+                  if (isPOS) {
+                    const matched = (raiseFallMasters || []).find((r: any) => {
+                      const rCust = (r.customerCode || "").trim().toUpperCase();
+                      return rCust.includes("POS") && matchPeriod(r.period, currentPeriod);
+                    });
+                    const fn = Number(matched?.actualFuelFn ?? 0);
+                    const ln = Number(matched?.actualLaborLn ?? 0);
+                    const xn = Number(matched?.actualMRateXn ?? 0);
+                    const d = (fn > 0 && xn > 0) ? (0.34 * fn * xn) / 10699.970229 : 0;
+                    const l = (ln > 0 && xn > 0) ? (0.25 * ln * xn) / (3594536 * 15388.75) : 0;
+                    const f = 0.41;
+                    const rf = Number(matched?.rfIndexResult || ((d > 0 || l > 0) ? Number((d + l + f).toFixed(3)) : 0));
+                    setFormData({
+                      ...formData,
+                      customerCode: code,
+                      rfIndexCalculated: rf,
+                      posData: {
+                        actualFuelFn: fn,
+                        actualLaborLn: ln,
+                        actualMRateXn: xn,
+                        posRfIndex: rf,
+                        fuelPeriods: {
+                          [currentPeriod]: { actualFuelFn: fn, actualLaborLn: ln, actualMRateXn: xn, posRfIndex: rf }
+                        }
+                      }
+                    });
+                  } else if (isPTRO || isDBK) {
+                    const matched = (raiseFallMasters || []).find((r: any) => {
+                      const rCust = (r.customerCode || "").trim().toUpperCase();
+                      return (rCust.includes("PTRO") || rCust.includes("DBK")) && matchPeriod(r.period, currentPeriod);
+                    });
+                    const currentM = Number(matched?.actualMRateXn || 0);
+                    setFormData({
+                      ...formData,
+                      customerCode: code,
+                      rfIndexCalculated: 1.0,
+                      ptroData: {
+                        actualMRate: currentM,
+                        obRateUSD: 1.490,
+                        cgRateUSD: 0.840,
+                        odObRateUSD: 0.028,
+                        odCgRateIDR: 230,
+                        fuelPeriods: {
+                          [currentPeriod]: {
+                            actualMRate: currentM,
+                            obRateUSD: 1.490,
+                            cgRateUSD: 0.840,
+                            odObRateUSD: 0.028,
+                            odCgRateIDR: 230,
+                          }
+                        }
+                      }
+                    });
+                  } else if (isSBS) {
+                    const curSBS = formData.sbsData || {};
+                    const newFuelPeriods = { ...(curSBS.fuelPeriods || {}) };
+                    if (!newFuelPeriods[currentPeriod]) {
+                      newFuelPeriods[currentPeriod] = {
+                        dendaMA: 191073864,
+                        dendaBBMLoader: 0,
+                        dendaBBMHauler: 520428670,
+                        dendaVolume: 60674886,
+                      };
+                    }
+                    const activeP = newFuelPeriods[currentPeriod];
+                    setFormData({
+                      ...formData,
+                      customerCode: code,
+                      rfIndexCalculated: 1.0,
+                      sbsData: {
+                        ...curSBS,
+                        dendaMA: activeP.dendaMA,
+                        dendaBBMLoader: activeP.dendaBBMLoader,
+                        dendaBBMHauler: activeP.dendaBBMHauler,
+                        dendaVolume: activeP.dendaVolume,
+                        fuelPeriods: newFuelPeriods,
+                      }
+                    });
+                  } else {
+                    setFormData({ ...formData, customerCode: code });
+                  }
+
                   if (isBGG) {
                     const bggRows = (defaultBGGBAItems && defaultBGGBAItems.length > 0) ? defaultBGGBAItems : [
-                      { id: `bgg_ob1_${Date.now()}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 1 (75%)", period: currentPeriod, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 29500, subtotalInitial: 0, subtotalAdjusted: 0 },
-                      { id: `bgg_ob2_${Date.now() + 1}`, category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 2 (25%)", period: currentPeriod, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 28750, subtotalInitial: 0, subtotalAdjusted: 0 },
-                      { id: `bgg_cw_${Date.now() + 2}`, category: "Operating & Mining", area: "", material: "Coal Winning", period: currentPeriod, notes: "", keterangan: "", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: 17500, subtotalInitial: 0, subtotalAdjusted: 0 },
-                      { id: `bgg_od_ob_${Date.now() + 3}`, category: "Over Distance", area: "", material: "Over Distance For OB Removal", period: currentPeriod, notes: "", keterangan: "", unit: "BCM", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 1550, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
-                      { id: `bgg_od_cw_${Date.now() + 4}`, category: "Over Distance", area: "", material: "Over Distance For Coal Winning", period: currentPeriod, notes: "", keterangan: "", unit: "Ton", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 19700, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
+                      { id: `bgg_ob1_${Date.now()}`, category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 1 (75%)", period: currentPeriod, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 27250, subtotalInitial: 0, subtotalAdjusted: 0 },
+                      { id: `bgg_ob2_${Date.now() + 1}`, category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 2 (25%)", period: currentPeriod, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 26500, subtotalInitial: 0, subtotalAdjusted: 0 },
+                      { id: `bgg_cw_${Date.now() + 2}`, category: "Operating & Mining", area: "Pit KKL", material: "Coal Winning", period: currentPeriod, notes: "", keterangan: "", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: 16500, subtotalInitial: 0, subtotalAdjusted: 0 },
+                      { id: `bgg_od_ob_${Date.now() + 3}`, category: "Over Distance", area: "Pit KKL", material: "Over Distance For OB Removal", period: currentPeriod, notes: "", keterangan: "", unit: "BCM", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 600, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+                      { id: `bgg_od_cw_${Date.now() + 4}`, category: "Over Distance", area: "Pit KKL", material: "Over Distance For Coal Winning", period: currentPeriod, notes: "", keterangan: "", unit: "Ton", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 500, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
                     ];
                     setBaOperatingItems((bggRows || []).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
                     setBaMDOItems([]);
@@ -154,7 +239,114 @@ export function BATrackerHeaderForm({
               <MonthPickerInput
                 value={formData.workPeriod || ""}
                 onChange={(val) => {
-                  setFormData({ ...formData, workPeriod: val });
+                  const custClean = (formData.customerCode || "BGG").trim().toUpperCase();
+                  const matched = (raiseFallMasters || []).find((r: any) => {
+                    const rCust = (r.customerCode || "").trim().toUpperCase();
+                    return (rCust === custClean || (!rCust && custClean === "BGG") || (custClean.includes("POS") && rCust.includes("POS")) || ((custClean.includes("PTRO") || custClean.includes("DBK")) && (rCust.includes("PTRO") || rCust.includes("DBK")))) &&
+                      matchPeriod(r.period, val);
+                  });
+
+                  setFormData((prev: any) => {
+                    if (custClean.includes("POS")) {
+                      const curPOS = prev.posData || {};
+                      const newFuelPeriods = { ...(curPOS.fuelPeriods || {}) };
+                      const fn = Number(matched?.actualFuelFn ?? newFuelPeriods[val]?.actualFuelFn ?? curPOS.actualFuelFn ?? 0);
+                      const ln = Number(matched?.actualLaborLn ?? newFuelPeriods[val]?.actualLaborLn ?? curPOS.actualLaborLn ?? 0);
+                      const xn = Number(matched?.actualMRateXn ?? newFuelPeriods[val]?.actualMRateXn ?? curPOS.actualMRateXn ?? 0);
+                      const d = (fn > 0 && xn > 0) ? (0.34 * fn * xn) / 10699.970229 : 0;
+                      const l = (ln > 0 && xn > 0) ? (0.25 * ln * xn) / (3594536 * 15388.75) : 0;
+                      const f = 0.41;
+                      const rf = Number(matched?.rfIndexResult || newFuelPeriods[val]?.posRfIndex || ((d > 0 || l > 0) ? Number((d + l + f).toFixed(3)) : 0));
+                      newFuelPeriods[val] = { actualFuelFn: fn, actualLaborLn: ln, actualMRateXn: xn, posRfIndex: rf };
+                      return {
+                        ...prev,
+                        workPeriod: val,
+                        rfIndexCalculated: rf > 0 ? rf : prev.rfIndexCalculated,
+                        posData: {
+                          ...curPOS,
+                          actualFuelFn: fn,
+                          actualLaborLn: ln,
+                          actualMRateXn: xn,
+                          posRfIndex: rf,
+                          fuelPeriods: newFuelPeriods,
+                        }
+                      };
+                    } else if (custClean.includes("PTRO") || custClean.includes("DBK")) {
+                      const curPTRO = prev.ptroData || {};
+                      const newFuelPeriods = { ...(curPTRO.fuelPeriods || {}) };
+                      const currentM = Number(matched?.actualMRateXn || newFuelPeriods[val]?.actualMRate || curPTRO.actualMRate || 0);
+                      newFuelPeriods[val] = {
+                        actualMRate: currentM,
+                        obRateUSD: 1.490,
+                        cgRateUSD: 0.840,
+                        odObRateUSD: 0.028,
+                        odCgRateIDR: 230,
+                      };
+                      return {
+                        ...prev,
+                        workPeriod: val,
+                        rfIndexCalculated: 1.0,
+                        ptroData: {
+                          ...curPTRO,
+                          actualMRate: currentM,
+                          fuelPeriods: newFuelPeriods,
+                        }
+                      };
+                    } else if (custClean.includes("SBS")) {
+                      const curSBS = prev.sbsData || {};
+                      const newFuelPeriods = { ...(curSBS.fuelPeriods || {}) };
+                      if (!newFuelPeriods[val]) {
+                        newFuelPeriods[val] = {
+                          dendaMA: curSBS.dendaMA || 0,
+                          dendaBBMLoader: curSBS.dendaBBMLoader || 0,
+                          dendaBBMHauler: curSBS.dendaBBMHauler || 0,
+                          dendaVolume: curSBS.dendaVolume || 0,
+                        };
+                      }
+                      const activeP = newFuelPeriods[val];
+                      return {
+                        ...prev,
+                        workPeriod: val,
+                        rfIndexCalculated: 1.0,
+                        sbsData: {
+                          ...curSBS,
+                          dendaMA: activeP.dendaMA,
+                          dendaBBMLoader: activeP.dendaBBMLoader,
+                          dendaBBMHauler: activeP.dendaBBMHauler,
+                          dendaVolume: activeP.dendaVolume,
+                          fuelPeriods: newFuelPeriods,
+                        }
+                      };
+                    } else {
+                      // BGG / default
+                      const curBgg = prev.bggData || {};
+                      const newFuelPeriods = { ...(curBgg.fuelPeriods || {}) };
+                      const p1F = Number(matched?.bggFuelP1 ?? newFuelPeriods[val]?.bggFuelP1 ?? curBgg.bggFuelP1 ?? 0);
+                      const p1T = Number(matched?.bggTransportP1 ?? newFuelPeriods[val]?.bggTransportP1 ?? curBgg.bggTransportP1 ?? 0);
+                      const p2F = Number(matched?.bggFuelP2 ?? newFuelPeriods[val]?.bggFuelP2 ?? curBgg.bggFuelP2 ?? 0);
+                      const p2T = Number(matched?.bggTransportP2 ?? newFuelPeriods[val]?.bggTransportP2 ?? curBgg.bggTransportP2 ?? 0);
+                      const tot1 = p1F + p1T;
+                      const tot2 = p2F + p2T;
+                      const avg = Number(matched?.actualFuelFn || newFuelPeriods[val]?.bggAvgFn || ((tot1 > 0 && tot2 > 0) ? (tot1 + tot2) / 2 : (tot1 || tot2 || 0)));
+                      const rf = Number(matched?.rfIndexResult || newFuelPeriods[val]?.bggRfIndex || (avg > 0 ? 0.60 + 0.40 * (avg / 9000) : 0));
+                      newFuelPeriods[val] = { bggFuelP1: p1F, bggTransportP1: p1T, bggFuelP2: p2F, bggTransportP2: p2T, bggAvgFn: avg, bggRfIndex: rf };
+                      return {
+                        ...prev,
+                        workPeriod: val,
+                        rfIndexCalculated: rf > 0 ? rf : prev.rfIndexCalculated,
+                        bggData: {
+                          ...curBgg,
+                          bggFuelP1: p1F,
+                          bggTransportP1: p1T,
+                          bggFuelP2: p2F,
+                          bggTransportP2: p2T,
+                          bggAvgFn: avg,
+                          bggRfIndex: rf,
+                          fuelPeriods: newFuelPeriods,
+                        }
+                      };
+                    }
+                  });
                   setBaOperatingItems(prev => prev.map(it => ({ ...it, period: val })));
                   setBaMDOItems(prev => prev.map(it => ({ ...it, period: val })));
                   setBaDeductionItems(prev => (prev || []).map(it => ({ ...it, period: val, material: (it.material || "").startsWith("Denda ketidakcapaian Volume") ? `Denda ketidakcapaian Volume ${val}` : it.material })));
@@ -181,48 +373,6 @@ export function BATrackerHeaderForm({
             <div><span className="text-slate-500 block font-bold text-[10px] uppercase">Customer</span> <strong className="text-slate-900 font-bold">{formData.customerCode || ""}</strong></div>
             <div><span className="text-slate-500 block font-bold text-[10px] uppercase">Periode</span> <strong className="text-slate-800">{formData.workPeriod || "-"}</strong></div>
             <div><span className="text-slate-500 block font-bold text-[10px] uppercase">PIC Site</span> <strong className="text-slate-800">{formData.picAAP || "-"}</strong></div>
-          </div>
-        )}
-      </div>
-
-      {/* Commercial Engine Status Badges */}
-      <div className="flex items-center gap-2 flex-wrap text-xs">
-        {(formData.customerCode === "POS" || formData.customerCode === "IBP" || formData.customerCode === "BBA" || !formData.customerCode || isCustomerDBK) && (
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-[#A57C50]/10 border border-[#A57C50]/30 rounded-[3px] text-[#A57C50] font-bold">
-            <DollarSign size={13} className="text-[#A57C50]" />
-            <span>Kurs BI M-Rate: <strong>Rp {formatThousand(latestKursBI || 17923.30)} / USD</strong> (Live Pricing Engine Sync)</span>
-          </div>
-        )}
-        {(formData.customerCode === "BGG" || formData.customerCode === "PT BGG") && (() => {
-          const bggTier = getBGGActiveCoalTier ? getBGGActiveCoalTier(formData.workPeriod) : "Tier 3";
-          const fn = Number(raiseFallMaster?.actualFuelFn ?? fuelPriceUSD ?? 21601.53);
-          const fo = Number(raiseFallMaster?.baseFuelFo ?? 13847.13);
-          const fuelDisplay = fn > 100 ? `${formatIDR(fn)} / ${formatIDR(fo)}` : `$${fn.toFixed(2)} / $${fo.toFixed(2)}`;
-          return (
-            <>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-300 rounded-[3px] text-amber-950 font-bold">
-                <span className="text-xs">📈</span>
-                <span>R&F Eskalasi Index: <strong>{(rfIndexCalculated || 1.560).toFixed(3)}x (+{(((rfIndexCalculated || 1.560) - 1.0) * 100).toFixed(1)}%)</strong></span>
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 border border-slate-300 rounded-[3px] text-slate-800 font-bold">
-                <span className="text-xs">⛽</span>
-                <span>Fuel Price (Fn/Fo): <strong>{fuelDisplay}</strong></span>
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 border border-blue-300 rounded-[3px] text-blue-950 font-bold">
-                <span className="text-xs">⛏️</span>
-                <span>Coal Index HBA: <strong>{bggTier}</strong></span>
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-300 rounded-[3px] text-rose-950 font-bold">
-                <span className="text-xs">✂️</span>
-                <span>Potongan Kontrak: <strong>25% Overdistance</strong></span>
-              </div>
-            </>
-          );
-        })()}
-        {isCustomerSBS && (
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-300 rounded-[3px] text-emerald-950 font-bold">
-            <CheckCircle2 size={13} className="text-emerald-700" />
-            <span>Komersial SBS: <strong>8 OB Disposal + 7 Rental Alat + 4 Pengurang Biaya (IDR Tetap)</strong></span>
           </div>
         )}
       </div>

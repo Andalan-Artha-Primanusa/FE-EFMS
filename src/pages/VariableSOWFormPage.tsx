@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, FileSpreadsheet, Plus, Trash2, RefreshCw, Sparkles, DollarSign, Layers } from "lucide-react";
+import { ArrowLeft, FileSpreadsheet, Plus, Trash2, RefreshCw, Sparkles, DollarSign, Layers, Loader2, AlertCircle } from "lucide-react";
 import { api } from "../lib/api";
 import {
   defaultSOWTemplate,
   defaultBGGSOWTemplate,
   defaultSBSSOWTemplate,
   defaultPTROSOWTemplate,
-  SOW_OPERATIONAL_SITES
+  SOW_OPERATIONAL_SITES,
+  normalizeSOWSiteCode
 } from "./VariableSOWPage";
 import { FormattedNumberInput, formatIDR } from "./finance/helpers";
 
@@ -20,10 +21,10 @@ export function VariableSOWFormPage() {
   const isEditing = !!contractGroup;
 
   const getTemplateForCode = (code: string) => {
-    const c = (code || "").toUpperCase();
-    if (c === "BGG" || c === "PT BGG") return defaultBGGSOWTemplate;
+    const c = normalizeSOWSiteCode(code);
+    if (c === "BGG") return defaultBGGSOWTemplate;
     if (c === "SBS") return defaultSBSSOWTemplate;
-    if (c === "PTRO" || c === "DBK") return defaultPTROSOWTemplate;
+    if (c === "PTRO") return defaultPTROSOWTemplate;
     return defaultSOWTemplate;
   };
 
@@ -42,6 +43,31 @@ export function VariableSOWFormPage() {
       ? contractGroup.items.map((i: any) => ({ ...i }))
       : getTemplateForCode(initialCode).map((i: any) => ({ ...i }))
   );
+
+  const [deletedIds, setDeletedIds] = useState<number[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Fetch latest database items on mount or when company site changes
+  useEffect(() => {
+    async function loadFreshGrid() {
+      try {
+        const cCode = normalizeSOWSiteCode(headerForm.companyCode);
+        const res = await api<any[]>("/api/master-data/variable-sow");
+        if (Array.isArray(res)) {
+          const siteDbItems = res.filter(
+            it => normalizeSOWSiteCode(it.customerCode || it.customer || "") === cCode
+          );
+          if (siteDbItems.length > 0) {
+            setItemsGrid(siteDbItems.map(it => ({ ...it })));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch fresh SOW list:", err);
+      }
+    }
+    loadFreshGrid();
+  }, [headerForm.companyCode]);
 
   const handleFieldChange = (idx: number, field: string, val: any) => {
     const updated = [...itemsGrid];
@@ -68,6 +94,10 @@ export function VariableSOWFormPage() {
   };
 
   const handleRemoveRow = (idx: number) => {
+    const target = itemsGrid[idx];
+    if (target?.id) {
+      setDeletedIds(prev => [...prev, target.id]);
+    }
     setItemsGrid(itemsGrid.filter((_, i) => i !== idx));
   };
 
@@ -78,12 +108,23 @@ export function VariableSOWFormPage() {
 
   const handleSaveGrid = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSaving(true);
+    setSaveError(null);
     try {
-      for (const item of itemsGrid) {
-        if (!item.itemName) continue;
+      const validItems = itemsGrid.filter(item => item.itemName && item.itemName.trim() !== "");
+      if (validItems.length === 0) {
+        throw new Error("Mohon masukkan minimal 1 item material/layanan SOW dengan nama yang valid.");
+      }
+
+      // Delete removed rows from database
+      for (const delId of deletedIds) {
+        await api(`/api/master-data/variable-sow/${delId}`, { method: "DELETE" }).catch(() => {});
+      }
+
+      for (const item of validItems) {
         const payload = {
           category: item.category || "General",
-          itemName: item.itemName,
+          itemName: item.itemName.trim(),
           rateUSD: Number(item.rateUSD || 0),
           rateIDR: Number(item.rateIDR || item.tier3Rate || 0),
           tier1Rate: Number(item.tier1Rate || 0),
@@ -99,14 +140,17 @@ export function VariableSOWFormPage() {
           status: "Active"
         };
         if (item.id) {
-          await api(`/api/master-data/variable-sow/${item.id}`, { method: "PUT", body: JSON.stringify(payload) }).catch(() => {});
+          await api(`/api/master-data/variable-sow/${item.id}`, { method: "PUT", body: JSON.stringify(payload) });
         } else {
-          await api("/api/master-data/variable-sow", { method: "POST", body: JSON.stringify(payload) }).catch(() => {});
+          await api("/api/master-data/variable-sow", { method: "POST", body: JSON.stringify(payload) });
         }
       }
       navigate("/variable-sow", { state: { notice: `Tariff Grid Variable SOW untuk ${headerForm.companyName} (${headerForm.contractNo || "Aktif"}) berhasil disimpan.` } });
     } catch (err: any) {
-      console.error(err?.message || "Gagal menyimpan Grid Variable SOW");
+      console.error("Gagal menyimpan Grid Variable SOW:", err);
+      setSaveError(err?.message || "Gagal menyimpan Tariff Grid SOW ke server. Pastikan koneksi backend aktif.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -210,6 +254,12 @@ export function VariableSOWFormPage() {
 
         {/* FORM TABLE */}
         <form onSubmit={handleSaveGrid} className="space-y-4">
+          {saveError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-[3px] text-rose-800 text-xs font-bold flex items-center gap-2">
+              <AlertCircle size={16} className="text-rose-600 shrink-0" />
+              <span>{saveError}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-700">
               Rincian Item Pekerjaan & Parameter Tarif ({itemsGrid.length} Baris)
@@ -583,16 +633,19 @@ export function VariableSOWFormPage() {
             <div className="flex gap-2.5">
               <button
                 type="button"
-                className="px-5 py-2 rounded-[3px] border border-slate-300 bg-white text-slate-700 font-bold text-xs hover:bg-slate-50 transition cursor-pointer"
+                className="px-5 py-2 rounded-[3px] border border-slate-300 bg-white text-slate-700 font-bold text-xs hover:bg-slate-50 transition cursor-pointer disabled:opacity-50"
                 onClick={() => navigate("/variable-sow")}
+                disabled={isSaving}
               >
                 Batal
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-black text-xs shadow-md transition active:scale-95 cursor-pointer"
+                disabled={isSaving}
+                className="px-6 py-2 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-black text-xs shadow-md transition active:scale-95 cursor-pointer disabled:opacity-50 flex items-center gap-2"
               >
-                Simpan Tariff Grid SOW
+                {isSaving && <Loader2 size={14} className="animate-spin" />}
+                <span>{isSaving ? "Menyimpan..." : "Simpan Tariff Grid SOW"}</span>
               </button>
             </div>
           </div>

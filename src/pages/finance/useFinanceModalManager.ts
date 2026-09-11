@@ -1,5 +1,5 @@
 import { uploadDocumentFile } from "../../lib/api";
-import { generateInvoiceNumber, formatDateInput } from "./helpers";
+import { generateInvoiceNumber, formatDateInput, matchPeriod } from "./helpers";
 
 interface UseFinanceModalManagerProps {
   user: any;
@@ -36,6 +36,7 @@ interface UseFinanceModalManagerProps {
   openBAModal: (item: any, isEditMode?: boolean) => void;
   getCurrentMonthPeriod: () => string;
   getPreviousMonthPeriod?: () => string;
+  raiseFallMasters?: any[];
 }
 
 export function useFinanceModalManager({
@@ -72,7 +73,8 @@ export function useFinanceModalManager({
   setShowPendingVolumeDrawer,
   openBAModal,
   getCurrentMonthPeriod,
-  getPreviousMonthPeriod
+  getPreviousMonthPeriod,
+  raiseFallMasters = []
 }: UseFinanceModalManagerProps) {
   const handleCompanySelect = (code: string) => {
     const mapMatch = customerContractMap[code];
@@ -134,7 +136,8 @@ export function useFinanceModalManager({
   };
 
   const createInvoiceFromBA = (ba: any, category: "Operation & Mining" | "MDO" = "Operation & Mining") => {
-    if (ba.statusBA !== "Ready to Invoice" && !ba.verifiedBy) {
+    const isBAReady = ba.statusBA === "Ready to Invoice" || ba.statusBA === "Approved" || ba.statusBA === "Verified" || ba.statusBA === "Disetujui" || Boolean(ba.verifiedBy);
+    if (!isBAReady) {
       onNotice("Perhatian: Berita Acara belum diverifikasi oleh Finance Specialist. Mohon verifikasi BA terlebih dahulu.");
       return;
     }
@@ -173,13 +176,129 @@ export function useFinanceModalManager({
       const cust = initialData.customerCode || userSiteCode || "";
       const defaultPeriod = initialData.workPeriod || (getPreviousMonthPeriod ? getPreviousMonthPeriod() : curMonth);
       setIsInlineEditingBA(true);
+
+      let bggDataInit = initialData.bggData;
+      let posDataInit = initialData.posData;
+      let matchedRfIndex = initialData.rfIndexCalculated;
+      if (!bggDataInit && (cust === "BGG" || cust === "PT BGG")) {
+        const matched = (raiseFallMasters || []).find((r: any) => {
+          const rCust = (r.customerCode || "").trim().toUpperCase();
+          return (rCust === "BGG" || !rCust) && matchPeriod(r.period, defaultPeriod);
+        });
+        if (matched) {
+          const p1F = Number(matched.bggFuelP1 ?? 0);
+          const p1T = Number(matched.bggTransportP1 ?? 0);
+          const p2F = Number(matched.bggFuelP2 ?? 0);
+          const p2T = Number(matched.bggTransportP2 ?? 0);
+          const tot1 = p1F + p1T;
+          const tot2 = p2F + p2T;
+          const avg = Number(matched.actualFuelFn || ((tot1 > 0 && tot2 > 0) ? (tot1 + tot2) / 2 : (tot1 || tot2 || 0)));
+          const rf = Number(matched.rfIndexResult || (avg > 0 ? 0.60 + 0.40 * (avg / 9000) : 0));
+          matchedRfIndex = rf;
+          bggDataInit = {
+            bggFuelP1: p1F,
+            bggTransportP1: p1T,
+            bggFuelP2: p2F,
+            bggTransportP2: p2T,
+            bggAvgFn: avg,
+            bggRfIndex: rf,
+            fuelPeriods: {
+              [defaultPeriod]: {
+                bggFuelP1: p1F,
+                bggTransportP1: p1T,
+                bggFuelP2: p2F,
+                bggTransportP2: p2T,
+                bggAvgFn: avg,
+                bggRfIndex: rf,
+              }
+            }
+          };
+        }
+      } else if (!posDataInit && (cust === "POS" || cust === "PT POSITION" || cust === "PT. POSITION" || cust === "PT POS")) {
+        const matched = (raiseFallMasters || []).find((r: any) => {
+          const rCust = (r.customerCode || "").trim().toUpperCase();
+          return rCust.includes("POS") && matchPeriod(r.period, defaultPeriod);
+        });
+        const fn = Number(matched?.actualFuelFn ?? 0);
+        const ln = Number(matched?.actualLaborLn ?? 0);
+        const xn = Number(matched?.actualMRateXn ?? 0);
+        const d = (fn > 0 && xn > 0) ? (0.34 * fn * xn) / 10699.970229 : 0;
+        const l = (ln > 0 && xn > 0) ? (0.25 * ln * xn) / (3594536 * 15388.75) : 0;
+        const f = 0.41;
+        const rf = Number(matched?.rfIndexResult || ((d > 0 || l > 0) ? Number((d + l + f).toFixed(3)) : 0));
+        matchedRfIndex = rf;
+        posDataInit = {
+          actualFuelFn: fn,
+          actualLaborLn: ln,
+          actualMRateXn: xn,
+          posRfIndex: rf,
+          fuelPeriods: {
+            [defaultPeriod]: {
+              actualFuelFn: fn,
+              actualLaborLn: ln,
+              actualMRateXn: xn,
+              posRfIndex: rf,
+            }
+          }
+        };
+      }
+
+      let ptroDataInit = initialData.ptroData;
+      if (!ptroDataInit && (cust === "PTRO" || cust === "PT Petrosea" || cust === "DBK")) {
+        const matched = (raiseFallMasters || []).find((r: any) => {
+          const rCust = (r.customerCode || "").trim().toUpperCase();
+          return (rCust.includes("PTRO") || rCust.includes("DBK")) && matchPeriod(r.period, defaultPeriod);
+        });
+        const currentM = Number(matched?.actualMRateXn || 0);
+        ptroDataInit = {
+          actualMRate: currentM,
+          obRateUSD: 1.490,
+          cgRateUSD: 0.840,
+          odObRateUSD: 0.028,
+          odCgRateIDR: 230,
+          fuelPeriods: {
+            [defaultPeriod]: {
+              actualMRate: currentM,
+              obRateUSD: 1.490,
+              cgRateUSD: 0.840,
+              odObRateUSD: 0.028,
+              odCgRateIDR: 230,
+            }
+          }
+        };
+      }
+
+      let sbsDataInit = initialData.sbsData;
+      if (!sbsDataInit && cust === "SBS") {
+        sbsDataInit = {
+          dendaMA: 191073864,
+          dendaBBMLoader: 0,
+          dendaBBMHauler: 520428670,
+          dendaVolume: 60674886,
+          fuelPeriods: {
+            [defaultPeriod]: {
+              dendaMA: 191073864,
+              dendaBBMLoader: 0,
+              dendaBBMHauler: 520428670,
+              dendaVolume: 60674886,
+            }
+          }
+        };
+      }
+
       setFormData({
         statusBA: "Submit", baSubmittedDate: todayStr, workPeriod: defaultPeriod, customerCode: cust,
         picAAP: initialData?.picAAP || user?.name || "Operations / Site Engineer", step1Locked: false,
         draftBARefNo: "", signedBANumber: "", invoiceNoLinked: "", invoiceIssuedDate: "", verifiedBy: "", verifiedAt: "",
         approvedBy: "", approvedAt: "", bggTotalTerbongkar: initialData.bggTotalTerbongkar ?? "",
         bggCoalVolumeBCM: initialData.bggCoalVolumeBCM ?? "", bggCoalVolumeTon: initialData.bggCoalVolumeTon ?? "",
-        bggOBDistanceHm: initialData.bggOBDistanceHm ?? 0, bggNettOB: 0, ...initialData,
+        bggOBDistanceHm: initialData.bggOBDistanceHm ?? 0, bggNettOB: 0,
+        bggData: bggDataInit,
+        posData: posDataInit,
+        ptroData: ptroDataInit,
+        sbsData: sbsDataInit,
+        rfIndexCalculated: matchedRfIndex,
+        ...initialData,
       });
       setBaOperatingItems(
         (cust === "BGG" || cust === "PT BGG" ? createBlankBGGBAItems(defaultPeriod)

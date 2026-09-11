@@ -275,6 +275,12 @@ export interface BGGJointSurveyData {
   pendingOBData: BGGPendingOBEntry[];
   inventoryCoalAwal: number;
   inventorySeam: string;
+  bggFuelP1?: number;
+  bggTransportP1?: number;
+  bggFuelP2?: number;
+  bggTransportP2?: number;
+  bggAvgFn?: number;
+  bggRfIndex?: number;
   signOff: BGGSignOff;
 }
 

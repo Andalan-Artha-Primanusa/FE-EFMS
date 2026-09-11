@@ -21,6 +21,8 @@ export function useFinanceUIState() {
   const [showExportARDropdown, setShowExportARDropdown] = useState(false);
   const [showInputARDropdown, setShowInputARDropdown] = useState(false);
   const [baRowActionDropdownId, setBaRowActionDropdownId] = useState<number | null>(null);
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
+  const [actionLoadingKey, setActionLoadingKey] = useState<string | null>(null);
 
   const [detailViewItem, setRawDetailViewItem] = useState<{ type: "ba" | "invoice" | "payment" | "customer"; data: any } | null>(null);
 
@@ -134,6 +136,10 @@ export function useFinanceUIState() {
     setShowAddPartialPayment,
     partialPaymentForm,
     setPartialPaymentForm,
+    deletingKey,
+    setDeletingKey,
+    actionLoadingKey,
+    setActionLoadingKey,
     getCurrentMonthPeriod,
     getPreviousMonthPeriod
   };

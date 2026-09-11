@@ -1,7 +1,8 @@
+import { useState, useEffect, useCallback } from "react";
 import { Clock } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { SBSPenaltyItem, User as UserType } from "../../lib/api";
-import { createFinanceCalculations, getSBSTarifByDistance, SBS_DISTANCE_TIERS } from "./calculations";
+import { createFinanceCalculations, getSBSTarifByDistance, SBS_DISTANCE_TIERS, fetchServerInvoicePreview } from "./calculations";
 import { createFinanceExporters } from "./exporters";
 import { buildInvoiceItemsFromBA } from "./invoiceItemGenerator";
 import { useFinanceMasterData } from "./useFinanceMasterData";
@@ -43,7 +44,8 @@ export function useFinanceController({
     showExportARDropdown, setShowExportARDropdown, showInputARDropdown, setShowInputARDropdown,
     baRowActionDropdownId, setBaRowActionDropdownId, detailViewItem, setDetailViewItem,
     showPendingVolumeDrawer, setShowPendingVolumeDrawer, showAddPartialPayment, setShowAddPartialPayment,
-    partialPaymentForm, setPartialPaymentForm, getCurrentMonthPeriod, getPreviousMonthPeriod
+    partialPaymentForm, setPartialPaymentForm, deletingKey, setDeletingKey, actionLoadingKey, setActionLoadingKey,
+    getCurrentMonthPeriod, getPreviousMonthPeriod
   } = uiState;
 
   // Master Data Hook
@@ -57,14 +59,16 @@ export function useFinanceController({
     customerContractMap, applyRateLookup, blankPOSItems, demoPOSItems, blankBGGItems, demoBGGItems,
     blankPTROItems, blankDBKItems, demoPTROItems, demoDBKItems, blankSBSItems, demoSBSItems,
     defaultPOSBAOperatingItems, defaultPOSBAMDOItems, defaultBGGBAItems, defaultPTROBAItems, defaultDBKBAItems,
-    defaultSBSBAOperatingItems, defaultSBSBAMDOItems, defaultSBSBADeductionItems, reloadMasterData
+    defaultSBSBAOperatingItems, defaultSBSBAMDOItems, defaultSBSBADeductionItems, syncBARatesWithMasterData, reloadMasterData,
+    raiseFallMasters, raiseFallMaster
   } = masterData;
 
   // BA State Hook
   const baState = useFinanceBAState({
     setEditItem, setFormData, setDetailViewItem, setModalType, loadData, onNotice,
     defaultBGGBAItems, defaultDBKBAItems, defaultPTROBAItems, defaultSBSBAOperatingItems, defaultPOSBAOperatingItems,
-    detailViewItem, getCurrentMonthPeriod, getSowMasterRate
+    detailViewItem, getCurrentMonthPeriod, getSowMasterRate, syncBARatesWithMasterData, actionLoadingKey, setActionLoadingKey,
+    setBaRows
   });
   const {
     baOperatingItems, setBaOperatingItems, baMDOItems, setBaMDOItems, baDeductionItems, setBaDeductionItems,
@@ -77,7 +81,9 @@ export function useFinanceController({
   const invoiceState = useFinanceInvoiceState({
     formData, setFormData, blankPOSItems, demoPOSItems, blankBGGItems, demoBGGItems,
     blankPTROItems, demoPTROItems, blankSBSItems, demoSBSItems, masterVariableOptions,
-    latestKursBI, mRate, onNotice, loadData, detailViewItem, setDetailViewItem, getSowMasterRate
+    latestKursBI, mRate, onNotice, loadData, detailViewItem, setDetailViewItem, getSowMasterRate,
+    actionLoadingKey, setActionLoadingKey,
+    setInvoiceRows, setBaRows
   });
   const {
     posInvoiceCategory, setPosInvoiceCategory, invLineItems, setInvLineItems,
@@ -97,20 +103,69 @@ export function useFinanceController({
     calculateItemRateAndAmount, getCustomerCalculations,
   } = createFinanceCalculations({ formData, invLineItems, rfIndexCalculated, getSowMasterRate, mRate });
 
-  const calcs = getCustomerCalculations(invLineItems, formData.customerCode);
+  // Authoritative Backend SSOT Real-time Calculation
+  const [serverInvoiceCalc, setServerInvoiceCalc] = useState<any>(null);
+
+  useEffect(() => {
+    let active = true;
+    const timer = setTimeout(async () => {
+      try {
+        const payload = {
+          customerCode: formData.customerCode,
+          workPeriod: formData.workPeriod,
+          lineItems: invLineItems,
+          items: invLineItems,
+        };
+        const res = await fetchServerInvoicePreview(payload);
+        if (active && res) {
+          setServerInvoiceCalc(res);
+        }
+      } catch (err) {
+        console.error("Gagal sinkronisasi perhitungan invoice BE:", err);
+      }
+    }, 150);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [invLineItems, formData.customerCode, formData.workPeriod]);
+
+  const getAuthoritativeCustomerCalculations = useCallback((itemsList: any[], custCode?: string) => {
+    const local = getCustomerCalculations(itemsList, custCode);
+    if (!serverInvoiceCalc) return local;
+    return {
+      subtotalA: serverInvoiceCalc.subtotalA ?? local.subtotalA,
+      subtotalB: serverInvoiceCalc.subtotalB ?? local.subtotalB,
+      subtotalC: serverInvoiceCalc.subtotalC ?? local.subtotalC,
+      subtotalD: serverInvoiceCalc.subtotalD ?? local.subtotalD,
+      subtotalE: serverInvoiceCalc.subtotalE ?? local.subtotalE,
+      subtotalF: serverInvoiceCalc.subtotalF ?? local.subtotalF,
+      subtotalP: serverInvoiceCalc.subtotalP ?? local.subtotalP,
+      totalGross: serverInvoiceCalc.revenueGross ?? local.totalGross,
+      dpp11_12: serverInvoiceCalc.dpp11_12 ?? local.dpp11_12,
+      vat12: serverInvoiceCalc.ppn12 ?? local.vat12,
+      pph23: serverInvoiceCalc.pph23 ?? local.pph23,
+      totalInvoice: serverInvoiceCalc.totalInvoice ?? local.totalInvoice,
+      totalDibayar: serverInvoiceCalc.totalDibayar ?? local.totalDibayar,
+    };
+  }, [getCustomerCalculations, serverInvoiceCalc]);
+
+  const calcs = getAuthoritativeCustomerCalculations(invLineItems, formData.customerCode);
   const { subtotalA, subtotalB, subtotalC, subtotalD, subtotalE, subtotalF, subtotalP, totalGross: totalGrossCalc, dpp11_12: dpp11_12Calc, vat12: vat12Calc, pph23: pph23Calc, totalInvoice: netTotalInvoiceCalc, totalDibayar: totalDibayarCalc } = calcs;
 
   // Generator Adapter
   const buildInvItems = (ba: any, custCode?: string, category: "Operation & Mining" | "MDO" = "Operation & Mining") => {
     return buildInvoiceItemsFromBA(ba, custCode, category, {
-      baRows, baMDOItems, latestKursBI, rfIndexCalculated, demoBGGItems, demoPTROItems, demoDBKItems, blankSBSItems, demoSBSItems
+      baRows, baMDOItems, latestKursBI, rfIndexCalculated, demoBGGItems, demoPTROItems, demoDBKItems, blankSBSItems, demoSBSItems,
+      blankBGGItems, blankPTROItems, blankPOSItems
     });
   };
 
   // Exporters Snapshot
   const exportCtx = {
     baRows, buildInvoiceItemsFromBA: buildInvItems, calculateItemRateAndAmount, customerContractMap,
-    formData, getCustomerCalculations, getItemEffectiveOverhaulMtr, getItemEffectiveVolume, invLineItems,
+    formData, getCustomerCalculations: getAuthoritativeCustomerCalculations, getItemEffectiveOverhaulMtr, getItemEffectiveVolume, invLineItems,
     invoiceRows, invPeriodFilter, onNotice, periodFilter, query, rfIndexCalculated,
     subtotalA, subtotalB, subtotalC, subtotalD, subtotalE, subtotalF
   };
@@ -130,7 +185,8 @@ export function useFinanceController({
     setIsInlineEditingBA, createBlankBGGBAItems, createBlankSBSBAItems, defaultDBKBAItems, defaultPTROBAItems,
     defaultPOSBAOperatingItems, defaultSBSBAMDOItems, defaultPOSBAMDOItems, defaultSBSBADeductionItems,
     setBaOperatingItems, setBaMDOItems, setBaDeductionItems, setActiveBAStep,
-    setShowPendingVolumeDrawer, openBAModal, getCurrentMonthPeriod, getPreviousMonthPeriod
+    setShowPendingVolumeDrawer, openBAModal, getCurrentMonthPeriod, getPreviousMonthPeriod,
+    raiseFallMasters
   });
 
   const {
@@ -138,11 +194,13 @@ export function useFinanceController({
     handleVerifyPartialPayment, handleSaveSBSPenalty, handleDeleteSBSPenalty
   } = useFinanceSaveHandlers({
     isSaving, setIsSaving, modalType, setModalType, formData, editItem, setEditItem,
-    baOperatingItems, baMDOItems, baDeductionItems, invLineItems, baRows, loadData, onNotice,
+    baOperatingItems, baMDOItems, baDeductionItems, invLineItems, baRows, setBaRows, loadData, reloadMasterData, onNotice,
     setShowPendingVolumeDrawer, totalGrossCalc, dpp11_12Calc, vat12Calc, pph23Calc,
     netTotalInvoiceCalc, calcs, rfIndexCalculated, detailViewItem, setDetailViewItem,
     partialPaymentForm, setPartialPaymentForm, setShowAddPartialPayment, setInvoiceRows,
-    setPaymentRows, setSbsPenaltyModalOpen, setSbsPenaltyEditItem
+    setPaymentRows, setCustomerRows, setPendingVolumeLedgers, setSbsPenalties,
+    setSbsPenaltyModalOpen, setSbsPenaltyEditItem,
+    deletingKey, setDeletingKey, actionLoadingKey, setActionLoadingKey
   });
 
   const openSBSPenaltyModal = (item?: SBSPenaltyItem) => { setSbsPenaltyEditItem(item || null); setSbsPenaltyModalOpen(true); };
@@ -213,7 +271,7 @@ export function useFinanceController({
     loadDemoDBKData, loadDemoSBSData, removeInvLineItem, addInvLineItem, updateInvItemField,
     reorderInvLineItems, moveInvRow, updateInvItemVolume, updateInvItemOverhaul, updateInvItemRateIDR,
     updateInvItemRateUSD, updateInvItemKurs, updateInvItemAmount, getItemEffectiveVolume,
-    getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations,
+    getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations: getAuthoritativeCustomerCalculations,
     getSBSTarifByDistance, SBS_DISTANCE_TIERS, calcs, subtotalA, subtotalB, subtotalC, subtotalD,
     subtotalE, subtotalF, subtotalP, totalGrossCalc, dpp11_12Calc, vat12Calc, pph23Calc,
     netTotalInvoiceCalc, totalDibayarCalc, exportPaymentDetailPDF, exportBADocumentPDF,
@@ -225,6 +283,7 @@ export function useFinanceController({
     handleGenerateInvoiceFromBA, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1,
     handleApproveInvoiceTier2, handleDelete, volPreview, ratePreview, grossPreview, solarPreview,
     subtotalDPPPreview, ppn11Preview, pph23Preview, totalNetInvoicePreview, totalAgingMatrix, viewTitle,
-    query, onNotice, user, accountingJournals
+    query, onNotice, user, accountingJournals, deletingKey, setDeletingKey, actionLoadingKey, setActionLoadingKey,
+    raiseFallMasters, raiseFallMaster
   };
 }

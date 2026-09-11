@@ -18,6 +18,10 @@ interface UseFinanceBAStateProps {
   detailViewItem: any;
   getCurrentMonthPeriod: () => string;
   getSowMasterRate?: (cust: string, name: string, fb: number, isUSD?: boolean, tier?: string) => number;
+  syncBARatesWithMasterData?: (items: any[], cust: string, period?: string) => any[];
+  actionLoadingKey?: string | null;
+  setActionLoadingKey?: (key: string | null) => void;
+  setBaRows?: (rows: any[] | ((prev: any[]) => any[])) => void;
 }
 
 export function useFinanceBAState({
@@ -34,7 +38,11 @@ export function useFinanceBAState({
   defaultPOSBAOperatingItems,
   detailViewItem,
   getCurrentMonthPeriod,
-  getSowMasterRate
+  getSowMasterRate,
+  syncBARatesWithMasterData,
+  actionLoadingKey,
+  setActionLoadingKey,
+  setBaRows
 }: UseFinanceBAStateProps) {
   const [baOperatingItems, setBaOperatingItems] = useState<any[]>(() =>
     (FALLBACK_POS_OPERATING_ITEMS || []).map((it) => ({
@@ -60,17 +68,18 @@ export function useFinanceBAState({
   const [showAddRowDropdown, setShowAddRowDropdown] = useState<boolean>(false);
 
   const createBlankBGGBAItems = useCallback((period = getCurrentMonthPeriod()) => {
-    const ob1Rate = getSowMasterRate ? getSowMasterRate("BGG", "OVER BURDEN REMOVAL 1 (75%)", 29500) : 29500;
-    const ob2Rate = getSowMasterRate ? getSowMasterRate("BGG", "OVER BURDEN REMOVAL 2 (25%)", 28750) : 28750;
-    const cwRate = getSowMasterRate ? getSowMasterRate("BGG", "Coal Winning Pit Kungkilan", 17500) : 17500;
-    const odObRate = getSowMasterRate ? getSowMasterRate("BGG", "Over Distance For OB Removal", 1550) : 1550;
-    const odCwRate = getSowMasterRate ? getSowMasterRate("BGG", "Over Distance For Coal Winning", 19700) : 19700;
+    const ob1Rate = getSowMasterRate ? getSowMasterRate("BGG", "OVER BURDEN REMOVAL 1 (75%)", 27250) : 27250;
+    const ob2Rate = getSowMasterRate ? getSowMasterRate("BGG", "OVER BURDEN REMOVAL 2 (25%)", 26500) : 26500;
+    const cwRate = getSowMasterRate ? getSowMasterRate("BGG", "Coal Winning", 16500) : 16500;
+    const odObRate = getSowMasterRate ? getSowMasterRate("BGG", "Over Distance For OB Removal", 600) : 600;
+    const odCwRate = getSowMasterRate ? getSowMasterRate("BGG", "Over Distance For Coal Winning", 500) : 500;
     return [
       { id: `bgg_ob1_${Date.now()}`, section: "A", category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 1 (75%)", period, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: ob1Rate, subtotalInitial: 0, subtotalAdjusted: 0 },
       { id: `bgg_ob2_${Date.now() + 1}`, section: "A", category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 2 (25%)", period, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: ob2Rate, subtotalInitial: 0, subtotalAdjusted: 0 },
       { id: `bgg_cw_${Date.now() + 2}`, section: "B", category: "Operating & Mining", area: "Pit KKL", material: "Coal Winning", period, notes: "", keterangan: "", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: cwRate, subtotalInitial: 0, subtotalAdjusted: 0 },
       { id: `bgg_od_ob_${Date.now() + 3}`, section: "C", category: "Over Distance", area: "Pit KKL", material: "Over Distance For OB Removal", period, notes: "", keterangan: "", unit: "BCM", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: odObRate, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
-      { id: `bgg_od_cw_${Date.now() + 4}`, section: "C", category: "Over Distance", area: "Pit KKL", material: "Over Distance For Coal Winning", period, notes: "", keterangan: "", unit: "Ton", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: odCwRate, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
+      { id: `bgg_od_cw_${Date.now() + 4}`, section: "C", category: "Over Distance", area: "Pit KKL", material: "Over Distance For Coal Winning", period, notes: "", keterangan: "", unit: "Ton", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: odCwRate, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+      { id: `bgg_dp_fuel_${Date.now() + 5}`, section: "F", category: "DP Fuel", area: "Pit KKL", material: "DP Fuel & Transport (Pengurang Solar BGG)", period, notes: "Uang Muka / Budget Solar Pengurang Tagihan", keterangan: "", unit: "Lot", initialVolume: 1, adjustedVolume: 1, rate: 0, isDeduction: true, subtotalInitial: 0, subtotalAdjusted: 0 }
     ];
   }, [getCurrentMonthPeriod, getSowMasterRate]);
 
@@ -88,7 +97,10 @@ export function useFinanceBAState({
   const openBAModal = (item: any, isEditMode: boolean = false) => {
     setEditItem(item);
     setIsInlineEditingBA(isEditMode);
-    const bggData = item.bggData;
+    const bggData = item.bggData || {};
+    const posData = item.posData || {};
+    const ptroData = item.ptroData || {};
+    const sbsData = item.sbsData || {};
     const bggTotalTerbongkar = bggData?.agreedSurveyVolume || bggData?.volumeBGG || 0;
     const bggCoalVolumeBCM = bggData?.coalVolumeBCM || 0;
     const bggCoalVolumeTon = bggData?.coalVolumeTon || 0;
@@ -97,6 +109,10 @@ export function useFinanceBAState({
 
     setFormData({
       ...item,
+      bggData,
+      posData,
+      ptroData,
+      sbsData,
       bggTotalTerbongkar,
       bggCoalVolumeBCM,
       bggCoalVolumeTon,
@@ -119,9 +135,12 @@ export function useFinanceBAState({
       defaultSBSBAOperatingItems,
       defaultPOSBAOperatingItems
     });
-    const ops = initialItems.filter((i: any) => !i.isDeduction && i.category !== "Pengurang Biaya" && i.category !== "MDO" && i.category !== "Penunjang" && i.unit !== "Hours");
-    const mdo = initialItems.filter((i: any) => !i.isDeduction && (i.category === "MDO" || i.category === "Penunjang" || i.unit === "Hours"));
-    const deds = initialItems.filter((i: any) => i.isDeduction || i.category === "Pengurang Biaya");
+    const syncedInitialItems = syncBARatesWithMasterData
+      ? syncBARatesWithMasterData(initialItems, item.customerCode || "BGG", item.workPeriod)
+      : initialItems;
+    const ops = syncedInitialItems.filter((i: any) => !i.isDeduction && i.category !== "Pengurang Biaya" && i.category !== "MDO" && i.category !== "Penunjang" && i.unit !== "Hours");
+    const mdo = syncedInitialItems.filter((i: any) => !i.isDeduction && (i.category === "MDO" || i.category === "Penunjang" || i.unit === "Hours"));
+    const deds = syncedInitialItems.filter((i: any) => i.isDeduction || i.category === "Pengurang Biaya");
     setBaOperatingItems(ops);
     setBaMDOItems(mdo);
     setBaDeductionItems(deds);
@@ -131,53 +150,88 @@ export function useFinanceBAState({
   };
 
   const handleVerifyBA = async (id: number) => {
+    const key = `verify-ba-${id}`;
+    if (setActionLoadingKey) setActionLoadingKey(key);
+    onNotice("⏳ Sedang memverifikasi Berita Acara...");
     try {
-      const updated = await verifyBATracker(id, "verify", "Verifikasi Berita Acara oleh Finance Specialist");
-      onNotice("Berita Acara berhasil diverifikasi oleh Finance Specialist.");
-      await loadData();
-      if (detailViewItem && detailViewItem.type === "ba" && detailViewItem.data.id === id) {
-        setDetailViewItem({ type: "ba", data: updated });
+      const updated: any = await verifyBATracker(id, "verify", "Verifikasi Berita Acara oleh Finance Specialist");
+      onNotice("✅ Berita Acara berhasil diverifikasi oleh Finance Specialist.");
+      if (setBaRows) {
+        setBaRows((prev) => prev.map((b) => b.id === id ? { ...b, ...(updated || {}), statusBA: updated?.statusBA || "Verified (Review HO)" } : b));
       }
+      if (detailViewItem && detailViewItem.type === "ba" && (detailViewItem.data?.id === id || detailViewItem.id === id)) {
+        setDetailViewItem({ type: "ba", data: { ...(detailViewItem.data || detailViewItem), ...(updated || {}), statusBA: updated?.statusBA || "Verified (Review HO)" } });
+      }
+      await loadData();
     } catch (err: any) {
       onNotice(err?.message || "Gagal memverifikasi BA");
+    } finally {
+      if (setActionLoadingKey) setActionLoadingKey(null);
     }
   };
 
   const handleApproveBA = async (id: number) => {
+    const key = `approve-ba-${id}`;
+    if (setActionLoadingKey) setActionLoadingKey(key);
+    onNotice("⏳ Sedang menyetujui Berita Acara...");
     try {
-      const updated = await approveBATracker(id, "approve", "Disetujui oleh Manager");
-      onNotice("Berita Acara disetujui (Approved by Manager).");
-      await loadData();
-      if (detailViewItem && detailViewItem.type === "ba" && detailViewItem.data.id === id) {
-        setDetailViewItem({ type: "ba", data: updated });
+      const updated: any = await approveBATracker(id, "approve", "Disetujui oleh Manager");
+      onNotice("✅ Berita Acara disetujui (Approved by Manager).");
+      if (setBaRows) {
+        setBaRows((prev) => prev.map((b) => b.id === id ? { ...b, ...(updated || {}), statusBA: updated?.statusBA || "Approved (Siap Invoice)" } : b));
       }
+      if (detailViewItem && detailViewItem.type === "ba" && (detailViewItem.data?.id === id || detailViewItem.id === id)) {
+        setDetailViewItem({ type: "ba", data: { ...(detailViewItem.data || detailViewItem), ...(updated || {}), statusBA: updated?.statusBA || "Approved (Siap Invoice)" } });
+      }
+      await loadData();
     } catch (err: any) {
       onNotice(err?.message || "Gagal menyetujui BA");
+    } finally {
+      if (setActionLoadingKey) setActionLoadingKey(null);
     }
   };
 
   const handleAccrueBA = async (id: number) => {
+    const key = `accrue-ba-${id}`;
+    if (setActionLoadingKey) setActionLoadingKey(key);
+    onNotice("⏳ Sedang mengakrualkan pendapatan (Unbilled AR) ke General Ledger...");
     try {
       await generateJournalFromBA(id);
-      onNotice("Jurnal Akrual Pendapatan (Unbilled AR) berhasil dibukukan ke General Ledger.");
+      onNotice("✅ Jurnal Akrual Pendapatan (Unbilled AR) berhasil dibukukan ke General Ledger.");
+      if (setBaRows) {
+        setBaRows((prev) => prev.map((b) => b.id === id ? { ...b, accrualStatus: "Sudah Diakrualkan" } : b));
+      }
+      if (detailViewItem && detailViewItem.type === "ba" && (detailViewItem.data?.id === id || detailViewItem.id === id)) {
+        setDetailViewItem({ type: "ba", data: { ...(detailViewItem.data || detailViewItem), accrualStatus: "Sudah Diakrualkan" } });
+      }
       await loadData();
     } catch (err: any) {
       onNotice(err?.message || "Gagal mengakrualkan Berita Acara");
+    } finally {
+      if (setActionLoadingKey) setActionLoadingKey(null);
     }
   };
 
   const handleSaveBGGBA = async (baPayload: any, isSubmit = false) => {
     try {
+      let saved: any = null;
       if (baPayload.id) {
-        await api(`/api/finance/ba-trackers/${baPayload.id}`, {
+        saved = await api(`/api/finance/ba-trackers/${baPayload.id}`, {
           method: "PUT",
           body: JSON.stringify(baPayload),
         });
       } else {
-        await api(`/api/finance/ba-trackers`, {
+        saved = await api(`/api/finance/ba-trackers`, {
           method: "POST",
           body: JSON.stringify(baPayload),
         });
+      }
+      if (setBaRows) {
+        if (baPayload.id) {
+          setBaRows((prev) => prev.map((b) => b.id === baPayload.id ? (saved || { ...b, ...baPayload }) : b));
+        } else {
+          setBaRows((prev) => [saved || { id: Date.now(), ...baPayload }, ...prev]);
+        }
       }
       onNotice(isSubmit ? "Berita Acara BGG berhasil diajukan ke HO untuk verifikasi." : "Draft Berita Acara BGG berhasil disimpan.");
       await loadData();

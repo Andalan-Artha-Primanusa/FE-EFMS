@@ -1,5 +1,6 @@
 import React from "react";
 import { api, saveSBSPenalty, deleteSBSPenalty, SBSPenaltyItem, generateJournalFromPayment } from "../../lib/api";
+import { getBAEffectiveVolume, getBAItemSubtotal, calculateBACommercialBreakdown } from "./ba_calculations";
 
 interface UseFinanceSaveHandlersProps {
   isSaving: boolean;
@@ -14,7 +15,9 @@ interface UseFinanceSaveHandlersProps {
   baDeductionItems: any[];
   invLineItems: any[];
   baRows: any[];
-  loadData: () => Promise<void>;
+  setBaRows?: (rows: any[] | ((prev: any[]) => any[])) => void;
+  loadData: (showLoading?: boolean) => Promise<void>;
+  reloadMasterData?: () => Promise<void>;
   onNotice: (msg: string) => void;
   setShowPendingVolumeDrawer: (val: boolean) => void;
   totalGrossCalc: number;
@@ -29,10 +32,17 @@ interface UseFinanceSaveHandlersProps {
   partialPaymentForm: any;
   setPartialPaymentForm: (val: any) => void;
   setShowAddPartialPayment: (val: boolean) => void;
-  setInvoiceRows: (rows: any[]) => void;
-  setPaymentRows: (rows: any[]) => void;
+  setInvoiceRows: (rows: any[] | ((prev: any[]) => any[])) => void;
+  setPaymentRows: (rows: any[] | ((prev: any[]) => any[])) => void;
+  setCustomerRows?: (rows: any[] | ((prev: any[]) => any[])) => void;
+  setPendingVolumeLedgers?: (rows: any[] | ((prev: any[]) => any[])) => void;
+  setSbsPenalties?: (rows: SBSPenaltyItem[] | ((prev: SBSPenaltyItem[]) => SBSPenaltyItem[])) => void;
   setSbsPenaltyModalOpen: (val: boolean) => void;
   setSbsPenaltyEditItem: (val: any) => void;
+  deletingKey?: string | null;
+  setDeletingKey?: (key: string | null) => void;
+  actionLoadingKey?: string | null;
+  setActionLoadingKey?: (key: string | null) => void;
 }
 
 export function useFinanceSaveHandlers({
@@ -48,7 +58,9 @@ export function useFinanceSaveHandlers({
   baDeductionItems,
   invLineItems,
   baRows,
+  setBaRows,
   loadData,
+  reloadMasterData,
   onNotice,
   setShowPendingVolumeDrawer,
   totalGrossCalc,
@@ -65,8 +77,15 @@ export function useFinanceSaveHandlers({
   setShowAddPartialPayment,
   setInvoiceRows,
   setPaymentRows,
+  setCustomerRows,
+  setPendingVolumeLedgers,
+  setSbsPenalties,
   setSbsPenaltyModalOpen,
-  setSbsPenaltyEditItem
+  setSbsPenaltyEditItem,
+  deletingKey,
+  setDeletingKey,
+  actionLoadingKey,
+  setActionLoadingKey
 }: UseFinanceSaveHandlersProps) {
   const handleSavePartialPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,40 +138,52 @@ export function useFinanceSaveHandlers({
       if (modalType === "ba") {
         endpoint = "/api/finance/ba-trackers";
         const isBGG = formData.customerCode === "BGG" || formData.customerCode === "PT BGG";
-        const calculateItemSubtotal = (it: any, vol: number) => {
-          const r = Number(it.rate || 0);
-          if (it.category === "DP Fuel" || it.category === "Pengurang Biaya" || it.isDeduction || (it.material || "").toLowerCase().includes("dp fuel") || (it.material || "").toLowerCase().includes("denda") || (it.material || "").toLowerCase().includes("kelebihan pemakaian bbm")) {
-            const amt = r !== 0 ? r : (it.subtotalInitial ? Number(it.subtotalInitial) : 0);
-            return -Math.abs((vol > 0 ? vol : 1) === 1 ? amt : (vol > 0 ? vol : 1) * amt);
-          }
-          if (it.isDistanceVar || it.category === "Over Distance" || it.material?.toLowerCase().includes("distance") || it.material?.toLowerCase().includes("overhaul")) {
-            const dist = Number(it.distanceWeightAvg ?? 1000);
-            return Math.round(vol * ((dist - 1000) / 1000) * r);
-          }
-          return Math.round(vol * r);
-        };
-        const allItems = [...baOperatingItems, ...baMDOItems, ...baDeductionItems].map((it) => ({
-          ...it,
-          subtotalInitial: calculateItemSubtotal(it, Number(it.initialVolume || 0)),
-          subtotalAdjusted: calculateItemSubtotal(it, Number(it.adjustedVolume ?? it.initialVolume ?? 0)),
-        }));
+        const isPOS = formData.customerCode === "POS" || formData.customerCode === "PT POSITION" || formData.customerCode === "PT POS";
+        const isPTRO = formData.customerCode === "PTRO" || formData.customerCode === "DBK" || formData.customerCode === "PT Petrosea";
+        const isSBS = formData.customerCode === "SBS";
+        const isCustomerDBK = isPTRO || formData.customerCode === "DBK";
+        const allRawItems = [...baOperatingItems, ...baMDOItems, ...baDeductionItems];
+        const allItems = allRawItems.map((it) => {
+          const initVol = getBAEffectiveVolume(it, allRawItems, false);
+          const adjVol = getBAEffectiveVolume(it, allRawItems, true);
+          return {
+            ...it,
+            subtotalInitial: getBAItemSubtotal(it, initVol, isCustomerDBK, formData.customerCode),
+            subtotalAdjusted: getBAItemSubtotal(it, adjVol, isCustomerDBK, formData.customerCode),
+          };
+        });
         const initSum = allItems.reduce((acc, item) => acc + Number(item.subtotalInitial || 0), 0);
         const adjSum = allItems.reduce((acc, item) => acc + Number(item.subtotalAdjusted || 0), 0);
+        const hasAdjusted = allItems.some((it) => !it.isDeduction && it.category !== "DP Fuel" && Number(it.adjustedVolume || 0) > 0);
+        const activeFuelPeriods = formData.bggData?.fuelPeriods || formData.posData?.fuelPeriods || formData.ptroData?.fuelPeriods || formData.sbsData?.fuelPeriods;
+        const breakdownInit = calculateBACommercialBreakdown(formData.customerCode, allItems, rfIndexCalculated, isCustomerDBK, false, activeFuelPeriods);
+        const breakdownAdj = calculateBACommercialBreakdown(formData.customerCode, allItems, rfIndexCalculated, isCustomerDBK, true, activeFuelPeriods);
+        const finalInitialWorkAmount = breakdownInit.totalGross > 0 ? breakdownInit.totalGross : initSum;
+        const finalAdjustedWorkAmount = breakdownAdj.totalGross > 0 ? breakdownAdj.totalGross : adjSum;
+        const finalWorkAmount = (hasAdjusted && finalAdjustedWorkAmount > 0) ? finalAdjustedWorkAmount : (finalInitialWorkAmount > 0 ? finalInitialWorkAmount : Number(formData.workAmount || 0));
+
         payload = {
-          ...formData, customerCode: formData.customerCode || "", workPeriod: formData.workPeriod || "Juni 2026",
-          picAAP: formData.picAAP || "Operations / Site Engineer", items: allItems, initialWorkAmount: initSum,
-          adjustedWorkAmount: adjSum, workAmount: adjSum !== 0 ? adjSum : (initSum !== 0 ? initSum : Number(formData.workAmount || 0)),
+          ...formData,
+          customerCode: formData.customerCode || "",
+          workPeriod: formData.workPeriod || "Juni 2026",
+          picAAP: formData.picAAP || "Operations / Site Engineer",
+          items: allItems,
+          initialWorkAmount: finalInitialWorkAmount,
+          adjustedWorkAmount: finalAdjustedWorkAmount,
+          workAmount: finalWorkAmount,
+          rfIndexCalculated: rfIndexCalculated || formData.rfIndexCalculated || 1.0,
           step1Locked: true,
-          ...(isBGG ? {
-            bggData: {
-              agreedSurveyVolume: Number(formData.bggTotalTerbongkar || 0),
-              coalVolumeBCM: Number(formData.bggCoalVolumeBCM || 0),
-              coalVolumeTon: Number(formData.bggCoalVolumeTon || 0),
-              nettOBVolume: Number(formData.bggNettOB || 0),
-              obOverDistanceHm: Number(formData.bggOBDistanceHm || 0),
-              ...(formData.bggData || {}),
-            }
-          } : {})
+          bggData: isBGG ? {
+            ...(formData.bggData || {}),
+            agreedSurveyVolume: Number(formData.bggTotalTerbongkar ?? formData.bggData?.agreedSurveyVolume ?? 0),
+            coalVolumeBCM: Number(formData.bggCoalVolumeBCM ?? formData.bggData?.coalVolumeBCM ?? 0),
+            coalVolumeTon: Number(formData.bggCoalVolumeTon ?? formData.bggData?.coalVolumeTon ?? 0),
+            nettOBVolume: Number(formData.bggNettOB ?? formData.bggData?.nettOBVolume ?? 0),
+            obOverDistanceHm: Number(formData.bggOBDistanceHm ?? formData.bggData?.obOverDistanceHm ?? 0),
+          } : formData.bggData,
+          posData: isPOS ? { ...(formData.posData || {}) } : formData.posData,
+          ptroData: isPTRO ? { ...(formData.ptroData || {}) } : formData.ptroData,
+          sbsData: isSBS ? { ...(formData.sbsData || {}) } : formData.sbsData,
         };
       } else if (modalType === "pending_volume") {
         endpoint = "/api/finance/pending-volumes";
@@ -189,19 +220,63 @@ export function useFinanceSaveHandlers({
         } else if (payload[key] === "" || payload[key] === undefined) { payload[key] = null; }
       });
 
+      let savedRes: any = null;
       if (editItem?.id) {
         endpoint += `/${editItem.id}`;
-        await api(endpoint, { method: "PUT", body: JSON.stringify(payload) });
+        savedRes = await api(endpoint, { method: "PUT", body: JSON.stringify(payload) });
         onNotice("Data berhasil diperbarui!");
       } else {
-        await api(endpoint, { method: "POST", body: JSON.stringify(payload) });
+        savedRes = await api(endpoint, { method: "POST", body: JSON.stringify(payload) });
         onNotice("Data baru berhasil ditambahkan!");
+      }
+
+      // 🚀 Optimistic UI Update: perbarui/tambahkan langsung ke state lokal
+      const effectiveId = savedRes?.id || editItem?.id || Date.now();
+      const finalItem = savedRes || { id: effectiveId, ...payload };
+
+      if (modalType === "ba" && setBaRows) {
+        if (editItem?.id) {
+          setBaRows((prev) => prev.map((r) => r.id === editItem.id ? { ...r, ...finalItem } : r));
+        } else {
+          setBaRows((prev) => [finalItem, ...prev]);
+        }
+      } else if (modalType === "invoice") {
+        if (editItem?.id) {
+          setInvoiceRows((prev) => prev.map((r) => r.id === editItem.id ? { ...r, ...finalItem } : r));
+        } else {
+          setInvoiceRows((prev) => [finalItem, ...prev]);
+        }
+      } else if (modalType === "payment") {
+        if (editItem?.id) {
+          setPaymentRows((prev) => prev.map((r) => r.id === editItem.id ? { ...r, ...finalItem } : r));
+        } else {
+          setPaymentRows((prev) => [finalItem, ...prev]);
+        }
+      } else if (modalType === "customer" && setCustomerRows) {
+        if (editItem?.id) {
+          setCustomerRows((prev) => prev.map((r) => r.id === editItem.id ? { ...r, ...finalItem } : r));
+        } else {
+          setCustomerRows((prev) => [finalItem, ...prev]);
+        }
+      } else if (modalType === "pending_volume" && setPendingVolumeLedgers) {
+        if (editItem?.id) {
+          setPendingVolumeLedgers((prev) => prev.map((r) => r.id === editItem.id ? { ...r, ...finalItem } : r));
+        } else {
+          setPendingVolumeLedgers((prev) => [finalItem, ...prev]);
+        }
+      }
+
+      if (detailViewItem && (detailViewItem.data?.id === effectiveId || detailViewItem.id === effectiveId)) {
+        setDetailViewItem({ ...detailViewItem, data: { ...(detailViewItem.data || detailViewItem), ...finalItem } });
       }
 
       if (modalType === "invoice" && payload.baNoReference) {
         const targetBA = baRows.find((r) => r.baNumber === payload.baNoReference);
         if (targetBA) {
-          await api(`/api/finance/ba-trackers/${targetBA.id}`, { method: "PUT", body: JSON.stringify({ ...targetBA, statusBA: "Ready to Invoice", invoiceNoLinked: payload.invoiceNo }) }).catch(() => {});
+          if (setBaRows) {
+            setBaRows((prev) => prev.map((b) => b.id === targetBA.id ? { ...b, statusBA: "Arsip", invoiceNoLinked: payload.invoiceNo, invoiceID: finalItem.id } : b));
+          }
+          await api(`/api/finance/ba-trackers/${targetBA.id}`, { method: "PUT", body: JSON.stringify({ ...targetBA, statusBA: "Arsip", invoiceNoLinked: payload.invoiceNo, invoiceID: payload.id }) }).catch(() => {});
         }
       }
 
@@ -209,12 +284,34 @@ export function useFinanceSaveHandlers({
       setModalType("none");
       setEditItem(null);
       await loadData();
+      if (reloadMasterData) await reloadMasterData();
       if (savedModalType === "pending_volume") setShowPendingVolumeDrawer(true);
     } catch (err: any) { onNotice(err?.message || "Gagal menyimpan data"); } finally { setIsSaving(false); }
   };
 
   const handleDelete = async (type: any, id: number) => {
     if (!confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
+    const key = `${type}-${id}`;
+    if (setDeletingKey) setDeletingKey(key);
+    onNotice("⏳ Sedang memproses penghapusan data...");
+
+    // 🚀 Optimistic UI Update: hapus baris secara instan dari state
+    if (type === "ba" && setBaRows) {
+      setBaRows((prev) => prev.filter((r) => r.id !== id));
+    } else if (type === "invoice" && setInvoiceRows) {
+      setInvoiceRows((prev) => prev.filter((r) => r.id !== id));
+    } else if (type === "payment" && setPaymentRows) {
+      setPaymentRows((prev) => prev.filter((r) => r.id !== id));
+    } else if (type === "customer" && setCustomerRows) {
+      setCustomerRows((prev) => prev.filter((r) => r.id !== id));
+    } else if (type === "pending_volume" && setPendingVolumeLedgers) {
+      setPendingVolumeLedgers((prev) => prev.filter((r) => r.id !== id));
+    }
+
+    if (detailViewItem?.data?.id === id || detailViewItem?.id === id) {
+      setDetailViewItem(null);
+    }
+
     try {
       let endpoint = "";
       if (type === "ba") endpoint = `/api/finance/ba-trackers/${id}`;
@@ -223,28 +320,57 @@ export function useFinanceSaveHandlers({
       else if (type === "customer") endpoint = `/api/finance/customers/${id}`;
       else if (type === "pending_volume") endpoint = `/api/finance/pending-volumes/${id}`;
       await api(endpoint, { method: "DELETE" });
-      onNotice("Data berhasil dihapus!");
+      onNotice("✅ Data berhasil dihapus!");
       await loadData();
-    } catch (err: any) { onNotice(err?.message || "Gagal menghapus data"); }
+    } catch (err: any) { 
+      onNotice(err?.message || "Gagal menghapus data"); 
+      await loadData();
+    } finally {
+      if (setDeletingKey) setDeletingKey(null);
+    }
   };
 
   const handleSaveSBSPenalty = async (item: Partial<SBSPenaltyItem>) => {
     try {
-      await saveSBSPenalty(item);
+      const saved: any = await saveSBSPenalty(item);
       onNotice("Catatan Klaim Penalti SBS berhasil disimpan.");
       setSbsPenaltyModalOpen(false);
       setSbsPenaltyEditItem(null);
+      if (setSbsPenalties) {
+        if (item.id) {
+          setSbsPenalties((prev) => prev.map((p) => p.id === item.id ? (saved || { ...p, ...item }) : p));
+        } else {
+          setSbsPenalties((prev) => [saved || { id: Date.now(), ...item } as any, ...prev]);
+        }
+      }
       await loadData();
     } catch (err: any) { onNotice(err?.message || "Gagal menyimpan klaim penalti SBS"); }
   };
 
   const handleDeleteSBSPenalty = async (id: number) => {
     if (!window.confirm("Apakah Anda yakin ingin menghapus catatan klaim penalti SBS ini?")) return;
+    const key = `sbs-penalty-${id}`;
+    if (setDeletingKey) setDeletingKey(key);
+    onNotice("⏳ Sedang memproses penghapusan catatan penalti...");
+
+    // 🚀 Optimistic UI Update
+    if (setSbsPenalties) {
+      setSbsPenalties((prev) => prev.filter((r) => r.id !== id));
+    }
+    if (detailViewItem?.data?.id === id || detailViewItem?.id === id) {
+      setDetailViewItem(null);
+    }
+
     try {
       await deleteSBSPenalty(id);
-      onNotice("Catatan Klaim Penalti SBS berhasil dihapus.");
+      onNotice("✅ Catatan Klaim Penalti SBS berhasil dihapus.");
       await loadData();
-    } catch (err: any) { onNotice(err?.message || "Gagal menghapus klaim penalti SBS"); }
+    } catch (err: any) { 
+      onNotice(err?.message || "Gagal menghapus klaim penalti SBS"); 
+      await loadData();
+    } finally {
+      if (setDeletingKey) setDeletingKey(null);
+    }
   };
 
   return {

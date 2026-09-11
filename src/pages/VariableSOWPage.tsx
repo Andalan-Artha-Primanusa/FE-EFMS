@@ -40,13 +40,22 @@ export const SOW_OPERATIONAL_SITES = [
 
 export const VALID_SOW_SITE_CODES = new Set(["BGG", "POS", "SBS", "PTRO"]);
 
+export const normalizeSOWSiteCode = (code: string): string => {
+  const c = (code || "").toUpperCase().trim();
+  if (c === "PT BGG" || c === "BGG") return "BGG";
+  if (c === "PT POSITION" || c === "POSITION" || c === "POS") return "POS";
+  if (c === "PT SATRIA BAHANA SARANA" || c === "PT SBS" || c === "SBS") return "SBS";
+  if (c === "PT PETROSEA" || c === "PTRO" || c === "DBK") return "PTRO";
+  return c;
+};
+
 export const defaultBGGSOWTemplate = [
-  { category: "OB Removal", itemName: "OVER BURDEN REMOVAL 1 (75%)", tier1Rate: 27000, tier2Rate: 27250, tier3Rate: 29500, splitPercentage: 75, baseDistanceMeters: 1000, unit: "Bcm", rateIDR: 29500, rateUSD: 0 },
-  { category: "OB Removal", itemName: "OVER BURDEN REMOVAL 2 (25%)", tier1Rate: 26250, tier2Rate: 26500, tier3Rate: 28750, splitPercentage: 25, baseDistanceMeters: 1000, unit: "Bcm", rateIDR: 28750, rateUSD: 0 },
-  { category: "Coal Winning", itemName: "Coal Winning Pit Kungkilan", tier1Rate: 17500, tier2Rate: 17500, tier3Rate: 17500, splitPercentage: 100, baseDistanceMeters: 0, unit: "Ton", rateIDR: 17500, rateUSD: 0 },
-  { category: "Over Distance", itemName: "Over Distance For OB Removal", tier1Rate: 139.30, tier2Rate: 139.30, tier3Rate: 155.00, splitPercentage: 100, baseDistanceMeters: 1000, unit: "Bcm/Hm", rateIDR: 155.00, rateUSD: 0 },
-  { category: "Over Distance", itemName: "Over Distance For Coal Winning", tier1Rate: 19700, tier2Rate: 19700, tier3Rate: 19700, splitPercentage: 100, baseDistanceMeters: 4000, unit: "Ton", rateIDR: 19700, rateUSD: 0 },
-  { category: "Rehandling", itemName: "Rehandling Batubara", tier1Rate: 12000, tier2Rate: 12000, tier3Rate: 12000, splitPercentage: 100, baseDistanceMeters: 0, unit: "Ton", rateIDR: 12000, rateUSD: 0 },
+  { category: "OB Removal", itemName: "OVER BURDEN REMOVAL 1 (75%)", tier1Rate: 27000, tier2Rate: 27250, tier3Rate: 29500, splitPercentage: 75, baseDistanceMeters: 1000, unit: "Bcm", rateIDR: 27250, rateUSD: 0 },
+  { category: "OB Removal", itemName: "OVER BURDEN REMOVAL 2 (25%)", tier1Rate: 26250, tier2Rate: 26500, tier3Rate: 28750, splitPercentage: 25, baseDistanceMeters: 1000, unit: "Bcm", rateIDR: 26500, rateUSD: 0 },
+  { category: "Coal Winning", itemName: "Coal Winning", tier1Rate: 15000, tier2Rate: 16500, tier3Rate: 17500, splitPercentage: 100, baseDistanceMeters: 1000, unit: "Ton", rateIDR: 16500, rateUSD: 0 },
+  { category: "Over Distance", itemName: "Over Distance For OB Removal", tier1Rate: 500, tier2Rate: 600, tier3Rate: 650, splitPercentage: 100, baseDistanceMeters: 1000, unit: "Bcm/100 Mtr", rateIDR: 600, rateUSD: 0 },
+  { category: "Over Distance", itemName: "Over Distance For Coal Winning", tier1Rate: 400, tier2Rate: 500, tier3Rate: 550, splitPercentage: 100, baseDistanceMeters: 1000, unit: "Ton/100 Mtr", rateIDR: 500, rateUSD: 0 },
+  { category: "Rehandling", itemName: "Rehandling Batubara", tier1Rate: 7500, tier2Rate: 7500, tier3Rate: 7500, splitPercentage: 100, baseDistanceMeters: 0, unit: "Ton", rateIDR: 7500, rateUSD: 0 },
 ];
 
 export const defaultSOWTemplate = [
@@ -156,44 +165,36 @@ export function VariableSOWPage({
       const groupedMap: Record<string, any> = {};
 
       SOW_OPERATIONAL_SITES.forEach((site) => {
-        let template = defaultSOWTemplate;
-        if (site.code === "BGG") {
-          template = defaultBGGSOWTemplate;
-        } else if (site.code === "SBS") {
-          template = defaultSBSSOWTemplate;
-        } else if (site.code === "PTRO") {
-          template = defaultPTROSOWTemplate;
+        const cCode = site.code;
+        const siteDbItems = activeSows.filter(
+          (item) => normalizeSOWSiteCode(item.customerCode || item.customer || "") === cCode
+        );
+
+        let finalItems: any[] = [];
+        if (siteDbItems.length > 0) {
+          finalItems = siteDbItems.map((it) => ({ ...it }));
+        } else {
+          let template = defaultSOWTemplate;
+          if (cCode === "BGG") {
+            template = defaultBGGSOWTemplate;
+          } else if (cCode === "SBS") {
+            template = defaultSBSSOWTemplate;
+          } else if (cCode === "PTRO") {
+            template = defaultPTROSOWTemplate;
+          }
+          finalItems = template.map((t) => ({ ...t, customerCode: cCode, customer: cCode }));
         }
-        groupedMap[site.code] = {
+
+        groupedMap[cCode] = {
           companyName: site.name,
           companyCode: site.code,
           contractNo: site.contractNo,
-          type: site.code === "BGG" ? "coal" : "generic",
+          type: cCode === "BGG" ? "coal" : "generic",
           badgeColor: "slate",
           desc: "",
-          itemCount: template.length,
-          items: template
+          itemCount: finalItems.length,
+          items: finalItems
         };
-      });
-
-      // Overlay items from database (filtering out non-master / period-tagged legacy items)
-      activeSows.forEach((item) => {
-        if (item.itemName && (/\(Feb-|\(Jun-|\(Jan-|\(Mar-|\(Apr-|\(May-|\(Jul-|\(Aug-|\(Sep-|\(Oct-|\(Nov-|\(Dec-/i.test(item.itemName))) {
-          return;
-        }
-
-        const cCode = (item.customerCode || item.customer || "").toUpperCase();
-        if (groupedMap[cCode]) {
-          const existingItems = [...groupedMap[cCode].items];
-          const idx = existingItems.findIndex(i => i.itemName.trim().toLowerCase() === item.itemName.trim().toLowerCase());
-          if (idx !== -1) {
-            existingItems[idx] = { ...existingItems[idx], ...item };
-          } else {
-            existingItems.push(item);
-          }
-          groupedMap[cCode].items = existingItems;
-          groupedMap[cCode].itemCount = existingItems.length;
-        }
       });
 
       setContractsList(Object.values(groupedMap));

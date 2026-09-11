@@ -202,7 +202,7 @@ export function createFinanceCalculations(deps: {
         if (unitRate === 0) {
           const isOB2 = item.description?.includes("25%") || item.sowDescription?.includes("25%");
           const isCoal = item.description?.toLowerCase().includes("coal") || item.sowDescription?.toLowerCase().includes("coal");
-          unitRate = getSowMasterRate("BGG", item.description || item.sowDescription || "", isOB2 ? 28750 : isCoal ? 17500 : 29500);
+          unitRate = getSowMasterRate("BGG", item.description || item.sowDescription || "", isOB2 ? 26500 : isCoal ? 16500 : 27250);
         }
         amount = Math.round(vol * unitRate);
         return { unitRate, amount };
@@ -211,7 +211,7 @@ export function createFinanceCalculations(deps: {
         const diffMtr = Math.max(0, mtr - 1000);
         if (unitRate === 0) {
           const isCoal = item.subSection?.includes("Coal") || item.description?.includes("Coal");
-          const per100m = isCoal ? getSowMasterRate("BGG", "Over Distance For Coal Winning", 550) : getSowMasterRate("BGG", "Over Distance For OB Removal", 650);
+          const per100m = isCoal ? getSowMasterRate("BGG", "Over Distance For Coal Winning", 500) : getSowMasterRate("BGG", "Over Distance For OB Removal", 600);
           unitRate = Math.round((per100m * diffMtr) / 100);
         }
         amount = Math.round(vol * unitRate);
@@ -227,18 +227,20 @@ export function createFinanceCalculations(deps: {
 
           if (isODOB) {
             const diffMtr = Math.max(0, mtr - 1000);
-            unitRate = Math.round(650 * rfDelta * (diffMtr / 100));
+            const baseRate = getSowMasterRate("BGG", "Over Distance For OB Removal", 600);
+            unitRate = Math.round(baseRate * rfDelta * (diffMtr / 100));
           } else if (isODCoal) {
             const diffMtr = Math.max(0, mtr - 1000);
-            unitRate = Math.round(550 * rfDelta * (diffMtr / 100));
+            const baseRate = getSowMasterRate("BGG", "Over Distance For Coal Winning", 500);
+            unitRate = Math.round(baseRate * rfDelta * (diffMtr / 100));
           } else if (isOB2) {
-            const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 2 (25%)", 28750);
+            const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 2 (25%)", 26500);
             unitRate = Math.round(baseRate * rfDelta);
           } else if (isCoal) {
-            const baseRate = getSowMasterRate("BGG", "Coal Winning Pit Kungkilan", 17500);
+            const baseRate = getSowMasterRate("BGG", "Coal Winning", 16500);
             unitRate = Math.round(baseRate * rfDelta);
           } else {
-            const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 1 (75%)", 29500);
+            const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 1 (75%)", 27250);
             unitRate = Math.round(baseRate * rfDelta);
           }
         }

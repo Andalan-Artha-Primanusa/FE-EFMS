@@ -17,9 +17,14 @@ export function isDistanceItem(item: any): boolean {
   );
 }
 
-export function getBaseDistance(item: any): number {
+export function getBaseDistance(item: any, customerCode?: string): number {
   if (item?.distanceBasis !== undefined && item?.distanceBasis !== null && Number(item.distanceBasis) > 0) {
     return Number(item.distanceBasis);
+  }
+  const cust = (customerCode || item?.customerCode || item?.customer || "").toUpperCase();
+  const isBGG = cust.includes("BGG") || (item?.material || "").toUpperCase().includes("BGG") || (item?.area || "").toUpperCase().includes("KKL") || (item?.area || "").toUpperCase().includes("KUNGKILAN");
+  if (isBGG) {
+    return 1000;
   }
   const mLow = (item?.material || item?.description || item?.sowDescription || "").toLowerCase();
   if (mLow.includes("coal") || mLow.includes("batubara")) {
@@ -30,9 +35,6 @@ export function getBaseDistance(item: any): number {
 
 export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boolean = false): number {
   if (isDistanceItem(item)) {
-    const selfVol = isSurvey ? Number(item.adjustedVolume ?? item.initialVolume ?? 0) : Number(item.initialVolume || 0);
-    if (selfVol > 0) return selfVol;
-
     const mLow = (item.material || "").toLowerCase();
     const itemPeriod = (item.period || item.notes || "").trim().toLowerCase();
 
@@ -49,7 +51,12 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
         return true;
       });
       if (obParents.length > 0) {
-        return obParents.reduce((acc, p) => acc + (isSurvey ? Number(p.adjustedVolume ?? p.initialVolume ?? 0) : Number(p.initialVolume || 0)), 0);
+        return obParents.reduce((acc, p) => {
+          const pVol = isSurvey
+            ? (Number(p.adjustedVolume || 0) > 0 ? Number(p.adjustedVolume) : Number(p.initialVolume || 0))
+            : Number(p.initialVolume || 0);
+          return acc + pVol;
+        }, 0);
       }
     }
 
@@ -66,7 +73,12 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
         return true;
       });
       if (coalParents.length > 0) {
-        return coalParents.reduce((acc, p) => acc + (isSurvey ? Number(p.adjustedVolume ?? p.initialVolume ?? 0) : Number(p.initialVolume || 0)), 0);
+        return coalParents.reduce((acc, p) => {
+          const pVol = isSurvey
+            ? (Number(p.adjustedVolume || 0) > 0 ? Number(p.adjustedVolume) : Number(p.initialVolume || 0))
+            : Number(p.initialVolume || 0);
+          return acc + pVol;
+        }, 0);
       }
     }
 
@@ -80,13 +92,22 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
       return false;
     });
     if (parent) {
-      return isSurvey ? Number(parent.adjustedVolume ?? parent.initialVolume ?? 0) : Number(parent.initialVolume || 0);
+      return isSurvey
+        ? (Number(parent.adjustedVolume || 0) > 0 ? Number(parent.adjustedVolume) : Number(parent.initialVolume || 0))
+        : Number(parent.initialVolume || 0);
     }
+
+    const selfVol = isSurvey
+      ? (Number(item.adjustedVolume || 0) > 0 ? Number(item.adjustedVolume) : Number(item.initialVolume || 0))
+      : Number(item.initialVolume || 0);
+    if (selfVol > 0) return selfVol;
   }
-  return isSurvey ? Number(item.adjustedVolume ?? item.initialVolume ?? 0) : Number(item.initialVolume || 0);
+  return isSurvey
+    ? (Number(item.adjustedVolume || 0) > 0 ? Number(item.adjustedVolume) : Number(item.initialVolume || 0))
+    : Number(item.initialVolume || 0);
 }
 
-export function getBAItemSubtotal(item: any, volume: number, isCustomerDBK: boolean = false): number {
+export function getBAItemSubtotal(item: any, volume: number, isCustomerDBK: boolean = false, customerCode?: string): number {
   const r = Number(item.rate || 0);
   if (item.category === "DP Fuel" || item.isDeduction || (item.material || "").toLowerCase().includes("dp fuel")) {
     const amt = r !== 0 ? r : (item.subtotalInitial ? Number(item.subtotalInitial) : 0);
@@ -94,10 +115,14 @@ export function getBAItemSubtotal(item: any, volume: number, isCustomerDBK: bool
     return -Math.abs(vol === 1 ? amt : vol * amt);
   }
   if (isDistanceItem(item)) {
-    const baseDist = getBaseDistance(item);
-    const dist = Number(item.distanceWeightAvg ?? baseDist);
-    const diffMtr = Math.max(0, dist - baseDist);
-    const isPer100m = isCustomerDBK || (item.unit || "").includes("100") || (item.material || "").includes("100m") || (item.material || "").toUpperCase().includes("PIT SAPAN") || (item.material || "").toUpperCase().includes("OVERHAUL COAL");
+    const baseDist = getBaseDistance(item, customerCode || item?.customerCode);
+    const rawDist = Number(item.distanceWeightAvg ?? item.distance ?? baseDist);
+    // If distance is entered as e.g. 1.325 or 4.976 (meaning 1.325 km or parsed with decimal point), scale to meters
+    const dist = (rawDist > 0 && rawDist < 50) ? rawDist * 1000 : rawDist;
+    const cust = (customerCode || item?.customerCode || "").toUpperCase();
+    const isPOS = cust.includes("POS") || (item.material || "").toLowerCase().includes("underhaul");
+    const diffMtr = isPOS ? (dist - baseDist) : Math.max(0, dist - baseDist);
+    const isPer100m = isCustomerDBK || (item.unit || "").includes("100") || (item.material || "").includes("100m") || (item.material || "").toUpperCase().includes("PIT SAPAN") || (item.material || "").toUpperCase().includes("OVERHAUL COAL") || (item.material || "").toUpperCase().includes("BGG") || (item.material || "").toLowerCase().includes("over distance") || cust.includes("BGG");
     if (isPer100m) {
       return Math.round(volume * (diffMtr / 100) * r);
     }
@@ -129,17 +154,54 @@ export interface BACommercialBreakdown {
   subtotalP?: number;
 }
 
+export function getBGGRFIndexForPeriod(
+  itemPeriod?: string,
+  defaultRF: number = 1.581,
+  fuelPeriods?: Record<string, any>
+): number {
+  if (!itemPeriod) return defaultRF > 0 ? defaultRF : 1.581;
+  if (fuelPeriods) {
+    for (const [pKey, pVal] of Object.entries(fuelPeriods)) {
+      if (pVal?.bggRfIndex && pVal.bggRfIndex > 0) {
+        const kLow = pKey.toLowerCase();
+        const iLow = itemPeriod.toLowerCase();
+        if (kLow === iLow || kLow.includes(iLow) || iLow.includes(kLow)) {
+          return pVal.bggRfIndex;
+        }
+      }
+    }
+  }
+  const pLow = itemPeriod.toLowerCase();
+  if (pLow.includes("jul") || pLow.includes("07")) {
+    return 1.480;
+  }
+  if (pLow.includes("feb") || pLow.includes("02")) {
+    return 1.274;
+  }
+  if (pLow.includes("jun") || pLow.includes("06")) {
+    return 1.560;
+  }
+  if (pLow.includes("agu") || pLow.includes("aug") || pLow.includes("08")) {
+    return defaultRF > 0 ? defaultRF : 1.581;
+  }
+  return defaultRF > 0 ? defaultRF : 1.0;
+}
+
 export function calculateBACommercialBreakdown(
   customerCode: string,
   allItems: any[],
   rfIndexCalculated: number = 1.0,
   isCustomerDBK: boolean = false,
-  isSurvey?: boolean
+  isSurvey?: boolean,
+  fuelPeriods?: Record<string, any>
 ): BACommercialBreakdown {
   const isBGG = customerCode === "BGG" || customerCode === "PT BGG";
+  const isPOS = customerCode === "POS" || customerCode === "PT POSITION" || customerCode === "PT. POSITION";
   const isSBS = customerCode === "SBS";
-  const hasAdjustedVolume = (allItems || []).some((it) => Number(it.adjustedVolume || 0) > 0);
-  const effectiveIsSurvey = isSurvey !== undefined ? isSurvey : hasAdjustedVolume;
+  const hasAdjustedOperatingVolume = (allItems || []).some(
+    (it) => !it.isDeduction && it.category !== "DP Fuel" && Number(it.adjustedVolume || 0) > 0
+  );
+  const effectiveIsSurvey = isSurvey !== undefined ? isSurvey : hasAdjustedOperatingVolume;
 
   let obAmount = 0;
   let coalAmount = 0;
@@ -150,7 +212,7 @@ export function calculateBACommercialBreakdown(
 
   for (const it of allItems || []) {
     const vol = getBAEffectiveVolume(it, allItems, effectiveIsSurvey);
-    const subtotal = getBAItemSubtotal(it, vol, isCustomerDBK);
+    const subtotal = getBAItemSubtotal(it, vol, isCustomerDBK, customerCode);
     const mLow = (it.material || it.sowDescription || "").toLowerCase();
     const cat = it.category || "";
 
@@ -168,15 +230,15 @@ export function calculateBACommercialBreakdown(
     if (cat === "DP Fuel" || it.isDeduction || mLow.includes("dp fuel")) {
       dpFuelDeduction += Math.abs(subtotal);
     } else if (isDistanceItem(it)) {
-      overdistanceGross += Math.max(0, subtotal);
-    } else if (cat === "MDO" || cat === "Support" || cat === "Equipment Rental" || cat === "Penunjang") {
-      mdoGross += Math.max(0, subtotal);
+      overdistanceGross += subtotal; // Note: for POS underhaul, this can be negative
+    } else if (cat === "MDO" || cat === "Support" || cat === "Equipment Rental" || cat === "Penunjang" || cat === "Land Clearing" || mLow.includes("clearing")) {
+      mdoGross += subtotal;
     } else if (mLow.includes("ob") || mLow.includes("overburden") || mLow.includes("waste") || mLow.includes("over burden")) {
-      obAmount += Math.max(0, subtotal);
+      obAmount += subtotal;
     } else if (mLow.includes("coal") || mLow.includes("batubara")) {
-      coalAmount += Math.max(0, subtotal);
+      coalAmount += subtotal;
     } else {
-      obAmount += Math.max(0, subtotal);
+      obAmount += subtotal;
     }
   }
 
@@ -186,12 +248,13 @@ export function calculateBACommercialBreakdown(
   let odDeduction = 0;
 
   if (isBGG) {
-    let rfODAmount = 0;
-    if (effectiveRF > 1.0) {
-      rfAmount = Math.round((basePokok + overdistanceGross) * (effectiveRF - 1.0));
-      rfODAmount = Math.round(overdistanceGross * (effectiveRF - 1.0));
+    const bggComputed = getBGGComputedInvoiceLines(allItems, effectiveRF, effectiveIsSurvey, fuelPeriods);
+    rfAmount = bggComputed.subtotalD;
+    odDeduction = Math.abs(bggComputed.subtotalE);
+  } else if (isPOS) {
+    if (effectiveRF > 0) {
+      rfAmount = Math.round((effectiveRF - 1.0) * (basePokok + overdistanceGross + mdoGross));
     }
-    odDeduction = Math.round((overdistanceGross + rfODAmount) * 0.25);
   }
 
   // Khusus SBS: Gross = Seksi A + Seksi B (tanpa potongan Section P sebelum pajak).
@@ -351,4 +414,165 @@ export function generateBAGLJournalPreview(
   const isBalanced = totalDebit === totalCredit;
 
   return { lines, totalDebit, totalCredit, isBalanced };
+}
+
+export interface BGGComputedLineItem {
+  id: string;
+  section: "D" | "E";
+  description: string;
+  notes?: string;
+  unit: string;
+  volume: number;
+  rate: number;
+  subtotal: number;
+}
+
+export function getBGGComputedInvoiceLines(
+  allItems: any[],
+  rfIndexCalculated: number = 1.0,
+  isSurvey: boolean = false,
+  fuelPeriods?: Record<string, any>
+): {
+  sectionDItems: BGGComputedLineItem[];
+  sectionEItems: BGGComputedLineItem[];
+  subtotalD: number;
+  subtotalE: number;
+} {
+  const effectiveRF = rfIndexCalculated > 0 ? rfIndexCalculated : 1.0;
+  const sectionDItems: BGGComputedLineItem[] = [];
+  const sectionEItems: BGGComputedLineItem[] = [];
+
+  let subtotalOD_OB = 0;
+  let subtotalOD_Coal = 0;
+  let subtotalRF_OD_OB = 0;
+  let subtotalRF_OD_Coal = 0;
+
+  for (const item of allItems || []) {
+    const isDist = isDistanceItem(item);
+    const mLow = (item.material || item.sowDescription || "").toLowerCase();
+    const isOB = mLow.includes("ob") || mLow.includes("overburden") || mLow.includes("waste") || mLow.includes("over burden");
+    const isCoal = mLow.includes("coal") || mLow.includes("batubara");
+    const effVol = getBAEffectiveVolume(item, allItems, isSurvey);
+    const r = Number(item.rate || 0);
+    const itemPeriod = (item.period || item.notes || "").trim();
+    const itemRF = getBGGRFIndexForPeriod(itemPeriod, effectiveRF, fuelPeriods);
+
+    if (item.category === "DP Fuel" || item.isDeduction || mLow.includes("dp fuel")) {
+      continue;
+    }
+
+    if (isDist) {
+      const baseDist = getBaseDistance(item, "BGG");
+      const rawDist = Number(item.distanceWeightAvg ?? item.distance ?? baseDist);
+      const dist = (rawDist > 0 && rawDist < 50) ? rawDist * 1000 : rawDist;
+      const diffMtr = Math.max(0, dist - baseDist);
+      const grossSub = getBAItemSubtotal(item, effVol, false, "BGG");
+
+      if (isOB) {
+        subtotalOD_OB += grossSub;
+      } else if (isCoal) {
+        subtotalOD_Coal += grossSub;
+      }
+
+      // Section D for Over Distance using item-level RF Index
+      const escalatedRate = ((r * itemRF) - r) * (diffMtr / 100);
+      const escalatedSub = Math.round(effVol * escalatedRate);
+
+      if (isOB) {
+        subtotalRF_OD_OB += escalatedSub;
+      } else if (isCoal) {
+        subtotalRF_OD_Coal += escalatedSub;
+      }
+
+      if (itemRF > 1.0 && escalatedSub > 0) {
+        sectionDItems.push({
+          id: `rf-${item.id || item.material}-${itemPeriod}`,
+          section: "D",
+          description: `Eskalasi ${item.material || "Over Distance"}`,
+          notes: itemPeriod ? `Periode: ${itemPeriod}` : undefined,
+          unit: item.unit || "Bcm",
+          volume: effVol,
+          rate: Number(escalatedRate.toFixed(3)),
+          subtotal: escalatedSub,
+        });
+      }
+    } else {
+      // Standard OB / Coal items using item-level RF Index
+      const escalatedRate = (r * itemRF) - r;
+      const escalatedSub = Math.round(effVol * escalatedRate);
+
+      if (itemRF > 1.0 && escalatedSub > 0) {
+        sectionDItems.push({
+          id: `rf-${item.id || item.material}-${itemPeriod}`,
+          section: "D",
+          description: `Eskalasi ${item.material || (isOB ? "OB Removal" : "Coal Winning")}`,
+          notes: itemPeriod ? `Periode: ${itemPeriod}` : undefined,
+          unit: item.unit || (isCoal ? "Ton" : "Bcm"),
+          volume: effVol,
+          rate: Number(escalatedRate.toFixed(3)),
+          subtotal: escalatedSub,
+        });
+      }
+    }
+  }
+
+  // Section E: Discount on Overdistance (25%)
+  if (subtotalOD_OB > 0) {
+    const disc = Math.round(subtotalOD_OB * 0.25);
+    sectionEItems.push({
+      id: "disc-od-ob",
+      section: "E",
+      description: "Discount Overdistance for OB Removal",
+      unit: "Lot",
+      volume: 1,
+      rate: -disc,
+      subtotal: -disc,
+    });
+  }
+  if (subtotalOD_Coal > 0) {
+    const disc = Math.round(subtotalOD_Coal * 0.25);
+    sectionEItems.push({
+      id: "disc-od-coal",
+      section: "E",
+      description: "Discount Overdistance for Coal Winning",
+      unit: "Lot",
+      volume: 1,
+      rate: -disc,
+      subtotal: -disc,
+    });
+  }
+  if (subtotalRF_OD_OB > 0) {
+    const disc = Math.round(subtotalRF_OD_OB * 0.25);
+    sectionEItems.push({
+      id: "disc-rf-od-ob",
+      section: "E",
+      description: "Discount Raise & Fall's Overdistance for OB Removal",
+      unit: "Lot",
+      volume: 1,
+      rate: -disc,
+      subtotal: -disc,
+    });
+  }
+  if (subtotalRF_OD_Coal > 0) {
+    const disc = Math.round(subtotalRF_OD_Coal * 0.25);
+    sectionEItems.push({
+      id: "disc-rf-od-coal",
+      section: "E",
+      description: "Discount Raise & Fall's Overdistance for Coal Winning",
+      unit: "Lot",
+      volume: 1,
+      rate: -disc,
+      subtotal: -disc,
+    });
+  }
+
+  const subtotalD = sectionDItems.reduce((acc, it) => acc + it.subtotal, 0);
+  const subtotalE = sectionEItems.reduce((acc, it) => acc + it.subtotal, 0);
+
+  return {
+    sectionDItems,
+    sectionEItems,
+    subtotalD,
+    subtotalE,
+  };
 }

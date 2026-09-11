@@ -26,8 +26,8 @@ export function useFinanceDataLoader({ viewTitle, user, onNotice }: UseFinanceDa
   const isManager = isSuper || authorized(user, "ba_tracker", "approve") || authorized(user, "invoice", "approve_tier1") || authorized(user, "approval", "act");
   const isDirector = isSuper || authorized(user, "invoice", "approve_tier2") || authorized(user, "finance", "approve_tier2") || authorized(user, "management_dashboard", "read");
 
-  async function loadData() {
-    setLoading(true);
+  async function loadData(showLoading = false) {
+    if (showLoading) setLoading(true);
     try {
       const [dashRes, baRes, invRes, payRes, custRes, pVolRes, sbsPenRes, jrnRes] = await Promise.all([
         (viewTitle === "Finance & AR Dashboard" || viewTitle === "Finance AR Dashboard" || viewTitle.includes("AR Dashboard"))
@@ -71,12 +71,12 @@ export function useFinanceDataLoader({ viewTitle, user, onNotice }: UseFinanceDa
     } catch (err: any) {
       onNotice(err?.message || "Gagal memuat data finance");
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadData();
+    loadData(true);
     if (customerRows.length === 0) {
       api<any[]>("/api/finance/customers").then(res => {
         if (Array.isArray(res)) setCustomerRows(res);

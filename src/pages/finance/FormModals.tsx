@@ -31,6 +31,21 @@ export function FormModals({ c }: { c: any }) {
     }).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (!modalType || modalType === "none") return;
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (typeof setModalType === "function") {
+          setModalType("none");
+        }
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown);
+    };
+  }, [modalType, setModalType]);
+
   if (!modalType || modalType === "none") return null;
 
   if (modalType === "invoice") {
@@ -56,14 +71,20 @@ export function FormModals({ c }: { c: any }) {
       : `${editItem ? "Edit Data" : "Tambah Data Baru"} — Customer Master`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-1.5 sm:p-3">
+    <div
+      onClick={() => {
+        if (typeof setModalType === "function") setModalType("none");
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-1.5 sm:p-3 overflow-hidden"
+    >
       <div
-        className={`bg-white border border-slate-200 rounded-[4px] p-4 sm:p-5 w-full ${
+        onClick={(e) => e.stopPropagation()}
+        className={`bg-white border border-slate-200 rounded-[4px] w-full ${
           modalType === "pending_volume" ? "max-w-[96vw] 2xl:max-w-[1550px]" : "max-w-3xl"
-        } shadow-2xl space-y-4 max-h-[96vh] overflow-y-auto transition-all`}
+        } shadow-2xl flex flex-col max-h-[96vh] overflow-hidden transition-all`}
       >
-        {/* Modal Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-200 pb-3">
+        {/* Modal Header (Sticky Top) */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-200 p-4 sm:p-5 pb-3 bg-white shrink-0 sticky top-0 z-20">
           <h3 className="text-lg sm:text-xl font-black text-slate-900 truncate">{title}</h3>
           <button
             type="button"
@@ -75,31 +96,33 @@ export function FormModals({ c }: { c: any }) {
         </div>
 
         {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-          {modalType === "payment" && (
-            <PaymentModal
-              formData={formData}
-              setFormData={setFormData}
-              companyList={companyList}
-            />
-          )}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden text-xs">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+            {modalType === "payment" && (
+              <PaymentModal
+                formData={formData}
+                setFormData={setFormData}
+                companyList={companyList}
+              />
+            )}
 
-          {modalType === "customer" && (
-            <CustomerModal
-              formData={formData}
-              setFormData={setFormData}
-            />
-          )}
+            {modalType === "customer" && (
+              <CustomerModal
+                formData={formData}
+                setFormData={setFormData}
+              />
+            )}
 
-          {modalType === "pending_volume" && (
-            <PendingVolumeRecordModal
-              formData={formData}
-              setFormData={setFormData}
-            />
-          )}
+            {modalType === "pending_volume" && (
+              <PendingVolumeRecordModal
+                formData={formData}
+                setFormData={setFormData}
+              />
+            )}
+          </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-5 border-t border-slate-200">
+          {/* Action Buttons (Sticky Bottom) */}
+          <div className="flex items-center justify-end gap-3 p-4 sm:p-5 pt-3 border-t border-slate-200 bg-white shrink-0 sticky bottom-0 z-20">
             <button
               type="button"
               className="px-5 py-2 rounded-[3px] border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold transition shadow-xs text-xs cursor-pointer"

@@ -15,15 +15,15 @@ import {
 } from "./demoDataSeed";
 
 export function useFinanceMasterData(customerCode: string = "POS", customerRows: any[] = []) {
-  const [mRate, setMRate] = useState(17923.30);
-  const [fuelPriceUSD, setFuelPriceUSD] = useState(1.422);
-  const [laborPriceIDR, setLaborPriceIDR] = useState(3721423);
+  const [mRate, setMRate] = useState(0);
+  const [fuelPriceUSD, setFuelPriceUSD] = useState(0);
+  const [laborPriceIDR, setLaborPriceIDR] = useState(0);
   const [raiseFallMasters, setRaiseFallMasters] = useState<any[]>([]);
   const [raiseFallMaster, setRaiseFallMaster] = useState<any>(null);
 
   const [dynamicSowOptions, setDynamicSowOptions] = useState<any[]>([]);
   const [bankAccountOptions, setBankAccountOptions] = useState<any[]>([]);
-  const [latestKursBI, setLatestKursBI] = useState(17923.30);
+  const [latestKursBI, setLatestKursBI] = useState(0);
   const [coalIndexMaster, setCoalIndexMaster] = useState<any[]>([]);
 
   const [financeTemplates, setFinanceTemplates] = useState<any[]>([]);
@@ -58,20 +58,13 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
               customerCode: d.customerCode || d.customer || "",
               baseRateUSD: d.rateUSD || d.baseRateUSD || 0,
               rateUSD: d.rateUSD || d.baseRateUSD || 0,
-              rateIDR: d.rateIDR || d.baseRateIDR || (d.rateUSD ? Math.round(d.rateUSD * 17923.30) : 0),
-              tier1Rate: d.tier1Rate || 0,
-              tier2Rate: d.tier2Rate || 0,
-              tier3Rate: d.tier3Rate || 0,
-              splitPercentage: d.splitPercentage || 0,
+              rateIDR: d.rateIDR || d.baseRateIDR || 0,
               baseDistanceMeters: d.baseDistanceMeters || 0,
+              isDistanceVar: d.category === "Distance" || (d.unit || "").toLowerCase().includes("m") || (d.unit || "").toLowerCase().includes("km"),
             }))
           );
         }
       })
-      .catch(() => {});
-
-    api<any[]>("/api/master-data/bank-accounts")
-      .then((data) => { if (Array.isArray(data)) setBankAccountOptions(data); })
       .catch(() => {});
 
     api<any[]>("/api/master-data/daily-exchange-rates")
@@ -80,7 +73,7 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
           const sorted = [...data].sort((a, b) =>
             new Date(b.date || b.tanggal || 0).getTime() - new Date(a.date || a.tanggal || 0).getTime()
           );
-          const tengah = sorted[0].tengah || sorted[0].midRate || sorted[0].kurs_tengah || 0;
+          const tengah = sorted[0].tengah || sorted[0].midRate || sorted[0].kurs_tengah || sorted[0].kursTengah || 0;
           if (tengah > 0) setLatestKursBI(tengah);
         }
       })
@@ -90,11 +83,18 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
   useEffect(() => {
     if (raiseFallMasters.length > 0) {
       const custUpper = (customerCode || "POS").toUpperCase();
-      const matched = raiseFallMasters.find((r) => r.customerCode?.toUpperCase() === custUpper) || raiseFallMasters[0];
-      setRaiseFallMaster(matched);
-      if (matched.actualMRateXn > 0) setMRate(matched.actualMRateXn);
-      if (matched.actualFuelFn > 0) setFuelPriceUSD(matched.actualFuelFn);
-      if (matched.actualLaborLn > 0) setLaborPriceIDR(matched.actualLaborLn);
+      const matched = raiseFallMasters.find((r) => r.customerCode?.toUpperCase() === custUpper);
+      if (matched) {
+        setRaiseFallMaster(matched);
+        setMRate(matched.actualMRateXn || 0);
+        setFuelPriceUSD(matched.actualFuelFn || 0);
+        setLaborPriceIDR(matched.actualLaborLn || 0);
+      } else {
+        setRaiseFallMaster(null);
+        setMRate(0);
+        setFuelPriceUSD(0);
+        setLaborPriceIDR(0);
+      }
     }
   }, [customerCode, raiseFallMasters]);
 
@@ -112,10 +112,33 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
   const masterBankAccounts = useMemo(() => templateRows("bank_accounts"), [financeTemplates]);
   const rfIndexCalculated = calcRFIndex(fuelPriceUSD, laborPriceIDR, mRate, raiseFallMaster);
 
+  const normalizeMonthKey = (str: string): string => {
+    const s = (str || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (s.includes("jan")) return "jan";
+    if (s.includes("feb")) return "feb";
+    if (s.includes("mar")) return "mar";
+    if (s.includes("apr")) return "apr";
+    if (s.includes("may") || s.includes("mei")) return "mei";
+    if (s.includes("jun")) return "jun";
+    if (s.includes("jul")) return "jul";
+    if (s.includes("aug") || s.includes("agt") || s.includes("agus")) return "agu";
+    if (s.includes("sep")) return "sep";
+    if (s.includes("oct") || s.includes("okt")) return "okt";
+    if (s.includes("nov")) return "nov";
+    if (s.includes("dec") || s.includes("des")) return "des";
+    return s;
+  };
+
   const getBGGActiveCoalTier = (periodStr?: string): "Tier 1" | "Tier 2" | "Tier 3" => {
-    if (!Array.isArray(coalIndexMaster) || coalIndexMaster.length === 0) return "Tier 3";
+    if (!Array.isArray(coalIndexMaster) || coalIndexMaster.length === 0) return "Tier 2";
     if (periodStr) {
-      const match = coalIndexMaster.find(c => (c.period || "").toLowerCase().includes(periodStr.toLowerCase()) || periodStr.toLowerCase().includes((c.period || "").toLowerCase()));
+      const pKey = normalizeMonthKey(periodStr);
+      const match = coalIndexMaster.find(c => {
+        const cKey = normalizeMonthKey(c.period || "");
+        return (pKey && cKey && pKey === cKey) ||
+          (c.period || "").toLowerCase().includes(periodStr.toLowerCase()) ||
+          periodStr.toLowerCase().includes((c.period || "").toLowerCase());
+      });
       if (match) return (match.activeTier as any) || (match.avgR3 > 75 ? "Tier 3" : match.avgR3 >= 50 ? "Tier 2" : "Tier 1");
     }
     const latest = coalIndexMaster[0];
@@ -133,11 +156,17 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
     const currentKurs = latestKursBI || mRate || 17923.30;
     const catalog = dynamicSowOptions.length > 0 ? dynamicSowOptions : defaultMasterVariableOptions;
 
-    // Filter catalog for customer
-    const filtered = catalog.filter((s: any) => {
-      const sCust = (s.customer || s.customerCode || "").toUpperCase();
-      return !sCust || sCust === custUpper || ((custUpper === "POS" || custUpper === "IBP" || custUpper === "BBA") && (!sCust || sCust === "POS"));
-    });
+    // Filter catalog for customer and prioritize items with configured non-zero rates
+    const filtered = catalog
+      .filter((s: any) => {
+        const sCust = (s.customer || s.customerCode || "").toUpperCase();
+        return !sCust || sCust === custUpper || ((custUpper === "POS" || custUpper === "IBP" || custUpper === "BBA") && (!sCust || sCust === "POS"));
+      })
+      .sort((a: any, b: any) => {
+        const aHasRate = (a.rateIDR || a.tier1Rate || a.tier2Rate || a.tier3Rate || a.rateUSD || a.baseRateUSD) ? 1 : 0;
+        const bHasRate = (b.rateIDR || b.tier1Rate || b.tier2Rate || b.tier3Rate || b.rateUSD || b.baseRateUSD) ? 1 : 0;
+        return bHasRate - aHasRate;
+      });
 
     // Match priority 1: Exact normalized match
     let match = filtered.find((s: any) => {
@@ -156,24 +185,29 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
     // Match priority 3: Domain keyword matching
     if (!match) {
       if (custUpper === "BGG") {
-        if (itemNorm.includes("75") || (itemNorm.includes("ob") && itemNorm.includes("1"))) {
+        if (itemNorm.includes("75") || (itemNorm.includes("ob") && itemNorm.includes("1") && !itemNorm.includes("distance") && !itemNorm.includes("overhaul"))) {
           match = filtered.find((s: any) => (s.itemName || s.name || "").includes("75%"));
-        } else if (itemNorm.includes("25") || (itemNorm.includes("ob") && itemNorm.includes("2"))) {
+        } else if (itemNorm.includes("25") || (itemNorm.includes("ob") && itemNorm.includes("2") && !itemNorm.includes("distance") && !itemNorm.includes("overhaul"))) {
           match = filtered.find((s: any) => (s.itemName || s.name || "").includes("25%"));
+        } else if ((itemNorm.includes("distance") || itemNorm.includes("overhaul")) && (itemNorm.includes("coal") || itemNorm.includes("cw"))) {
+          match = filtered.find((s: any) => {
+            const n = (s.itemName || s.name || "").toLowerCase();
+            return (n.includes("distance") || n.includes("overhaul")) && (n.includes("coal") || n.includes("cw"));
+          });
+        } else if ((itemNorm.includes("distance") || itemNorm.includes("overhaul")) && (itemNorm.includes("ob") || itemNorm.includes("burden") || itemNorm.includes("waste"))) {
+          match = filtered.find((s: any) => {
+            const n = (s.itemName || s.name || "").toLowerCase();
+            return (n.includes("distance") || n.includes("overhaul")) && (n.includes("ob") || n.includes("burden") || n.includes("waste"));
+          });
         } else if (itemNorm.includes("coal") && !itemNorm.includes("distance") && !itemNorm.includes("overhaul")) {
           match = filtered.find((s: any) => {
             const n = (s.itemName || s.name || "").toLowerCase();
             return n.includes("coal") && !n.includes("distance") && !n.includes("overhaul");
           });
-        } else if ((itemNorm.includes("distance") || itemNorm.includes("overhaul")) && itemNorm.includes("ob")) {
+        } else if ((itemNorm.includes("ob") || itemNorm.includes("burden") || itemNorm.includes("overburden")) && !itemNorm.includes("distance") && !itemNorm.includes("overhaul")) {
           match = filtered.find((s: any) => {
             const n = (s.itemName || s.name || "").toLowerCase();
-            return (n.includes("distance") || n.includes("overhaul")) && n.includes("ob");
-          });
-        } else if ((itemNorm.includes("distance") || itemNorm.includes("overhaul")) && itemNorm.includes("coal")) {
-          match = filtered.find((s: any) => {
-            const n = (s.itemName || s.name || "").toLowerCase();
-            return (n.includes("distance") || n.includes("overhaul")) && n.includes("coal");
+            return (n.includes("over burden") || n.includes("ob")) && !n.includes("distance") && !n.includes("overhaul");
           });
         }
       } else if (custUpper === "PTRO" || custUpper === "DBK") {
@@ -240,6 +274,8 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
         if (match.rateIDR) return match.rateIDR;
         if (match.baseRateIDR) return match.baseRateIDR;
         if (match.tier3Rate) return match.tier3Rate;
+        if (match.tier2Rate) return match.tier2Rate;
+        if (match.tier1Rate) return match.tier1Rate;
         if (match.rateUSD) return Math.round(match.rateUSD * currentKurs);
         if (match.baseRateUSD) return Math.round(match.baseRateUSD * currentKurs);
       }
@@ -287,7 +323,7 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
             unit: cleanUnit || "BCM",
             defaultRate: rateIDR,
             usdRate: s.rateUSD || s.baseRateUSD || 0,
-            defaultDistance: isCoalOverhaul ? 3000 : (isOverhaul ? 1000 : 1000),
+            defaultDistance: custUpper === "BGG" ? 1000 : (isCoalOverhaul ? 3000 : 1000),
             overhaulRate: 0,
             id: s.id
           };
@@ -388,22 +424,24 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
       ...(zeroDistanceAndRate ? { distance: 0, distanceWeightAvg: 0, rate: 0 } : {}),
     }));
 
-  const syncBARatesWithMasterData = useCallback((items: any[], cust: string): any[] => {
+  const syncBARatesWithMasterData = useCallback((items: any[], cust: string, period?: string): any[] => {
     return (items || []).map((it) => {
       const mat = it.material || it.name || it.description || "";
       if (!mat || it.isCustom) return it;
       const isUSD = Boolean(it.isUSD);
-      const masterRate = getSowMasterRate(cust, mat, it.rate || 0, isUSD);
+      const itemPeriod = it.period || period;
+      const tier = cust.toUpperCase() === "BGG" ? getBGGActiveCoalTier(itemPeriod) : undefined;
+      const masterRate = getSowMasterRate(cust, mat, it.rate || 0, isUSD, tier);
       if (masterRate > 0) {
         return {
           ...it,
           rate: masterRate,
-          ...(isUSD ? { rateUSD: getSowMasterRate(cust, mat, it.rateUSD || 0, true) } : {})
+          ...(isUSD ? { rateUSD: getSowMasterRate(cust, mat, it.rateUSD || 0, true, tier) } : {})
         };
       }
       return it;
     });
-  }, [getSowMasterRate]);
+  }, [getSowMasterRate, getBGGActiveCoalTier]);
 
   const defaultPOSBAOperatingItems = useMemo(() => {
     const rows = templateRows("ba_operating_POS");
@@ -470,10 +508,14 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
 
   const reloadMasterData = useCallback(async () => {
     try {
-      const [sowData, fxData] = await Promise.all([
+      const [sowData, fxData, rfData] = await Promise.all([
         api<any[]>("/api/master-data/variable-sow").catch(() => []),
         api<any[]>("/api/master-data/daily-exchange-rates").catch(() => []),
+        api<any[]>("/api/master-data/raise-fall").catch(() => []),
       ]);
+      if (Array.isArray(rfData) && rfData.length > 0) {
+        setRaiseFallMasters(rfData);
+      }
       if (Array.isArray(sowData) && sowData.length > 0) {
         setDynamicSowOptions(
           sowData.map((d) => ({
@@ -487,7 +529,7 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
             customerCode: d.customerCode || d.customer || "",
             baseRateUSD: d.rateUSD || d.baseRateUSD || 0,
             rateUSD: d.rateUSD || d.baseRateUSD || 0,
-            rateIDR: d.rateIDR || d.baseRateIDR || (d.rateUSD ? Math.round(d.rateUSD * (latestKursBI || 17923.30)) : 0),
+            rateIDR: d.rateIDR || d.baseRateIDR || (d.rateUSD ? Math.round(d.rateUSD * (latestKursBI || 0)) : 0),
             tier1Rate: d.tier1Rate || 0,
             tier2Rate: d.tier2Rate || 0,
             tier3Rate: d.tier3Rate || 0,
@@ -521,6 +563,6 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
     demoPTROItems, demoDBKItems, blankSBSItems, demoSBSItems,
     defaultPOSBAOperatingItems, defaultPOSBAMDOItems, defaultBGGBAItems,
     defaultPTROBAItems, defaultDBKBAItems, defaultSBSBAOperatingItems,
-    defaultSBSBAMDOItems, defaultSBSBADeductionItems, reloadMasterData
+    defaultSBSBAMDOItems, defaultSBSBADeductionItems, syncBARatesWithMasterData, reloadMasterData
   };
 }
