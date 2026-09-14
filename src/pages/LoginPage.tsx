@@ -196,7 +196,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
         </div>
       </section>
       <section className="relative overflow-hidden bg-slate-950 min-h-full flex items-center justify-center p-4 sm:p-6 lg:p-8">
-        <div className="relative w-full h-full max-h-[94vh] rounded-2xl overflow-hidden shadow-2xl border border-slate-800/80 group">
+        <div className="relative w-full h-full max-h-[94vh] rounded-[4px] overflow-hidden shadow-2xl border border-slate-800/80 group">
           <img
             src={loginFinanceBg}
             alt="FEAST - Financial Enterprise Andalan System Workspace"
@@ -218,21 +218,21 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
 
       {forgotOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-sm">
+          <div className="bg-white rounded-[4px] max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-sm">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                <KeyRound size={18} className="text-[#20a6b8]" /> Reset Password
+                <KeyRound size={18} className="text-[#a57c50]" /> Reset Password
               </h3>
-              <button onClick={() => setForgotOpen(false)} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700">
+              <button onClick={() => setForgotOpen(false)} className="p-1 hover:bg-slate-100 rounded-[3px] text-slate-400 hover:text-slate-700">
                 <X size={18} />
               </button>
             </div>
 
             {forgotMessage && (
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold">{forgotMessage}</div>
+              <div className="p-3 rounded-[3px] bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold">{forgotMessage}</div>
             )}
             {forgotError && (
-              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-semibold">{forgotError}</div>
+              <div className="p-3 rounded-[3px] bg-rose-50 border border-rose-200 text-rose-900 text-xs font-semibold">{forgotError}</div>
             )}
 
             <form onSubmit={submitForgot} className="space-y-3">
@@ -243,7 +243,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
                   required
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-[#20a6b8] font-semibold text-xs"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-[3px] focus:outline-hidden focus:border-[#a57c50] font-semibold text-xs"
                 />
               </label>
 
@@ -256,7 +256,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
                       required
                       value={forgotToken}
                       onChange={(e) => setForgotToken(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-[#20a6b8] font-mono text-xs"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-[3px] focus:outline-hidden focus:border-[#a57c50] font-mono text-xs"
                     />
                     <span className="block mt-1 text-[11px] text-slate-400">Token otomatis terisi dari respons server (berlaku 1 jam).</span>
                   </label>
@@ -269,7 +269,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
                         value={forgotNewPassword}
                         onChange={(e) => setForgotNewPassword(e.target.value)}
                         placeholder="Minimal 8 karakter"
-                        className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-xl focus:outline-hidden focus:border-[#20a6b8] font-semibold text-xs"
+                        className="w-full px-3 py-2 pr-10 border border-slate-200 rounded-[3px] focus:outline-hidden focus:border-[#a57c50] font-semibold text-xs"
                       />
                       <button
                         type="button"
@@ -288,7 +288,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
               <button
                 type="submit"
                 disabled={forgotLoading}
-                className="w-full py-2.5 !bg-[#a57c50] hover:!bg-[#8f683e] text-white rounded-xl text-xs font-bold transition disabled:opacity-50 !shadow-[0_10px_20px_rgba(165,124,80,.25)]"
+                className="w-full py-2.5 !bg-[#a57c50] hover:!bg-[#8f683e] text-white rounded-[3px] text-xs font-bold transition disabled:opacity-50 !shadow-[0_10px_20px_rgba(165,124,80,.25)]"
               >
                 {forgotLoading ? "Memproses..." : forgotStage === "request" ? "Kirim Permintaan Reset" : "Simpan Password Baru"}
               </button>

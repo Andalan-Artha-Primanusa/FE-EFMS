@@ -64,9 +64,9 @@ export function NotificationCenterPage({ onNotice }: { onNotice?: (m: string) =>
       </div>
 
       {loading ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-xs text-slate-400">Memuat...</div>
+        <div className="rounded-[4px] border border-slate-200 bg-white p-8 text-center text-xs text-slate-400">Memuat...</div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
+        <div className="rounded-[4px] border border-slate-200 bg-white p-8 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
           <BellRing size={24} className="text-slate-300" />
           Tidak ada notifikasi.
         </div>
@@ -76,7 +76,7 @@ export function NotificationCenterPage({ onNotice }: { onNotice?: (m: string) =>
             <button
               key={n.id}
               onClick={() => read(n)}
-              className={`w-full text-left rounded-2xl border p-4 transition flex gap-3 ${n.isRead ? "border-slate-200 bg-white" : "border-[#20a6b8] bg-sky-50 hover:bg-sky-100"}`}
+              className={`w-full text-left rounded-[4px] border p-4 transition flex gap-3 ${n.isRead ? "border-slate-200 bg-white" : "border-[#A57C50] bg-amber-50/50 hover:bg-amber-100/50"}`}
             >
               <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${n.isRead ? "bg-slate-100 text-slate-400" : "bg-[#20a6b8] text-white"}`}>
                 {n.isRead ? <MailOpen size={16} /> : <Bell size={16} />}

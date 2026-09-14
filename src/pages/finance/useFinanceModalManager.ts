@@ -37,6 +37,8 @@ interface UseFinanceModalManagerProps {
   getCurrentMonthPeriod: () => string;
   getPreviousMonthPeriod?: () => string;
   raiseFallMasters?: any[];
+  latestKursBI?: number;
+  mRate?: number;
 }
 
 export function useFinanceModalManager({
@@ -74,7 +76,9 @@ export function useFinanceModalManager({
   openBAModal,
   getCurrentMonthPeriod,
   getPreviousMonthPeriod,
-  raiseFallMasters = []
+  raiseFallMasters = [],
+  latestKursBI,
+  mRate
 }: UseFinanceModalManagerProps) {
   const handleCompanySelect = (code: string) => {
     const mapMatch = customerContractMap[code];
@@ -221,7 +225,7 @@ export function useFinanceModalManager({
         });
         const fn = Number(matched?.actualFuelFn ?? 0);
         const ln = Number(matched?.actualLaborLn ?? 0);
-        const xn = Number(matched?.actualMRateXn ?? 0);
+        const xn = Number(matched?.actualMRateXn || latestKursBI || mRate || 0);
         const d = (fn > 0 && xn > 0) ? (0.34 * fn * xn) / 10699.970229 : 0;
         const l = (ln > 0 && xn > 0) ? (0.25 * ln * xn) / (3594536 * 15388.75) : 0;
         const f = 0.41;
@@ -249,7 +253,7 @@ export function useFinanceModalManager({
           const rCust = (r.customerCode || "").trim().toUpperCase();
           return (rCust.includes("PTRO") || rCust.includes("DBK")) && matchPeriod(r.period, defaultPeriod);
         });
-        const currentM = Number(matched?.actualMRateXn || 0);
+        const currentM = Number(matched?.actualMRateXn || latestKursBI || mRate || 0);
         ptroDataInit = {
           actualMRate: currentM,
           obRateUSD: 1.490,

@@ -203,7 +203,7 @@ export function BATrackerSurveyItems({
       if (matched) {
         const fn = Number(matched.actualFuelFn ?? 0);
         const ln = Number(matched.actualLaborLn ?? 0);
-        const xn = Number(matched.actualMRateXn ?? 0);
+        const xn = Number(matched.actualMRateXn || latestKursBI || mRate || 0);
         const a = Number(matched.weightFuelA ?? 0.34);
         const b = Number(matched.weightLaborB ?? 0.25);
         const c = Number(matched.weightFixedC ?? 0.41);
@@ -231,7 +231,7 @@ export function BATrackerSurveyItems({
     return {
       actualFuelFn: Number(posData.actualFuelFn ?? 0),
       actualLaborLn: Number(posData.actualLaborLn ?? 0),
-      actualMRateXn: Number(posData.actualMRateXn ?? 0),
+      actualMRateXn: Number(posData.actualMRateXn || latestKursBI || mRate || 0),
       posRfIndex: Number(posData.posRfIndex ?? 0),
     };
   };

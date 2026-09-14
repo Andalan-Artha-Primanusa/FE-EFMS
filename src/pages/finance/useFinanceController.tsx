@@ -186,7 +186,7 @@ export function useFinanceController({
     defaultPOSBAOperatingItems, defaultSBSBAMDOItems, defaultPOSBAMDOItems, defaultSBSBADeductionItems,
     setBaOperatingItems, setBaMDOItems, setBaDeductionItems, setActiveBAStep,
     setShowPendingVolumeDrawer, openBAModal, getCurrentMonthPeriod, getPreviousMonthPeriod,
-    raiseFallMasters
+    raiseFallMasters, latestKursBI, mRate
   });
 
   const {

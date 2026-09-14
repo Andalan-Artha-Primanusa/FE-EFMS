@@ -273,10 +273,11 @@ export function useFinanceSaveHandlers({
       if (modalType === "invoice" && payload.baNoReference) {
         const targetBA = baRows.find((r) => r.baNumber === payload.baNoReference);
         if (targetBA) {
+          const linkedInvoiceId = finalItem.id || payload.id;
           if (setBaRows) {
-            setBaRows((prev) => prev.map((b) => b.id === targetBA.id ? { ...b, statusBA: "Arsip", invoiceNoLinked: payload.invoiceNo, invoiceID: finalItem.id } : b));
+            setBaRows((prev) => prev.map((b) => b.id === targetBA.id ? { ...b, statusBA: "Arsip", invoiceNoLinked: payload.invoiceNo, invoiceID: linkedInvoiceId } : b));
           }
-          await api(`/api/finance/ba-trackers/${targetBA.id}`, { method: "PUT", body: JSON.stringify({ ...targetBA, statusBA: "Arsip", invoiceNoLinked: payload.invoiceNo, invoiceID: payload.id }) }).catch(() => {});
+          await api(`/api/finance/ba-trackers/${targetBA.id}`, { method: "PUT", body: JSON.stringify({ ...targetBA, statusBA: "Arsip", invoiceNoLinked: payload.invoiceNo, invoiceID: linkedInvoiceId }) });
         }
       }
 

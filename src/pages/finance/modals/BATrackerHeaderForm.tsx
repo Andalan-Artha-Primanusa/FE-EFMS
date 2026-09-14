@@ -122,7 +122,7 @@ export function BATrackerHeaderForm({
                     });
                     const fn = Number(matched?.actualFuelFn ?? 0);
                     const ln = Number(matched?.actualLaborLn ?? 0);
-                    const xn = Number(matched?.actualMRateXn ?? 0);
+                    const xn = Number(matched?.actualMRateXn || latestKursBI || 0);
                     const d = (fn > 0 && xn > 0) ? (0.34 * fn * xn) / 10699.970229 : 0;
                     const l = (ln > 0 && xn > 0) ? (0.25 * ln * xn) / (3594536 * 15388.75) : 0;
                     const f = 0.41;
@@ -146,7 +146,7 @@ export function BATrackerHeaderForm({
                       const rCust = (r.customerCode || "").trim().toUpperCase();
                       return (rCust.includes("PTRO") || rCust.includes("DBK")) && matchPeriod(r.period, currentPeriod);
                     });
-                    const currentM = Number(matched?.actualMRateXn || 0);
+                    const currentM = Number(matched?.actualMRateXn || latestKursBI || 0);
                     setFormData({
                       ...formData,
                       customerCode: code,
@@ -191,6 +191,40 @@ export function BATrackerHeaderForm({
                         dendaBBMHauler: activeP.dendaBBMHauler,
                         dendaVolume: activeP.dendaVolume,
                         fuelPeriods: newFuelPeriods,
+                      }
+                    });
+                  } else if (isBGG) {
+                    const matched = (raiseFallMasters || []).find((r: any) => {
+                      const rCust = (r.customerCode || "").trim().toUpperCase();
+                      return (rCust === "BGG" || !rCust) && matchPeriod(r.period, currentPeriod);
+                    });
+                    const p1F = Number(matched?.bggFuelP1 ?? 0);
+                    const p1T = Number(matched?.bggTransportP1 ?? 0);
+                    const p2F = Number(matched?.bggFuelP2 ?? 0);
+                    const p2T = Number(matched?.bggTransportP2 ?? 0);
+                    const avg = Number(matched?.actualFuelFn || ((p1F + p1T > 0 && p2F + p2T > 0) ? (p1F + p1T + p2F + p2T) / 2 : (p1F + p1T || p2F + p2T || 0)));
+                    const rf = Number(matched?.rfIndexResult || (avg > 0 ? Number((0.60 + 0.40 * (avg / 9000)).toFixed(3)) : 1.560));
+                    setFormData({
+                      ...formData,
+                      customerCode: code,
+                      rfIndexCalculated: rf,
+                      bggData: {
+                        bggFuelP1: p1F,
+                        bggTransportP1: p1T,
+                        bggFuelP2: p2F,
+                        bggTransportP2: p2T,
+                        bggAvgFn: avg,
+                        bggRfIndex: rf,
+                        fuelPeriods: {
+                          [currentPeriod]: {
+                            bggFuelP1: p1F,
+                            bggTransportP1: p1T,
+                            bggFuelP2: p2F,
+                            bggTransportP2: p2T,
+                            bggAvgFn: avg,
+                            bggRfIndex: rf,
+                          }
+                        }
                       }
                     });
                   } else {
@@ -252,7 +286,7 @@ export function BATrackerHeaderForm({
                       const newFuelPeriods = { ...(curPOS.fuelPeriods || {}) };
                       const fn = Number(matched?.actualFuelFn ?? newFuelPeriods[val]?.actualFuelFn ?? curPOS.actualFuelFn ?? 0);
                       const ln = Number(matched?.actualLaborLn ?? newFuelPeriods[val]?.actualLaborLn ?? curPOS.actualLaborLn ?? 0);
-                      const xn = Number(matched?.actualMRateXn ?? newFuelPeriods[val]?.actualMRateXn ?? curPOS.actualMRateXn ?? 0);
+                      const xn = Number(matched?.actualMRateXn ?? newFuelPeriods[val]?.actualMRateXn ?? curPOS.actualMRateXn ?? latestKursBI ?? 0);
                       const d = (fn > 0 && xn > 0) ? (0.34 * fn * xn) / 10699.970229 : 0;
                       const l = (ln > 0 && xn > 0) ? (0.25 * ln * xn) / (3594536 * 15388.75) : 0;
                       const f = 0.41;
@@ -274,7 +308,7 @@ export function BATrackerHeaderForm({
                     } else if (custClean.includes("PTRO") || custClean.includes("DBK")) {
                       const curPTRO = prev.ptroData || {};
                       const newFuelPeriods = { ...(curPTRO.fuelPeriods || {}) };
-                      const currentM = Number(matched?.actualMRateXn || newFuelPeriods[val]?.actualMRate || curPTRO.actualMRate || 0);
+                      const currentM = Number(matched?.actualMRateXn || newFuelPeriods[val]?.actualMRate || curPTRO.actualMRate || latestKursBI || 0);
                       newFuelPeriods[val] = {
                         actualMRate: currentM,
                         obRateUSD: 1.490,

@@ -49,8 +49,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
       return (
         <div className="min-h-[360px] w-full flex items-center justify-center p-6 bg-slate-50/50">
-          <div className="max-w-lg w-full bg-white rounded-2xl border border-rose-200 shadow-xl p-6 sm:p-8 text-center">
-            <div className="w-14 h-14 bg-rose-100 text-rose-700 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-rose-200">
+          <div className="max-w-lg w-full bg-white rounded-[4px] border border-rose-200 shadow-xl p-6 sm:p-8 text-center">
+            <div className="w-14 h-14 bg-rose-100 text-rose-700 rounded-[3px] flex items-center justify-center mx-auto mb-4 border border-rose-200">
               <AlertTriangle size={28} />
             </div>
 
@@ -63,14 +63,14 @@ export class ErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.handleReset}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-900 hover:bg-indigo-950 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-extrabold text-xs rounded-[3px] shadow-xs transition cursor-pointer"
               >
                 <RefreshCw size={14} /> Muat Ulang Halaman
               </button>
               <button
                 type="button"
                 onClick={this.handleClearStorageAndReset}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-[3px] border border-slate-200 transition cursor-pointer"
               >
                 <Trash2 size={14} /> Reset Cache & Login Ulang
               </button>
