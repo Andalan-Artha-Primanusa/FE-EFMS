@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { api, getFinanceTemplates } from "../../lib/api";
 import { calcRFIndex } from "./calculations";
+import { matchPeriod } from "./helpers";
 import {
   FALLBACK_BLANK_PTRO_ITEMS,
   FALLBACK_BLANK_BGG_ITEMS,
@@ -31,12 +32,28 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
 
   useEffect(() => {
     getFinanceTemplates()
-      .then((grouped: Record<string, any[]>) => { if (grouped) setFinanceTemplates(Object.values(grouped).flat()); })
-      .catch(() => {})
-      .finally(() => setTemplatesLoaded(true));
+      .then((templates) => {
+        if (Array.isArray(templates) && templates.length > 0) {
+          setFinanceTemplates(templates);
+        }
+        setTemplatesLoaded(true);
+      })
+      .catch(() => setTemplatesLoaded(true));
 
     api<any[]>("/api/master-data/raise-fall")
-      .then((data) => { if (Array.isArray(data) && data.length > 0) setRaiseFallMasters(data); })
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setRaiseFallMasters(data);
+          const custUpper = (customerCode || "POS").toUpperCase();
+          const matched = data.find((r) => r.customerCode?.toUpperCase() === custUpper);
+          if (matched) {
+            setRaiseFallMaster(matched);
+            setMRate(matched.actualMRateXn || 0);
+            setFuelPriceUSD(matched.actualFuelFn || 0);
+            setLaborPriceIDR(matched.actualLaborLn || 0);
+          }
+        }
+      })
       .catch(() => {});
 
     api<any[]>("/api/master-data/coal-index")
@@ -58,7 +75,11 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
               customerCode: d.customerCode || d.customer || "",
               baseRateUSD: d.rateUSD || d.baseRateUSD || 0,
               rateUSD: d.rateUSD || d.baseRateUSD || 0,
-              rateIDR: d.rateIDR || d.baseRateIDR || 0,
+              rateIDR: d.rateIDR || d.baseRateIDR || (d.rateUSD ? Math.round(d.rateUSD * (latestKursBI || 0)) : 0),
+              tier1Rate: d.tier1Rate || 0,
+              tier2Rate: d.tier2Rate || 0,
+              tier3Rate: d.tier3Rate || 0,
+              splitPercentage: d.splitPercentage || 0,
               baseDistanceMeters: d.baseDistanceMeters || 0,
               isDistanceVar: d.category === "Distance" || (d.unit || "").toLowerCase().includes("m") || (d.unit || "").toLowerCase().includes("km"),
             }))
@@ -70,11 +91,16 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
     api<any[]>("/api/master-data/daily-exchange-rates")
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
+          const valid = data.filter((r) => Number(r.kursTengah || r.tengah || 0) > 0);
+          const avgMRate = valid.length > 0
+            ? valid.reduce((acc, r) => acc + Number(r.kursTengah || r.tengah || 0), 0) / valid.length
+            : 0;
           const sorted = [...data].sort((a, b) =>
-            new Date(b.date || b.tanggal || 0).getTime() - new Date(a.date || a.tanggal || 0).getTime()
+            new Date(b.dateStr || b.date || b.tanggal || 0).getTime() - new Date(a.dateStr || a.date || a.tanggal || 0).getTime()
           );
-          const tengah = sorted[0].tengah || sorted[0].midRate || sorted[0].kurs_tengah || sorted[0].kursTengah || 0;
-          if (tengah > 0) setLatestKursBI(tengah);
+          const latestTengah = Number(sorted[0]?.kursTengah || sorted[0]?.tengah || sorted[0]?.kurs_tengah || 0);
+          const chosenKurs = avgMRate > 0 ? avgMRate : latestTengah;
+          if (chosenKurs > 0) setLatestKursBI(chosenKurs);
         }
       })
       .catch(() => {});
@@ -132,13 +158,7 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
   const getBGGActiveCoalTier = (periodStr?: string): "Tier 1" | "Tier 2" | "Tier 3" => {
     if (!Array.isArray(coalIndexMaster) || coalIndexMaster.length === 0) return "Tier 2";
     if (periodStr) {
-      const pKey = normalizeMonthKey(periodStr);
-      const match = coalIndexMaster.find(c => {
-        const cKey = normalizeMonthKey(c.period || "");
-        return (pKey && cKey && pKey === cKey) ||
-          (c.period || "").toLowerCase().includes(periodStr.toLowerCase()) ||
-          periodStr.toLowerCase().includes((c.period || "").toLowerCase());
-      });
+      const match = coalIndexMaster.find(c => matchPeriod(c.period, periodStr));
       if (match) return (match.activeTier as any) || (match.avgR3 > 75 ? "Tier 3" : match.avgR3 >= 50 ? "Tier 2" : "Tier 1");
     }
     const latest = coalIndexMaster[0];
@@ -331,7 +351,7 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
       }
     }
     return templateRows("sow_catalog");
-  }, [dynamicSowOptions, defaultMasterVariableOptions, customerCode, latestKursBI, mRate, templateRows]);
+  }, [dynamicSowOptions, defaultMasterVariableOptions, customerCode, latestKursBI, mRate, templateRows, coalIndexMaster, getBGGActiveCoalTier]);
 
   const customerContractMap: Record<string, any> = useMemo(() => {
     const map: Record<string, any> = {};
@@ -486,7 +506,32 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
       { id: "ptro_ba_odcg", category: "Over Distance", area: "Pit Sapan", material: "Overhaul Coal Getting", unit: "TON", initialVolume: 0, adjustedVolume: 0, isUSD: false, rateIDR: odCgRateIDR, distanceBasis: 3000, isDistanceVar: true, distanceWeightAvg: 3000, rate: odCgRateIDR, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
     ];
   }, [financeTemplates, templateRows, dynamicSowOptions, latestKursBI, mRate, getSowMasterRate]);
-  const defaultDBKBAItems = defaultPTROBAItems;
+
+  const defaultDBKBAItems = useMemo(() => {
+    const currentKurs = latestKursBI || mRate || 17923.30;
+    const obRateUSD = getSowMasterRate("DBK", "OVER BURDEN REMOVAL", 1.490, true);
+    const cgRateUSD = getSowMasterRate("DBK", "COAL GETTING", 0.840, true);
+    const odObRateUSD = getSowMasterRate("DBK", "Overhaul OB", 0.028, true);
+    const odCgRateIDR = getSowMasterRate("DBK", "Overhaul Coal Getting", 230, false);
+    const rows = templateRows("ba_items_DBK");
+    if (rows.length > 0) {
+      return rows.map(r => {
+        let rate = r.rate || 0;
+        const mat = (r.material || "").toUpperCase();
+        if (mat.includes("OVER BURDEN")) rate = Math.round((r.rateUSD || obRateUSD) * currentKurs);
+        else if (mat.includes("COAL GETTING") || mat.includes("COAL WINNING")) rate = Math.round((r.rateUSD || cgRateUSD) * currentKurs);
+        else if (mat.includes("OVERHAUL OB") || mat.includes("OVER DISTANCE FOR OB")) rate = Math.round((r.rateUSD || odObRateUSD) * currentKurs);
+        else if (mat.includes("OVERHAUL COAL") || mat.includes("OVER DISTANCE FOR COAL")) rate = r.rate || odCgRateIDR;
+        return { ...r, rate, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0 };
+      });
+    }
+    return [
+      { id: "dbk_ba_ob", category: "Operating & Mining", area: "Pit DBK", material: "OVER BURDEN REMOVAL", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: obRateUSD, distanceBasis: 0, isDistanceVar: false, rate: Math.round(obRateUSD * currentKurs), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "dbk_ba_cg", category: "Operating & Mining", area: "Pit DBK", material: "COAL GETTING", unit: "MT", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: cgRateUSD, distanceBasis: 0, isDistanceVar: false, rate: Math.round(cgRateUSD * currentKurs), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "dbk_ba_odob", category: "Over Distance", area: "Pit DBK", material: "Overhaul OB", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: odObRateUSD, distanceBasis: 1000, isDistanceVar: true, distanceWeightAvg: 1000, rate: Math.round(odObRateUSD * currentKurs), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "dbk_ba_odcg", category: "Over Distance", area: "Pit DBK", material: "Overhaul Coal Getting", unit: "TON", initialVolume: 0, adjustedVolume: 0, isUSD: false, rateIDR: odCgRateIDR, distanceBasis: 3000, isDistanceVar: true, distanceWeightAvg: 3000, rate: odCgRateIDR, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+    ];
+  }, [financeTemplates, templateRows, dynamicSowOptions, latestKursBI, mRate, getSowMasterRate]);
 
   const defaultSBSBAOperatingItems = useMemo(() => {
     const rows = templateRows("ba_operating_SBS");
@@ -508,11 +553,15 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
 
   const reloadMasterData = useCallback(async () => {
     try {
-      const [sowData, fxData, rfData] = await Promise.all([
+      const [sowData, fxData, rfData, coalData] = await Promise.all([
         api<any[]>("/api/master-data/variable-sow").catch(() => []),
         api<any[]>("/api/master-data/daily-exchange-rates").catch(() => []),
         api<any[]>("/api/master-data/raise-fall").catch(() => []),
+        api<any[]>("/api/master-data/coal-index").catch(() => []),
       ]);
+      if (Array.isArray(coalData) && coalData.length > 0) {
+        setCoalIndexMaster(coalData);
+      }
       if (Array.isArray(rfData) && rfData.length > 0) {
         setRaiseFallMasters(rfData);
       }
@@ -539,11 +588,16 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
         );
       }
       if (Array.isArray(fxData) && fxData.length > 0) {
+        const valid = fxData.filter((r) => Number(r.kursTengah || r.tengah || 0) > 0);
+        const avgMRate = valid.length > 0
+          ? valid.reduce((acc, r) => acc + Number(r.kursTengah || r.tengah || 0), 0) / valid.length
+          : 0;
         const sorted = [...fxData].sort((a, b) =>
-          new Date(b.date || b.tanggal || 0).getTime() - new Date(a.date || a.tanggal || 0).getTime()
+          new Date(b.dateStr || b.date || b.tanggal || 0).getTime() - new Date(a.dateStr || a.date || a.tanggal || 0).getTime()
         );
-        const tengah = sorted[0].tengah || sorted[0].midRate || sorted[0].kurs_tengah || sorted[0].kursTengah || 0;
-        if (tengah > 0) setLatestKursBI(tengah);
+        const latestTengah = Number(sorted[0]?.kursTengah || sorted[0]?.tengah || sorted[0]?.kurs_tengah || 0);
+        const chosenKurs = avgMRate > 0 ? avgMRate : latestTengah;
+        if (chosenKurs > 0) setLatestKursBI(chosenKurs);
       }
     } catch {
       // silent

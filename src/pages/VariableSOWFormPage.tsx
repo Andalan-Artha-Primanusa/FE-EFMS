@@ -118,7 +118,7 @@ export function VariableSOWFormPage() {
 
       // Delete removed rows from database
       for (const delId of deletedIds) {
-        await api(`/api/master-data/variable-sow/${delId}`, { method: "DELETE" }).catch(() => {});
+        await api(`/api/master-data/variable-sow/${delId}`, { method: "DELETE" });
       }
 
       for (const item of validItems) {
@@ -288,7 +288,7 @@ export function VariableSOWFormPage() {
           {/* TABLE RENDERING BASED ON SITE TYPE */}
           {isBGG ? (
             /* BGG MULTI-TIER TABLE */
-            <div className="overflow-x-auto rounded-2xl border-2 border-slate-200 shadow-xs">
+            <div className="overflow-x-auto rounded-[4px] border border-slate-200 shadow-xs">
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-900 text-white font-black uppercase text-[11px]">
@@ -384,7 +384,7 @@ export function VariableSOWFormPage() {
             </div>
           ) : isSBS ? (
             /* SBS IDR RATES TABLE (OB, RENTAL ALAT, PENGURANG BIAYA) */
-            <div className="overflow-x-auto rounded-2xl border-2 border-slate-200 shadow-xs">
+            <div className="overflow-x-auto rounded-[4px] border border-slate-200 shadow-xs">
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-900 text-white font-black uppercase text-[11px]">
@@ -465,7 +465,7 @@ export function VariableSOWFormPage() {
             </div>
           ) : isPTRO ? (
             /* PTRO MULTI-CURRENCY TABLE */
-            <div className="overflow-x-auto rounded-2xl border-2 border-slate-200 shadow-xs">
+            <div className="overflow-x-auto rounded-[4px] border border-slate-200 shadow-xs">
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-900 text-white font-black uppercase text-[11px]">
@@ -549,7 +549,7 @@ export function VariableSOWFormPage() {
             </div>
           ) : (
             /* POS / GENERIC USD TABLE */
-            <div className="overflow-x-auto rounded-2xl border-2 border-slate-200 shadow-xs">
+            <div className="overflow-x-auto rounded-[4px] border border-slate-200 shadow-xs">
               <table className="w-full text-xs text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-900 text-white font-black uppercase text-[11px]">

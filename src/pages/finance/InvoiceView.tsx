@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Truck, BookOpen, Loader2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Check, Send, Zap, TrendingUp, Archive, Scale, Truck, BookOpen, Loader2 } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, User as UserType } from "../../lib/api";
+import { SBSPenaltyModal } from "./modals/SBSPenaltyModal";
 
 import {
   resolveDocumentUrl, formatIDR, parseNumber, formatThousand, formatDateInput,
@@ -31,51 +32,6 @@ export function InvoiceView({ c }: { c: any }) {
   const accountingJournals: any[] = Array.isArray(rawAccountingJournals) ? rawAccountingJournals : [];
   const safeInvoiceRows: any[] = invoiceRows;
   const safeBaRows: any[] = baRows;
-
-  // Local state for SBS Penalty Form modal
-  const [sbsFormState, setSbsFormState] = useState<{
-    id?: number;
-    workPeriod: string;
-    claimRefNo: string;
-    description: string;
-    claimAmount: number;
-    deductedAmount: number;
-    status: "Pending Cut" | "Deducted";
-    notes: string;
-  }>({
-    workPeriod: "Mar-26",
-    claimRefNo: "",
-    description: "",
-    claimAmount: 0,
-    deductedAmount: 0,
-    status: "Pending Cut",
-    notes: ""
-  });
-
-  useEffect(() => {
-    if (sbsPenaltyEditItem) {
-      setSbsFormState({
-        id: sbsPenaltyEditItem.id,
-        workPeriod: sbsPenaltyEditItem.workPeriod || "Mar-26",
-        claimRefNo: sbsPenaltyEditItem.claimRefNo || "",
-        description: sbsPenaltyEditItem.description || "",
-        claimAmount: Number(sbsPenaltyEditItem.claimAmount || 0),
-        deductedAmount: Number(sbsPenaltyEditItem.deductedAmount || 0),
-        status: sbsPenaltyEditItem.status || "Pending Cut",
-        notes: sbsPenaltyEditItem.notes || ""
-      });
-    } else {
-      setSbsFormState({
-        workPeriod: "Mar-26",
-        claimRefNo: "",
-        description: "",
-        claimAmount: 0,
-        deductedAmount: 0,
-        status: "Pending Cut",
-        notes: ""
-      });
-    }
-  }, [sbsPenaltyEditItem, sbsPenaltyModalOpen]);
 
   return (
         <div className="space-y-6">
@@ -815,133 +771,12 @@ export function InvoiceView({ c }: { c: any }) {
                 </Panel>
 
                 {/* MODAL CRUD: SBS PROGRESS PENALTY (SECTION P) */}
-                {sbsPenaltyModalOpen && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs font-sans">
-                    <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-                      <div className="px-6 py-4 bg-gradient-to-r from-amber-800 to-amber-900 text-white flex items-center justify-between">
-                        <div>
-                          <h3 className="text-base font-extrabold flex items-center gap-2">
-                            <Scale size={18} className="text-amber-300" />
-                            {sbsFormState.id ? "Edit Klaim Penalti PT SBS" : "Catat Klaim Penalti Baru PT SBS"}
-                          </h3>
-                          <p className="text-xs text-amber-200 mt-0.5">Klausul Denda Keterlambatan / Deviasi KPI Section P (Tanjung Enim)</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => closeSBSPenaltyModal()}
-                          className="p-1 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition cursor-pointer"
-                        >
-                          <X size={18} />
-                        </button>
-                      </div>
-
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          handleSaveSBSPenalty(sbsFormState);
-                        }}
-                        className="p-6 space-y-4 text-xs font-medium text-slate-700"
-                      >
-                        <div className="grid grid-cols-2 gap-4">
-                          <MonthPickerInput
-                            label="Periode Proyek *"
-                            value={sbsFormState.workPeriod}
-                            onChange={(val) => setSbsFormState({ ...sbsFormState, workPeriod: val })}
-                            format="short"
-                            required
-                          />
-
-                          <div>
-                            <label className="block font-bold text-slate-700 mb-1">Status Pemotongan *</label>
-                            <select
-                              value={sbsFormState.status}
-                              onChange={(e) => setSbsFormState({ ...sbsFormState, status: e.target.value as any })}
-                              className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-bold focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
-                            >
-                              <option value="Pending Cut">Pending Cut (Belum Dipotong)</option>
-                              <option value="Deducted">Deducted (Sudah Dipotong)</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block font-bold text-slate-700 mb-1">No. Ref / BA Klaim Penalti</label>
-                          <input
-                            type="text"
-                            value={sbsFormState.claimRefNo}
-                            onChange={(e) => setSbsFormState({ ...sbsFormState, claimRefNo: e.target.value })}
-                            placeholder="cth: BA-PEN-SBS/III/2026"
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block font-bold text-slate-700 mb-1">Deskripsi / Klausul Denda *</label>
-                          <input
-                            type="text"
-                            value={sbsFormState.description}
-                            onChange={(e) => setSbsFormState({ ...sbsFormState, description: e.target.value })}
-                            placeholder="cth: *Progress Pinalty yang belum di potong - Underperformance Pit E"
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none"
-                            required
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          <RupiahInput
-                            label="Nilai Klaim Denda (Rp) *"
-                            value={sbsFormState.claimAmount}
-                            onChange={(val) => setSbsFormState({ ...sbsFormState, claimAmount: val })}
-                            placeholder="0"
-                            required
-                          />
-
-                          <RupiahInput
-                            label="Sudah Dipotong (Rp)"
-                            value={sbsFormState.deductedAmount}
-                            onChange={(val) => setSbsFormState({ ...sbsFormState, deductedAmount: val })}
-                            placeholder="0"
-                          />
-                        </div>
-
-                        <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 flex items-center justify-between">
-                          <span className="font-bold text-amber-900">Sisa Denda (Outstanding):</span>
-                          <span className="font-mono font-black text-sm text-amber-900">
-                            {formatIDR(Math.max(0, sbsFormState.claimAmount - sbsFormState.deductedAmount))}
-                          </span>
-                        </div>
-
-                        <div>
-                          <label className="block font-bold text-slate-700 mb-1">Catatan Tambahan</label>
-                          <textarea
-                            rows={2}
-                            value={sbsFormState.notes}
-                            onChange={(e) => setSbsFormState({ ...sbsFormState, notes: e.target.value })}
-                            placeholder="Catatan memo persetujuan / mitigasi komersial..."
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none"
-                          />
-                        </div>
-
-                        <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2.5">
-                          <button
-                            type="button"
-                            onClick={() => closeSBSPenaltyModal()}
-                            className="px-4 py-2 text-slate-600 hover:bg-slate-100 font-bold rounded-lg transition cursor-pointer"
-                          >
-                            Batal
-                          </button>
-                          <button
-                            type="submit"
-                            className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-extrabold rounded-lg shadow-sm transition cursor-pointer flex items-center gap-1.5"
-                          >
-                            <Check size={16} />
-                            <span>{sbsFormState.id ? "Simpan Perubahan" : "Simpan Klaim Penalti"}</span>
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-                  </div>
-                )}
+                <SBSPenaltyModal
+                  isOpen={sbsPenaltyModalOpen}
+                  editItem={sbsPenaltyEditItem}
+                  onClose={closeSBSPenaltyModal}
+                  onSave={handleSaveSBSPenalty}
+                />
               </div>
             );
           })()}

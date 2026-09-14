@@ -23,6 +23,7 @@ import {
   Info
 } from "lucide-react";
 import { api, type User } from "../lib/api";
+import { SiteSetupSOWModal } from "./components/SiteSetupSOWModal";
 
 interface CustomerData {
   id?: number;
@@ -39,7 +40,7 @@ interface CustomerData {
   notes?: string;
 }
 
-interface SOWItem {
+export interface SOWItem {
   id?: number | string;
   customerCode: string;
   category: string; // "Operating & Mining", "MDO", "Over Distance", etc.
@@ -194,15 +195,15 @@ export function SiteSetupPage({
   };
 
   // Save SOW Item
-  const handleSaveSOW = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingSOW) return;
+  const handleSaveSOW = async (sowData?: Partial<SOWItem>) => {
+    const target = sowData || editingSOW;
+    if (!target) return;
     try {
       await api("/api/master-data/variable-sow", {
         method: "POST",
-        body: JSON.stringify(editingSOW)
+        body: JSON.stringify(target)
       });
-      onNotice(`Tarif material SOW [${editingSOW.itemName}] untuk Site ${activeSite} berhasil disimpan.`);
+      onNotice(`Tarif material SOW [${target.itemName}] untuk Site ${activeSite} berhasil disimpan.`);
       setIsSowModalOpen(false);
       setEditingSOW(null);
       await loadData();
@@ -619,7 +620,7 @@ export function SiteSetupPage({
             {activeSite === "POS" ? (
               /* POS FORMULA & RULES */
               <div className="space-y-5">
-                <div className="bg-cyan-50 border border-cyan-200 rounded-2xl p-4 space-y-2 text-xs text-cyan-950">
+                <div className="bg-cyan-50 border border-cyan-200 rounded-[4px] p-4 space-y-2 text-xs text-cyan-950">
                   <h4 className="font-black uppercase tracking-wider text-cyan-900 flex items-center gap-1.5">
                     <Pickaxe size={16} /> Aturan Khusus Penagihan: Site POS (Nikel)
                   </h4>
@@ -627,11 +628,11 @@ export function SiteSetupPage({
                     Site POS menggunakan skema <strong>Dual-Invoice Separation</strong>. Setiap Berita Acara yang diterbitkan akan menghasilkan 2 draft faktur tagihan terpisah:
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                    <div className="bg-white p-3 rounded-xl border border-cyan-200 shadow-xs">
+                    <div className="bg-white p-3 rounded-[3px] border border-cyan-200 shadow-xs">
                       <strong className="block text-cyan-900 font-extrabold">Faktur 1: Operation & Mining</strong>
                       <span className="text-[11px] text-slate-600">Mencakup Top Soil, Limonite, Saprolite, Waste, dan Overhaul Distance.</span>
                     </div>
-                    <div className="bg-white p-3 rounded-xl border border-indigo-200 shadow-xs">
+                    <div className="bg-white p-3 rounded-[3px] border border-indigo-200 shadow-xs">
                       <strong className="block text-indigo-900 font-extrabold">Faktur 2: Mine Development (MDO)</strong>
                       <span className="text-[11px] text-slate-600">Mencakup Land Clearing, Grubbing, Hauling Road Construction, dan Water Management.</span>
                     </div>
@@ -682,30 +683,30 @@ export function SiteSetupPage({
               /* BGG FORMULA & RULES */
               <div className="space-y-5">
                 {/* 1. Coal Index Live Tiering */}
-                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 space-y-3 text-xs">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-[4px] p-4 space-y-3 text-xs">
                   <div className="flex justify-between items-center">
                     <h4 className="font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
                       <TrendingUp size={16} className="text-emerald-700" /> Multi-Tier Coal Indexing Engine (BGG Batubara)
                     </h4>
-                    <span className="px-3 py-1 rounded-full text-xs font-black bg-emerald-200 text-emerald-900 border border-emerald-400">
+                    <span className="px-3 py-1 rounded-[3px] text-xs font-black bg-emerald-200 text-emerald-900 border border-emerald-400">
                       Tier Aktif: {latestCoal.activeTier} (R3 Avg: ${latestCoal.avgR3.toFixed(2)})
                     </span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                    <div className={`p-3 rounded-xl border ${latestCoal.activeTier === "Tier 1" ? "bg-cyan-100 border-cyan-400 font-bold" : "bg-white border-slate-200"}`}>
+                    <div className={`p-3 rounded-[3px] border ${latestCoal.activeTier === "Tier 1" ? "bg-cyan-100 border-cyan-400 font-bold" : "bg-white border-slate-200"}`}>
                       <span className="text-[10px] uppercase text-slate-500 block">Tier 1 Rate</span>
                       <strong className="text-sm font-black text-slate-900">R3 Index ≤ $45.00</strong>
                       <p className="text-[10px] text-slate-600 mt-1">Tarif OB Baseline: Rp 28.000 / BCM</p>
                     </div>
 
-                    <div className={`p-3 rounded-xl border ${latestCoal.activeTier === "Tier 2" ? "bg-emerald-100 border-emerald-400 font-bold" : "bg-white border-slate-200"}`}>
+                    <div className={`p-3 rounded-[3px] border ${latestCoal.activeTier === "Tier 2" ? "bg-emerald-100 border-emerald-400 font-bold" : "bg-white border-slate-200"}`}>
                       <span className="text-[10px] uppercase text-emerald-700 block font-black">Tier 2 Rate (Aktif Saat Ini)</span>
                       <strong className="text-sm font-black text-slate-900">$45.00 &lt; R3 Index ≤ $70.00</strong>
                       <p className="text-[10px] text-slate-600 mt-1">Tarif OB Baseline: Rp 32.500 / BCM</p>
                     </div>
 
-                    <div className={`p-3 rounded-xl border ${latestCoal.activeTier === "Tier 3" ? "bg-purple-100 border-purple-400 font-bold" : "bg-white border-slate-200"}`}>
+                    <div className={`p-3 rounded-[3px] border ${latestCoal.activeTier === "Tier 3" ? "bg-purple-100 border-purple-400 font-bold" : "bg-white border-slate-200"}`}>
                       <span className="text-[10px] uppercase text-slate-500 block">Tier 3 Rate</span>
                       <strong className="text-sm font-black text-slate-900">R3 Index &gt; $70.00</strong>
                       <p className="text-[10px] text-slate-600 mt-1">Tarif OB Baseline: Rp 36.800 / BCM</p>
@@ -714,7 +715,7 @@ export function SiteSetupPage({
                 </div>
 
                 {/* 2. Stripping Ratio Quota Rule & Pending Volume */}
-                <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2 text-xs">
+                <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-[4px] space-y-2 text-xs">
                   <h4 className="font-black uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
                     <Scale size={16} className="text-amber-700" /> Kontrak Batas Kuota Stripping Ratio (Maks. 3.0 : 1)
                   </h4>
@@ -725,11 +726,11 @@ export function SiteSetupPage({
                 </div>
 
                 {/* 3. Raise & Fall Formula Settings */}
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 text-xs">
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-[4px] space-y-3 text-xs">
                   <h4 className="font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
                     <Calculator size={16} className="text-cyan-700" /> Formula Eskalasi Raise & Fall: 1-Faktor BBM Murni (BGG)
                   </h4>
-                  <div className="p-2.5 bg-white border border-slate-200 rounded-xl font-mono text-[11px] text-slate-800">
+                  <div className="p-2.5 bg-white border border-slate-200 rounded-[3px] font-mono text-[11px] text-slate-800">
                     <code>Index = 0,60 + 0,40 × (Fn / Fo)</code>
                     <span className="text-slate-500 font-sans ml-2 text-[10px]">(Tanpa komponen Upah/Labor & tanpa faktor kurs)</span>
                   </div>
@@ -767,7 +768,7 @@ export function SiteSetupPage({
 
           return (
             <div className="p-6 space-y-5 text-xs">
-              <div className="bg-cyan-50 border border-cyan-200 rounded-2xl p-4 space-y-1">
+              <div className="bg-cyan-50 border border-cyan-200 rounded-[4px] p-4 space-y-1">
                 <h4 className="font-black uppercase tracking-wider text-cyan-950 flex items-center gap-1.5">
                   <Zap size={16} className="text-amber-600" /> Live Simulation Playground: Perhitungan Otomatis BA & Invoice ({activeSite})
                 </h4>
@@ -783,7 +784,7 @@ export function SiteSetupPage({
                   </label>
                   <input
                     type="number"
-                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono font-bold focus:border-cyan-700 outline-none"
+                    className="w-full bg-white border border-slate-300 rounded-[3px] p-2.5 text-slate-900 font-mono font-bold focus:border-cyan-700 outline-none"
                     value={simCoalVolume}
                     onChange={(e) => setSimCoalVolume(Number(e.target.value))}
                   />
@@ -795,7 +796,7 @@ export function SiteSetupPage({
                   </label>
                   <input
                     type="number"
-                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono font-bold focus:border-cyan-700 outline-none"
+                    className="w-full bg-white border border-slate-300 rounded-[3px] p-2.5 text-slate-900 font-mono font-bold focus:border-cyan-700 outline-none"
                     value={simOBVolume}
                     onChange={(e) => setSimOBVolume(Number(e.target.value))}
                   />
@@ -807,7 +808,7 @@ export function SiteSetupPage({
                   </label>
                   <input
                     type="number"
-                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono font-bold focus:border-cyan-700 outline-none"
+                    className="w-full bg-white border border-slate-300 rounded-[3px] p-2.5 text-slate-900 font-mono font-bold focus:border-cyan-700 outline-none"
                     value={simDistance}
                     onChange={(e) => setSimDistance(Number(e.target.value))}
                   />
@@ -817,7 +818,7 @@ export function SiteSetupPage({
               {/* Simulation Results Breakdown */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                 {/* Left: Quota & Carry-over */}
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-[4px] space-y-3">
                   <h5 className="font-extrabold text-slate-900 uppercase tracking-wider text-[11px]">
                     1. Validasi Berita Acara & Rasio Kuota
                   </h5>
@@ -848,7 +849,7 @@ export function SiteSetupPage({
                 </div>
 
                 {/* Right: Projected Invoice Amount */}
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-[4px] space-y-3">
                   <h5 className="font-extrabold text-slate-900 uppercase tracking-wider text-[11px]">
                     2. Proyeksi Nominal Faktur Tagihan (Invoice)
                   </h5>
@@ -886,142 +887,13 @@ export function SiteSetupPage({
       </div>
 
       {/* SOW MODAL (ADD / EDIT) */}
-      {isSowModalOpen && editingSOW && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden p-6 space-y-4 text-xs animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <Layers className="text-cyan-700" size={18} /> {editingSOW.id ? "Edit Material SOW" : "Tambah Material SOW Baru"} ({activeSite})
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsSowModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveSOW} className="space-y-3.5">
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">
-                  Kategori Pekerjaan <span className="text-rose-600">*</span>
-                </label>
-                <select
-                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold outline-none"
-                  value={editingSOW.category}
-                  onChange={(e) => setEditingSOW({ ...editingSOW, category: e.target.value })}
-                >
-                  <option value="Operating & Mining">Operating & Mining</option>
-                  <option value="Mining">Mining</option>
-                  <option value="MDO">Mine Development (MDO)</option>
-                  <option value="Over Distance">Over Distance / Jarak Tambahan</option>
-                  <option value="General">General Penunjang</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">
-                  Nama Material / Pekerjaan <span className="text-rose-600">*</span>
-                </label>
-                <input
-                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold outline-none"
-                  placeholder="Contoh: Overburden Removal / Top Soil"
-                  value={editingSOW.itemName}
-                  onChange={(e) => setEditingSOW({ ...editingSOW, itemName: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">
-                    Satuan Volume <span className="text-rose-600">*</span>
-                  </label>
-                  <select
-                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold outline-none"
-                    value={editingSOW.unit}
-                    onChange={(e) => setEditingSOW({ ...editingSOW, unit: e.target.value })}
-                  >
-                    <option value="BCM">BCM</option>
-                    <option value="Ton">Ton</option>
-                    <option value="LCM">LCM</option>
-                    <option value="WMT">WMT</option>
-                    <option value="Bcm.Hm">Bcm.Hm</option>
-                    <option value="Meter">Meter</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">
-                    Tarif Baseline (Rp) <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono font-bold outline-none"
-                    value={editingSOW.rateIDR || 0}
-                    onChange={(e) => setEditingSOW({ ...editingSOW, rateIDR: Number(e.target.value) })}
-                    required
-                  />
-                </div>
-              </div>
-
-              {activeSite === "BGG" && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2">
-                  <span className="text-[10px] font-black uppercase text-emerald-900 block">
-                    Tarif Multi-Tier Batubara (Opsional untuk BGG)
-                  </span>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="block text-[9px] text-slate-500 font-bold">Tier 1 (≤$45)</label>
-                      <input
-                        type="number"
-                        className="w-full bg-white border border-emerald-300 rounded p-1.5 text-xs font-mono"
-                        value={editingSOW.tier1Rate || 0}
-                        onChange={(e) => setEditingSOW({ ...editingSOW, tier1Rate: Number(e.target.value) })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[9px] text-slate-500 font-bold">Tier 2 ($45-$70)</label>
-                      <input
-                        type="number"
-                        className="w-full bg-white border border-emerald-300 rounded p-1.5 text-xs font-mono"
-                        value={editingSOW.tier2Rate || 0}
-                        onChange={(e) => setEditingSOW({ ...editingSOW, tier2Rate: Number(e.target.value) })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[9px] text-slate-500 font-bold">Tier 3 (&gt;$70)</label>
-                      <input
-                        type="number"
-                        className="w-full bg-white border border-emerald-300 rounded p-1.5 text-xs font-mono"
-                        value={editingSOW.tier3Rate || 0}
-                        onChange={(e) => setEditingSOW({ ...editingSOW, tier3Rate: Number(e.target.value) })}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsSowModalOpen(false)}
-                  className="px-3.5 py-1.5 border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-[3px] text-xs cursor-pointer"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold rounded-[3px] text-xs shadow-xs cursor-pointer"
-                >
-                  Simpan Material
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <SiteSetupSOWModal
+        isOpen={isSowModalOpen}
+        editingSOW={editingSOW}
+        activeSite={activeSite}
+        onClose={() => setIsSowModalOpen(false)}
+        onSave={handleSaveSOW}
+      />
     </div>
   );
 }

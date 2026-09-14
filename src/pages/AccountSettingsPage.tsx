@@ -376,7 +376,7 @@ export function AccountSettingsPage({
 
     {setupOpen && (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-        <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-sm">
+        <div className="bg-white rounded-[4px] max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-sm">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
               <ShieldCheck size={18} className="text-[#20a6b8]" /> {twoFactorOn ? "Nonaktifkan 2FA" : "Aktifkan 2FA"}
@@ -397,10 +397,10 @@ export function AccountSettingsPage({
                     onChange={(e) => setDisableCode(e.target.value)}
                     autoFocus
                     placeholder="000000"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-[#20a6b8] font-mono text-xs"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-[3px] focus:outline-hidden focus:border-[#20a6b8] font-mono text-xs"
                   />
                 </label>
-                <button type="submit" disabled={twoFaLoading} className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition disabled:opacity-50">
+                <button type="submit" disabled={twoFaLoading} className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-[3px] text-xs font-bold transition disabled:opacity-50">
                   {twoFaLoading ? "Memproses..." : "Nonaktifkan 2FA"}
                 </button>
               </form>
@@ -414,9 +414,9 @@ export function AccountSettingsPage({
                 lalu masukkan kode 6 digit untuk konfirmasi.
               </p>
               <div className="flex justify-center">
-                {setup.otpAuthUrl && <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(setup.otpAuthUrl)}`} alt="2FA QR Code" className="rounded-xl border border-slate-200" />}
+                {setup.otpAuthUrl && <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(setup.otpAuthUrl)}`} alt="2FA QR Code" className="rounded-[3px] border border-slate-200" />}
               </div>
-              <div className="p-3 bg-slate-50 rounded-xl text-center">
+              <div className="p-3 bg-slate-50 rounded-[3px] text-center">
                 <span className="block text-[11px] text-slate-400 font-bold mb-1">Secret Key</span>
                 <code className="text-xs font-mono text-slate-800 break-all">{setup.secret}</code>
               </div>
@@ -428,10 +428,10 @@ export function AccountSettingsPage({
                     onChange={(e) => setEnableCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     inputMode="numeric"
                     placeholder="000000"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-[#20a6b8] font-mono text-xs text-center tracking-[0.4em]"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-[3px] focus:outline-hidden focus:border-[#20a6b8] font-mono text-xs text-center tracking-[0.4em]"
                   />
                 </label>
-                <button type="submit" disabled={twoFaLoading} className="w-full py-2.5 bg-[#20a6b8] hover:bg-[#1c92a2] text-white rounded-xl text-xs font-bold transition disabled:opacity-50">
+                <button type="submit" disabled={twoFaLoading} className="w-full py-2.5 bg-[#20a6b8] hover:bg-[#1c92a2] text-white rounded-[3px] text-xs font-bold transition disabled:opacity-50">
                   {twoFaLoading ? "Memverifikasi..." : "Verifikasi & Aktifkan"}
                 </button>
               </form>
@@ -440,13 +440,13 @@ export function AccountSettingsPage({
                 <button
                   type="button"
                   onClick={() => setShowBackup(true)}
-                  className="w-full py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition"
+                  className="w-full py-2 border border-slate-200 rounded-[3px] text-xs font-bold text-slate-600 hover:bg-slate-50 transition"
                 >
                   Lihat Backup Codes
                 </button>
               )}
               {showBackup && setup.backupCodes && (
-                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 space-y-1.5">
+                <div className="p-3 rounded-[3px] bg-amber-50 border border-amber-200 space-y-1.5">
                   <p className="text-[11px] font-bold text-amber-800">Simpan kode berikut di tempat aman. Setiap kode hanya bisa dipakai sekali.</p>
                   {setup.backupCodes.map((code) => (
                     <code key={code} className="block text-xs font-mono text-amber-900 tracking-wider">{code}</code>
@@ -455,7 +455,7 @@ export function AccountSettingsPage({
               )}
 
               {twoFaFeedback && (
-                <div className={`p-3 rounded-xl text-xs font-semibold ${twoFaFeedback.ok ? "bg-emerald-50 border border-emerald-200 text-emerald-900" : "bg-rose-50 border border-rose-200 text-rose-900"}`}>
+                <div className={`p-3 rounded-[3px] text-xs font-semibold ${twoFaFeedback.ok ? "bg-emerald-50 border border-emerald-200 text-emerald-900" : "bg-rose-50 border border-rose-200 text-rose-900"}`}>
                   {twoFaFeedback.message}
                 </div>
               )}
