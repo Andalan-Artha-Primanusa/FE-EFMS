@@ -49,10 +49,15 @@ export function ReconciliationView({ c }: Props) {
   const reconciledCount = bankTransactions.filter((t) => t.isReconciled).length;
   const pendingCount = bankTransactions.filter((t) => !t.isReconciled && t.txType === "DB").length;
 
+  const totalTxAmount = filteredTx.reduce(
+    (sum, tx) => sum + Number(tx.amount || 0),
+    0
+  );
+
   return (
-    <div className="space-y-4">
+    <div className="flex-1 min-h-0 flex flex-col gap-2 font-sans text-xs overflow-hidden">
       {/* 1. Header Metrics & Controls */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 shrink-0">
         <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex items-center justify-between">
           <div>
             <div className="text-xs text-slate-500 font-medium">Total Mutasi Terbaca</div>
@@ -88,7 +93,7 @@ export function ReconciliationView({ c }: Props) {
       </div>
 
       {/* 2. Action Bar */}
-      <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex flex-wrap items-center gap-2 flex-1">
           <div className="relative min-w-[200px] max-w-xs">
             <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-slate-400" />
@@ -157,10 +162,10 @@ export function ReconciliationView({ c }: Props) {
       </div>
 
       {/* 3. Bank Transactions Table */}
-      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="flex-1 min-h-0 bg-white rounded-lg border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full text-left text-xs border-collapse">
-            <thead>
+            <thead className="sticky top-0 z-20 shadow-xs">
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
                 <th className="p-2.5">Tanggal Mutasi</th>
                 <th className="p-2.5">Keterangan / Remark Bank</th>
@@ -237,6 +242,17 @@ export function ReconciliationView({ c }: Props) {
                 ))
               )}
             </tbody>
+            <tfoot className="bg-[#1A1612] text-white font-bold border-t-2 border-amber-900/40 sticky bottom-0 z-20 text-[11px] shadow-[0_-4px_12px_rgba(0,0,0,0.3)]">
+              <tr className="bg-[#1A1612]">
+                <td colSpan={4} className="p-2.5 text-right font-black uppercase tracking-wider text-stone-300 bg-[#1A1612]">
+                  Grand Total Mutasi ({filteredTx.length} Transaksi):
+                </td>
+                <td className="p-2.5 text-right font-mono font-black text-amber-400 text-xs pr-4 whitespace-nowrap bg-[#1A1612]">
+                  {formatCurrency(totalTxAmount)}
+                </td>
+                <td colSpan={2} className="p-2.5 bg-[#1A1612]"></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>

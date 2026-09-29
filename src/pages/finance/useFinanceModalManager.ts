@@ -1,5 +1,6 @@
 import { uploadDocumentFile } from "../../lib/api";
 import { generateInvoiceNumber, formatDateInput, matchPeriod } from "./helpers";
+import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF } from "./ba_calculations";
 
 interface UseFinanceModalManagerProps {
   user: any;
@@ -28,15 +29,16 @@ interface UseFinanceModalManagerProps {
   defaultSBSBAMDOItems: any[];
   defaultPOSBAMDOItems: any[];
   defaultSBSBADeductionItems: any[];
-  setBaOperatingItems: (items: any[]) => void;
-  setBaMDOItems: (items: any[]) => void;
-  setBaDeductionItems: (items: any[]) => void;
-  setActiveBAStep: (step: number) => void;
+  setBaOperatingItems: React.Dispatch<React.SetStateAction<any[]>>;
+  setBaMDOItems: React.Dispatch<React.SetStateAction<any[]>>;
+  setBaDeductionItems: React.Dispatch<React.SetStateAction<any[]>>;
+  setActiveBAStep: (val: number) => void;
   setShowPendingVolumeDrawer: (val: boolean) => void;
   openBAModal: (item: any, isEditMode?: boolean) => void;
   getCurrentMonthPeriod: () => string;
   getPreviousMonthPeriod?: () => string;
   raiseFallMasters?: any[];
+  minWageMasters?: any[];
   latestKursBI?: number;
   mRate?: number;
 }
@@ -77,6 +79,7 @@ export function useFinanceModalManager({
   getCurrentMonthPeriod,
   getPreviousMonthPeriod,
   raiseFallMasters = [],
+  minWageMasters = [],
   latestKursBI,
   mRate
 }: UseFinanceModalManagerProps) {
@@ -223,13 +226,18 @@ export function useFinanceModalManager({
           const rCust = (r.customerCode || "").trim().toUpperCase();
           return rCust.includes("POS") && matchPeriod(r.period, defaultPeriod);
         });
+        const hoResolved = resolveHOMasterLaborAndCurrency({
+          customerCode: cust,
+          period: defaultPeriod,
+          raiseFallMasters,
+          minWageMasters,
+          latestKursBI,
+          mRate,
+        });
         const fn = Number(matched?.actualFuelFn ?? 0);
-        const ln = Number(matched?.actualLaborLn ?? 0);
-        const xn = Number(matched?.actualMRateXn || latestKursBI || mRate || 0);
-        const d = (fn > 0 && xn > 0) ? (0.34 * fn * xn) / 10699.970229 : 0;
-        const l = (ln > 0 && xn > 0) ? (0.25 * ln * xn) / (3594536 * 15388.75) : 0;
-        const f = 0.41;
-        const rf = Number(matched?.rfIndexResult || ((d > 0 || l > 0) ? Number((d + l + f).toFixed(3)) : 0));
+        const ln = Number(matched?.actualLaborLn || hoResolved.laborLn);
+        const xn = Number(matched?.actualMRateXn || hoResolved.currencyXn);
+        const { rfIndex: rf } = calculateTripleFactorRF(fn, ln, xn);
         matchedRfIndex = rf;
         posDataInit = {
           actualFuelFn: fn,

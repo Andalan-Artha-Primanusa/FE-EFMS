@@ -8,8 +8,9 @@ import {
   CoalIndexRoute, RaiseFallRoute, FinanceDashboardRoute, FinanceBATrackerRoute,
   FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute, SiteSetupRoute,
   CompanyRoute, TreasuryManagementRoute, BudgetManagementRoute, ClosingPeriodRoute,
-  NotificationCenterRoute, OrgUnitsRoute, VariableSOWRoute
+  NotificationCenterRoute, OrgUnitsRoute, VariableSOWRoute, KopraRoute
 } from "./router/RouteWrappers";
+import { TunaiPOView } from "./pages/finance/TunaiPOView";
 
 const VariableSOWFormPage = lazy(() => import("./pages/VariableSOWFormPage").then((m) => ({ default: m.VariableSOWFormPage })));
 const MasterDataFormRoute = lazy(() => import("./pages/MasterDataFormRoute").then((m) => ({ default: m.MasterDataFormRoute })));
@@ -80,7 +81,9 @@ export function AuthenticatedApp({ user, onLogout }: { user: User; onLogout: () 
         <Route path="invoice-management" element={<ProtectedRoute requiredView="Invoice Management"><FinanceInvoiceRoute /></ProtectedRoute>} />
         
         <Route path="payment-receipt-log" element={<ProtectedRoute requiredView="Payment & Receipt Log"><FinancePaymentRoute /></ProtectedRoute>} />
+        <Route path="tunai-po-tracking" element={<TunaiPOView />} />
         <Route path="treasury-management" element={<ProtectedRoute requiredView="Treasury Management"><TreasuryManagementRoute /></ProtectedRoute>} />
+        <Route path="feastkop" element={<KopraRoute />} />
         <Route path="client-setup" element={<ProtectedRoute requiredView="Client Setup"><FinanceCustomerRoute viewTitle="Client Setup" /></ProtectedRoute>} />
         <Route path="customer-master-credit-terms" element={<ProtectedRoute requiredView="Client Setup"><FinanceCustomerRoute viewTitle="Client Setup" /></ProtectedRoute>} />
         

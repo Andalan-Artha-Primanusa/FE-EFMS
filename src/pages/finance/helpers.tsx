@@ -14,35 +14,32 @@ export const resolveDocumentUrl = (path: string | undefined | null) => {
   return `${API_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
 };
 
-export const formatIDR = (val: any, maxDecimals: number = 3) => {
+export const formatIDR = (val: any, maxDecimals: number = 0) => {
   if (val === undefined || val === null || val === "") return "Rp 0";
-  const num = typeof val === "number" ? val : Number(val);
+  const num = typeof val === "number" ? val : parseDecimalNumber(val);
   if (isNaN(num)) return "Rp 0";
-  const hasDecimals = num % 1 !== 0;
+  const roundNum = maxDecimals === 0 ? Math.round(num) : num;
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: hasDecimals ? maxDecimals : 0
-  }).format(num);
+    minimumFractionDigits: maxDecimals,
+    maximumFractionDigits: maxDecimals
+  }).format(roundNum);
 };
 
 export const parseNumber = (str: any): number => {
-  if (typeof str === "number") return str;
-  if (!str) return 0;
-  const clean = String(str).replace(/[^0-9]/g, "");
-  return parseInt(clean, 10) || 0;
+  return parseDecimalNumber(str);
 };
 
-export const formatThousand = (val: any, maxDecimals: number = 3): string => {
+export const formatThousand = (val: any, maxDecimals: number = 0): string => {
   if (val === undefined || val === null || val === "") return "";
   const num = typeof val === "number" ? val : parseDecimalNumber(val);
   if (isNaN(num) || num === 0) return "0";
-  const hasDecimals = num % 1 !== 0;
+  const roundNum = maxDecimals === 0 ? Math.round(num) : num;
   return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: hasDecimals ? maxDecimals : 0
-  }).format(num);
+    minimumFractionDigits: maxDecimals,
+    maximumFractionDigits: maxDecimals
+  }).format(roundNum);
 };
 
 export const getCustomerOfficialName = (code: string | undefined | null): string => {
@@ -640,7 +637,14 @@ export const parseDecimalNumber = (val: any): number => {
     if (dotCount > 1) {
       num = parseFloat(clean.replace(/\./g, ""));
     } else {
-      num = parseFloat(clean);
+      const parts = clean.split(".");
+      if (parts[1].length === 3 && parts[0].length >= 1 && parts[0] !== "0") {
+        // Thousand format (e.g. 1.000, 3.000, 4.246, 245.620)
+        num = parseFloat(clean.replace(/\./g, ""));
+      } else {
+        // Single dot decimal format (e.g. 1.5, 0.526, 12.8, 896.486 when typed with dot)
+        num = parseFloat(clean);
+      }
     }
   } else {
     num = parseFloat(clean);
@@ -786,27 +790,24 @@ export function FormattedNumberInput({
       setLocalStr(clean);
       onChange(parseDecimalNumber(clean));
     } else {
-      const cleanDigits = raw.replace(/[^0-9-]/g, "");
-      if (!cleanDigits || cleanDigits === "-") {
-        setLocalStr(cleanDigits);
-        onChange(0);
-        return;
-      }
-      const isNeg = cleanDigits.startsWith("-");
-      const numOnly = parseInt(cleanDigits.replace(/-/g, ""), 10);
-      if (isNaN(numOnly)) {
-        setLocalStr("");
-        onChange(0);
-        return;
-      }
-      const formatted = (isNeg ? "-" : "") + numOnly.toLocaleString("id-ID");
-      setLocalStr(formatted);
-      onChange(isNeg ? -numOnly : numOnly);
+      let clean = raw.replace(/[^0-9.,-]/g, "");
+      setLocalStr(clean);
+      const parsed = parseDecimalNumber(clean);
+      const cleanNum = (parsed > 0 && parsed < 50) ? Math.round(parsed * 1000) : Math.round(parsed);
+      onChange(cleanNum);
     }
   };
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     setIsFocused(false);
+    if (!allowDecimals) {
+      const parsed = parseDecimalNumber(localStr);
+      const cleanNum = (parsed > 0 && parsed < 50) ? Math.round(parsed * 1000) : Math.round(parsed);
+      onChange(cleanNum);
+      setLocalStr(cleanNum === 0 ? "" : (cleanNum < 0 ? "-" : "") + Math.abs(cleanNum).toLocaleString("id-ID"));
+      onBlur?.(e);
+      return;
+    }
     const parsed = parseDecimalNumber(localStr);
     onChange(parsed);
     setLocalStr(formatDecimalDisplay(parsed, allowDecimals, maxDecimals));
@@ -821,17 +822,23 @@ export function FormattedNumberInput({
       placeholder={placeholder}
       onFocus={(e) => {
         setIsFocused(true);
-        const curNum = typeof value === "number" ? value : parseDecimalNumber(value);
-        if (!curNum && curNum !== 0) {
-          setLocalStr("");
-        } else if (curNum === 0) {
-          setLocalStr("");
+        if (!allowDecimals) {
+          const curNum = typeof value === "number" ? value : parseDecimalNumber(value);
+          const cleanNum = (curNum > 0 && curNum < 50) ? Math.round(curNum * 1000) : Math.round(curNum || 0);
+          setLocalStr(cleanNum === 0 ? "" : String(cleanNum));
         } else {
-          const hasDec = curNum % 1 !== 0;
-          if (!hasDec) {
-            setLocalStr(String(curNum));
+          const curNum = typeof value === "number" ? value : parseDecimalNumber(value);
+          if (!curNum && curNum !== 0) {
+            setLocalStr("");
+          } else if (curNum === 0) {
+            setLocalStr("");
           } else {
-            setLocalStr(String(curNum).replace(".", ","));
+            const hasDec = curNum % 1 !== 0;
+            if (!hasDec) {
+              setLocalStr(String(curNum));
+            } else {
+              setLocalStr(String(curNum).replace(".", ","));
+            }
           }
         }
         e.target.select();

@@ -92,8 +92,8 @@ export function buildBGGInvoiceItemsFromBA(ba: any, ctx: InvoiceItemGeneratorCon
     const odCWDiffMtr = Math.max(0, coalDistMtr - 1000);
     const baseODOBRate = Number(obDistItem?.rate || 600);
     const baseODCWRate = Number(coalDistItem?.rate || 500);
-    const odOBRate = odOBDiffMtr > 0 ? (baseODOBRate * (odOBDiffMtr / 100)) : 0;
-    const odCWRate = odCWDiffMtr > 0 ? (baseODCWRate * (odCWDiffMtr / 100)) : 0;
+    const odOBRate = odOBDiffMtr > 0 ? Number((baseODOBRate * (odOBDiffMtr / 100)).toFixed(3)) : 0;
+    const odCWRate = odCWDiffMtr > 0 ? Number((baseODCWRate * (odCWDiffMtr / 100)).toFixed(3)) : 0;
     const odOBAmt = Math.round(totalOB * odOBRate);
     const odCWAmt = Math.round(cwVol * odCWRate);
 
@@ -107,10 +107,10 @@ export function buildBGGInvoiceItemsFromBA(ba: any, ctx: InvoiceItemGeneratorCon
         unit: "Bcm",
         overhaulMtr: obDistMtr,
         volume: totalOB,
-        unitRateIDR: Math.round(odOBRate),
+        unitRateIDR: odOBRate,
         amount: odOBAmt,
         amountIDR: odOBAmt,
-        notes: `${Math.round(obDistMtr).toLocaleString("id-ID")} mtr - 1.000 mtr = ${Math.round(odOBDiffMtr).toLocaleString("id-ID")} mtr`
+        notes: `${obDistMtr.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 })} mtr - 1.000 mtr = ${odOBDiffMtr.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 })} mtr`
       });
     }
 
@@ -124,10 +124,10 @@ export function buildBGGInvoiceItemsFromBA(ba: any, ctx: InvoiceItemGeneratorCon
         unit: "Ton",
         overhaulMtr: coalDistMtr,
         volume: cwVol,
-        unitRateIDR: Math.round(odCWRate),
+        unitRateIDR: odCWRate,
         amount: odCWAmt,
         amountIDR: odCWAmt,
-        notes: `${Math.round(coalDistMtr).toLocaleString("id-ID")} mtr - 1.000 mtr = ${Math.round(odCWDiffMtr).toLocaleString("id-ID")} mtr`
+        notes: `${coalDistMtr.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 })} mtr - 1.000 mtr = ${odCWDiffMtr.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 })} mtr`
       });
     }
 
@@ -140,11 +140,11 @@ export function buildBGGInvoiceItemsFromBA(ba: any, ctx: InvoiceItemGeneratorCon
     const rfBaseODOB = baseODOBRate;
     const rfBaseODCoal = baseODCWRate;
 
-    const rfOB1Rate = Math.round(rfBaseOB1 * rfFactor);
-    const rfOB2Rate = Math.round(rfBaseOB2 * rfFactor);
-    const rfOBDistRate = Math.round(rfBaseODOB * rfFactor * (odOBDiffMtr / 100));
-    const rfCWRate = Math.round(rfBaseCoal * rfFactor);
-    const rfCWDistRate = Math.round(rfBaseODCoal * rfFactor * (odCWDiffMtr / 100));
+    const rfOB1Rate = Number((rfBaseOB1 * rfFactor).toFixed(3));
+    const rfOB2Rate = Number((rfBaseOB2 * rfFactor).toFixed(3));
+    const rfOBDistRate = Number((rfBaseODOB * rfFactor * (odOBDiffMtr / 100)).toFixed(3));
+    const rfCWRate = Number((rfBaseCoal * rfFactor).toFixed(3));
+    const rfCWDistRate = Number((rfBaseODCoal * rfFactor * (odCWDiffMtr / 100)).toFixed(3));
 
     const rfOB1Amt = Math.round(ob1Vol * rfOB1Rate);
     const rfOB2Amt = Math.round(ob2Vol * rfOB2Rate);

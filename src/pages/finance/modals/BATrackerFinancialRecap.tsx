@@ -155,8 +155,15 @@ export function BATrackerFinancialRecap({
       <BAGLJournalPreview
         customerCode={formData.customerCode || editItem?.customerCode || ""}
         allBAItems={allBAItems}
-        rfIndexCalculated={rfIndexCalculated}
+        rfIndexCalculated={Number(
+          (formData.customerCode === "BGG" && (formData.bggData?.bggRfIndex || formData.bggRfIndex)) ||
+          (formData.customerCode === "POS" && (formData.posData?.posRfIndex || formData.posRfIndex)) ||
+          formData.rfIndexCalculated ||
+          rfIndexCalculated ||
+          1.0
+        )}
         isCustomerDBK={formData.customerCode === "PTRO" || formData.customerCode === "DBK"}
+        fuelPeriods={formData.bggData?.fuelPeriods || formData.posData?.fuelPeriods || formData.ptroData?.fuelPeriods || formData.sbsData?.fuelPeriods}
       />
 
       {/* Invoice Generation & Linked Status */}

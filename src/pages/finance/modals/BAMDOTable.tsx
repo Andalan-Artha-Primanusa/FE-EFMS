@@ -2,6 +2,8 @@ import React from "react";
 import { Building2, Plus, Trash2 } from "lucide-react";
 import { formatIDR, FormattedNumberInput } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
+import { isDistanceItem, getBAEffectiveVolume, getBAItemSubtotal } from "../ba_calculations";
+import { BAPOSMDOTable } from "./BAPOSMDOTable";
 
 interface BAMDOTableProps {
   formData: any;
@@ -10,6 +12,9 @@ interface BAMDOTableProps {
   isInlineEditingBA: boolean;
   activeSOWCatalog: any[];
   mRate: number;
+  allBAItems?: any[];
+  rfIndexCalculated?: number;
+  getSowMasterRate?: (customer: string, itemName: string, fallbackRate: number, isUSD?: boolean, tier?: string) => number;
 }
 
 export function BAMDOTable({
@@ -19,16 +24,38 @@ export function BAMDOTable({
   isInlineEditingBA,
   activeSOWCatalog,
   mRate,
+  allBAItems = [],
+  rfIndexCalculated = 1.0,
+  getSowMasterRate,
 }: BAMDOTableProps) {
   const isCustomerSBS = formData.customerCode === "SBS";
-  const isCustomerPOS = formData.customerCode === "POS" || formData.customerCode === "IBP" || formData.customerCode === "BBA" || !formData.customerCode;
+  const isCustomerPOS = formData.customerCode === "POS" || formData.customerCode === "PT POSITION" || formData.customerCode === "PT. POSITION";
 
   if (!isCustomerPOS && !isCustomerSBS) return null;
 
+  if (isCustomerPOS) {
+    return (
+      <BAPOSMDOTable
+        formData={formData}
+        baMDOItems={baMDOItems}
+        setBaMDOItems={setBaMDOItems}
+        isInlineEditingBA={isInlineEditingBA}
+        activeSOWCatalog={activeSOWCatalog}
+        mRate={mRate}
+        allBAItems={allBAItems}
+        rfIndexCalculated={rfIndexCalculated}
+        getSowMasterRate={getSowMasterRate}
+      />
+    );
+  }
+
   const totalMDO = baMDOItems.reduce((acc, it) => {
-    const vol = Number(it.initialVolume || 0);
-    const r = Number(it.rate || 0);
-    return acc + Math.round(vol * r);
+    const isDist = isDistanceItem(it);
+    const effVol = isDist ? getBAEffectiveVolume(it, allBAItems.length > 0 ? allBAItems : baMDOItems, false) : Number(it.initialVolume || 0);
+    const sub = isDist
+      ? getBAItemSubtotal(it, effVol, false, formData.customerCode)
+      : Math.round(effVol * Number(it.rate || 0));
+    return acc + sub;
   }, 0);
 
   return (
@@ -81,12 +108,20 @@ export function BAMDOTable({
               </th>
               <th className="p-2 text-center w-16">Satuan</th>
               <th className="p-2 text-right w-24">{isCustomerSBS ? "Volume (Jam)" : "Volume"}</th>
+              {isCustomerPOS && <th className="p-2 text-right w-20">Jarak (M)</th>}
               <th className="p-2 text-right w-28">SOW Rate (Rp)</th>
               <th className="p-2 text-right w-32">Subtotal (Rp)</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {baMDOItems.map((item, idx) => (
+            {baMDOItems.map((item, idx) => {
+              const isDist = isDistanceItem(item);
+              const effVol = isDist ? getBAEffectiveVolume(item, allBAItems.length > 0 ? allBAItems : baMDOItems, false) : Number(item.initialVolume || 0);
+              const rowSubtotal = isDist
+                ? getBAItemSubtotal(item, effVol, false, formData.customerCode)
+                : Math.round(Number(item.initialVolume || 0) * Number(item.rate || 0));
+
+              return (
               <tr key={item.id || idx} className="hover:bg-slate-50/80 transition">
                 {isInlineEditingBA && (
                   <td className="p-2 text-center">
@@ -148,6 +183,14 @@ export function BAMDOTable({
                             updated[idx].material = sow.name;
                             updated[idx].unit = sow.unit || updated[idx].unit;
                             updated[idx].rate = sow.defaultRate || updated[idx].rate;
+                            if (sow.isDistanceVar) {
+                              updated[idx].isDistanceVar = true;
+                              updated[idx].distanceBasis = updated[idx].distanceBasis || 1000;
+                              updated[idx].distanceWeightAvg = updated[idx].distanceWeightAvg || 1000;
+                            }
+                            if (sow.parentMaterial) {
+                              updated[idx].parentMaterial = sow.parentMaterial;
+                            }
                           }
                           const vol = Number(updated[idx].initialVolume || 0);
                           const r = Number(updated[idx].rate || 0);
@@ -175,20 +218,20 @@ export function BAMDOTable({
                 <td className="p-2 text-center font-mono font-bold text-slate-800">
                   {!isInlineEditingBA ? (
                     <span className="font-bold text-slate-700">
-                      {item.unit || (isCustomerSBS ? "Hours" : "Ha")}
+                      {item.unit || (isCustomerSBS ? "Hours" : "USD/BCM")}
                     </span>
                   ) : (
                     <select
-                      className="w-16 sm:w-20 bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#A57C50] rounded-[3px] px-1 py-1 text-xs font-bold text-slate-900 outline-none transition cursor-pointer text-center font-mono"
-                      value={item.unit || (isCustomerSBS ? "Hours" : "Ha")}
+                      className="w-20 sm:w-24 bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#A57C50] rounded-[3px] px-1 py-1 text-xs font-bold text-slate-900 outline-none transition cursor-pointer text-center font-mono"
+                      value={item.unit || (isCustomerSBS ? "Hours" : "USD/BCM")}
                       onChange={(e) => {
                         const updated = [...baMDOItems];
                         updated[idx].unit = e.target.value;
                         setBaMDOItems(updated);
                       }}
                     >
-                      {["Hours", "Ha", "BCM", "Ton", "Lot", "Unit", "Trip", "m2"]
-                        .concat(item.unit && !["Hours", "Ha", "BCM", "Ton", "Lot", "Unit", "Trip", "m2"].includes(item.unit) ? [item.unit] : [])
+                      {["USD/BCM", "USD/1KM", "USD/m2", "Hours", "Ha", "BCM", "Ton", "Lot", "Unit", "Trip", "m2", "M3", "M'"]
+                        .concat(item.unit && !["USD/BCM", "USD/1KM", "USD/m2", "Hours", "Ha", "BCM", "Ton", "Lot", "Unit", "Trip", "m2", "M3", "M'"].includes(item.unit) ? [item.unit] : [])
                         .map((u) => (
                           <option key={u} value={u}>
                             {u}
@@ -200,8 +243,19 @@ export function BAMDOTable({
                 <td className="p-2 text-right font-mono">
                   {!isInlineEditingBA ? (
                     <span className="font-bold text-slate-900">
-                      {item.initialVolume ? Number(item.initialVolume).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00"}
+                      {isDist
+                        ? (effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00")
+                        : (item.initialVolume ? Number(item.initialVolume).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00")}
                     </span>
+                  ) : isDist ? (
+                    <div className="pt-0.5">
+                      <span className="font-mono font-extrabold text-[#1A1612] text-xs block">
+                        {effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00"}
+                      </span>
+                      <span className="text-[9px] text-[#A57C50] font-bold block leading-none">
+                        (Auto-sync)
+                      </span>
+                    </div>
                   ) : (
                     <FormattedNumberInput
                       allowDecimals
@@ -221,6 +275,33 @@ export function BAMDOTable({
                     />
                   )}
                 </td>
+                {isCustomerPOS && (
+                  <td className="p-2 text-right font-mono align-top">
+                    {isDist ? (
+                      !isInlineEditingBA ? (
+                        <span className="pt-1 block font-bold">
+                          {item.distanceWeightAvg ? Number(item.distanceWeightAvg).toLocaleString("id-ID") : "1.000"}
+                        </span>
+                      ) : (
+                        <FormattedNumberInput
+                          allowDecimals
+                          maxDecimals={2}
+                          className="w-16 sm:w-20 bg-slate-50 border border-slate-300 rounded-[3px] p-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none"
+                          placeholder="1000"
+                          value={item.distanceWeightAvg || item.distance || ""}
+                          onChange={(val) => {
+                            const updated = [...baMDOItems];
+                            updated[idx].distanceWeightAvg = Number(val || 0);
+                            updated[idx].distance = Number(val || 0);
+                            setBaMDOItems(updated);
+                          }}
+                        />
+                      )
+                    ) : (
+                      <span className="pt-1 block text-slate-400 font-bold text-center">-</span>
+                    )}
+                  </td>
+                )}
                 <td className="p-2 text-right font-mono">
                   {!isInlineEditingBA ? (
                     <span className="font-bold">{formatIDR(item.rate || 0)}</span>
@@ -243,13 +324,14 @@ export function BAMDOTable({
                   )}
                 </td>
                 <td className="p-2 text-right font-mono font-extrabold text-slate-900">
-                  {formatIDR(Math.round((Number(item.initialVolume) || 0) * (Number(item.rate) || 0)))}
+                  {formatIDR(rowSubtotal)}
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {baMDOItems.length === 0 && (
               <tr>
-                <td colSpan={isInlineEditingBA ? 7 : 6} className="p-4 text-center text-slate-400 bg-slate-50 italic">
+                <td colSpan={isInlineEditingBA ? (isCustomerPOS ? 8 : 7) : (isCustomerPOS ? 7 : 6)} className="p-4 text-center text-slate-400 bg-slate-50 italic">
                   Belum ada data alat berat / jasa penunjang.
                 </td>
               </tr>
@@ -259,7 +341,7 @@ export function BAMDOTable({
             <tfoot>
               <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
                 {isInlineEditingBA && <td className="p-2 text-center text-slate-400">#</td>}
-                <td colSpan={5} className="p-2 uppercase font-extrabold tracking-wider">
+                <td colSpan={isCustomerPOS ? 6 : 5} className="p-2 uppercase font-extrabold tracking-wider">
                   {isCustomerSBS ? "Subtotal Jasa Penunjang (Rental Alat)" : "Subtotal MDO"}
                 </td>
                 <td className="p-2 text-right font-mono font-extrabold text-slate-950">

@@ -119,6 +119,11 @@ export function authorized(
 export function canAccessMenu(item: string, role: string, permissions: Permission[], tcodes?: TCode[], user?: User) {
   if (isSuperAdminRole(role)) return true;
 
+  if (item === "Tunai PO Tracking") {
+    const roleUpper = role.toUpperCase();
+    return roleUpper.includes("FINANCE HO") || roleUpper.includes("SCM HO");
+  }
+
   // Site-specific Master Data restrictions:
   // For site accounts (scope SITE / role includes "site"):
   // Master data only allows "RAISE & FALL", and even then strictly for BGG and POS sites.

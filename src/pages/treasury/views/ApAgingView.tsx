@@ -1,22 +1,32 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
+  AlertCircle,
   AlertTriangle,
+  ArrowUpDown,
+  Building2,
   Calendar,
-  CheckSquare,
-  DollarSign,
+  CheckCircle2,
+  Clock,
   Download,
+  FileSpreadsheet,
+  FileText,
   Filter,
   Flame,
+  HelpCircle,
   Layers,
+  MoreVertical,
   Plus,
+  PlusCircle,
   RefreshCw,
   Search,
   ShieldAlert,
+  ShieldCheck,
   Truck,
   Upload,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "../../../lib/format";
 import type { useTreasuryController } from "../useTreasuryController";
+import type { TreasuryInvoice } from "../types";
 
 type Props = {
   c: ReturnType<typeof useTreasuryController>;
@@ -25,6 +35,7 @@ type Props = {
 export function ApAgingView({ c }: Props) {
   const {
     invoices,
+    allUnpaidInvoices,
     totalInvoices,
     agingSummary,
     loading,
@@ -38,6 +49,16 @@ export function ApAgingView({ c }: Props) {
     setShowCreatePlanModal,
     fetchInvoices,
   } = c;
+
+  const availableSites = useMemo(() => {
+    const list = allUnpaidInvoices && allUnpaidInvoices.length > 0 ? allUnpaidInvoices : invoices;
+    const set = new Set<string>();
+    list.forEach((i) => {
+      const s = (i.site || "HO").trim().toUpperCase();
+      if (s) set.add(s);
+    });
+    return Array.from(set).sort();
+  }, [allUnpaidInvoices, invoices]);
 
   const toggleSelectAll = () => {
     if (selectedInvoiceIds.length === invoices.length) {
@@ -99,11 +120,20 @@ export function ApAgingView({ c }: Props) {
     }
   };
 
+  const totalTagihanAll = invoices.reduce(
+    (sum, inv) => sum + Number(inv.totalAmount || 0),
+    0
+  );
+  const totalSisaUtangAll = invoices.reduce(
+    (sum, inv) => sum + Number(inv.remainingBalance || 0),
+    0
+  );
+
   return (
-    <div className="space-y-4">
+    <div className="flex-1 min-h-0 flex flex-col gap-2 font-sans text-xs overflow-hidden">
       {/* 1. Top Metrics Banner */}
       {agingSummary && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 shrink-0">
           <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
             <div className="text-xs text-slate-500 font-medium">Total Outstanding</div>
             <div className="text-base font-bold text-slate-900 mt-1">
@@ -168,7 +198,7 @@ export function ApAgingView({ c }: Props) {
       )}
 
       {/* 2. Action Controls & Filter Bar */}
-      <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex flex-wrap items-center gap-2 flex-1">
           {/* Search Box */}
           <div className="relative min-w-[200px] max-w-xs">
@@ -189,10 +219,11 @@ export function ApAgingView({ c }: Props) {
             className="text-xs border border-slate-300 rounded px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="">Semua Site</option>
-            <option value="BGG">BGG</option>
-            <option value="POS">POS</option>
-            <option value="PTRO">PTRO</option>
-            <option value="HO">HO / JAKARTA</option>
+            {availableSites.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
           </select>
 
           {/* Aging Category Filter */}
@@ -269,10 +300,10 @@ export function ApAgingView({ c }: Props) {
       </div>
 
       {/* 3. Invoices Table */}
-      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="flex-1 min-h-0 bg-white rounded-lg border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full text-left text-xs border-collapse">
-            <thead>
+            <thead className="sticky top-0 z-20 shadow-xs">
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
                 <th className="p-2.5 w-8 text-center">
                   <input
@@ -443,11 +474,25 @@ export function ApAgingView({ c }: Props) {
                 })
               )}
             </tbody>
+            <tfoot className="bg-[#1A1612] text-white font-bold border-t-2 border-amber-900/40 sticky bottom-0 z-20 text-[11px] shadow-[0_-4px_12px_rgba(0,0,0,0.3)]">
+              <tr className="bg-[#1A1612]">
+                <td colSpan={6} className="p-2.5 text-right font-black uppercase tracking-wider text-stone-300 bg-[#1A1612]">
+                  Grand Total ({invoices.length} Tagihan):
+                </td>
+                <td className="p-2.5 text-right font-mono font-bold text-amber-200 whitespace-nowrap bg-[#1A1612]">
+                  {formatCurrency(totalTagihanAll)}
+                </td>
+                <td className="p-2.5 text-right font-mono font-black text-amber-400 whitespace-nowrap bg-[#1A1612]">
+                  {formatCurrency(totalSisaUtangAll)}
+                </td>
+                <td colSpan={2} className="p-2.5 bg-[#1A1612]"></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
 
         {/* Footer info */}
-        <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+        <div className="p-2.5 px-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[11px] text-slate-500 shrink-0">
           <div>
             Menampilkan {invoices.length} dari {totalInvoices} tagihan
           </div>

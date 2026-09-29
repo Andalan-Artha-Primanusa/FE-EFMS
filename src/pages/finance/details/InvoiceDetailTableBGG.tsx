@@ -39,7 +39,7 @@ export const InvoiceDetailTableBGG: React.FC<InvoiceDetailTableBGGProps> = ({
             </td>
             <td className="p-2 text-center font-mono border-r border-slate-200">{effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
             <td className="p-2 text-center border-r border-slate-200">{i.unit || "Bcm"}</td>
-            <td className="p-2 text-right font-mono border-r border-slate-200">{unitRate.toLocaleString("id-ID")}</td>
+            <td className="p-2 text-right font-mono border-r border-slate-200">{unitRate.toLocaleString("id-ID", { minimumFractionDigits: unitRate % 1 !== 0 ? 3 : 0, maximumFractionDigits: 3 })}</td>
             <td className="p-2 text-right font-mono font-extrabold">{formatIDR(amount)}</td>
           </tr>
         );
@@ -66,7 +66,7 @@ export const InvoiceDetailTableBGG: React.FC<InvoiceDetailTableBGGProps> = ({
             </td>
             <td className="p-2 text-center font-mono border-r border-slate-200">{effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
             <td className="p-2 text-center border-r border-slate-200">{i.unit || "Ton"}</td>
-            <td className="p-2 text-right font-mono border-r border-slate-200">{unitRate.toLocaleString("id-ID")}</td>
+            <td className="p-2 text-right font-mono border-r border-slate-200">{unitRate.toLocaleString("id-ID", { minimumFractionDigits: unitRate % 1 !== 0 ? 3 : 0, maximumFractionDigits: 3 })}</td>
             <td className="p-2 text-right font-mono font-extrabold">{formatIDR(amount)}</td>
           </tr>
         );
@@ -95,7 +95,7 @@ export const InvoiceDetailTableBGG: React.FC<InvoiceDetailTableBGGProps> = ({
             </td>
             <td className="p-2 text-center font-mono border-r border-slate-200">{effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
             <td className="p-2 text-center border-r border-slate-200">{i.unit || (i.subSection?.includes("Coal") ? "Ton" : "Bcm")}</td>
-            <td className="p-2 text-right font-mono border-r border-slate-200">{unitRate.toLocaleString("id-ID")}</td>
+            <td className="p-2 text-right font-mono border-r border-slate-200">{unitRate.toLocaleString("id-ID", { minimumFractionDigits: unitRate % 1 !== 0 ? 3 : 0, maximumFractionDigits: 3 })}</td>
             <td className="p-2 text-right font-mono font-extrabold">{formatIDR(amount)}</td>
           </tr>
         );
@@ -115,11 +115,14 @@ export const InvoiceDetailTableBGG: React.FC<InvoiceDetailTableBGGProps> = ({
         return (
           <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
             <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">
-              {i.subSection || ""} {i.description} &nbsp; &nbsp; <span className="text-[10px] text-slate-500 font-normal">{i.period}</span>
+              <div>{i.subSection || i.description}</div>
+              <div className="text-[10px] text-slate-500 font-mono font-normal">
+                {i.period}
+              </div>
             </td>
             <td className="p-2 text-center font-mono border-r border-slate-200">{effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
             <td className="p-2 text-center border-r border-slate-200">{i.unit || "Bcm"}</td>
-            <td className="p-2 text-right font-mono border-r border-slate-200">{unitRate.toLocaleString("id-ID")}</td>
+            <td className="p-2 text-right font-mono border-r border-slate-200">{unitRate.toLocaleString("id-ID", { minimumFractionDigits: unitRate % 1 !== 0 ? 3 : 0, maximumFractionDigits: 3 })}</td>
             <td className="p-2 text-right font-mono font-extrabold">{formatIDR(amount)}</td>
           </tr>
         );

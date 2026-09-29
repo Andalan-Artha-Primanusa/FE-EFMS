@@ -21,6 +21,7 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
   const [laborPriceIDR, setLaborPriceIDR] = useState(0);
   const [raiseFallMasters, setRaiseFallMasters] = useState<any[]>([]);
   const [raiseFallMaster, setRaiseFallMaster] = useState<any>(null);
+  const [minWageMasters, setMinWageMasters] = useState<any[]>([]);
 
   const [dynamicSowOptions, setDynamicSowOptions] = useState<any[]>([]);
   const [bankAccountOptions, setBankAccountOptions] = useState<any[]>([]);
@@ -60,6 +61,10 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
       .then((data) => { if (Array.isArray(data) && data.length > 0) setCoalIndexMaster(data); })
       .catch(() => {});
 
+    api<any[]>("/api/master-data/min-wages")
+      .then((data) => { if (Array.isArray(data) && data.length > 0) setMinWageMasters(data); })
+      .catch(() => {});
+
     api<any[]>("/api/master-data/variable-sow")
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
@@ -75,13 +80,13 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
               customerCode: d.customerCode || d.customer || "",
               baseRateUSD: d.rateUSD || d.baseRateUSD || 0,
               rateUSD: d.rateUSD || d.baseRateUSD || 0,
-              rateIDR: d.rateIDR || d.baseRateIDR || (d.rateUSD ? Math.round(d.rateUSD * (latestKursBI || 0)) : 0),
+              rateIDR: d.rateIDR || d.baseRateIDR || (d.rateUSD ? Number((d.rateUSD * (latestKursBI || 0)).toFixed(3)) : 0),
               tier1Rate: d.tier1Rate || 0,
               tier2Rate: d.tier2Rate || 0,
               tier3Rate: d.tier3Rate || 0,
               splitPercentage: d.splitPercentage || 0,
               baseDistanceMeters: d.baseDistanceMeters || 0,
-              isDistanceVar: d.category === "Distance" || (d.unit || "").toLowerCase().includes("m") || (d.unit || "").toLowerCase().includes("km"),
+              isDistanceVar: d.category === "Over Distance" || d.category === "Distance" || (d.unit || "").toLowerCase().includes("100 m") || (d.unit || "").toLowerCase().includes("1km") || (d.itemName || "").toLowerCase().includes("overhaul") || (d.itemName || "").toLowerCase().includes("over distance"),
             }))
           );
         }
@@ -253,30 +258,82 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
           match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("395"));
         }
       } else if (custUpper === "POS") {
+        const isOverhaul = itemNorm.includes("overhaul") || itemNorm.includes("underhaul") || itemNorm.includes("distance");
         if (itemNorm.includes("topsoil") || itemNorm.includes("top soil")) {
-          const isOverhaul = itemNorm.includes("overhaul") || itemNorm.includes("underhaul") || itemNorm.includes("distance");
           match = filtered.find((s: any) => {
             const n = (s.itemName || s.name || "").toLowerCase();
             return n.includes("top") && (isOverhaul ? (n.includes("over") || n.includes("under")) : (!n.includes("over") && !n.includes("under")));
           });
         } else if (itemNorm.includes("limonite")) {
-          const isOverhaul = itemNorm.includes("overhaul") || itemNorm.includes("underhaul") || itemNorm.includes("distance");
           match = filtered.find((s: any) => {
             const n = (s.itemName || s.name || "").toLowerCase();
             return n.includes("limonite") && (isOverhaul ? (n.includes("over") || n.includes("under")) : (!n.includes("over") && !n.includes("under")));
           });
         } else if (itemNorm.includes("saprolite")) {
-          const isOverhaul = itemNorm.includes("overhaul") || itemNorm.includes("underhaul") || itemNorm.includes("distance");
           match = filtered.find((s: any) => {
             const n = (s.itemName || s.name || "").toLowerCase();
             return n.includes("saprolite") && (isOverhaul ? (n.includes("over") || n.includes("under")) : (!n.includes("over") && !n.includes("under")));
           });
         } else if (itemNorm.includes("overburden") || itemNorm.includes("burden") || itemNorm.includes("waste") || itemNorm.includes("ob")) {
-          const isOverhaul = itemNorm.includes("overhaul") || itemNorm.includes("underhaul") || itemNorm.includes("distance");
           match = filtered.find((s: any) => {
             const n = (s.itemName || s.name || "").toLowerCase();
             return (n.includes("waste") || n.includes("overburden") || n.includes("ob")) && (isOverhaul ? (n.includes("over") || n.includes("under")) : (!n.includes("over") && !n.includes("under")));
           });
+        } else if (itemNorm.includes("clear") || itemNorm.includes("grub")) {
+          match = filtered.find((s: any) => {
+            const n = (s.itemName || s.name || "").toLowerCase();
+            return n.includes("clear") || n.includes("grub");
+          });
+        } else if (itemNorm.includes("recontour")) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("recontour"));
+        } else if (itemNorm.includes("reveget")) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("reveget"));
+        } else if (itemNorm.includes("uncrushed")) {
+          match = filtered.find((s: any) => {
+            const n = (s.itemName || s.name || "").toLowerCase();
+            return n.includes("uncrushed") && (isOverhaul ? (n.includes("over") || n.includes("under")) : (!n.includes("over") && !n.includes("under")));
+          });
+        } else if (itemNorm.includes("crusher") || itemNorm.includes("crushed")) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("crusher"));
+        } else if (itemNorm.includes("geotextile")) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("geotextile") && !itemNorm.includes("ditch"));
+        } else if (itemNorm.includes("culvert")) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("culvert"));
+        } else if (itemNorm.includes("subbase") || itemNorm.includes("sub base")) {
+          match = filtered.find((s: any) => {
+            const n = (s.itemName || s.name || "").toLowerCase();
+            return n.includes("sub base") || n.includes("subbase");
+          });
+        } else if (itemNorm.includes("basecourse") || itemNorm.includes("base course")) {
+          match = filtered.find((s: any) => {
+            const n = (s.itemName || s.name || "").toLowerCase();
+            return (n.includes("base course") || n.includes("basecourse")) && !n.includes("sub");
+          });
+        } else if (itemNorm.includes("sediment")) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("sediment"));
+        } else if (itemNorm.includes("berm")) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("berm"));
+        } else if (itemNorm.includes("ditch")) {
+          const withGeo = itemNorm.includes("tanpa") ? false : itemNorm.includes("geotextile") || itemNorm.includes("lapis");
+          match = filtered.find((s: any) => {
+            const n = (s.itemName || s.name || "").toLowerCase();
+            return n.includes("ditch") && (withGeo ? !n.includes("tanpa") : n.includes("tanpa"));
+          });
+        } else if (itemNorm.includes("boulder") || (itemNorm.includes("rock") && !itemNorm.includes("crush"))) {
+          match = filtered.find((s: any) => {
+            const n = (s.itemName || s.name || "").toLowerCase();
+            return n.includes("boulder") || (n.includes("rock") && !n.includes("crush"));
+          });
+        } else if (itemNorm.includes("rehandle") || itemNorm.includes("rehandling")) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("rehandl"));
+        } else if (itemNorm.includes("haulroad") || itemNorm.includes("road maintenance")) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("haul road") || (s.itemName || s.name || "").toLowerCase().includes("maintenance"));
+        } else if (itemNorm.includes("cutfill") || (itemNorm.includes("cut") && itemNorm.includes("fill"))) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("cut & fill"));
+        } else if (itemNorm.includes("cuthal") || (itemNorm.includes("cut") && itemNorm.includes("haul"))) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("cut & haul"));
+        } else if (itemNorm.includes("cutdispose") || (itemNorm.includes("cut") && itemNorm.includes("dispose"))) {
+          match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("cut & dispose"));
         }
       }
     }
@@ -296,8 +353,8 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
         if (match.tier3Rate) return match.tier3Rate;
         if (match.tier2Rate) return match.tier2Rate;
         if (match.tier1Rate) return match.tier1Rate;
-        if (match.rateUSD) return Math.round(match.rateUSD * currentKurs);
-        if (match.baseRateUSD) return Math.round(match.baseRateUSD * currentKurs);
+        if (match.rateUSD) return Number((match.rateUSD * currentKurs).toFixed(3));
+        if (match.baseRateUSD) return Number((match.baseRateUSD * currentKurs).toFixed(3));
       }
     }
     return fallbackRate;
@@ -323,8 +380,8 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
           }
           const isOverhaul = (s.itemName || s.name || "").toLowerCase().includes("overhaul") || catNorm.includes("distance");
           const isCoalOverhaul = isOverhaul && ((s.itemName || s.name || "").toLowerCase().includes("coal") || (s.itemName || s.name || "").toLowerCase().includes("batubara"));
-          let rateIDR = s.rateIDR ? s.rateIDR : (s.rateUSD ? Math.round(s.rateUSD * currentKurs) : (s.baseRateUSD ? Math.round(s.baseRateUSD * currentKurs) : 0));
-          if (isOverhaul && s.rateUSD) rateIDR = Math.round(s.rateUSD * currentKurs);
+          let rateIDR = s.rateIDR ? s.rateIDR : (s.rateUSD ? Number((s.rateUSD * currentKurs).toFixed(3)) : (s.baseRateUSD ? Number((s.baseRateUSD * currentKurs).toFixed(3)) : 0));
+          if (isOverhaul && s.rateUSD) rateIDR = Number((s.rateUSD * currentKurs).toFixed(3));
 
           if (custUpper === "BGG") {
             const activeTier = getBGGActiveCoalTier();
@@ -339,11 +396,22 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
 
           return {
             name: s.itemName || s.name,
+            itemName: s.itemName || s.name,
             category,
             unit: cleanUnit || "BCM",
             defaultRate: rateIDR,
+            rateIDR,
+            rateUSD: s.rateUSD || s.baseRateUSD || 0,
             usdRate: s.rateUSD || s.baseRateUSD || 0,
-            defaultDistance: custUpper === "BGG" ? 1000 : (isCoalOverhaul ? 3000 : 1000),
+            tier1Rate: s.tier1Rate || 0,
+            tier2Rate: s.tier2Rate || 0,
+            tier3Rate: s.tier3Rate || 0,
+            splitPercentage: s.splitPercentage || 0,
+            baseDistanceMeters: s.baseDistanceMeters || (custUpper === "BGG" ? 1000 : (isCoalOverhaul ? 3000 : 1000)),
+            defaultDistance: s.baseDistanceMeters || (custUpper === "BGG" ? 1000 : (isCoalOverhaul ? 3000 : 1000)),
+            isDistanceVar: Boolean(s.isDistanceVar || isOverhaul || category === "Over Distance"),
+            customer: s.customer || s.customerCode || custUpper,
+            customerCode: s.customerCode || s.customer || custUpper,
             overhaulRate: 0,
             id: s.id
           };
@@ -451,12 +519,13 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
       const isUSD = Boolean(it.isUSD);
       const itemPeriod = it.period || period;
       const tier = cust.toUpperCase() === "BGG" ? getBGGActiveCoalTier(itemPeriod) : undefined;
-      const masterRate = getSowMasterRate(cust, mat, it.rate || 0, isUSD, tier);
-      if (masterRate > 0) {
+      const masterRateIDR = getSowMasterRate(cust, mat, it.rate || 0, false, tier);
+      const masterRateUSD = isUSD ? getSowMasterRate(cust, mat, it.rateUSD || 0, true, tier) : 0;
+      if (masterRateIDR > 0) {
         return {
           ...it,
-          rate: masterRate,
-          ...(isUSD ? { rateUSD: getSowMasterRate(cust, mat, it.rateUSD || 0, true, tier) } : {})
+          rate: masterRateIDR,
+          ...(isUSD ? { rateUSD: masterRateUSD } : {})
         };
       }
       return it;
@@ -492,17 +561,17 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
       return rows.map(r => {
         let rate = r.rate || 0;
         const mat = (r.material || "").toUpperCase();
-        if (mat.includes("OVER BURDEN")) rate = Math.round((r.rateUSD || obRateUSD) * currentKurs);
-        else if (mat.includes("COAL GETTING") || mat.includes("COAL WINNING")) rate = Math.round((r.rateUSD || cgRateUSD) * currentKurs);
-        else if (mat.includes("OVERHAUL OB") || mat.includes("OVER DISTANCE FOR OB")) rate = Math.round((r.rateUSD || odObRateUSD) * currentKurs);
+        if (mat.includes("OVER BURDEN")) rate = Number(((r.rateUSD || obRateUSD) * currentKurs).toFixed(3));
+        else if (mat.includes("COAL GETTING") || mat.includes("COAL WINNING")) rate = Number(((r.rateUSD || cgRateUSD) * currentKurs).toFixed(3));
+        else if (mat.includes("OVERHAUL OB") || mat.includes("OVER DISTANCE FOR OB")) rate = Number(((r.rateUSD || odObRateUSD) * currentKurs).toFixed(3));
         else if (mat.includes("OVERHAUL COAL") || mat.includes("OVER DISTANCE FOR COAL")) rate = r.rate || odCgRateIDR;
         return { ...r, rate, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0 };
       });
     }
     return [
-      { id: "ptro_ba_ob", category: "Operating & Mining", area: "Pit Sapan", material: "OVER BURDEN REMOVAL", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: obRateUSD, distanceBasis: 0, isDistanceVar: false, rate: Math.round(obRateUSD * currentKurs), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
-      { id: "ptro_ba_cg", category: "Operating & Mining", area: "Pit Sapan", material: "COAL GETTING", unit: "MT", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: cgRateUSD, distanceBasis: 0, isDistanceVar: false, rate: Math.round(cgRateUSD * currentKurs), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
-      { id: "ptro_ba_odob", category: "Over Distance", area: "Pit Sapan", material: "Overhaul OB", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: odObRateUSD, distanceBasis: 1000, isDistanceVar: true, distanceWeightAvg: 1000, rate: Math.round(odObRateUSD * currentKurs), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "ptro_ba_ob", category: "Operating & Mining", area: "Pit Sapan", material: "OVER BURDEN REMOVAL", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: obRateUSD, distanceBasis: 0, isDistanceVar: false, rate: Number((obRateUSD * currentKurs).toFixed(3)), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "ptro_ba_cg", category: "Operating & Mining", area: "Pit Sapan", material: "COAL GETTING", unit: "MT", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: cgRateUSD, distanceBasis: 0, isDistanceVar: false, rate: Number((cgRateUSD * currentKurs).toFixed(3)), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "ptro_ba_odob", category: "Over Distance", area: "Pit Sapan", material: "Overhaul OB", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: odObRateUSD, distanceBasis: 1000, isDistanceVar: true, distanceWeightAvg: 1000, rate: Number((odObRateUSD * currentKurs).toFixed(3)), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
       { id: "ptro_ba_odcg", category: "Over Distance", area: "Pit Sapan", material: "Overhaul Coal Getting", unit: "TON", initialVolume: 0, adjustedVolume: 0, isUSD: false, rateIDR: odCgRateIDR, distanceBasis: 3000, isDistanceVar: true, distanceWeightAvg: 3000, rate: odCgRateIDR, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
     ];
   }, [financeTemplates, templateRows, dynamicSowOptions, latestKursBI, mRate, getSowMasterRate]);
@@ -518,24 +587,24 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
       return rows.map(r => {
         let rate = r.rate || 0;
         const mat = (r.material || "").toUpperCase();
-        if (mat.includes("OVER BURDEN")) rate = Math.round((r.rateUSD || obRateUSD) * currentKurs);
-        else if (mat.includes("COAL GETTING") || mat.includes("COAL WINNING")) rate = Math.round((r.rateUSD || cgRateUSD) * currentKurs);
-        else if (mat.includes("OVERHAUL OB") || mat.includes("OVER DISTANCE FOR OB")) rate = Math.round((r.rateUSD || odObRateUSD) * currentKurs);
+        if (mat.includes("OVER BURDEN")) rate = Number(((r.rateUSD || obRateUSD) * currentKurs).toFixed(3));
+        else if (mat.includes("COAL GETTING") || mat.includes("COAL WINNING")) rate = Number(((r.rateUSD || cgRateUSD) * currentKurs).toFixed(3));
+        else if (mat.includes("OVERHAUL OB") || mat.includes("OVER DISTANCE FOR OB")) rate = Number(((r.rateUSD || odObRateUSD) * currentKurs).toFixed(3));
         else if (mat.includes("OVERHAUL COAL") || mat.includes("OVER DISTANCE FOR COAL")) rate = r.rate || odCgRateIDR;
         return { ...r, rate, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0 };
       });
     }
     return [
-      { id: "dbk_ba_ob", category: "Operating & Mining", area: "Pit DBK", material: "OVER BURDEN REMOVAL", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: obRateUSD, distanceBasis: 0, isDistanceVar: false, rate: Math.round(obRateUSD * currentKurs), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
-      { id: "dbk_ba_cg", category: "Operating & Mining", area: "Pit DBK", material: "COAL GETTING", unit: "MT", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: cgRateUSD, distanceBasis: 0, isDistanceVar: false, rate: Math.round(cgRateUSD * currentKurs), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
-      { id: "dbk_ba_odob", category: "Over Distance", area: "Pit DBK", material: "Overhaul OB", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: odObRateUSD, distanceBasis: 1000, isDistanceVar: true, distanceWeightAvg: 1000, rate: Math.round(odObRateUSD * currentKurs), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "dbk_ba_ob", category: "Operating & Mining", area: "Pit DBK", material: "OVER BURDEN REMOVAL", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: obRateUSD, distanceBasis: 0, isDistanceVar: false, rate: Number((obRateUSD * currentKurs).toFixed(3)), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "dbk_ba_cg", category: "Operating & Mining", area: "Pit DBK", material: "COAL GETTING", unit: "MT", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: cgRateUSD, distanceBasis: 0, isDistanceVar: false, rate: Number((cgRateUSD * currentKurs).toFixed(3)), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "dbk_ba_odob", category: "Over Distance", area: "Pit DBK", material: "Overhaul OB", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: odObRateUSD, distanceBasis: 1000, isDistanceVar: true, distanceWeightAvg: 1000, rate: Number((odObRateUSD * currentKurs).toFixed(3)), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
       { id: "dbk_ba_odcg", category: "Over Distance", area: "Pit DBK", material: "Overhaul Coal Getting", unit: "TON", initialVolume: 0, adjustedVolume: 0, isUSD: false, rateIDR: odCgRateIDR, distanceBasis: 3000, isDistanceVar: true, distanceWeightAvg: 3000, rate: odCgRateIDR, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
     ];
   }, [financeTemplates, templateRows, dynamicSowOptions, latestKursBI, mRate, getSowMasterRate]);
 
   const defaultSBSBAOperatingItems = useMemo(() => {
     const rows = templateRows("ba_operating_SBS");
-    const base = zeroBAVolumes(rows.length > 0 ? rows : FALLBACK_SBS_BA_ITEMS, true);
+    const base = zeroBAVolumes(rows.length > 0 ? rows : FALLBACK_SBS_BA_ITEMS, false);
     return syncBARatesWithMasterData(base, "SBS");
   }, [financeTemplates, templateRows, syncBARatesWithMasterData]);
 
@@ -553,14 +622,18 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
 
   const reloadMasterData = useCallback(async () => {
     try {
-      const [sowData, fxData, rfData, coalData] = await Promise.all([
+      const [sowData, fxData, rfData, coalData, umkData] = await Promise.all([
         api<any[]>("/api/master-data/variable-sow").catch(() => []),
         api<any[]>("/api/master-data/daily-exchange-rates").catch(() => []),
         api<any[]>("/api/master-data/raise-fall").catch(() => []),
         api<any[]>("/api/master-data/coal-index").catch(() => []),
+        api<any[]>("/api/master-data/min-wages").catch(() => []),
       ]);
       if (Array.isArray(coalData) && coalData.length > 0) {
         setCoalIndexMaster(coalData);
+      }
+      if (Array.isArray(umkData) && umkData.length > 0) {
+        setMinWageMasters(umkData);
       }
       if (Array.isArray(rfData) && rfData.length > 0) {
         setRaiseFallMasters(rfData);
@@ -578,7 +651,7 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
             customerCode: d.customerCode || d.customer || "",
             baseRateUSD: d.rateUSD || d.baseRateUSD || 0,
             rateUSD: d.rateUSD || d.baseRateUSD || 0,
-            rateIDR: d.rateIDR || d.baseRateIDR || (d.rateUSD ? Math.round(d.rateUSD * (latestKursBI || 0)) : 0),
+            rateIDR: d.rateIDR || d.baseRateIDR || (d.rateUSD ? Number((d.rateUSD * (latestKursBI || 0)).toFixed(3)) : 0),
             tier1Rate: d.tier1Rate || 0,
             tier2Rate: d.tier2Rate || 0,
             tier3Rate: d.tier3Rate || 0,
@@ -607,6 +680,7 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
   return {
     mRate, setMRate, fuelPriceUSD, setFuelPriceUSD, laborPriceIDR, setLaborPriceIDR,
     raiseFallMasters, setRaiseFallMasters, raiseFallMaster, setRaiseFallMaster,
+    minWageMasters, setMinWageMasters,
     dynamicSowOptions, setDynamicSowOptions, bankAccountOptions, setBankAccountOptions,
     latestKursBI, setLatestKursBI, coalIndexMaster, setCoalIndexMaster,
     financeTemplates, setFinanceTemplates, templatesLoaded, setTemplatesLoaded,

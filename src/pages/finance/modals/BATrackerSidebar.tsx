@@ -8,6 +8,7 @@ interface BATrackerSidebarProps {
   invoiceRows: any[];
   sumInitial: number;
   sumAdjusted: number;
+  netTotalInvoice?: number;
   auditTab: "flow" | "activity";
   setAuditTab: (tab: "flow" | "activity") => void;
   baAuditLogs: any[];
@@ -19,10 +20,18 @@ export function BATrackerSidebar({
   invoiceRows,
   sumInitial,
   sumAdjusted,
+  netTotalInvoice,
   auditTab,
   setAuditTab,
   baAuditLogs,
 }: BATrackerSidebarProps) {
+  const effectiveClaim = sumAdjusted > 0 ? sumAdjusted : (sumInitial > 0 ? sumInitial : (Number(formData.workAmount) || 0));
+  const effectiveNet = netTotalInvoice && netTotalInvoice > 0
+    ? netTotalInvoice
+    : effectiveClaim > 0
+      ? Math.round(effectiveClaim + Math.round((effectiveClaim * 11 / 12) * 0.12) - Math.round(effectiveClaim * 0.02))
+      : 0;
+
   return (
     <div className="xl:col-span-3 2xl:col-span-3 space-y-4">
       {/* Ringkasan Dokumen Card */}
@@ -35,17 +44,13 @@ export function BATrackerSidebar({
         <div className="space-y-2 text-xs">
           <div className="flex justify-between">
             <span className="text-slate-500 font-bold">Total Nilai Klaim BA:</span>
-            <span className="font-mono font-black text-emerald-800 text-sm">{formatIDR(sumAdjusted || sumInitial || formData.workAmount || 0)}</span>
+            <span className="font-mono font-black text-emerald-800 text-sm">{formatIDR(effectiveClaim)}</span>
           </div>
-          {((sumAdjusted || sumInitial || 0) > 0) && (
+          {effectiveClaim > 0 && (
             <div className="flex justify-between text-[11px] pt-0.5 border-t border-slate-200/60">
               <span className="text-slate-500">Prediksi Netto (Inv):</span>
               <span className="font-mono font-bold text-emerald-700">
-                {formatIDR(Math.round(
-                  (sumAdjusted || sumInitial || 0) + 
-                  Math.round(((sumAdjusted || sumInitial || 0) * 11 / 12) * 0.12) - 
-                  Math.round((sumAdjusted || sumInitial || 0) * 0.02)
-                ))}
+                {formatIDR(effectiveNet)}
               </span>
             </div>
           )}
@@ -198,7 +203,7 @@ export function BATrackerSidebar({
                 </span>
               </div>
               <p className="text-slate-600 text-[11px] leading-relaxed">
-                Dibuat oleh <strong>{formData.picAAP || "Operations / Site Engineer"}</strong> ({formatIDR(sumInitial)}).
+                Dibuat oleh <strong>{formData.picAAP || "Operations / Site Engineer"}</strong> ({formatIDR(effectiveClaim)}).
               </p>
             </div>
 

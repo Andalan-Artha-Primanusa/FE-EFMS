@@ -70,9 +70,19 @@ export function VariableSOWFormPage() {
   }, [headerForm.companyCode]);
 
   const handleFieldChange = (idx: number, field: string, val: any) => {
-    const updated = [...itemsGrid];
-    updated[idx] = { ...updated[idx], [field]: val };
-    setItemsGrid(updated);
+    setItemsGrid(prev => {
+      const updated = [...prev];
+      updated[idx] = { ...updated[idx], [field]: val };
+      return updated;
+    });
+  };
+
+  const handleMultiFieldChange = (idx: number, fields: Record<string, any>) => {
+    setItemsGrid(prev => {
+      const updated = [...prev];
+      updated[idx] = { ...updated[idx], ...fields };
+      return updated;
+    });
   };
 
   const handleAddRow = () => {
@@ -90,7 +100,7 @@ export function VariableSOWFormPage() {
       splitPercentage: 100,
       baseDistanceMeters: 0
     };
-    setItemsGrid([...itemsGrid, newRow]);
+    setItemsGrid(prev => [...prev, newRow]);
   };
 
   const handleRemoveRow = (idx: number) => {
@@ -129,7 +139,7 @@ export function VariableSOWFormPage() {
           rateIDR: Number(item.rateIDR || item.tier3Rate || 0),
           tier1Rate: Number(item.tier1Rate || 0),
           tier2Rate: Number(item.tier2Rate || 0),
-          tier3Rate: Number(item.tier3Rate || 0),
+          tier3Rate: Number(item.tier3Rate || item.rateIDR || 0),
           splitPercentage: Number(item.splitPercentage || 100),
           baseDistanceMeters: Number(item.baseDistanceMeters || 0),
           unit: item.unit || "BCM",
@@ -345,10 +355,9 @@ export function VariableSOWFormPage() {
                           allowDecimals
                           maxDecimals={2}
                           className="w-full text-right p-1.5 rounded-lg bg-amber-50 border border-amber-400 font-mono font-black text-amber-950 text-xs outline-none"
-                          value={item.tier3Rate || ""}
+                          value={item.tier3Rate ?? ""}
                           onChange={(val) => {
-                            handleFieldChange(idx, "tier3Rate", val);
-                            handleFieldChange(idx, "rateIDR", val);
+                            handleMultiFieldChange(idx, { tier3Rate: val, rateIDR: val });
                           }}
                         />
                       </td>
@@ -567,29 +576,86 @@ export function VariableSOWFormPage() {
                     return (
                       <tr key={idx} className="hover:bg-amber-50/30 transition">
                         <td className="p-2 pl-4 border-r border-slate-200">
-                          <input
-                            type="text"
-                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 font-bold text-slate-800 outline-none"
+                          <select
+                            className="w-full bg-slate-50 border border-slate-300 rounded-[3px] p-1.5 text-xs font-bold text-slate-800 outline-none focus:border-[#A57C50]"
                             value={item.category || "Operation & Mining"}
-                            onChange={(e) => handleFieldChange(idx, "category", e.target.value)}
-                          />
+                            onChange={(e) => {
+                              const newCat = e.target.value;
+                              handleFieldChange(idx, "category", newCat);
+                            }}
+                          >
+                            <option value="Operation & Mining">Operation & Mining</option>
+                            <option value="Rehabilitation">Rehabilitation</option>
+                            <option value="Mine Development (MDO)">Mine Development (MDO)</option>
+                            {item.category && !["Operation & Mining", "Rehabilitation", "Mine Development (MDO)"].includes(item.category) && (
+                              <option value={item.category}>{item.category}</option>
+                            )}
+                          </select>
                         </td>
                         <td className="p-2 border-r border-slate-200">
-                          <input
-                            type="text"
-                            className="w-full font-bold text-slate-900 bg-transparent px-2 py-1 outline-none border border-transparent focus:border-cyan-500 rounded"
-                            value={item.itemName}
-                            onChange={(e) => handleFieldChange(idx, "itemName", e.target.value)}
-                            placeholder="Nama item..."
-                            required
-                          />
+                          {(() => {
+                            const curCat = (item.category || "Operation & Mining").toLowerCase();
+                            const categoryOptions = defaultSOWTemplate.filter(
+                              tpl => tpl.category.toLowerCase() === curCat
+                            );
+                            const isPredefined = defaultSOWTemplate.some(t => t.itemName === item.itemName);
+                            return (
+                              <div className="space-y-1">
+                                <select
+                                  className="w-full bg-white border border-slate-300 rounded-[3px] p-1.5 text-xs font-bold text-slate-900 outline-none focus:border-[#A57C50] shadow-2xs"
+                                  value={item.isCustom ? "Lainnya" : (item.itemName || "")}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val === "Lainnya") {
+                                      handleMultiFieldChange(idx, { isCustom: true, itemName: "" });
+                                    } else {
+                                      const found = defaultSOWTemplate.find(tpl => tpl.itemName === val);
+                                      if (found) {
+                                        handleMultiFieldChange(idx, {
+                                          itemName: found.itemName,
+                                          unit: found.unit,
+                                          rateUSD: found.rateUSD,
+                                          category: found.category,
+                                          isCustom: false
+                                        });
+                                      } else {
+                                        handleFieldChange(idx, "itemName", val);
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <option value="" disabled>-- Pilih Item SOW ({item.category || "POS"}) --</option>
+                                  {categoryOptions.map((opt, oIdx) => (
+                                    <option key={oIdx} value={opt.itemName}>
+                                      {opt.itemName} ({opt.unit} - ${opt.rateUSD.toFixed(3)})
+                                    </option>
+                                  ))}
+                                  {item.itemName && !categoryOptions.some(o => o.itemName === item.itemName) && !item.isCustom && (
+                                    <option value={item.itemName}>{item.itemName}</option>
+                                  )}
+                                  <option value="Lainnya">+ Custom / Item Lainnya...</option>
+                                </select>
+                                {(item.isCustom || (!isPredefined && item.itemName)) && (
+                                  <input
+                                    type="text"
+                                    className="w-full font-bold text-slate-900 bg-amber-50/60 border border-amber-300 focus:border-[#A57C50] rounded-[3px] px-2 py-1 outline-none text-xs placeholder:text-slate-400"
+                                    value={item.itemName || ""}
+                                    onChange={(e) => handleFieldChange(idx, "itemName", e.target.value)}
+                                    placeholder="Ketik rincian item custom..."
+                                    required
+                                  />
+                                )}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="p-2 text-center font-mono font-bold text-slate-700 border-r border-slate-200">
                           <input
                             type="text"
-                            className="w-full text-center font-mono font-bold text-slate-600 bg-transparent px-1 py-1 outline-none border border-transparent focus:border-cyan-500 rounded"
-                            value={item.unit}
+                            className="w-full text-center font-mono font-bold text-slate-700 bg-transparent px-1 py-1 outline-none border border-transparent focus:border-cyan-500 rounded"
+                            value={item.unit || ""}
                             onChange={(e) => handleFieldChange(idx, "unit", e.target.value)}
+                            placeholder="USD/BCM"
                           />
                         </td>
                         <td className="p-2 border-r border-slate-200 text-right">

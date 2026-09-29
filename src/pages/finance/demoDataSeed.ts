@@ -57,19 +57,29 @@ export const FALLBACK_BGG_BA_ITEMS = [
 ];
 
 export const FALLBACK_POS_OPERATING_ITEMS = [
-  { id: "ba_op1", category: "Operating & Mining", area: "WM1", material: "Top Soil", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 60500, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "ba_op2", category: "Operating & Mining", area: "WM1", material: "Saprolite", unit: "WMT", initialVolume: 0, adjustedVolume: 0, rate: 62200, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "ba_op3", category: "Operating & Mining", area: "WM1", material: "Limonite", unit: "WMT", initialVolume: 0, adjustedVolume: 0, rate: 60200, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "ba_op4", category: "Operating & Mining", area: "WM1", material: "Overburden/ Waste", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 59500, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "ba_dist1", category: "Over Distance", area: "WM1", material: "Over/Underhaul For OB Removal", unit: "BCM", parentMaterial: "Overburden/ Waste", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 8608, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "ba_dist2", category: "Over Distance", area: "WM1", material: "Over/Underhaul For Top Soil Removal", unit: "BCM", parentMaterial: "Top Soil", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 8608, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "ba_dist3", category: "Over Distance", area: "WM1", material: "Over/Underhaul For Limonite", unit: "BCM", parentMaterial: "Limonite", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 8416, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "ba_dist4", category: "Over Distance", area: "WM1", material: "Over/Underhaul For Saprolite", unit: "BCM", parentMaterial: "Saprolite", distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 8416, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
+  // A. PRODUCTION (Base Rates)
+  { id: "ba_op1", category: "Operating & Mining", area: "WM1", material: "Overburden/Waste - Base Rate (1000m)", unit: "USD/BCM", initialVolume: 0, adjustedVolume: 0, rate: 59385, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "ba_op2", category: "Operating & Mining", area: "WM1", material: "Topsoil Removal - Base Rate (1000m)", unit: "USD/BCM", initialVolume: 0, adjustedVolume: 0, rate: 60331, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "ba_op3", category: "Operating & Mining", area: "WM1", material: "Limonite - Base Rate (1000m)", unit: "USD/BCM", initialVolume: 0, adjustedVolume: 0, rate: 60027, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "ba_op4", category: "Operating & Mining", area: "WM1", material: "Saprolite - Base Rate (1000m)", unit: "USD/BCM", initialVolume: 0, adjustedVolume: 0, rate: 61973, subtotalInitial: 0, subtotalAdjusted: 0 },
+  // B. OVER DISTANCE (Over/Underhaul)
+  { id: "ba_dist1", category: "Over Distance", area: "WM1", material: "OB/Waste - over/underhaul", unit: "USD/1KM", parentMaterial: "Overburden/Waste - Base Rate (1000m)", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 9603, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "ba_dist2", category: "Over Distance", area: "WM1", material: "Topsoil Removal - over/underhaul", unit: "USD/1KM", parentMaterial: "Topsoil Removal - Base Rate (1000m)", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 9603, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "ba_dist3", category: "Over Distance", area: "WM1", material: "Limonite - over/underhaul", unit: "USD/1KM", parentMaterial: "Limonite - Base Rate (1000m)", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 9389, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "ba_dist4", category: "Over Distance", area: "WM1", material: "Saprolite - over/underhaul", unit: "USD/1KM", parentMaterial: "Saprolite - Base Rate (1000m)", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 9389, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+  // C. LAND CLEARING
+  { id: "ba_op5", category: "Operating & Mining", area: "WM1", material: "Land Clearing", unit: "USD/m2", initialVolume: 0, adjustedVolume: 0, rate: 6801, subtotalInitial: 0, subtotalAdjusted: 0 }
 ];
 
 export const FALLBACK_POS_MDO_ITEMS = [
-  { id: "ba_mdo1", category: "MDO", area: "Site POS", material: "Mine Development (MDO) - Clearing & Access Road", unit: "Ha", distanceWeightAvg: 0, initialVolume: 0, adjustedVolume: 0, rate: 15500000, subtotalInitial: 0, subtotalAdjusted: 0 },
-  { id: "ba_mdo2", category: "MDO", area: "Site POS", material: "Rocks for construction - under/overhaul", unit: "USD/1KM", distanceWeightAvg: 0, initialVolume: 0, adjustedVolume: 0, rate: 9450, subtotalInitial: 0, subtotalAdjusted: 0 }
+  // A. PRODUCTION
+  { id: "ba_mdo1", category: "MDO", area: "Site POS", material: "Topsoil Removal - Base Rate (1000m)", unit: "USD/BCM", initialVolume: 0, adjustedVolume: 0, rate: 60331, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "ba_mdo2", category: "MDO", area: "Site POS", material: "Fill", unit: "USD/BCM", initialVolume: 0, adjustedVolume: 0, rate: 19795, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "ba_mdo3", category: "MDO", area: "Site POS", material: "Saprolite - Base Rate (1000m)", unit: "USD/BCM", initialVolume: 0, adjustedVolume: 0, rate: 61973, subtotalInitial: 0, subtotalAdjusted: 0 },
+  // B. OVER DISTANCE
+  { id: "ba_mdo4", category: "MDO", area: "Site POS", material: "Topsoil Removal - over/underhaul", unit: "USD/1KM", parentMaterial: "Topsoil Removal - Base Rate (1000m)", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 9603, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "ba_mdo5", category: "MDO", area: "Site POS", material: "Saprolite - over/underhaul", unit: "USD/1KM", parentMaterial: "Saprolite - Base Rate (1000m)", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 9389, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+  { id: "ba_mdo6", category: "MDO", area: "Site POS", material: "Cut or Fill under/overhaul", unit: "USD/1KM", parentMaterial: "Fill", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: 9299, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
 ];
 
 export const FALLBACK_SBS_BA_ITEMS = [
@@ -115,7 +125,7 @@ export const FALLBACK_SBS_DEDUCTION_ITEMS = [
 
 export const FALLBACK_PTRO_BA_ITEMS = [
   { id: "ptro_ba_ob", category: "Operating & Mining", area: "Pit Sapan", material: "OVER BURDEN REMOVAL", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: 1.490, distanceBasis: 0, isDistanceVar: false, rate: 26700, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
-  { id: "ptro_ba_cg", category: "Operating & Mining", area: "Pit Sapan", material: "COAL GETTING", unit: "MT", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: 0.840, distanceBasis: 0, isDistanceVar: false, rate: 15050, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+  { id: "ptro_ba_cg", category: "Operating & Mining", area: "Pit Sapan", material: "COAL GETTING", unit: "TON", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: 0.840, distanceBasis: 0, isDistanceVar: false, rate: 15050, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
   { id: "ptro_ba_odob", category: "Over Distance", area: "Pit Sapan", material: "Overhaul OB", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: 0.028, distanceBasis: 1000, isDistanceVar: true, distanceWeightAvg: 1000, rate: 500, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
   { id: "ptro_ba_odcg", category: "Over Distance", area: "Pit Sapan", material: "Overhaul Coal Getting", unit: "TON", initialVolume: 0, adjustedVolume: 0, isUSD: false, rateIDR: 230, distanceBasis: 3000, isDistanceVar: true, distanceWeightAvg: 3000, rate: 230, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" }
 ];
@@ -128,6 +138,7 @@ export function getInitialBAItemsForRecord(
     defaultPTROBAItems?: any[];
     defaultSBSBAOperatingItems: any[];
     defaultPOSBAOperatingItems: any[];
+    defaultPOSBAMDOItems?: any[];
   }
 ): any[] {
   if (!item) return [];
@@ -249,5 +260,8 @@ export function getInitialBAItemsForRecord(
   if (cust === "PTRO" || cust === "PT Petrosea") return mapZero(defaults.defaultPTROBAItems || defaults.defaultDBKBAItems || FALLBACK_PTRO_BA_ITEMS);
   if (cust === "DBK") return mapZero(defaults.defaultDBKBAItems || defaults.defaultPTROBAItems || FALLBACK_PTRO_BA_ITEMS);
   if (cust === "SBS") return mapZero(defaults.defaultSBSBAOperatingItems).map((it: any) => ({ ...it, distance: 0, distanceWeightAvg: 0, rate: 0 }));
-  return mapZero(defaults.defaultPOSBAOperatingItems);
+  return mapZero([
+    ...(defaults.defaultPOSBAOperatingItems || FALLBACK_POS_OPERATING_ITEMS),
+    ...(defaults.defaultPOSBAMDOItems || FALLBACK_POS_MDO_ITEMS)
+  ]);
 }

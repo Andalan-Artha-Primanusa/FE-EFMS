@@ -15,6 +15,7 @@ interface UseFinanceBAStateProps {
   defaultPTROBAItems?: any[];
   defaultSBSBAOperatingItems: any[];
   defaultPOSBAOperatingItems: any[];
+  defaultPOSBAMDOItems?: any[];
   detailViewItem: any;
   getCurrentMonthPeriod: () => string;
   getSowMasterRate?: (cust: string, name: string, fb: number, isUSD?: boolean, tier?: string) => number;
@@ -36,6 +37,7 @@ export function useFinanceBAState({
   defaultPTROBAItems,
   defaultSBSBAOperatingItems,
   defaultPOSBAOperatingItems,
+  defaultPOSBAMDOItems,
   detailViewItem,
   getCurrentMonthPeriod,
   getSowMasterRate,
@@ -83,16 +85,32 @@ export function useFinanceBAState({
     ];
   }, [getCurrentMonthPeriod, getSowMasterRate]);
 
-  const createBlankSBSBAItems = useCallback((period = getCurrentMonthPeriod()) => [
-    { id: `sbs_ba_a1_${Date.now()}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL SEKATAN", period, notes: "", keterangan: "", unit: "BCM", distance: 0, distanceWeightAvg: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_a2_${Date.now() + 1}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA JALAN", period, notes: "", keterangan: "", unit: "BCM", distance: 0, distanceWeightAvg: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_a3_${Date.now() + 2}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA CSA", period, notes: "", keterangan: "", unit: "BCM", distance: 0, distanceWeightAvg: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_a4_${Date.now() + 3}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - JALAN BARITO", period, notes: "", keterangan: "", unit: "BCM", distance: 0, distanceWeightAvg: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_a5_${Date.now() + 4}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", period, notes: "", keterangan: "", unit: "BCM", distance: 0, distanceWeightAvg: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_a6_${Date.now() + 5}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - TS MAHONI", period, notes: "", keterangan: "", unit: "BCM", distance: 0, distanceWeightAvg: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_a7_${Date.now() + 6}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - IPD WARWEFILL", period, notes: "", keterangan: "", unit: "BCM", distance: 0, distanceWeightAvg: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
-    { id: `sbs_ba_a8_${Date.now() + 7}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", period, notes: "", keterangan: "", unit: "BCM", distance: 0, distanceWeightAvg: 0, initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 }
-  ], [getCurrentMonthPeriod]);
+  const createBlankSBSBAItems = useCallback(
+    (period = getCurrentMonthPeriod()) => {
+      if (defaultSBSBAOperatingItems && defaultSBSBAOperatingItems.length > 0) {
+        return defaultSBSBAOperatingItems.map((it: any, idx: number) => ({
+          ...it,
+          id: `sbs_ba_a${idx + 1}_${Date.now() + idx}`,
+          period,
+          initialVolume: 0,
+          adjustedVolume: 0,
+          subtotalInitial: 0,
+          subtotalAdjusted: 0,
+        }));
+      }
+      return [
+        { id: `sbs_ba_a1_${Date.now()}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - DISPOSAL SEKATAN", period, notes: "", keterangan: "", unit: "BCM", distance: 3568, distanceWeightAvg: 3568, initialVolume: 0, adjustedVolume: 0, rate: getSowMasterRate ? getSowMasterRate("SBS", "PIT E - DISPOSAL SEKATAN", 22654) : 22654, subtotalInitial: 0, subtotalAdjusted: 0 },
+        { id: `sbs_ba_a2_${Date.now() + 1}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA JALAN", period, notes: "", keterangan: "", unit: "BCM", distance: 1774, distanceWeightAvg: 1774, initialVolume: 0, adjustedVolume: 0, rate: getSowMasterRate ? getSowMasterRate("SBS", "PIT E - RENCANA JALAN", 12638) : 12638, subtotalInitial: 0, subtotalAdjusted: 0 },
+        { id: `sbs_ba_a3_${Date.now() + 2}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - RENCANA CSA", period, notes: "", keterangan: "", unit: "BCM", distance: 938, distanceWeightAvg: 938, initialVolume: 0, adjustedVolume: 0, rate: getSowMasterRate ? getSowMasterRate("SBS", "PIT E - RENCANA CSA", 8346) : 8346, subtotalInitial: 0, subtotalAdjusted: 0 },
+        { id: `sbs_ba_a4_${Date.now() + 3}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - JALAN BARITO", period, notes: "", keterangan: "", unit: "BCM", distance: 2311, distanceWeightAvg: 2311, initialVolume: 0, adjustedVolume: 0, rate: getSowMasterRate ? getSowMasterRate("SBS", "PIT E - JALAN BARITO", 15500) : 15500, subtotalInitial: 0, subtotalAdjusted: 0 },
+        { id: `sbs_ba_a5_${Date.now() + 4}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", period, notes: "", keterangan: "", unit: "BCM", distance: 2471, distanceWeightAvg: 2471, initialVolume: 0, adjustedVolume: 0, rate: getSowMasterRate ? getSowMasterRate("SBS", "PIT E - SEKATAN", 16931) : 16931, subtotalInitial: 0, subtotalAdjusted: 0 },
+        { id: `sbs_ba_a6_${Date.now() + 5}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - TS MAHONI", period, notes: "", keterangan: "", unit: "BCM", distance: 3508, distanceWeightAvg: 3508, initialVolume: 0, adjustedVolume: 0, rate: getSowMasterRate ? getSowMasterRate("SBS", "PIT E - TS MAHONI", 22654) : 22654, subtotalInitial: 0, subtotalAdjusted: 0 },
+        { id: `sbs_ba_a7_${Date.now() + 6}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - IPD WARWEFILL", period, notes: "", keterangan: "", unit: "BCM", distance: 928, distanceWeightAvg: 928, initialVolume: 0, adjustedVolume: 0, rate: getSowMasterRate ? getSowMasterRate("SBS", "PIT E - IPD WARWEFILL", 8346) : 8346, subtotalInitial: 0, subtotalAdjusted: 0 },
+        { id: `sbs_ba_a8_${Date.now() + 7}`, category: "Operating & Mining", area: "Pit E", material: "PIT E - SEKATAN", period, notes: "", keterangan: "", unit: "BCM", distance: 2954, distanceWeightAvg: 2954, initialVolume: 0, adjustedVolume: 0, rate: getSowMasterRate ? getSowMasterRate("SBS", "PIT E - SEKATAN", 19375) : 19375, subtotalInitial: 0, subtotalAdjusted: 0 }
+      ];
+    },
+    [getCurrentMonthPeriod, defaultSBSBAOperatingItems, getSowMasterRate]
+  );
 
   const openBAModal = (item: any, isEditMode: boolean = false) => {
     setEditItem(item);
@@ -133,14 +151,76 @@ export function useFinanceBAState({
       defaultDBKBAItems,
       defaultPTROBAItems,
       defaultSBSBAOperatingItems,
-      defaultPOSBAOperatingItems
+      defaultPOSBAOperatingItems,
+      defaultPOSBAMDOItems
     });
     const syncedInitialItems = syncBARatesWithMasterData
       ? syncBARatesWithMasterData(initialItems, item.customerCode || "BGG", item.workPeriod)
       : initialItems;
-    const ops = syncedInitialItems.filter((i: any) => !i.isDeduction && i.category !== "Pengurang Biaya" && i.category !== "MDO" && i.category !== "Penunjang" && i.unit !== "Hours");
-    const mdo = syncedInitialItems.filter((i: any) => !i.isDeduction && (i.category === "MDO" || i.category === "Penunjang" || i.unit === "Hours"));
-    const deds = syncedInitialItems.filter((i: any) => i.isDeduction || i.category === "Pengurang Biaya");
+    const isCustomerBGG = (item.customerCode || "BGG").toUpperCase() === "BGG" || (item.customerCode || "BGG").toUpperCase() === "PT BGG";
+
+    // Clean residue POS items if this is a BGG BA
+    const cleanedInitialItems = syncedInitialItems.filter((i: any) => {
+      if (!isCustomerBGG) return true;
+      const m = (i.material || "").toLowerCase();
+      const id = (i.id || "").toLowerCase();
+      if (id.startsWith("ba_op") || id.startsWith("ba_mdo") || id.startsWith("ba_dist")) return false;
+      if (m.includes("limonite") || m.includes("saprolite") || m.includes("topsoil") || m.includes("cut or fill") || m.includes("land clearing")) {
+        return false;
+      }
+      return true;
+    });
+
+    const isDPFuel = (i: any) => {
+      const c = (i.category || "").toLowerCase();
+      const m = (i.material || "").toLowerCase();
+      const sec = (i.section || "").toUpperCase();
+      return sec === "F" || c === "dp fuel" || m.includes("dp fuel") || m.includes("pengurang solar") || m.includes("potongan solar");
+    };
+    const isMDO = (i: any) => {
+      const c = (i.category || "").toLowerCase();
+      return c === "mdo" || c === "penunjang" || i.unit === "Hours" || i.unit === "Jam";
+    };
+    const isPenaltyOrDed = (i: any) => {
+      const c = (i.category || "").toLowerCase();
+      return (i.isDeduction || c === "pengurang biaya" || c === "pengurang pembayaran") && !isDPFuel(i);
+    };
+
+    const normalizedItems = cleanedInitialItems.map((i: any) => {
+      const c = (i.category || "").toLowerCase();
+      const m = (i.material || "").toLowerCase();
+      const isDist = i.isDistanceVar || c.includes("distance") || m.includes("distance") || m.includes("overhaul");
+      if (isDist) {
+        const d = Number(i.distanceM ?? i.distance ?? i.distanceWeightAvg ?? 0);
+        if (d > 0) {
+          return { ...i, distanceM: d, distance: d, distanceWeightAvg: d };
+        }
+      }
+      return i;
+    });
+
+    // Deduplicate DP Fuel items if duplicates exist from previous saves
+    let filteredItems = normalizedItems;
+    if (isCustomerBGG) {
+      let foundActiveDPFuel = false;
+      const activeDPItem = normalizedItems.find((it: any) => isDPFuel(it) && (Number(it.rate || 0) > 0 || Math.abs(Number(it.subtotalInitial || 0)) > 0));
+      filteredItems = normalizedItems.filter((it: any) => {
+        if (!isDPFuel(it)) return true;
+        if (activeDPItem) {
+          if (it.id === activeDPItem.id) return true;
+          return false; // Skip redundant duplicates
+        }
+        if (!foundActiveDPFuel) {
+          foundActiveDPFuel = true;
+          return true;
+        }
+        return false;
+      });
+    }
+
+    const ops = filteredItems.filter((i: any) => !isMDO(i) && !isPenaltyOrDed(i));
+    const mdo = filteredItems.filter((i: any) => isMDO(i) && !isPenaltyOrDed(i));
+    const deds = filteredItems.filter((i: any) => isPenaltyOrDed(i));
     setBaOperatingItems(ops);
     setBaMDOItems(mdo);
     setBaDeductionItems(deds);

@@ -19,6 +19,8 @@ interface BATrackerSurveyMatrixProps {
   sumInitial: number;
   sumAdjusted: number;
   deltaAmount: number;
+  totalClaimInitial?: number;
+  totalClaimAdjusted?: number;
   handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => void;
   setActiveBAStep: (step: number) => void;
 }
@@ -40,6 +42,8 @@ export function BATrackerSurveyMatrix({
   sumInitial,
   sumAdjusted,
   deltaAmount,
+  totalClaimInitial,
+  totalClaimAdjusted,
   handleFileUpload,
   setActiveBAStep,
 }: BATrackerSurveyMatrixProps) {
@@ -89,10 +93,10 @@ export function BATrackerSurveyMatrix({
                       )}
                     </div>
                     <div className="text-[10px] text-slate-500 font-normal mt-0.5">
-                      {item.category} • {item.area || (isCustomerBGG ? "Pit KKL" : "WM1")}
+                      {item.category} • {item.area || (isCustomerBGG ? "Pit KKL" : formData?.customerCode === "SBS" ? "Pit E" : (formData?.customerCode === "PTRO" || formData?.customerCode === "DBK") ? "Pit Sapan" : formData?.customerCode === "POS" ? "WM1" : "-")}
                       {isDistance && (
                         <span className="text-[#A57C50] font-mono ml-1 font-bold">
-                          (Dist: {item.distanceWeightAvg || 0} {item.unit === "Bcm.Hm" ? "Hm" : "m"})
+                          (Dist: {Math.round(Number(item.distanceM ?? item.distance ?? item.distanceWeightAvg ?? 0)).toLocaleString("id-ID")} {item.unit === "Bcm.Hm" ? "Hm" : "m"})
                         </span>
                       )}
                     </div>
@@ -112,16 +116,25 @@ export function BATrackerSurveyMatrix({
                   <td className="p-2.5 text-right font-mono align-top">
                     {isDPFuel ? (
                       <span className="pt-1 block text-slate-400 font-mono">-</span>
-                    ) : !isDistance ? (
-                      !isInlineEditingBA ? (
-                        <span className="font-bold text-slate-900 pt-1 block">{volAdj > 0 ? volAdj.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00"}</span>
-                      ) : (
+                    ) : !isInlineEditingBA ? (
+                      <div className="flex flex-col items-end pt-0.5">
+                        <span className="font-mono font-bold text-slate-900 block">
+                          {volAdj > 0 ? volAdj.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00"}
+                        </span>
+                        {isDistance && (
+                          <span className="text-[9px] text-[#A57C50] font-semibold italic mt-0.5 whitespace-nowrap">
+                            Auto-sync survey
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-0.5 flex flex-col items-end">
                         <FormattedNumberInput
                           allowDecimals
                           maxDecimals={3}
                           className="w-24 bg-slate-50 border border-slate-300 rounded-[3px] px-2 py-1 text-right font-mono font-bold text-xs text-slate-900 focus:border-[#A57C50] outline-none"
-                          value={item.adjustedVolume !== undefined && item.adjustedVolume !== 0 ? item.adjustedVolume : ""}
-                          placeholder="00.00"
+                          value={isDistance ? (item.adjustedVolume ? item.adjustedVolume : "") : (item.adjustedVolume !== undefined && item.adjustedVolume !== 0 ? item.adjustedVolume : "")}
+                          placeholder={volAdj > 0 ? volAdj.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00"}
                           onChange={(val) => {
                             if (item.isDeduction || item.category === "Pengurang Biaya") {
                               const deds = [...(baDeductionItems || [])];
@@ -147,15 +160,11 @@ export function BATrackerSurveyMatrix({
                             }
                           }}
                         />
-                      )
-                    ) : (
-                      <div className="flex flex-col items-end pt-0.5">
-                        <span className="font-mono font-bold text-[#1A1612] bg-amber-50 border border-[#A57C50]/30 px-2.5 py-1 rounded-[3px] text-xs shadow-2xs">
-                          {volAdj > 0 ? volAdj.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00"}
-                        </span>
-                        <span className="text-[9px] text-[#A57C50] font-semibold italic mt-0.5 whitespace-nowrap">
-                          Auto-sync survey
-                        </span>
+                        {isDistance && (
+                          <span className="text-[9px] text-[#A57C50] font-semibold italic">
+                            Auto-sync survey
+                          </span>
+                        )}
                       </div>
                     )}
                   </td>
@@ -176,22 +185,52 @@ export function BATrackerSurveyMatrix({
       </div>
 
       {/* Delta Summary Box */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-3 bg-white rounded-[4px] border border-slate-200 shadow-xs">
-          <span className="text-[10px] font-bold uppercase text-slate-500 block">Total Awal (Site)</span>
-          <span className="text-sm font-black font-mono text-slate-800">{formatIDR(sumInitial)}</span>
-        </div>
-        <div className="p-3 bg-[#A57C50]/5 rounded-[4px] border border-[#A57C50]/30 shadow-xs">
-          <span className="text-[10px] font-bold uppercase text-[#A57C50] block">Total Survey Bersama</span>
-          <span className="text-sm font-black font-mono text-[#1A1612]">{formatIDR(sumAdjusted)}</span>
-        </div>
-        <div className={`p-3 rounded-[4px] border shadow-xs ${deltaAmount >= 0 ? "bg-emerald-50/50 border-emerald-300" : "bg-rose-50/50 border-rose-300"}`}>
-          <span className={`text-[10px] font-bold uppercase block ${deltaAmount >= 0 ? "text-emerald-800" : "text-rose-800"}`}>Delta Selisih Survey</span>
-          <span className={`text-sm font-black font-mono ${deltaAmount >= 0 ? "text-emerald-900" : "text-rose-900"}`}>
-            {deltaAmount >= 0 ? `+${formatIDR(deltaAmount)}` : `-${formatIDR(Math.abs(deltaAmount))}`}
-          </span>
-        </div>
-      </div>
+      {(() => {
+        const hasCommercial = totalClaimInitial && totalClaimInitial > 0 && totalClaimInitial !== sumInitial;
+        const dispInit = hasCommercial ? (totalClaimInitial || sumInitial) : sumInitial;
+        const dispAdj = hasCommercial ? (totalClaimAdjusted || sumAdjusted) : sumAdjusted;
+        const dispDelta = dispAdj - dispInit;
+
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3 bg-white rounded-[4px] border border-slate-200 shadow-xs">
+              <span className="text-[10px] font-bold uppercase text-slate-500 block">
+                {hasCommercial ? "Total Klaim BA (Awal)" : "Total Awal (Site)"}
+              </span>
+              <span className="text-sm font-black font-mono text-slate-800">{formatIDR(dispInit)}</span>
+              {hasCommercial && (
+                <span className="text-[10px] font-mono text-slate-400 block mt-0.5">
+                  Base SOW: {formatIDR(sumInitial)}
+                </span>
+              )}
+            </div>
+            <div className="p-3 bg-[#A57C50]/5 rounded-[4px] border border-[#A57C50]/30 shadow-xs">
+              <span className="text-[10px] font-bold uppercase text-[#A57C50] block">
+                {hasCommercial ? "Total Klaim BA (Hasil Survey)" : "Total Survey Bersama"}
+              </span>
+              <span className="text-sm font-black font-mono text-[#1A1612]">{formatIDR(dispAdj)}</span>
+              {hasCommercial && (
+                <span className="text-[10px] font-mono text-[#A57C50]/70 block mt-0.5">
+                  Base SOW: {formatIDR(sumAdjusted)}
+                </span>
+              )}
+            </div>
+            <div className={`p-3 rounded-[4px] border shadow-xs ${dispDelta >= 0 ? "bg-emerald-50/50 border-emerald-300" : "bg-rose-50/50 border-rose-300"}`}>
+              <span className={`text-[10px] font-bold uppercase block ${dispDelta >= 0 ? "text-emerald-800" : "text-rose-800"}`}>
+                Delta Selisih Survey
+              </span>
+              <span className={`text-sm font-black font-mono ${dispDelta >= 0 ? "text-emerald-900" : "text-rose-900"}`}>
+                {dispDelta >= 0 ? `+${formatIDR(dispDelta)}` : `-${formatIDR(Math.abs(dispDelta))}`}
+              </span>
+              {hasCommercial && (
+                <span className="text-[10px] font-mono text-slate-500 block mt-0.5">
+                  Delta Base: {deltaAmount >= 0 ? `+${formatIDR(deltaAmount)}` : `-${formatIDR(Math.abs(deltaAmount))}`}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Upload Draft BA PDF */}
       {isInlineEditingBA && (

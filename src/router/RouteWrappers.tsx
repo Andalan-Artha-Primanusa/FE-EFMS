@@ -28,6 +28,7 @@ const TreasuryPage = lazy(() => import("../pages/TreasuryPage").then((m) => ({ d
 const BudgetManagementPage = lazy(() => import("../pages/BudgetManagementPage").then((m) => ({ default: m.BudgetManagementPage })));
 const ClosingPeriodPage = lazy(() => import("../pages/ClosingPeriodPage").then((m) => ({ default: m.ClosingPeriodPage })));
 const NotificationCenterPage = lazy(() => import("../pages/NotificationCenterPage").then((m) => ({ default: m.NotificationCenterPage })));
+const KopraPage = lazy(() => import("../pages/KopraPage").then((m) => ({ default: m.KopraPage })));
 const OrgUnitsPage = lazy(() => import("../pages/OrgUnitsPage").then((m) => ({ default: m.OrgUnitsPage })));
 const VariableSOWPage = lazy(() => import("../pages/VariableSOWPage").then((m) => ({ default: m.VariableSOWPage })));
 
@@ -219,6 +220,14 @@ export function OrgUnitsRoute() {
   return (
     <Suspense fallback={<RouteLoading />}>
       <OrgUnitsPage viewTitle="Unit Kerja & Departemen" query={query} onNotice={setNotice} user={user} />
+    </Suspense>
+  );
+}
+
+export function KopraRoute() {
+  return (
+    <Suspense fallback={<RouteLoading />}>
+      <KopraPage />
     </Suspense>
   );
 }

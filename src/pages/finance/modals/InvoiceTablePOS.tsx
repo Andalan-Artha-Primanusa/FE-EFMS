@@ -139,15 +139,15 @@ export function InvoiceTablePOS({
                   )}
                   <div className="flex items-center gap-1.5 mt-1">
                     <FormattedNumberInput
-                      allowDecimals
+                      allowDecimals={true}
                       maxDecimals={3}
                       className="w-20 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
-                      placeholder="00.00"
+                      placeholder="1000"
                       value={item.overhaulMtr === 0 ? "" : (item.overhaulMtr ?? "")}
                       onChange={(val) => updateInvItemOverhaul(item.id, val)}
                     />
                     <span className="text-[11px] text-slate-600 font-bold">
-                      mtr - 1.000 mtr = ({diffMtr > 0 ? `+${formatThousand(diffMtr)}` : formatThousand(diffMtr)}) mtr
+                      mtr - 1.000 mtr = ({diffMtr > 0 ? `+${Number(diffMtr).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 })}` : Number(diffMtr).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 })}) mtr
                     </span>
                   </div>
                 </td>

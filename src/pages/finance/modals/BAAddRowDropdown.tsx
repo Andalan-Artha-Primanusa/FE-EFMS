@@ -26,6 +26,7 @@ interface BAAddRowDropdownProps {
   mRate?: number;
   getSowMasterRate?: (customer: string, itemName: string, fallbackRate: number, isUSD?: boolean, tier?: string) => number;
   activeSOWCatalog?: any[];
+  targetSection?: "operating" | "mdo" | "deduction";
 }
 
 export function BAAddRowDropdown({
@@ -39,6 +40,7 @@ export function BAAddRowDropdown({
   mRate = 16200,
   getSowMasterRate,
   activeSOWCatalog,
+  targetSection = "operating",
 }: BAAddRowDropdownProps) {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -63,6 +65,66 @@ export function BAAddRowDropdown({
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showDropdown]);
+
+  // Dynamic Master SOW items for current site
+  const siteSowItems = (activeSOWCatalog || []).filter((s) => {
+    if (!s) return false;
+    const c = (s.customer || s.customerCode || "").toUpperCase();
+    const custMatch = !c || c === rawCust || ((rawCust === "POS" || rawCust === "IBP" || rawCust === "BBA") && (!c || c === "POS"));
+    if (!custMatch) return false;
+    if (targetSection === "operating") {
+      const cat = (s.category || "").toLowerCase();
+      if (cat.includes("mdo") || cat.includes("penunjang") || cat.includes("rental")) return false;
+    }
+    return true;
+  });
+
+  const handleAddDynamicSOW = (sow: any) => {
+    setShowDropdown(false);
+    const ts = Date.now();
+    const nameLow = (sow.name || sow.itemName || "").toLowerCase();
+    const isDist = Boolean(sow.isDistanceVar) || (sow.category || "").toLowerCase().includes("distance") || nameLow.includes("distance") || nameLow.includes("overhaul") || nameLow.includes("underhaul");
+    const isClearing = nameLow.includes("clearing") || nameLow.includes("clear & grub") || nameLow.includes("land clearing");
+    const isCoal = nameLow.includes("coal") || nameLow.includes("batubara");
+    const isDed = Boolean(sow.isDeduction) || (sow.category || "").toLowerCase().includes("pengurang") || nameLow.includes("denda") || nameLow.includes("kelebihan");
+
+    let calculatedRate = sow.defaultRate || sow.rateIDR || (sow.rateUSD ? Number((sow.rateUSD * (mRate || 17923.30)).toFixed(3)) : 0);
+    if (getSowMasterRate) {
+      const dynRate = getSowMasterRate(rawCust, sow.name || sow.itemName, calculatedRate, false);
+      if (dynRate > 0) calculatedRate = dynRate;
+    }
+
+    const newItem = {
+      id: `sow_dyn_${ts}`,
+      section: isDist ? "B" : isClearing ? "C" : (isCoal ? "B" : "A"),
+      category: isDist ? "Over Distance" : isClearing ? "Land Clearing" : (rawCust === "SBS" && nameLow.includes("penunjang")) ? "Penunjang" : "Operating & Mining",
+      area: isCustomerBGG ? "Pit KKL" : (isCustomerPTRO ? "Pit Sapan" : (isCustomerSBS ? "Pit E" : (rawCust === "POS" ? "WM1" : "-"))),
+      material: sow.name || sow.itemName,
+      period: curPeriod,
+      notes: "",
+      keterangan: "",
+      unit: sow.unit || (isCoal ? "Ton" : "BCM"),
+      distanceBasis: sow.baseDistanceMeters || 1000,
+      distanceWeightAvg: sow.baseDistanceMeters || 1000,
+      initialVolume: 0,
+      adjustedVolume: 0,
+      rate: calculatedRate,
+      isDistanceVar: isDist,
+      isDeduction: isDed,
+      subtotalInitial: 0,
+      subtotalAdjusted: 0,
+    };
+
+    if (targetSection === "operating") {
+      setBaOperatingItems((prev) => [...prev, newItem]);
+    } else if (targetSection === "mdo" && setBaMDOItems) {
+      setBaMDOItems((prev) => [...prev, { ...newItem, category: "MDO" }]);
+    } else if (targetSection === "deduction" && setBaDeductionItems) {
+      setBaDeductionItems((prev) => [...prev, { ...newItem, initialVolume: 1, adjustedVolume: 1 }]);
+    } else {
+      setBaOperatingItems((prev) => [...prev, newItem]);
+    }
+  };
 
   const handleAddSectionRow = (sectionType: string) => {
     setShowDropdown(false);
@@ -342,7 +404,7 @@ export function BAAddRowDropdown({
             rateUSD: ptroObUsd,
             distanceBasis: 0,
             isDistanceVar: false,
-            rate: Math.round(ptroObUsd * mRate),
+            rate: Number((ptroObUsd * mRate).toFixed(3)),
             initialVolume: 0,
             adjustedVolume: 0,
             subtotalInitial: 0,
@@ -364,12 +426,12 @@ export function BAAddRowDropdown({
             period: curPeriod,
             notes: `USD ${ptroCgUsd.toFixed(3)} / Ton`,
             keterangan: "",
-            unit: "MT",
+            unit: "TON",
             isUSD: true,
             rateUSD: ptroCgUsd,
             distanceBasis: 0,
             isDistanceVar: false,
-            rate: Math.round(ptroCgUsd * mRate),
+            rate: Number((ptroCgUsd * mRate).toFixed(3)),
             initialVolume: 0,
             adjustedVolume: 0,
             subtotalInitial: 0,
@@ -397,7 +459,7 @@ export function BAAddRowDropdown({
             distanceBasis: 1000,
             distanceWeightAvg: 1000,
             isDistanceVar: true,
-            rate: Math.round(ptroOdObUsd * mRate),
+            rate: Number((ptroOdObUsd * mRate).toFixed(3)),
             initialVolume: 0,
             adjustedVolume: 0,
             subtotalInitial: 0,
@@ -458,7 +520,7 @@ export function BAAddRowDropdown({
 
       // ================= POS & DEFAULT SITE PRESETS =================
       case "POS_OB":
-        const posObRate = getSowMasterRate ? getSowMasterRate("POS", "Overburden/Waste", 59500) : 59500;
+        const posObRate = getSowMasterRate ? getSowMasterRate("POS", "Overburden/Waste - Base Rate (1000m)", 59238) : 59238;
         setBaOperatingItems((prev) => [
           ...prev,
           {
@@ -466,7 +528,7 @@ export function BAAddRowDropdown({
             section: "A",
             category: "Operating & Mining",
             area: "WM1",
-            material: "Overburden Removal",
+            material: "Overburden/Waste - Base Rate (1000m)",
             period: curPeriod,
             notes: "",
             keterangan: "",
@@ -480,16 +542,16 @@ export function BAAddRowDropdown({
         ]);
         break;
 
-      case "POS_COAL":
-        const posTopRate = getSowMasterRate ? getSowMasterRate("POS", "Top Soil", 60500) : 60500;
+      case "POS_TOPSOIL":
+        const posTopRate = getSowMasterRate ? getSowMasterRate("POS", "Topsoil Removal - Base Rate (1000m)", 60181) : 60181;
         setBaOperatingItems((prev) => [
           ...prev,
           {
-            id: `pos_coal_${ts}`,
-            section: "B",
+            id: `pos_top_${ts}`,
+            section: "A",
             category: "Operating & Mining",
             area: "WM1",
-            material: "Top Soil Removal",
+            material: "Topsoil Removal - Base Rate (1000m)",
             period: curPeriod,
             notes: "",
             keterangan: "",
@@ -503,8 +565,54 @@ export function BAAddRowDropdown({
         ]);
         break;
 
+      case "POS_LIMONITE":
+        const posLimRate = getSowMasterRate ? getSowMasterRate("POS", "Limonite - Base Rate (1000m)", 59879) : 59879;
+        setBaOperatingItems((prev) => [
+          ...prev,
+          {
+            id: `pos_lim_${ts}`,
+            section: "A",
+            category: "Operating & Mining",
+            area: "WM1",
+            material: "Limonite - Base Rate (1000m)",
+            period: curPeriod,
+            notes: "",
+            keterangan: "",
+            unit: "BCM",
+            initialVolume: 0,
+            adjustedVolume: 0,
+            rate: posLimRate,
+            subtotalInitial: 0,
+            subtotalAdjusted: 0,
+          },
+        ]);
+        break;
+
+      case "POS_SAPROLITE":
+        const posSapRate = getSowMasterRate ? getSowMasterRate("POS", "Saprolite - Base Rate (1000m)", 61820) : 61820;
+        setBaOperatingItems((prev) => [
+          ...prev,
+          {
+            id: `pos_sap_${ts}`,
+            section: "A",
+            category: "Operating & Mining",
+            area: "WM1",
+            material: "Saprolite - Base Rate (1000m)",
+            period: curPeriod,
+            notes: "",
+            keterangan: "",
+            unit: "BCM",
+            initialVolume: 0,
+            adjustedVolume: 0,
+            rate: posSapRate,
+            subtotalInitial: 0,
+            subtotalAdjusted: 0,
+          },
+        ]);
+        break;
+
       case "POS_OD":
-        const posOdRate = getSowMasterRate ? getSowMasterRate("POS", "Over/Underhaul For OB Removal", 8608) : 8608;
+        const posOdRate = getSowMasterRate ? getSowMasterRate("POS", "OB/Waste - over/underhaul", 9576) : 9576;
         setBaOperatingItems((prev) => [
           ...prev,
           {
@@ -512,11 +620,11 @@ export function BAAddRowDropdown({
             section: "C",
             category: "Over Distance",
             area: "WM1",
-            material: "Over Distance Hauling",
+            material: "OB/Waste - over/underhaul",
             period: curPeriod,
             notes: "",
             keterangan: "",
-            unit: "BCM",
+            unit: "USD/1KM",
             distanceBasis: 1000,
             distanceWeightAvg: 1000,
             isDistanceVar: true,
@@ -530,7 +638,7 @@ export function BAAddRowDropdown({
         break;
 
       case "POS_MDO":
-        const posMdoRate = getSowMasterRate ? getSowMasterRate("POS", "Mine Development (MDO Cut & Fill)", 15500000) : 15500000;
+        const posMdoRate = getSowMasterRate ? getSowMasterRate("POS", "Cut - Base Rate (1000m)", 37900) : 37900;
         if (setBaMDOItems) {
           setBaMDOItems((prev) => [
             ...prev,
@@ -538,11 +646,11 @@ export function BAAddRowDropdown({
               id: `pos_mdo_${ts}`,
               category: "MDO",
               area: "Site POS",
-              material: "Land Clearing & Mine Development",
+              material: "Cut - Base Rate (1000m)",
               period: curPeriod,
-              notes: "Pembersihan Lahan & Top Soil",
+              notes: "Pekerjaan MDO",
               keterangan: "",
-              unit: "Ha",
+              unit: "USD/BCM",
               initialVolume: 0,
               adjustedVolume: 0,
               rate: posMdoRate,
@@ -558,11 +666,11 @@ export function BAAddRowDropdown({
               section: "D",
               category: "MDO",
               area: "Site POS",
-              material: "Land Clearing & Mine Development",
+              material: "Cut - Base Rate (1000m)",
               period: curPeriod,
-              notes: "Pembersihan Lahan & Top Soil",
+              notes: "Pekerjaan MDO",
               keterangan: "",
-              unit: "Ha",
+              unit: "USD/BCM",
               initialVolume: 0,
               adjustedVolume: 0,
               rate: posMdoRate,
@@ -583,7 +691,7 @@ export function BAAddRowDropdown({
             area: "",
             material: "Eskalasi Nilai Kontrak / Penyesuaian Harga BBM",
             period: curPeriod,
-            notes: "Formula Eskalasi Raise & Fall",
+            notes: "Formula Eskalasi Raise & Fall (3-Faktor DLF)",
             keterangan: "",
             unit: "Lot",
             initialVolume: 1,
@@ -591,6 +699,35 @@ export function BAAddRowDropdown({
             rate: 0,
             subtotalInitial: 0,
             subtotalAdjusted: 0,
+          },
+        ]);
+        break;
+
+      case "POS_DP_FUEL":
+        const posCurRefill = Number(
+          formData?.posData?.fuelPeriods?.[curPeriod]?.actualFuelCost ||
+          formData?.posData?.actualFuelCost ||
+          formData?.posData?.posTotalCost ||
+          0
+        );
+        setBaOperatingItems((prev) => [
+          ...prev,
+          {
+            id: `pos_dpfuel_${ts}`,
+            section: "E",
+            category: "DP Fuel",
+            area: "",
+            material: "DP Fuel & Transport (Pengurang Solar)",
+            period: curPeriod,
+            notes: "Uang Muka BBM Solar & Transportasi POS",
+            keterangan: "",
+            unit: "Lot",
+            initialVolume: 1,
+            adjustedVolume: 1,
+            rate: posCurRefill,
+            isDeduction: true,
+            subtotalInitial: posCurRefill,
+            subtotalAdjusted: posCurRefill,
           },
         ]);
         break;
@@ -679,7 +816,41 @@ export function BAAddRowDropdown({
             </span>
           </div>
 
-          {/* ================= BGG DROPDOWN OPTIONS ================= */}
+          {/* Dynamic Master SOW Items from Master Data */}
+          {siteSowItems.length > 0 && (
+            <div className="py-1 max-h-56 overflow-y-auto divide-y divide-slate-50">
+              <div className="px-3.5 py-1 text-[10px] font-extrabold text-[#A57C50] uppercase tracking-wider bg-amber-50/50 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-xs z-10 border-b border-amber-100/50">
+                <span>Variabel SOW Master ({rawCust})</span>
+                <span className="text-[9px] text-slate-400 font-normal">{siteSowItems.length} Item</span>
+              </div>
+              {siteSowItems.map((sow: any, idx: number) => {
+                const sName = sow.name || sow.itemName;
+                const nameLow = (sName || "").toLowerCase();
+                const isDist = Boolean(sow.isDistanceVar) || nameLow.includes("distance") || nameLow.includes("overhaul");
+                const isCoal = nameLow.includes("coal") || nameLow.includes("batubara");
+                return (
+                  <button
+                    key={sow.id || idx}
+                    type="button"
+                    onClick={() => handleAddDynamicSOW(sow)}
+                    className="w-full text-left px-3.5 py-2 text-xs text-slate-800 hover:bg-amber-50/70 font-bold flex items-center gap-2.5 transition cursor-pointer"
+                  >
+                    <div className="w-6 h-6 rounded-[3px] bg-slate-100 flex items-center justify-center text-slate-700 shrink-0">
+                      {isDist ? <Truck size={12} className="text-amber-700" /> : isCoal ? <Layers size={12} className="text-slate-800" /> : <Pickaxe size={12} className="text-[#A57C50]" />}
+                    </div>
+                    <div className="truncate flex-1">
+                      <div className="font-bold text-slate-900 truncate">{sName}</div>
+                      <div className="text-[10px] text-slate-500 font-normal">
+                        {sow.unit || "BCM"} &bull; Rp {Number(sow.defaultRate || sow.rateIDR || 0).toLocaleString("id-ID")}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ================= BGG SPECIAL ADJUSTMENT OPTIONS ================= */}
           {isCustomerBGG && (
             <div className="py-1">
               <button
@@ -930,25 +1101,57 @@ export function BAAddRowDropdown({
                   <Pickaxe size={13} />
                 </div>
                 <div>
-                  <div className="font-bold text-slate-900">Production & Mining</div>
+                  <div className="font-bold text-slate-900">Overburden / Waste</div>
                   <div className="text-[10px] text-slate-500 font-normal">
-                    Volume Produksi Overburden (BCM)
+                    Overburden/Waste - Base Rate (BCM)
                   </div>
                 </div>
               </button>
 
               <button
                 type="button"
-                onClick={() => handleAddSectionRow("POS_COAL")}
+                onClick={() => handleAddSectionRow("POS_TOPSOIL")}
+                className="w-full text-left px-3.5 py-2 text-xs text-slate-800 hover:bg-slate-50 font-bold flex items-center gap-2.5 transition cursor-pointer"
+              >
+                <div className="w-6 h-6 rounded-[3px] bg-emerald-50 flex items-center justify-center text-emerald-700 shrink-0">
+                  <Layers size={13} />
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900">Topsoil Removal</div>
+                  <div className="text-[10px] text-slate-500 font-normal">
+                    Topsoil Removal - Base Rate (BCM)
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleAddSectionRow("POS_LIMONITE")}
+                className="w-full text-left px-3.5 py-2 text-xs text-slate-800 hover:bg-slate-50 font-bold flex items-center gap-2.5 transition cursor-pointer"
+              >
+                <div className="w-6 h-6 rounded-[3px] bg-amber-100/60 flex items-center justify-center text-amber-800 shrink-0">
+                  <Pickaxe size={13} />
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900">Limonite Ore Mining</div>
+                  <div className="text-[10px] text-slate-500 font-normal">
+                    Limonite - Base Rate (BCM)
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleAddSectionRow("POS_SAPROLITE")}
                 className="w-full text-left px-3.5 py-2 text-xs text-slate-800 hover:bg-slate-50 font-bold flex items-center gap-2.5 transition cursor-pointer"
               >
                 <div className="w-6 h-6 rounded-[3px] bg-slate-100 flex items-center justify-center text-slate-800 shrink-0">
                   <Layers size={13} />
                 </div>
                 <div>
-                  <div className="font-bold text-slate-900">Coal Mining</div>
+                  <div className="font-bold text-slate-900">Saprolite Ore Mining</div>
                   <div className="text-[10px] text-slate-500 font-normal">
-                    Volume Penambangan Batubara (Ton)
+                    Saprolite - Base Rate (BCM)
                   </div>
                 </div>
               </button>
@@ -962,28 +1165,30 @@ export function BAAddRowDropdown({
                   <Truck size={13} />
                 </div>
                 <div>
-                  <div className="font-bold text-slate-900">Over Distance</div>
+                  <div className="font-bold text-slate-900">Over/Underhaul Distance</div>
                   <div className="text-[10px] text-slate-500 font-normal">
-                    Jarak Hauling & Overhaul (BCM)
+                    Jarak Hauling & Over/Underhaul (USD/1KM)
                   </div>
                 </div>
               </button>
 
-              <button
-                type="button"
-                onClick={() => handleAddSectionRow("POS_MDO")}
-                className="w-full text-left px-3.5 py-2 text-xs text-slate-800 hover:bg-slate-50 font-bold flex items-center gap-2.5 transition cursor-pointer"
-              >
-                <div className="w-6 h-6 rounded-[3px] bg-cyan-50 flex items-center justify-center text-cyan-700 shrink-0">
-                  <Building2 size={13} />
-                </div>
-                <div>
-                  <div className="font-bold text-slate-900">Land Clearing & MDO</div>
-                  <div className="text-[10px] text-slate-500 font-normal">
-                    Pembersihan Lahan & Top Soil (Ha) → Tabel 2 MDO
+              {targetSection === "mdo" && (
+                <button
+                  type="button"
+                  onClick={() => handleAddSectionRow("POS_MDO")}
+                  className="w-full text-left px-3.5 py-2 text-xs text-slate-800 hover:bg-slate-50 font-bold flex items-center gap-2.5 transition cursor-pointer"
+                >
+                  <div className="w-6 h-6 rounded-[3px] bg-cyan-50 flex items-center justify-center text-cyan-700 shrink-0">
+                    <Building2 size={13} />
                   </div>
-                </div>
-              </button>
+                  <div>
+                    <div className="font-bold text-slate-900">Mine Development (MDO)</div>
+                    <div className="text-[10px] text-slate-500 font-normal">
+                      Cut & Fill / Rocks / Geotextile → Tabel 2 MDO
+                    </div>
+                  </div>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -994,9 +1199,25 @@ export function BAAddRowDropdown({
                   <TrendingUp size={13} />
                 </div>
                 <div>
-                  <div className="font-bold text-slate-900">Raise & Fall / Eskalasi</div>
+                  <div className="font-bold text-slate-900">Raise & Fall (3-Faktor DLF)</div>
                   <div className="text-[10px] text-slate-500 font-normal">
-                    Eskalasi ICP / BBM / Parameter Kontrak (Lot)
+                    Eskalasi Nilai Kontrak / Penyesuaian Harga BBM (Lot)
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleAddSectionRow("POS_DP_FUEL")}
+                className="w-full text-left px-3.5 py-2 text-xs text-slate-800 hover:bg-slate-50 font-bold flex items-center gap-2.5 transition cursor-pointer"
+              >
+                <div className="w-6 h-6 rounded-[3px] bg-rose-50 flex items-center justify-center text-rose-700 shrink-0">
+                  <Fuel size={13} />
+                </div>
+                <div>
+                  <div className="font-bold text-slate-900">DP Fuel &amp; Transport (Solar)</div>
+                  <div className="text-[10px] text-slate-500 font-normal">
+                    Uang Muka BBM Solar POS (Seksi E, Pengurang)
                   </div>
                 </div>
               </button>

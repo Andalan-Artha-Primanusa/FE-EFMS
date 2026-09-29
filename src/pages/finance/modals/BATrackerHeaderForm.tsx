@@ -1,6 +1,7 @@
 import React from "react";
 import { Layers, Calculator, UserCheck } from "lucide-react";
 import { MonthPickerInput, matchPeriod } from "../helpers";
+import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF } from "../ba_calculations";
 
 interface BATrackerHeaderFormProps {
   activeBAStep: number;
@@ -30,6 +31,7 @@ interface BATrackerHeaderFormProps {
   defaultSBSBADeductionItems: any[];
   raiseFallMaster?: any;
   raiseFallMasters?: any[];
+  minWageMasters?: any[];
   getBGGActiveCoalTier?: (period?: string) => string;
 }
 
@@ -58,6 +60,7 @@ export function BATrackerHeaderForm({
   defaultSBSBADeductionItems = [],
   raiseFallMaster,
   raiseFallMasters = [],
+  minWageMasters = [],
   getBGGActiveCoalTier,
 }: BATrackerHeaderFormProps) {
   const isCustomerDBK = formData.customerCode === "PTRO" || formData.customerCode === "DBK";
@@ -120,13 +123,18 @@ export function BATrackerHeaderForm({
                       const rCust = (r.customerCode || "").trim().toUpperCase();
                       return rCust.includes("POS") && matchPeriod(r.period, currentPeriod);
                     });
+                    const hoResolved = resolveHOMasterLaborAndCurrency({
+                      customerCode: code,
+                      period: currentPeriod,
+                      raiseFallMasters,
+                      minWageMasters,
+                      latestKursBI,
+                      mRate: Number(latestKursBI || 0),
+                    });
                     const fn = Number(matched?.actualFuelFn ?? 0);
-                    const ln = Number(matched?.actualLaborLn ?? 0);
-                    const xn = Number(matched?.actualMRateXn || latestKursBI || 0);
-                    const d = (fn > 0 && xn > 0) ? (0.34 * fn * xn) / 10699.970229 : 0;
-                    const l = (ln > 0 && xn > 0) ? (0.25 * ln * xn) / (3594536 * 15388.75) : 0;
-                    const f = 0.41;
-                    const rf = Number(matched?.rfIndexResult || ((d > 0 || l > 0) ? Number((d + l + f).toFixed(3)) : 0));
+                    const ln = Number(matched?.actualLaborLn || hoResolved.laborLn);
+                    const xn = Number(matched?.actualMRateXn || hoResolved.currencyXn);
+                    const { rfIndex: rf } = calculateTripleFactorRF(fn, ln, xn);
                     setFormData({
                       ...formData,
                       customerCode: code,
@@ -263,7 +271,7 @@ export function BATrackerHeaderForm({
                     setBaMDOItems([]);
                     setBaDeductionItems([]);
                   } else if (isSBS) {
-                    setBaOperatingItems((defaultSBSBAOperatingItems || []).map((it: any) => ({ ...it, distance: 0, distanceWeightAvg: 0, rate: 0, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
+                    setBaOperatingItems((defaultSBSBAOperatingItems || []).map((it: any) => ({ ...it, distance: it.distance ?? it.distanceM ?? it.distanceWeightAvg ?? 0, distanceWeightAvg: it.distanceWeightAvg ?? it.distance ?? 0, rate: it.rate || 0, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
                     setBaMDOItems((defaultSBSBAMDOItems || []).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
                     setBaDeductionItems((defaultSBSBADeductionItems || []).map((it: any) => ({ ...it, initialVolume: 1, adjustedVolume: 1, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "", material: it.material === "Denda ketidakcapaian Volume" ? `Denda ketidakcapaian Volume ${currentPeriod}` : it.material })));
                   } else {
@@ -299,13 +307,18 @@ export function BATrackerHeaderForm({
                     if (custClean.includes("POS")) {
                       const curPOS = prev.posData || {};
                       const newFuelPeriods = { ...(curPOS.fuelPeriods || {}) };
+                      const hoResolved = resolveHOMasterLaborAndCurrency({
+                        customerCode: custClean,
+                        period: val,
+                        raiseFallMasters,
+                        minWageMasters,
+                        latestKursBI,
+                        mRate: Number(latestKursBI || 0),
+                      });
                       const fn = Number(matched?.actualFuelFn ?? newFuelPeriods[val]?.actualFuelFn ?? curPOS.actualFuelFn ?? 0);
-                      const ln = Number(matched?.actualLaborLn ?? newFuelPeriods[val]?.actualLaborLn ?? curPOS.actualLaborLn ?? 0);
-                      const xn = Number(matched?.actualMRateXn ?? newFuelPeriods[val]?.actualMRateXn ?? curPOS.actualMRateXn ?? latestKursBI ?? 0);
-                      const d = (fn > 0 && xn > 0) ? (0.34 * fn * xn) / 10699.970229 : 0;
-                      const l = (ln > 0 && xn > 0) ? (0.25 * ln * xn) / (3594536 * 15388.75) : 0;
-                      const f = 0.41;
-                      const rf = Number(matched?.rfIndexResult || newFuelPeriods[val]?.posRfIndex || ((d > 0 || l > 0) ? Number((d + l + f).toFixed(3)) : 0));
+                      const ln = Number(matched?.actualLaborLn ?? newFuelPeriods[val]?.actualLaborLn ?? curPOS.actualLaborLn ?? hoResolved.laborLn);
+                      const xn = Number(matched?.actualMRateXn ?? newFuelPeriods[val]?.actualMRateXn ?? curPOS.actualMRateXn ?? hoResolved.currencyXn);
+                      const { rfIndex: rf } = calculateTripleFactorRF(fn, ln, xn);
                       newFuelPeriods[val] = { actualFuelFn: fn, actualLaborLn: ln, actualMRateXn: xn, posRfIndex: rf };
                       return {
                         ...prev,
@@ -418,7 +431,7 @@ export function BATrackerHeaderForm({
                     setBaOperatingItems(prev => prev.map(it => {
                       let r = it.rate;
                       if (currentM > 0 && it.isUSD && it.rateUSD > 0) {
-                        r = Math.round(it.rateUSD * currentM);
+                        r = Number((it.rateUSD * currentM).toFixed(3));
                       }
                       return { ...it, period: val, rate: r };
                     }));

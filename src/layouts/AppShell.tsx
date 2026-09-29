@@ -40,8 +40,16 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   const [tcodes, setTcodes] = useState<TCode[]>([]);
   const [roles, setRoles] = useState<RoleAccess[]>([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
-  const [notice, setNotice] = useState("");
+  const [notice, setNoticeState] = useState<{ id: number; message: string } | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  const setNotice = useCallback((msg: string) => {
+    if (!msg) {
+      setNoticeState(null);
+      return;
+    }
+    setNoticeState({ id: Date.now(), message: msg });
+  }, []);
 
   async function refresh() {
     try {
@@ -121,6 +129,14 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
       loadView(activeView).catch((err) => setNotice(err instanceof Error ? err.message : "Gagal memuat data"));
     }
   }, [activeView, outlet]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => {
+      setNoticeState(null);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   function openView(item: string) {
     navigate(viewPath(item));
@@ -221,7 +237,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
         <ErrorBoundary key={location.pathname} fallbackTitle={`Gagal memuat modul "${activeView}"`}>
           {outlet ? (
             <Outlet context={{ 
-              user: { ...user, permissions, tcodes }, permissions, tcodes, roles, notice, setNotice,
+              user: { ...user, permissions, tcodes }, permissions, tcodes, roles, notice: notice?.message || "", setNotice,
               dashboard, transactions, query, refresh, notifications
             }} />
           ) : isUnknownModuleRoute ? (
@@ -247,22 +263,33 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
       <NotificationPanel open={notificationOpen} onClose={() => setNotificationOpen(false)} />
       {notice && (
         <div
-          className="fixed top-5 left-1/2 -translate-x-1/2 z-[99999] max-w-xl w-[92%] sm:w-auto flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-900 text-white shadow-2xl border border-slate-700/80 backdrop-blur-md transition-all duration-300 pointer-events-auto cursor-pointer"
+          key={notice.id}
+          className="fixed top-5 left-1/2 -translate-x-1/2 z-[99999] max-w-xl w-[92%] sm:w-auto flex flex-col overflow-hidden rounded-xl bg-slate-900 text-white shadow-2xl border border-slate-700/80 backdrop-blur-md transition-all duration-300 pointer-events-auto cursor-pointer"
           onClick={() => setNotice("")}
         >
-          <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold">
-            <span>{notice}</span>
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold">
+              <span>{notice.message}</span>
+            </div>
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                setNotice("");
+              }}
+              className="p-1 transition rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white"
+            >
+              <X size={16} />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              setNotice("");
-            }}
-            className="p-1 transition rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white"
-          >
-            <X size={16} />
-          </button>
+          <div className="w-full bg-slate-800/80 h-0.5 overflow-hidden">
+            <div
+              className="h-full bg-amber-500/90"
+              style={{
+                animation: "toastProgress 5000ms linear forwards"
+              }}
+            />
+          </div>
         </div>
       )}
     </div>

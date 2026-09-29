@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 
-export const SITE_SOW_DEFAULTS: Record<string, Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean }>> = {
+export const SITE_SOW_DEFAULTS: Record<string, Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean; baseDistanceMeters?: number; parentMaterial?: string }>> = {
   BGG: [
     { name: "OVER BURDEN REMOVAL 1 (75%)", unit: "BCM", defaultRate: 27250, category: "Operating & Mining", isDistanceVar: false },
     { name: "OVER BURDEN REMOVAL 2 (25%)", unit: "BCM", defaultRate: 26500, category: "Operating & Mining", isDistanceVar: false },
@@ -9,34 +9,58 @@ export const SITE_SOW_DEFAULTS: Record<string, Array<{ name: string; unit: strin
     { name: "Over Distance For Coal Winning", unit: "Ton", defaultRate: 500, category: "Over Distance", isDistanceVar: true },
   ],
   POS: [
-    { name: "Top Soil Removal", unit: "BCM", defaultRate: 60500, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Overburden / Waste Removal", unit: "BCM", defaultRate: 59500, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Limonite Ore Mining", unit: "WMT", defaultRate: 60200, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Saprolite Ore Mining", unit: "WMT", defaultRate: 62200, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Uncrushed Rock", unit: "BCM", defaultRate: 142275, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Cut & Fill / Earthwork", unit: "BCM", defaultRate: 38150, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Crushed Rock", unit: "BCM", defaultRate: 233900, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Land Clearing", unit: "m2", defaultRate: 6830, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Over/Underhaul For OB Removal", unit: "BCM", defaultRate: 9643, category: "Over Distance", isDistanceVar: true },
-    { name: "Over/Underhaul For Top Soil Removal", unit: "BCM", defaultRate: 9643, category: "Over Distance", isDistanceVar: true },
-    { name: "Over/Underhaul For Limonite", unit: "BCM", defaultRate: 9428, category: "Over Distance", isDistanceVar: true },
-    { name: "Over/Underhaul For Saprolite", unit: "BCM", defaultRate: 9428, category: "Over Distance", isDistanceVar: true },
-    { name: "Mine Development (MDO) - Clearing & Access Road", unit: "Ha", defaultRate: 15500000, category: "MDO", isDistanceVar: false },
-    { name: "Rocks for construction - under/overhaul", unit: "USD/1KM", defaultRate: 9450, category: "MDO", isDistanceVar: true },
-    { name: "Uncrushed rocks for construction (MDO)", unit: "BCM", defaultRate: 142275, category: "MDO", isDistanceVar: false },
-    { name: "Road Construction & Drainage", unit: "Mtr", defaultRate: 450000, category: "MDO", isDistanceVar: false },
+    // Operation & Mining - A. Production (Base Rates)
+    { name: "Overburden/Waste - Base Rate (1000m)", unit: "USD/BCM", defaultRate: 59385, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Topsoil Removal - Base Rate (1000m)", unit: "USD/BCM", defaultRate: 60331, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Limonite - Base Rate (1000m)", unit: "USD/BCM", defaultRate: 60027, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Saprolite - Base Rate (1000m)", unit: "USD/BCM", defaultRate: 61973, category: "Operating & Mining", isDistanceVar: false },
+
+    // Operation & Mining - B. Over Distance (Over/Underhaul)
+    { name: "OB/Waste - over/underhaul", unit: "USD/1KM", defaultRate: 9603, category: "Over Distance", isDistanceVar: true },
+    { name: "Topsoil Removal - over/underhaul", unit: "USD/1KM", defaultRate: 9603, category: "Over Distance", isDistanceVar: true },
+    { name: "Limonite - over/underhaul", unit: "USD/1KM", defaultRate: 9389, category: "Over Distance", isDistanceVar: true },
+    { name: "Saprolite - over/underhaul", unit: "USD/1KM", defaultRate: 9389, category: "Over Distance", isDistanceVar: true },
+
+    // Operation & Mining - C. Land Clearing
+    { name: "Land Clearing", unit: "USD/m2", defaultRate: 6801, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Clear & Grub", unit: "USD/m2", defaultRate: 6801, category: "Operating & Mining", isDistanceVar: false },
+
+    // Rehabilitation
+    { name: "Topsoil Reclaim/Haul/Spread - Base Rate (1000m)", unit: "USD/BCM", defaultRate: 58000, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Topsoil Reclaim/Haul/Spread - overhaul", unit: "USD/1KM", defaultRate: 9603, category: "Over Distance", isDistanceVar: true },
+
+    // Mine Development (MDO) - Exact Aug MDO order
+    { name: "Topsoil Removal - Base Rate (1000m) (MDO)", unit: "USD/BCM", defaultRate: 60331, category: "MDO", isDistanceVar: false },
+    { name: "Fill", unit: "USD/BCM", defaultRate: 19795, category: "MDO", isDistanceVar: false },
+    { name: "Saprolite - Base Rate (1000m) (MDO)", unit: "USD/BCM", defaultRate: 61973, category: "MDO", isDistanceVar: false },
+    { name: "Topsoil Removal - over/underhaul (MDO)", unit: "USD/1KM", defaultRate: 9603, category: "MDO", isDistanceVar: true },
+    { name: "Saprolite - over/underhaul (MDO)", unit: "USD/1KM", defaultRate: 9389, category: "MDO", isDistanceVar: true },
+    { name: "Cut or Fill under/overhaul", unit: "USD/1KM", defaultRate: 9299, category: "MDO", isDistanceVar: true },
+
+    // Mine Development (MDO) - Additional Contract Items
+    { name: "Cut - Base Rate (1000m)", unit: "USD/BCM", defaultRate: 38001, category: "MDO", isDistanceVar: false },
+    { name: "Overburden/Waste - Base Rate (1000m) (MDO)", unit: "USD/BCM", defaultRate: 59385, category: "MDO", isDistanceVar: false },
+    { name: "OB/Waste - over/underhaul (MDO)", unit: "USD/1KM", defaultRate: 9603, category: "MDO", isDistanceVar: true },
+    { name: "Limonite - Base Rate (1000m) (MDO)", unit: "USD/BCM", defaultRate: 60027, category: "MDO", isDistanceVar: false },
+    { name: "Limonite - over/underhaul (MDO)", unit: "USD/1KM", defaultRate: 9389, category: "MDO", isDistanceVar: true },
+    { name: "Unblasted fill material", unit: "USD/BCM", defaultRate: 59528, category: "MDO", isDistanceVar: false },
+    { name: "Excess Cut disposal in dump", unit: "USD/BCM", defaultRate: 20652, category: "MDO", isDistanceVar: false },
+    { name: "Uncrushed rocks for construction - Base Rate (1000m)", unit: "USD/BCM", defaultRate: 141688, category: "MDO", isDistanceVar: false },
+    { name: "Crusher rocks - Base Rate (1000m)", unit: "USD/BCM", defaultRate: 232934, category: "MDO", isDistanceVar: false },
+    { name: "Rocks for construction - under/overhaul", unit: "USD/1KM", defaultRate: 9389, category: "MDO", isDistanceVar: true },
+    { name: "Geotextile", unit: "USD/m2", defaultRate: 35752, category: "MDO", isDistanceVar: false },
   ],
   PTRO: [
-    { name: "OVER BURDEN", unit: "USD/Bcm", defaultRate: 26700, category: "Operating & Mining", isDistanceVar: false },
-    { name: "COAL GETTING", unit: "USD/MT", defaultRate: 15050, category: "Operating & Mining", isDistanceVar: false },
-    { name: "OVERHAUL OB", unit: "USD/BCM/100 Mtr", defaultRate: 500, category: "Over Distance", isDistanceVar: true },
-    { name: "OVERHAUL COAL GETTING", unit: "IDR/TON/100 Mtr", defaultRate: 230, category: "Over Distance", isDistanceVar: true },
+    { name: "OVER BURDEN REMOVAL", unit: "BCM", defaultRate: 26700, category: "Operating & Mining", isDistanceVar: false },
+    { name: "COAL GETTING", unit: "TON", defaultRate: 15050, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Overhaul OB", unit: "BCM", defaultRate: 500, category: "Over Distance", isDistanceVar: true, baseDistanceMeters: 1000, parentMaterial: "OVER BURDEN REMOVAL" },
+    { name: "Overhaul Coal Getting", unit: "TON", defaultRate: 230, category: "Over Distance", isDistanceVar: true, baseDistanceMeters: 3000, parentMaterial: "COAL GETTING" },
   ],
   DBK: [
-    { name: "OVER BURDEN", unit: "USD/Bcm", defaultRate: 26700, category: "Operating & Mining", isDistanceVar: false },
-    { name: "COAL GETTING", unit: "USD/MT", defaultRate: 15050, category: "Operating & Mining", isDistanceVar: false },
-    { name: "OVERHAUL OB", unit: "USD/BCM/100 Mtr", defaultRate: 500, category: "Over Distance", isDistanceVar: true },
-    { name: "OVERHAUL COAL GETTING", unit: "IDR/TON/100 Mtr", defaultRate: 230, category: "Over Distance", isDistanceVar: true },
+    { name: "OVER BURDEN REMOVAL", unit: "BCM", defaultRate: 26700, category: "Operating & Mining", isDistanceVar: false },
+    { name: "COAL GETTING", unit: "TON", defaultRate: 15050, category: "Operating & Mining", isDistanceVar: false },
+    { name: "Overhaul OB", unit: "BCM", defaultRate: 500, category: "Over Distance", isDistanceVar: true, baseDistanceMeters: 1000, parentMaterial: "OVER BURDEN REMOVAL" },
+    { name: "Overhaul Coal Getting", unit: "TON", defaultRate: 230, category: "Over Distance", isDistanceVar: true, baseDistanceMeters: 3000, parentMaterial: "COAL GETTING" },
   ],
   ABN: [
     { name: "Bulldozer D8R Rental", unit: "Hours", defaultRate: 2200000, category: "Operating & Mining", isDistanceVar: false },
@@ -87,7 +111,7 @@ export function getSiteSOWList(
     return !c || c === code || (code === "POS" && (!c || c === "POS"));
   });
 
-  const merged: Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean; isDeduction?: boolean; parentMaterial?: string }> = [];
+  const merged: Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean; isDeduction?: boolean; parentMaterial?: string; baseDistanceMeters?: number; tier1Rate?: number; tier2Rate?: number; tier3Rate?: number; splitPercentage?: number }> = [];
   const seen = new Set<string>();
 
   // 1. Process real-time master data catalog FIRST
@@ -99,15 +123,22 @@ export function getSiteSOWList(
     }
     if (key && !seen.has(key)) {
       seen.add(key);
-      const isDist = key.includes("overhaul") || key.includes("distance") || (c.category || "").toLowerCase().includes("distance");
+      const isMDO = (c.category || "").toLowerCase().includes("mdo");
+      const isDist = key.includes("overhaul") || key.includes("underhaul") || key.includes("distance") || (c.category || "").toLowerCase().includes("distance");
       const isDed = (c.category || "").toLowerCase().includes("pengurang") || (name || "").toLowerCase().includes("denda") || (name || "").toLowerCase().includes("kelebihan") || Boolean(c.isDeduction);
       merged.push({
         name: name,
         unit: c.unit || "BCM",
-        defaultRate: c.defaultRate || c.rateIDR || (c.rateUSD ? Math.round(c.rateUSD * (mRate || 17923.30)) : 0),
-        category: c.category || (isDed ? "Pengurang Biaya" : isDist ? "Over Distance" : "Operating & Mining"),
+        defaultRate: c.defaultRate || c.rateIDR || (c.rateUSD ? Number((c.rateUSD * (mRate || 17923.30)).toFixed(3)) : 0),
+        category: isMDO ? "MDO" : (isDed ? "Pengurang Biaya" : isDist ? "Over Distance" : (c.category || "Operating & Mining")),
         isDistanceVar: isDist,
-        isDeduction: isDed
+        isDeduction: isDed,
+        baseDistanceMeters: c.baseDistanceMeters,
+        tier1Rate: c.tier1Rate,
+        tier2Rate: c.tier2Rate,
+        tier3Rate: c.tier3Rate,
+        splitPercentage: c.splitPercentage,
+        parentMaterial: c.parentMaterial,
       });
     }
   });
@@ -118,7 +149,8 @@ export function getSiteSOWList(
     if (key && !seen.has(key)) {
       seen.add(key);
       const isDed = (d.category || "").toLowerCase().includes("pengurang") || (d.name || "").toLowerCase().includes("denda") || (d.name || "").toLowerCase().includes("kelebihan");
-      merged.push({ ...d, isDeduction: isDed });
+      const dynRate = (d as any).rateUSD ? Number(((d as any).rateUSD * (mRate || 17923.30)).toFixed(3)) : d.defaultRate;
+      merged.push({ ...d, defaultRate: dynRate, isDeduction: isDed });
     }
   });
 
@@ -152,6 +184,9 @@ export function getSiteSOWList(
 
   const filtered = merged.filter(item => {
     if (isDistanceOnly) return Boolean(item.isDistanceVar);
+    if (categoryFilter === "All") {
+      return true;
+    }
     if (categoryFilter === "Pengurang Biaya") {
       return item.isDeduction || (item.category || "").toLowerCase().includes("pengurang") || (item.name || "").toLowerCase().includes("denda") || (item.name || "").toLowerCase().includes("kelebihan");
     }
@@ -162,12 +197,12 @@ export function getSiteSOWList(
       return (item.category || "").toLowerCase().includes("mdo");
     }
     if (categoryFilter === "Operating & Mining") {
-      return !item.isDistanceVar && !item.isDeduction && !(item.category || "").toLowerCase().includes("pengurang") && !(item.category || "").toLowerCase().includes("mdo") && !(item.category || "").toLowerCase().includes("penunjang") && item.unit !== "Hours";
+      return !item.isDeduction && !(item.category || "").toLowerCase().includes("pengurang") && !(item.category || "").toLowerCase().includes("mdo") && !(item.category || "").toLowerCase().includes("penunjang") && item.unit !== "Hours";
     }
     if (categoryFilter === "Over Distance") {
       return Boolean(item.isDistanceVar);
     }
-    return !item.isDistanceVar && !item.isDeduction;
+    return true;
   });
 
   // Always append "Lainnya" at the end for custom user entries
@@ -197,7 +232,7 @@ export function SOWSelectDropdown({
 }: {
   value: string;
   onChange: (val: string) => void;
-  onSelectSow: (sow: { name: string; unit: string; defaultRate: number; isDistanceVar?: boolean; category?: string; isDeduction?: boolean; parentMaterial?: string }) => void;
+  onSelectSow: (sow: { name: string; unit: string; defaultRate: number; isDistanceVar?: boolean; category?: string; isDeduction?: boolean; parentMaterial?: string; baseDistanceMeters?: number; tier1Rate?: number; tier2Rate?: number; tier3Rate?: number }) => void;
   customerCode: string;
   activeSOWCatalog?: any[];
   mRate?: number;
