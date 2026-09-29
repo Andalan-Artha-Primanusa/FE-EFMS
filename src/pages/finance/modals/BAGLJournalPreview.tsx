@@ -8,9 +8,10 @@ import {
 
 interface BAGLJournalPreviewProps {
   customerCode: string;
-  allBAItems: any[];
+  allBAItems?: any[];
   rfIndexCalculated?: number;
   isCustomerDBK?: boolean;
+  fuelPeriods?: Record<string, any>;
 }
 
 export function BAGLJournalPreview({
@@ -18,12 +19,15 @@ export function BAGLJournalPreview({
   allBAItems = [],
   rfIndexCalculated = 1.560,
   isCustomerDBK = false,
+  fuelPeriods,
 }: BAGLJournalPreviewProps) {
   const breakdown = calculateBACommercialBreakdown(
     customerCode,
     allBAItems,
     rfIndexCalculated,
-    isCustomerDBK
+    isCustomerDBK,
+    false,
+    fuelPeriods
   );
   const { lines, totalDebit, totalCredit, isBalanced } = generateBAGLJournalPreview(
     breakdown,

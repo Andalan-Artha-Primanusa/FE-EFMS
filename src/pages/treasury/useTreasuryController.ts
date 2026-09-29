@@ -10,10 +10,14 @@ import type {
 } from "./types";
 
 export function useTreasuryController(onNotice?: (msg: string) => void) {
-  const [activeTab, setActiveTab] = useState<"aging" | "plans" | "kopra" | "reconcile" | "rekap">("aging");
+  const [activeTab, setActiveTab] = useState<
+    "aging" | "pivot" | "planning" | "plans" | "voucher" | "kopra" | "reconcile" | "rekap"
+  >("pivot");
   
   // Data states
   const [invoices, setInvoices] = useState<TreasuryInvoice[]>([]);
+  const [allUnpaidInvoices, setAllUnpaidInvoices] = useState<TreasuryInvoice[]>([]);
+  const [paidInvoices, setPaidInvoices] = useState<TreasuryInvoice[]>([]);
   const [totalInvoices, setTotalInvoices] = useState(0);
   const [agingSummary, setAgingSummary] = useState<AgingSummary | null>(null);
   const [plans, setPlans] = useState<PaymentPlan[]>([]);
@@ -87,9 +91,9 @@ export function useTreasuryController(onNotice?: (msg: string) => void) {
       const res = await api<{ success: boolean; plans: PaymentPlan[] }>("/api/treasury/payment-plans");
       setPlans(res.plans || []);
     } catch (e: any) {
-      onNotice?.(e.message || "Failed to load payment plans");
+      console.error("Failed to load payment plans", e);
     }
-  }, [onNotice]);
+  }, []);
 
   // Fetch Vendors
   const fetchVendors = useCallback(async () => {
@@ -123,14 +127,40 @@ export function useTreasuryController(onNotice?: (msg: string) => void) {
     }
   }, []);
 
+  // Fetch All Outstanding Invoices (unpaid, partially_paid, pending_paid for Pivot Matrix, Aging, & Vouchers)
+  const fetchAllUnpaidInvoices = useCallback(async () => {
+    try {
+      const res = await api<{ success: boolean; invoices: TreasuryInvoice[]; total: number }>(
+        "/api/treasury/invoices?status=outstanding&limit=5000"
+      );
+      setAllUnpaidInvoices(res.invoices || []);
+    } catch (e: any) {
+      console.error("Failed to load unpaid invoices", e);
+    }
+  }, []);
+
+  // Fetch Paid & Reconciled Invoices (for Rekap AAP audit trail)
+  const fetchPaidInvoices = useCallback(async () => {
+    try {
+      const res = await api<{ success: boolean; invoices: TreasuryInvoice[]; total: number }>(
+        "/api/treasury/invoices?status=paid,partially_paid&limit=5000"
+      );
+      setPaidInvoices(res.invoices || []);
+    } catch (e: any) {
+      console.error("Failed to load paid invoices", e);
+    }
+  }, []);
+
   const refreshAll = useCallback(() => {
     fetchInvoices();
+    fetchAllUnpaidInvoices();
+    fetchPaidInvoices();
     fetchAgingSummary();
     fetchPlans();
     fetchVendors();
     fetchCompanyBanks();
     fetchBankTransactions();
-  }, [fetchInvoices, fetchAgingSummary, fetchPlans, fetchVendors, fetchCompanyBanks, fetchBankTransactions]);
+  }, [fetchInvoices, fetchAllUnpaidInvoices, fetchPaidInvoices, fetchAgingSummary, fetchPlans, fetchVendors, fetchCompanyBanks, fetchBankTransactions]);
 
   useEffect(() => {
     refreshAll();
@@ -142,9 +172,12 @@ export function useTreasuryController(onNotice?: (msg: string) => void) {
     category: string;
     voucherDate: string;
     justification: string;
+    planMonth?: string;
+    planWeek?: number;
   }) => {
     try {
-      const selectedInvs = invoices.filter((i) => selectedInvoiceIds.includes(i.id));
+      const pool = allUnpaidInvoices.length > 0 ? allUnpaidInvoices : invoices;
+      const selectedInvs = pool.filter((i) => selectedInvoiceIds.includes(i.id));
       const items = selectedInvs.map((inv) => {
         const amt = partialAmounts[inv.id] || inv.remainingBalance;
         return {
@@ -168,7 +201,7 @@ export function useTreasuryController(onNotice?: (msg: string) => void) {
       setPartialAmounts({});
       setShowCreatePlanModal(false);
       refreshAll();
-      setActiveTab("plans");
+      setActiveTab("voucher");
     } catch (e: any) {
       onNotice?.(e.message || "Failed to create payment plan");
     }
@@ -298,10 +331,87 @@ export function useTreasuryController(onNotice?: (msg: string) => void) {
     }
   };
 
+  // Assign Invoices to Plan (Month & Week)
+  const handleAssignPlan = async (invoiceIds: number[], planMonth: string, planWeek: number) => {
+    try {
+      const res = await api<{ success: boolean; message: string }>("/api/treasury/invoices/assign-plan", {
+        method: "POST",
+        body: JSON.stringify({
+          invoiceIds,
+          planMonth,
+          planWeek,
+        }),
+      });
+      onNotice?.(res.message || "Rencana pembayaran berhasil disimpan");
+      fetchInvoices();
+      fetchAllUnpaidInvoices();
+      return true;
+    } catch (e: any) {
+      onNotice?.(e.message || "Gagal menetapkan rencana pembayaran");
+      return false;
+    }
+  };
+
+  // Assign Voucher to Invoices (Strictly 1 Site + 1 Vendor)
+  const handleAssignVoucher = async (invoiceIds: number[], voucherNo: string, voucherDate?: string) => {
+    try {
+      const res = await api<{ success: boolean; message: string }>("/api/treasury/invoices/assign-voucher", {
+        method: "POST",
+        body: JSON.stringify({
+          invoiceIds,
+          voucherNo,
+          voucherDate,
+        }),
+      });
+      onNotice?.(res.message || "Nomor voucher berhasil diterapkan dan disimpan");
+      fetchInvoices();
+      fetchAllUnpaidInvoices();
+      return true;
+    } catch (e: any) {
+      onNotice?.(e.message || "Gagal menerapkan nomor voucher");
+      return false;
+    }
+  };
+
+  // Remove Voucher from Invoices
+  const handleRemoveVoucher = async (invoiceIds: number[]) => {
+    try {
+      const res = await api<{ success: boolean; message: string }>("/api/treasury/invoices/remove-voucher", {
+        method: "POST",
+        body: JSON.stringify({
+          invoiceIds,
+        }),
+      });
+      onNotice?.(res.message || "Nomor voucher berhasil dilepas");
+      fetchInvoices();
+      fetchAllUnpaidInvoices();
+      return true;
+    } catch (e: any) {
+      onNotice?.(e.message || "Gagal melepas nomor voucher");
+      return false;
+    }
+  };
+
+  // Fetch Next Recommended Voucher Number for a Site
+  const fetchNextVoucherNo = async (site: string): Promise<string> => {
+    try {
+      const res = await api<{ success: boolean; nextVoucher: string }>(
+        `/api/treasury/invoices/next-voucher-no?site=${encodeURIComponent(site)}`
+      );
+      return res.nextVoucher || "001";
+    } catch (e) {
+      return "001";
+    }
+  };
+
   return {
     activeTab,
     setActiveTab,
     invoices,
+    allUnpaidInvoices,
+    fetchAllUnpaidInvoices,
+    paidInvoices,
+    fetchPaidInvoices,
     totalInvoices,
     agingSummary,
     plans,
@@ -334,5 +444,9 @@ export function useTreasuryController(onNotice?: (msg: string) => void) {
     handleExportRekapAAP,
     handleAutoMatch,
     handleUpdateVendor,
+    handleAssignPlan,
+    handleAssignVoucher,
+    handleRemoveVoucher,
+    fetchNextVoucherNo,
   };
 }

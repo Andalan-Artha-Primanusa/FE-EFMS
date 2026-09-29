@@ -185,7 +185,7 @@ export function createFinanceCalculations(deps: {
 
   const getItemEffectiveOverhaulMtr = (item: any) => {
     if (!item) return 1000;
-    return item.overhaulMtr ?? item.distanceWeightAvg ?? item.distanceM ?? item.baseMtr ?? 1000;
+    return item.overhaulMtr ?? item.distanceM ?? item.distance ?? item.distanceWeightAvg ?? item.baseMtr ?? 1000;
   };
 
   const calculateItemRateAndAmount = (item: any, currentCust?: string, currentList?: any[]) => {
@@ -212,7 +212,7 @@ export function createFinanceCalculations(deps: {
         if (unitRate === 0) {
           const isCoal = item.subSection?.includes("Coal") || item.description?.includes("Coal");
           const per100m = isCoal ? getSowMasterRate("BGG", "Over Distance For Coal Winning", 500) : getSowMasterRate("BGG", "Over Distance For OB Removal", 600);
-          unitRate = Math.round((per100m * diffMtr) / 100);
+          unitRate = Number(((per100m * diffMtr) / 100).toFixed(3));
         }
         amount = Math.round(vol * unitRate);
         return { unitRate, amount };
@@ -228,20 +228,20 @@ export function createFinanceCalculations(deps: {
           if (isODOB) {
             const diffMtr = Math.max(0, mtr - 1000);
             const baseRate = getSowMasterRate("BGG", "Over Distance For OB Removal", 600);
-            unitRate = Math.round(baseRate * rfDelta * (diffMtr / 100));
+            unitRate = Number((baseRate * rfDelta * (diffMtr / 100)).toFixed(3));
           } else if (isODCoal) {
             const diffMtr = Math.max(0, mtr - 1000);
             const baseRate = getSowMasterRate("BGG", "Over Distance For Coal Winning", 500);
-            unitRate = Math.round(baseRate * rfDelta * (diffMtr / 100));
+            unitRate = Number((baseRate * rfDelta * (diffMtr / 100)).toFixed(3));
           } else if (isOB2) {
             const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 2 (25%)", 26500);
-            unitRate = Math.round(baseRate * rfDelta);
+            unitRate = Number((baseRate * rfDelta).toFixed(3));
           } else if (isCoal) {
             const baseRate = getSowMasterRate("BGG", "Coal Winning", 16500);
-            unitRate = Math.round(baseRate * rfDelta);
+            unitRate = Number((baseRate * rfDelta).toFixed(3));
           } else {
             const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 1 (75%)", 27250);
-            unitRate = Math.round(baseRate * rfDelta);
+            unitRate = Number((baseRate * rfDelta).toFixed(3));
           }
         }
         amount = Math.round(vol * unitRate);
@@ -254,7 +254,7 @@ export function createFinanceCalculations(deps: {
         return { unitRate: 0, amount: 0 };
       }
       if (item.section === "F" || item.category === "DP Fuel" || item.isDeduction) {
-        const val = Number(item.amount || item.unitRateIDR || 0);
+        const val = Number(item.amount || item.unitRateIDR || item.rate || item.subtotal || item.subtotalInitial || item.subtotalAdjusted || 0);
         return { unitRate: 0, amount: -Math.abs(val) };
       }
     }
@@ -265,7 +265,7 @@ export function createFinanceCalculations(deps: {
       if (unitRate === 0) {
         if (item.isUSD || item.unitRateUSD !== undefined) {
           const usdRate = item.unitRateUSD || getSowMasterRate("PTRO", desc, 0, true);
-          unitRate = Math.round(usdRate * kurs);
+          unitRate = Number((usdRate * kurs).toFixed(3));
         } else {
           unitRate = getSowMasterRate("PTRO", desc, 0, false);
         }
@@ -278,24 +278,39 @@ export function createFinanceCalculations(deps: {
 
     if (cust === "POS" || cust === "IBP" || cust === "BBA") {
       const desc = item.description || item.sowDescription || item.material || "";
+      const cat = (item.category || "").toLowerCase();
+      const mLow = desc.toLowerCase();
+      if (
+        item.isDeduction ||
+        item.section === "E" ||
+        item.section === "F" ||
+        cat === "dp fuel" ||
+        cat === "deduction" ||
+        mLow.includes("dp fuel") ||
+        mLow.includes("pengurang solar") ||
+        mLow.includes("potongan solar")
+      ) {
+        const val = Number(item.amount || item.unitRateIDR || item.rate || item.subtotal || item.subtotalInitial || item.subtotalAdjusted || 0);
+        return { unitRate: 0, amount: -Math.abs(val) };
+      }
       if (item.section === "D") {
         const rfDelta = Math.max(0, rfFactor);
         if (unitRate === 0) {
           const baseUSD = item.baseRateUSD || getSowMasterRate("POS", desc, 0, true);
-          unitRate = Math.round(baseUSD * rfDelta * (mRate || 17923.30));
+          unitRate = Number((baseUSD * rfDelta * (mRate || 17923.30)).toFixed(3));
         }
         amount = Math.round(vol * unitRate);
         return { unitRate, amount };
       }
       if (unitRate === 0) {
         if (item.baseRateUSD > 0) {
-          unitRate = Math.round(item.baseRateUSD * (mRate || 17923.30));
+          unitRate = Number((item.baseRateUSD * (mRate || 17923.30)).toFixed(3));
         } else {
           const masterIDR = getSowMasterRate("POS", desc, 0, false);
           if (masterIDR > 0) unitRate = masterIDR;
           else {
             const masterUSD = getSowMasterRate("POS", desc, 0, true);
-            if (masterUSD > 0) unitRate = Math.round(masterUSD * (mRate || 17923.30));
+            if (masterUSD > 0) unitRate = Number((masterUSD * (mRate || 17923.30)).toFixed(3));
           }
         }
       }

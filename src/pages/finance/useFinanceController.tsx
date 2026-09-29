@@ -60,13 +60,13 @@ export function useFinanceController({
     blankPTROItems, blankDBKItems, demoPTROItems, demoDBKItems, blankSBSItems, demoSBSItems,
     defaultPOSBAOperatingItems, defaultPOSBAMDOItems, defaultBGGBAItems, defaultPTROBAItems, defaultDBKBAItems,
     defaultSBSBAOperatingItems, defaultSBSBAMDOItems, defaultSBSBADeductionItems, syncBARatesWithMasterData, reloadMasterData,
-    raiseFallMasters, raiseFallMaster
+    raiseFallMasters, raiseFallMaster, minWageMasters
   } = masterData;
 
   // BA State Hook
   const baState = useFinanceBAState({
     setEditItem, setFormData, setDetailViewItem, setModalType, loadData, onNotice,
-    defaultBGGBAItems, defaultDBKBAItems, defaultPTROBAItems, defaultSBSBAOperatingItems, defaultPOSBAOperatingItems,
+    defaultBGGBAItems, defaultDBKBAItems, defaultPTROBAItems, defaultSBSBAOperatingItems, defaultPOSBAOperatingItems, defaultPOSBAMDOItems,
     detailViewItem, getCurrentMonthPeriod, getSowMasterRate, syncBARatesWithMasterData, actionLoadingKey, setActionLoadingKey,
     setBaRows
   });
@@ -186,7 +186,7 @@ export function useFinanceController({
     defaultPOSBAOperatingItems, defaultSBSBAMDOItems, defaultPOSBAMDOItems, defaultSBSBADeductionItems,
     setBaOperatingItems, setBaMDOItems, setBaDeductionItems, setActiveBAStep,
     setShowPendingVolumeDrawer, openBAModal, getCurrentMonthPeriod, getPreviousMonthPeriod,
-    raiseFallMasters, latestKursBI, mRate
+    raiseFallMasters, minWageMasters, latestKursBI, mRate
   });
 
   const {
@@ -284,6 +284,6 @@ export function useFinanceController({
     handleApproveInvoiceTier2, handleDelete, volPreview, ratePreview, grossPreview, solarPreview,
     subtotalDPPPreview, ppn11Preview, pph23Preview, totalNetInvoicePreview, totalAgingMatrix, viewTitle,
     query, onNotice, user, accountingJournals, deletingKey, setDeletingKey, actionLoadingKey, setActionLoadingKey,
-    raiseFallMasters, raiseFallMaster
+    raiseFallMasters, raiseFallMaster, minWageMasters
   };
 }

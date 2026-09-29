@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { AlertCircle, CheckCircle2, FileSpreadsheet, Upload, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileSpreadsheet, Loader2, RefreshCw, Upload, X } from "lucide-react";
 import type { useTreasuryController } from "../useTreasuryController";
 
 import { api } from "../../../lib/api";
@@ -42,7 +42,7 @@ export function ImportAccurateModal({ c }: Props) {
 
       setStatusMsg({
         type: "success",
-        text: res.message || `Berhasil mengimpor ${res.importedCount} tagihan`,
+        text: res.message || `Berhasil mengganti data dengan ${res.importedCount} tagihan baru`,
       });
       refreshAll();
       setTimeout(() => {
@@ -61,48 +61,60 @@ export function ImportAccurateModal({ c }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden">
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <FileSpreadsheet className="w-5 h-5 text-blue-600" /> Import Tagihan Accurate ERP (.xlsx)
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+      <div className="bg-white rounded-[4px] shadow-2xl border border-amber-900/30 w-full max-w-lg overflow-hidden flex flex-col">
+        {/* Enterprise AAP Brand Ink Header */}
+        <div className="bg-[#1A1612] px-5 py-3.5 border-b border-amber-900/30 flex items-center justify-between">
+          <h3 className="text-sm font-extrabold text-white flex items-center gap-2.5 tracking-wide uppercase">
+            <FileSpreadsheet className="w-4 h-4 text-[#A57C50]" />
+            <span>Import &amp; Replace Tagihan Accurate (.xlsx)</span>
           </h3>
           <button
             onClick={() => setShowImportAccurateModal(false)}
-            className="text-slate-400 hover:text-slate-600 rounded p-1"
+            className="text-stone-400 hover:text-white rounded-[3px] p-1 transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-5 space-y-4 text-xs">
-          <p className="text-slate-600">
-            Upload file export <strong>Rincian Faktur Pembelian</strong> dari Accurate ERP (contoh:{" "}
-            <code>rincian_faktur_pembelian_*.xlsx</code>). Sistem akan membaca mulai row 5 dan melakukan upsert
-            otomatis.
+          {/* Notice: Clean Replace */}
+          <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-[3px] text-amber-900 flex items-start gap-2.5 leading-relaxed">
+            <RefreshCw className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold">Mode Clean Replace:</span> Setiap import file baru akan <strong>menghapus data tagihan sebelumnya</strong> dan menggantikannya secara menyeluruh dengan data tagihan terbaru dari file Excel ini.
+            </div>
+          </div>
+
+          <p className="text-slate-600 leading-relaxed">
+            Format yang didukung: File ekspor <strong>Rincian Faktur Pembelian</strong> Accurate ERP atau workbook <strong>AP Aging Plan Payment</strong> (sheet <code>IMPORT ACCURATE</code>). Sistem otomatis mengagregasikan rincian item ke nomor invoice, memetakan site &amp; rekening vendor, dan menghitung aging jatuh tempo.
           </p>
 
-          <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-500 transition cursor-pointer relative bg-slate-50">
+          <div className="border-2 border-dashed border-slate-300 rounded-[4px] p-6 text-center hover:border-[#A57C50] transition cursor-pointer relative bg-slate-50/60 group">
             <input
               type="file"
               accept=".xlsx, .xls"
               onChange={onFileChange}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              disabled={uploading}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
             />
-            <Upload className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+            <Upload className="w-8 h-8 text-[#A57C50] mx-auto mb-2 group-hover:scale-110 transition-transform" />
             {file ? (
-              <div className="font-semibold text-slate-800 text-sm">{file.name}</div>
+              <div>
+                <div className="font-bold text-slate-800 text-sm">{file.name}</div>
+                <div className="text-emerald-700 text-[11px] mt-0.5 font-medium">File siap diimpor (klik tombol &quot;Mulai Import &amp; Replace&quot;)</div>
+              </div>
             ) : (
               <div>
-                <div className="font-semibold text-slate-700">Klik atau drag &amp; drop file Excel ke sini</div>
-                <div className="text-slate-400 text-[11px] mt-0.5">Format .xlsx atau .xls</div>
+                <div className="font-semibold text-slate-700">Klik atau seret (drag &amp; drop) file Excel ke sini</div>
+                <div className="text-slate-400 text-[11px] mt-0.5">Format file .xlsx atau .xls</div>
               </div>
             )}
           </div>
 
           {statusMsg && (
             <div
-              className={`p-3 rounded text-xs flex items-center gap-2 ${
+              className={`p-3 rounded-[3px] text-xs flex items-center gap-2 ${
                 statusMsg.type === "success"
                   ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                   : "bg-rose-50 text-rose-800 border border-rose-200"
@@ -113,27 +125,36 @@ export function ImportAccurateModal({ c }: Props) {
               ) : (
                 <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
               )}
-              <span>{statusMsg.text}</span>
+              <span className="font-medium">{statusMsg.text}</span>
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
             <button
               onClick={() => setShowImportAccurateModal(false)}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded"
+              disabled={uploading}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-[3px] transition-colors cursor-pointer disabled:opacity-50"
             >
               Batal
             </button>
             <button
               disabled={!file || uploading}
               onClick={handleUpload}
-              className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white rounded shadow-md transition ${
+              className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white rounded-[3px] shadow-sm transition ${
                 file && !uploading
-                  ? "bg-blue-600 hover:bg-blue-700 cursor-pointer"
-                  : "bg-slate-300 cursor-not-allowed"
+                  ? "bg-[#A57C50] hover:bg-[#8e6941] cursor-pointer"
+                  : "bg-slate-300 cursor-not-allowed text-slate-500"
               }`}
             >
-              <Upload className="w-4 h-4" /> {uploading ? "Mengimpor Data..." : "Mulai Import"}
+              {uploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" /> Mengimpor &amp; Menimpa Data...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" /> Mulai Import &amp; Replace
+                </>
+              )}
             </button>
           </div>
         </div>

@@ -94,6 +94,14 @@ export function ClosingPeriodPage({ viewTitle = "Period Closing" }: { viewTitle?
     }
   }, [selected, loadAuditChecklist]);
 
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => {
+      setNotice("");
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
   const current = periods.find((p) => p.period === selected);
   const currentIdx = current ? STEPS.indexOf(current.step) : 0;
   const isClosed = current?.status === "Closed" || current?.step === STEPS[STEPS.length - 1];

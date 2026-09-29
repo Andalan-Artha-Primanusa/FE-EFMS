@@ -104,10 +104,15 @@ export function KopraExportView({ c }: Props) {
     map.forEach((val) => groupedTransfers.push(val));
   }
 
+  const totalKopraAmount = groupedTransfers.reduce(
+    (sum, t) => sum + t.totalAmount,
+    0
+  );
+
   return (
-    <div className="space-y-4">
+    <div className="flex-1 min-h-0 flex flex-col gap-2 font-sans text-xs overflow-hidden">
       {/* 1. Header Guide */}
-      <div className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white p-4 rounded-lg shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white p-3 rounded-lg shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
         <div>
           <h2 className="text-base font-bold flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-blue-300" /> Export Mass Transfer Kopra Mandiri
@@ -134,7 +139,7 @@ export function KopraExportView({ c }: Props) {
       </div>
 
       {/* 2. Voucher Selector & Status */}
-      <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-2">
           <label className="text-xs font-semibold text-slate-700">Pilih Voucher Siap Transfer:</label>
           <select
@@ -164,8 +169,8 @@ export function KopraExportView({ c }: Props) {
 
       {/* 3. Transfer Preview Table (What goes into Kopra Excel) */}
       {currentPlan ? (
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden space-y-2">
-          <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+        <div className="flex-1 min-h-0 bg-white rounded-lg border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+          <div className="p-2.5 px-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0">
             <div className="text-xs font-bold text-slate-800">
               Preview Baris Transfer ({groupedTransfers.length} Transaksi Transfer)
             </div>
@@ -174,9 +179,9 @@ export function KopraExportView({ c }: Props) {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="flex-1 min-h-0 overflow-auto">
             <table className="w-full text-left text-xs border-collapse">
-              <thead>
+              <thead className="sticky top-0 z-20 shadow-xs">
                 <tr className="bg-slate-100/80 text-slate-600 font-semibold uppercase">
                   <th className="p-2.5">No</th>
                   <th className="p-2.5">Metode Transfer</th>
@@ -256,6 +261,17 @@ export function KopraExportView({ c }: Props) {
                   );
                 })}
               </tbody>
+              <tfoot className="bg-[#1A1612] text-white font-bold border-t-2 border-amber-900/40 sticky bottom-0 z-20 text-[11px] shadow-[0_-4px_12px_rgba(0,0,0,0.3)]">
+                <tr className="bg-[#1A1612]">
+                  <td colSpan={4} className="p-2.5 text-right font-black uppercase tracking-wider text-stone-300 bg-[#1A1612]">
+                    Grand Total Transfer ({groupedTransfers.length} Vendor):
+                  </td>
+                  <td className="p-2.5 text-right font-mono font-black text-amber-400 text-xs pr-4 whitespace-nowrap bg-[#1A1612]">
+                    {formatCurrency(totalKopraAmount)}
+                  </td>
+                  <td colSpan={4} className="p-2.5 bg-[#1A1612]"></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>

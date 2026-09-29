@@ -114,6 +114,14 @@ export function BudgetManagementPage({ viewTitle, onNotice }: { viewTitle: strin
     getMasterData({ type: "chart_of_accounts" }).then((a) => { setAccounts(Array.isArray(a) ? a : []); }).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => {
+      setNotice("");
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
   function setNoticeMsg(m: string) {
     setNotice(m);
     onNotice?.(m);

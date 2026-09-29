@@ -1,9 +1,9 @@
 // ============================================================
-// FEAST — Centralized TypeScript Types
+// FEAST â€” Centralized TypeScript Types
 // Source of truth: BE-FEMS internal/app/models.go + HTTP handlers
 // ============================================================
 
-// ─── Auth & Users ───────────────────────────────────────────
+// â”€â”€â”€ Auth & Users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface User {
   id: number;
@@ -38,7 +38,7 @@ export interface UserInput {
   isHeadOffice?: boolean;
 }
 
-// ─── RBAC ───────────────────────────────────────────────────
+// â”€â”€â”€ RBAC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface Permission {
   module: string;
@@ -60,7 +60,7 @@ export interface RoleInput {
   tcodes?: string[];
 }
 
-// ─── Company ────────────────────────────────────────────────
+// â”€â”€â”€ Company â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface Company {
   id: number;
@@ -70,7 +70,7 @@ export interface Company {
   createdAt: string;
 }
 
-// ─── Master Data (generic) ──────────────────────────────────
+// â”€â”€â”€ Master Data (generic) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface MasterRecord {
   id: number;
@@ -90,7 +90,7 @@ export interface MasterRecordInput {
   metadata: string;
 }
 
-// ─── Dashboard ──────────────────────────────────────────────
+// â”€â”€â”€ Dashboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface KPI {
   label: string;
@@ -118,7 +118,7 @@ export interface Dashboard {
   cashPosition: ChartPoint[];
 }
 
-// ─── Transactions ───────────────────────────────────────────
+// â”€â”€â”€ Transactions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface Transaction {
   id: number;
@@ -147,7 +147,7 @@ export interface ApprovalAction {
   note: string;
 }
 
-// ─── Audit ──────────────────────────────────────────────────
+// â”€â”€â”€ Audit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface AuditLog {
   id: number;
@@ -161,7 +161,7 @@ export interface AuditLog {
   createdAt: string;
 }
 
-// ─── Finance — Bank Accounts ────────────────────────────────
+// â”€â”€â”€ Finance â€” Bank Accounts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface BankAccount {
   id: number;
@@ -176,7 +176,7 @@ export interface BankAccount {
   createdAt: string;
 }
 
-// ─── Finance — Customer ─────────────────────────────────────
+// â”€â”€â”€ Finance â€” Customer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface Customer {
   id: number;
@@ -195,7 +195,7 @@ export interface Customer {
   createdAt: string;
 }
 
-// ─── Finance — BA Tracker ───────────────────────────────────
+// â”€â”€â”€ Finance â€” BA Tracker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface BAItem {
   id: string;
@@ -321,7 +321,7 @@ export interface BATracker {
   createdAt: string;
 }
 
-// ─── Finance — Invoice ──────────────────────────────────────
+// â”€â”€â”€ Finance â€” Invoice â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface Invoice {
   id: number;
@@ -374,7 +374,7 @@ export interface Invoice {
   createdAt: string;
 }
 
-// ─── Finance — Payment ──────────────────────────────────────
+// â”€â”€â”€ Finance â€” Payment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface Payment {
   id: number;
@@ -398,7 +398,7 @@ export interface Payment {
   createdAt: string;
 }
 
-// ─── Finance — Templates ────────────────────────────────────
+// â”€â”€â”€ Finance â€” Templates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface FinanceTemplate {
   id: number;
@@ -410,7 +410,7 @@ export interface FinanceTemplate {
   payload: any;
 }
 
-// ─── Finance — Pending Volume ───────────────────────────────
+// â”€â”€â”€ Finance â€” Pending Volume â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface PendingVolume {
   id: number;
@@ -425,7 +425,7 @@ export interface PendingVolume {
   createdAt: string;
 }
 
-// ─── Finance — Form Data Types ─────────────────────────────
+// â”€â”€â”€ Finance â€” Form Data Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type BAFormData = {
   baNoReference: string;
@@ -518,7 +518,7 @@ export type CustomerFormData = {
   notes: string;
 };
 
-// ─── Finance — Coal Index ───────────────────────────────────
+// â”€â”€â”€ Finance â€” Coal Index â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface CoalIndex {
   id: number;
@@ -531,7 +531,7 @@ export interface CoalIndex {
   createdAt: string;
 }
 
-// ─── Finance — Variable SOW ─────────────────────────────────
+// â”€â”€â”€ Finance â€” Variable SOW â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface VariableSOW {
   id: number;
@@ -550,7 +550,7 @@ export interface VariableSOW {
   createdAt: string;
 }
 
-// ─── Finance — Raise & Fall ─────────────────────────────────
+// â”€â”€â”€ Finance â€” Raise & Fall â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface RaiseFall {
   id: number;
@@ -573,7 +573,7 @@ export interface DailyExchangeRate {
   createdAt: string;
 }
 
-// ─── Accounting ─────────────────────────────────────────────
+// â”€â”€â”€ Accounting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface JournalLine {
   id?: number;
@@ -728,7 +728,7 @@ export interface BalanceSheetData {
   equity?: Array<{ accountCode: string; accountName: string; amount: number }>;
 }
 
-// ─── Accounting — Runs ──────────────────────────────────────
+// â”€â”€â”€ Accounting â€” Runs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface AccountingRun {
   id: number;
@@ -740,7 +740,7 @@ export interface AccountingRun {
   createdAt: string;
 }
 
-// ─── Reconciliation ─────────────────────────────────────────
+// â”€â”€â”€ Reconciliation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface ReconciliationJob {
   id: number;
@@ -752,7 +752,7 @@ export interface ReconciliationJob {
   createdAt: string;
 }
 
-// ─── Closing Period ─────────────────────────────────────────
+// â”€â”€â”€ Closing Period â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface ClosingPeriod {
   id: number;
@@ -764,7 +764,7 @@ export interface ClosingPeriod {
   createdAt: string;
 }
 
-// ─── Reports ────────────────────────────────────────────────
+// â”€â”€â”€ Reports â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface ReportCatalogItem {
   code: string;
@@ -783,7 +783,7 @@ export interface ManagementIndicator {
   status: string;
 }
 
-// ─── System ─────────────────────────────────────────────────
+// â”€â”€â”€ System â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface TCode {
   id: number;
@@ -816,7 +816,7 @@ export interface DocumentUploadResult {
   sizeBytes: number;
 }
 
-// ─── Flat Journal Row (for GeneralJournalPage) ──────────────
+// â”€â”€â”€ Flat Journal Row (for GeneralJournalPage) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface FlatJournalRow {
   lineId: number;
@@ -834,4 +834,25 @@ export interface FlatJournalRow {
   credit: number;
   status: string;
   [key: string]: any;
+}
+
+export interface TunaiPOTracking {
+  id: number;
+  voucherNo: string;
+  site: string;
+  vendor: string;
+  invoiceQty: number;
+  totalAmount: number;
+  justification: string;
+  hasOriginalInvoice: boolean;
+  originalInvoiceUrl?: string;
+  hasTaxInvoice: boolean;
+  taxInvoiceUrl?: string;
+  hasPo: boolean;
+  poUrl?: string;
+  hasGr: boolean;
+  grUrl?: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
 }

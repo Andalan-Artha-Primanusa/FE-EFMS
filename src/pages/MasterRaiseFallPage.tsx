@@ -177,9 +177,18 @@ export function MasterRaiseFallPage({
   const [deleteRfTarget, setDeleteRfTarget] = useState<{ id: number } | null>(null);
   const [deleteUmkTarget, setDeleteUmkTarget] = useState<{ id: number } | null>(null);
 
+const defaultPosFuelRefills = [
+  { id: "pos-rf-1", date: "2026-07-31", qty: 16000, unitPrice: 22961.30 },
+  { id: "pos-rf-2", date: "2026-08-04", qty: 48000, unitPrice: 23918.92 },
+  { id: "pos-rf-3", date: "2026-08-11", qty: 32000, unitPrice: 23918.92 },
+  { id: "pos-rf-4", date: "2026-08-15", qty: 48000, unitPrice: 23918.92 },
+  { id: "pos-rf-5", date: "2026-08-22", qty: 48000, unitPrice: 23918.92 },
+  { id: "pos-rf-6", date: "2026-08-28", qty: 16000, unitPrice: 23918.92 },
+];
+
   // Form states
   const [rfForm, setRfForm] = useState<any>({
-    period: "Juni 2026",
+    period: "August 2026",
     customerCode: "",
     projectSite: "",
     contractNo: "",
@@ -187,12 +196,13 @@ export function MasterRaiseFallPage({
     weightFuelA: 0.34,
     weightLaborB: 0.25,
     weightFixedC: 0.41,
-    baseFuelFo: 10699.97,
+    baseFuelFo: 10699.970229,
     baseLaborLo: 3594536,
     baseForexXo: 15388.75,
-    actualFuelFn: 1.422,
+    actualFuelFn: 1.3359,
     actualLaborLn: 3721423,
-    actualMRateXn: 17923.30,
+    actualMRateXn: 17849.316,
+    posFuelRefills: defaultPosFuelRefills.map((r) => ({ ...r })),
     notes: ""
   });
 
@@ -287,23 +297,147 @@ export function MasterRaiseFallPage({
   // POS 3-Factor: D + L + F as verified in Excel cell G20:
   // D = (a * Fn * Xn) / Fo
   // L = (b * Ln * Xn) / (Lo * Xo)
-  // F = c
-  const calcFuelD = (rfForm.baseFuelFo || 10699.970229) > 0
-    ? (rfForm.weightFuelA * rfForm.actualFuelFn * (rfForm.actualFuelFn < 100 ? (rfForm.actualMRateXn || avgMRateCalc) : 1)) / (rfForm.baseFuelFo || 10699.970229)
+  const isPOSCalc = !isBGGStyle;
+  const posBaseFo = isPOSCalc ? (Number(rfForm.baseFuelFo) > 100 ? Number(rfForm.baseFuelFo) : 10699.970229) : (Number(rfForm.baseFuelFo) || 9000);
+  const posWeightA = isPOSCalc ? (Number(rfForm.weightFuelA) > 0 ? Number(rfForm.weightFuelA) : 0.34) : (Number(rfForm.weightFuelA) || 0.40);
+  const posWeightB = isPOSCalc ? (Number(rfForm.weightLaborB) > 0 ? Number(rfForm.weightLaborB) : 0.25) : 0;
+  const posWeightC = isPOSCalc ? (Number(rfForm.weightFixedC) > 0 ? Number(rfForm.weightFixedC) : 0.41) : 0.60;
+  const posBaseLo = isPOSCalc ? (Number(rfForm.baseLaborLo) > 1000 ? Number(rfForm.baseLaborLo) : 3594536) : 3600000;
+  const posBaseXo = isPOSCalc ? (Number(rfForm.baseForexXo) > 1000 ? Number(rfForm.baseForexXo) : 15388.75) : 15400;
+
+  const posRefills: any[] = Array.isArray(rfForm.posFuelRefills) && rfForm.posFuelRefills.length > 0
+    ? rfForm.posFuelRefills
+    : (isPOSCalc ? defaultPosFuelRefills : []);
+
+  let posTotalQty = 0;
+  let posTotalCost = 0;
+  posRefills.forEach((r) => {
+    const q = Number(r.qty || 0);
+    const p = Number(r.unitPrice || 0);
+    if (q > 0) {
+      posTotalQty += q;
+      posTotalCost += q * p;
+    }
+  });
+  const posAvgPriceIDR = posTotalQty > 0 ? (posTotalCost / posTotalQty) : 0;
+  const posMrateXn = Number(rfForm.actualMRateXn || (avgMRateCalc > 0 ? avgMRateCalc : 17849.316));
+  const posFnFromRefills = (posAvgPriceIDR > 0 && posMrateXn > 0)
+    ? Number((posAvgPriceIDR / posMrateXn).toFixed(4))
     : 0;
 
-  const loXo = ((rfForm.baseLaborLo || 3594536) * (rfForm.baseForexXo || 15388.75));
+  const effectivePosFn = posFnFromRefills > 0 ? posFnFromRefills : Number(rfForm.actualFuelFn || 0);
+
+  const calcFuelD = posBaseFo > 0
+    ? (posWeightA * (posAvgPriceIDR > 0 ? posAvgPriceIDR : (effectivePosFn * (effectivePosFn < 100 ? posMrateXn : 1)))) / posBaseFo
+    : 0;
+
+  const loXo = posBaseLo * posBaseXo;
   const calcLaborL = loXo > 0
-    ? (rfForm.weightLaborB * rfForm.actualLaborLn * (rfForm.actualMRateXn || avgMRateCalc)) / loXo
+    ? (posWeightB * Number(rfForm.actualLaborLn || 0) * posMrateXn) / loXo
     : 0;
 
-  const calcFixedF = rfForm.weightFixedC || 0.41;
+  const calcFixedF = posWeightC;
   const calcTotalRF = isBGGStyle ? calcBGGRF : (calcFuelD + calcLaborL + calcFixedF);
+
+  const handlePOSRefillChange = (index: number, field: "date" | "qty" | "unitPrice", val: any) => {
+    setRfForm((prev: any) => {
+      const currentRefills = Array.isArray(prev.posFuelRefills) && prev.posFuelRefills.length > 0
+        ? prev.posFuelRefills.map((r: any) => ({ ...r }))
+        : defaultPosFuelRefills.map((r: any) => ({ ...r }));
+
+      if (!currentRefills[index]) return prev;
+      currentRefills[index] = {
+        ...currentRefills[index],
+        [field]: field === "date" ? val : Math.max(0, Number(val || 0)),
+      };
+
+      let totQ = 0;
+      let totC = 0;
+      currentRefills.forEach((r) => {
+        const q = Number(r.qty || 0);
+        const p = Number(r.unitPrice || 0);
+        if (q > 0) {
+          totQ += q;
+          totC += q * p;
+        }
+      });
+      const avgIDR = totQ > 0 ? (totC / totQ) : 0;
+      const xn = Number(prev.actualMRateXn || (avgMRateCalc > 0 ? avgMRateCalc : 17849.316));
+      const fn = (avgIDR > 0 && xn > 0) ? Number((avgIDR / xn).toFixed(4)) : Number(prev.actualFuelFn || 0);
+
+      return {
+        ...prev,
+        posFuelRefills: currentRefills,
+        actualFuelFn: fn,
+      };
+    });
+  };
+
+  const handleAddPOSRefill = () => {
+    setRfForm((prev: any) => {
+      const currentRefills = Array.isArray(prev.posFuelRefills) && prev.posFuelRefills.length > 0
+        ? prev.posFuelRefills.map((r: any) => ({ ...r }))
+        : defaultPosFuelRefills.map((r: any) => ({ ...r }));
+
+      const todayStr = new Date().toISOString().split("T")[0];
+      currentRefills.push({
+        id: `pos-rf-${Date.now()}-${currentRefills.length + 1}`,
+        date: todayStr,
+        qty: 0,
+        unitPrice: 0,
+      });
+
+      return {
+        ...prev,
+        posFuelRefills: currentRefills,
+      };
+    });
+  };
+
+  const handleRemovePOSRefill = (index: number) => {
+    setRfForm((prev: any) => {
+      const currentRefills = Array.isArray(prev.posFuelRefills) && prev.posFuelRefills.length > 0
+        ? prev.posFuelRefills.map((r: any) => ({ ...r }))
+        : defaultPosFuelRefills.map((r: any) => ({ ...r }));
+
+      if (currentRefills.length <= 1) return prev;
+      currentRefills.splice(index, 1);
+
+      let totQ = 0;
+      let totC = 0;
+      currentRefills.forEach((r) => {
+        const q = Number(r.qty || 0);
+        const p = Number(r.unitPrice || 0);
+        if (q > 0) {
+          totQ += q;
+          totC += q * p;
+        }
+      });
+      const avgIDR = totQ > 0 ? (totC / totQ) : 0;
+      const xn = Number(prev.actualMRateXn || (avgMRateCalc > 0 ? avgMRateCalc : 17849.316));
+      const fn = (avgIDR > 0 && xn > 0) ? Number((avgIDR / xn).toFixed(4)) : Number(prev.actualFuelFn || 0);
+
+      return {
+        ...prev,
+        posFuelRefills: currentRefills,
+        actualFuelFn: fn,
+      };
+    });
+  };
 
   const handleSaveRf = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const payload = { ...rfForm };
+      const matchedUmk = umkRows.find((u) => u.site.includes("Budi Gema Gempita") || u.site.includes("POS") || u.site === rfForm.projectSite);
+      const autoLn = rfForm.actualLaborLn || (matchedUmk ? matchedUmk.amountIdr : (isBGGStyle ? 3565000 : 3721423));
+      const autoXn = rfForm.actualMRateXn || Number(avgMRateCalc > 0 ? avgMRateCalc.toFixed(3) : 17849.316);
+
+      const payload = {
+        ...rfForm,
+        actualLaborLn: Number(autoLn),
+        actualMRateXn: Number(autoXn),
+      };
+
       if (isBGGStyle) {
         payload.bggFuelP1 = Number(rfForm.bggFuelP1) || 0;
         payload.bggTransportP1 = Number(rfForm.bggTransportP1) || 0;
@@ -320,6 +454,17 @@ export function MasterRaiseFallPage({
         payload.contractNo = payload.contractNo || "09/BGG-AAP/VIII/2018";
         payload.rfIndexResult = Number(calcBGGRF.toFixed(3));
       } else {
+        payload.actualFuelFn = effectivePosFn;
+        payload.baseFuelFo = posBaseFo;
+        payload.baseLaborLo = posBaseLo;
+        payload.baseForexXo = posBaseXo;
+        payload.weightFuelA = posWeightA;
+        payload.weightLaborB = posWeightB;
+        payload.weightFixedC = posWeightC;
+        payload.formulaScheme = "TRIPLE_FACTOR_DLF";
+        payload.customerCode = payload.customerCode || "POS";
+        payload.projectSite = payload.projectSite || "POS PROJECT";
+        payload.posFuelRefills = posRefills;
         payload.rfIndexResult = Number(calcTotalRF.toFixed(3));
       }
 
@@ -428,7 +573,7 @@ export function MasterRaiseFallPage({
     const autoLn = matchedUmk ? matchedUmk.amountIdr : (isBGG ? 3565000 : 3721423);
 
     setRfForm({
-      period: "Juli 2026",
+      period: "August 2026",
       customerCode: selectedCustomer === "ALL" ? "" : selectedCustomer,
       projectSite: isBGG ? "PT Budi Gema Gempita Site" : "POS PROJECT",
       contractNo: isBGG ? "09/BGG-AAP/VIII/2018" : "002/POS-AAP/2025",
@@ -440,16 +585,17 @@ export function MasterRaiseFallPage({
       weightFuelA: isBGG ? 0.40 : 0.34,
       weightLaborB: isBGG ? 0.0 : 0.25,
       weightFixedC: isBGG ? 0.60 : 0.41,
-      baseFuelFo: isBGG ? 9000 : 10699.97,
+      baseFuelFo: isBGG ? 9000 : 10699.970229,
       baseLaborLo: isBGG ? 0 : 3594536,
       baseForexXo: 15388.75,
       actualFuelFn: 0,
-      actualLaborLn: 0,
-      actualMRateXn: 0,
+      actualLaborLn: autoLn,
+      actualMRateXn: Number(avgMRateCalc > 0 ? avgMRateCalc.toFixed(3) : 17849.316),
       bggFuelP1: 0,
       bggTransportP1: 0,
       bggFuelP2: 0,
       bggTransportP2: 0,
+      posFuelRefills: isBGG ? [] : defaultPosFuelRefills.map((r) => ({ ...r })),
       notes: isBGG ? "Kalkulasi RF BGG 1-Faktor BBM" : "Kalkulasi RF POS 3-Faktor DLF"
     });
     setModalOpen(true);
@@ -473,13 +619,35 @@ export function MasterRaiseFallPage({
     setModalType("rf");
     setEditItem(item);
     const isBGG = item.customerCode === "BGG" || item.formulaScheme === "SINGLE_FACTOR_FUEL";
+    const matchedUmk = umkRows.find((u) => u.site === (isBGG ? "PT Budi Gema Gempita Site" : (item.projectSite || "POS PROJECT")));
+    const autoLn = item.actualLaborLn || (matchedUmk ? matchedUmk.amountIdr : (isBGG ? 3565000 : 3721423));
+    const autoXn = item.actualMRateXn || Number(avgMRateCalc > 0 ? avgMRateCalc.toFixed(3) : 17849.316);
+    const isPOS = item.customerCode === "POS" || item.formulaScheme === "TRIPLE_FACTOR_DLF";
+    const baseFo = isBGG ? 9000 : (Number(item.baseFuelFo) > 100 ? Number(item.baseFuelFo) : 10699.970229);
+    const baseLo = isPOS ? (Number(item.baseLaborLo) > 1000 ? Number(item.baseLaborLo) : 3594536) : (Number(item.baseLaborLo) || 3600000);
+    const baseXo = isPOS ? (Number(item.baseForexXo) > 1000 ? Number(item.baseForexXo) : 15388.75) : (Number(item.baseForexXo) || 15400);
+    const weightA = isPOS ? (Number(item.weightFuelA) > 0 ? Number(item.weightFuelA) : 0.34) : (Number(item.weightFuelA) || 0.40);
+    const weightB = isPOS ? (Number(item.weightLaborB) > 0 ? Number(item.weightLaborB) : 0.25) : (Number(item.weightLaborB) || 0.0);
+    const weightC = isPOS ? (Number(item.weightFixedC) > 0 ? Number(item.weightFixedC) : 0.41) : (Number(item.weightFixedC) || 0.60);
+    const refills = (Array.isArray(item.posFuelRefills) && item.posFuelRefills.length > 0)
+      ? item.posFuelRefills
+      : (isPOS ? defaultPosFuelRefills.map((r) => ({ ...r })) : []);
+
     setRfForm({
       ...item,
+      actualLaborLn: autoLn,
+      actualMRateXn: autoXn,
       bggFuelP1: item.bggFuelP1 ?? 0,
       bggTransportP1: item.bggTransportP1 ?? 0,
       bggFuelP2: item.bggFuelP2 ?? 0,
       bggTransportP2: item.bggTransportP2 ?? 0,
-      baseFuelFo: isBGG ? 9000 : (item.baseFuelFo || 0)
+      baseFuelFo: baseFo,
+      baseLaborLo: baseLo,
+      baseForexXo: baseXo,
+      weightFuelA: weightA,
+      weightLaborB: weightB,
+      weightFixedC: weightC,
+      posFuelRefills: refills,
     });
     setModalOpen(true);
   };
@@ -733,9 +901,6 @@ export function MasterRaiseFallPage({
                   <th className="p-2.5 text-right border-r border-slate-200">FUEL (Fn)</th>
                   <th className="p-2.5 text-right border-r border-slate-200">LABOR (Ln IDR)</th>
                   <th className="p-2.5 text-right border-r border-slate-200">M-RATE (Xn IDR)</th>
-                  <th className="p-2.5 text-right border-r border-slate-200">KOMPONEN D</th>
-                  <th className="p-2.5 text-right border-r border-slate-200">KOMPONEN L</th>
-                  <th className="p-2.5 text-right border-r border-slate-200">FIXED F</th>
                   <th className="p-2.5 text-right border-r border-slate-200 font-bold text-slate-900">RF INDEX RESULT</th>
                   <th className="p-2.5 text-center">AKSI</th>
                 </tr>
@@ -787,20 +952,30 @@ export function MasterRaiseFallPage({
                       <td className="p-2.5 text-right tabular-nums font-bold border-r border-slate-100">
                         {r.actualFuelFn > 100 ? `Rp ${r.actualFuelFn?.toLocaleString("id-ID")}` : `USD ${r.actualFuelFn?.toFixed(3)}`}
                       </td>
+                      {/* LABOR (Ln IDR) - DYNAMIC MASTER DATA LOOKUP */}
                       <td className="p-2.5 text-right tabular-nums font-bold border-r border-slate-100">
-                        {isSingle ? <span className="text-slate-400 font-sans">N/A</span> : `Rp ${r.actualLaborLn?.toLocaleString("id-ID")}`}
+                        {(() => {
+                          const siteUmk = umkRows.find(
+                            (u) =>
+                              u.site === r.projectSite ||
+                              (r.customerCode === "BGG" && u.site.toLowerCase().includes("budi gema gempita")) ||
+                              (r.customerCode === "POS" && u.site.toLowerCase().includes("pos"))
+                          );
+                          const laborVal = (r.actualLaborLn && r.actualLaborLn > 0)
+                            ? r.actualLaborLn
+                            : (siteUmk?.amountIdr || (r.customerCode === "BGG" ? 3565000 : 3721423));
+                          return `Rp ${Number(laborVal).toLocaleString("id-ID")}`;
+                        })()}
                       </td>
+
+                      {/* M-RATE (Xn IDR) - DYNAMIC MASTER DATA LOOKUP */}
                       <td className="p-2.5 text-right tabular-nums font-bold border-r border-slate-100">
-                        {isSingle ? <span className="text-slate-400 font-sans">N/A</span> : `Rp ${r.actualMRateXn?.toLocaleString("id-ID")}`}
-                      </td>
-                      <td className="p-2.5 text-right tabular-nums text-slate-700 border-r border-slate-100">
-                        {isSingle ? <span className="text-slate-400 font-sans">-</span> : d.toFixed(3)}
-                      </td>
-                      <td className="p-2.5 text-right tabular-nums text-slate-700 border-r border-slate-100">
-                        {isSingle ? <span className="text-slate-400 font-sans">-</span> : l.toFixed(3)}
-                      </td>
-                      <td className="p-2.5 text-right tabular-nums text-slate-700 border-r border-slate-100">
-                        {isSingle ? <span className="text-slate-400 font-sans">-</span> : f.toFixed(3)}
+                        {(() => {
+                          const mRateVal = (r.actualMRateXn && r.actualMRateXn > 0)
+                            ? r.actualMRateXn
+                            : (avgMRateCalc > 0 ? avgMRateCalc : 17849.316);
+                          return `Rp ${Number(mRateVal).toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`;
+                        })()}
                       </td>
                       <td className="p-2.5 text-right tabular-nums font-bold text-sm text-slate-950 border-r border-slate-100 underline">
                         {totalRf.toFixed(3)}
@@ -1088,7 +1263,7 @@ export function MasterRaiseFallPage({
       {/* Modal Popup (Calculated RF / MRate / UMK) */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-[4px] shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-[4px] shadow-2xl max-w-2xl sm:max-w-3xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
             <div className="px-4 py-3 bg-slate-900 text-white flex justify-between items-center">
               <h3 className="font-bold text-xs uppercase tracking-wider flex items-center gap-2">
                 <Calculator size={15} className="text-[#A57C50]" />
@@ -1216,42 +1391,159 @@ export function MasterRaiseFallPage({
                           </tfoot>
                         </table>
                       </div>
+
+                      {/* Dynamic Labor & Currency Master Reference for BGG */}
+                      <div className="grid grid-cols-2 gap-2.5 pt-1">
+                        <div className="p-2.5 bg-white rounded-[3px] border border-amber-200 text-slate-800 shadow-2xs">
+                          <span className="text-[10px] text-slate-500 block font-bold uppercase tracking-wider">Labor (Ln IDR) • Ref UMK Site</span>
+                          <span className="font-mono font-bold text-xs text-slate-900 block mt-0.5">
+                            Rp {(rfForm.actualLaborLn || (umkRows.find((u) => u.site.includes("Budi Gema Gempita"))?.amountIdr || 3565000)).toLocaleString("id-ID")}
+                          </span>
+                        </div>
+                        <div className="p-2.5 bg-white rounded-[3px] border border-amber-200 text-slate-800 shadow-2xs">
+                          <span className="text-[10px] text-slate-500 block font-bold uppercase tracking-wider">M-Rate (Xn IDR) • Ref Kurs BI</span>
+                          <span className="font-mono font-bold text-xs text-slate-900 block mt-0.5">
+                            Rp {(rfForm.actualMRateXn || (avgMRateCalc > 0 ? avgMRateCalc : 17849.316)).toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   ) : (
-                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-[4px] space-y-2">
-                      <h5 className="text-[11px] font-bold uppercase text-slate-800 tracking-wider">Input Indikator Aktual (POS 3-Faktor):</h5>
-                      <div className="grid grid-cols-3 gap-2 text-xs">
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Fn (Fuel USD)</label>
-                          <input
-                            type="number"
-                            step="0.001"
-                            className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-[3px]"
-                            value={rfForm.actualFuelFn}
-                            onChange={(e) => setRfForm({ ...rfForm, actualFuelFn: parseFloat(e.target.value) || 0 })}
-                          />
+                    <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-[4px] space-y-2.5">
+                      <div className="flex justify-between items-center">
+                        <h5 className="text-[11px] font-bold uppercase text-amber-900 tracking-wider flex items-center gap-1.5">
+                          <Flame size={14} className="text-amber-600" />
+                          Parameter 3-Faktor BBM & Forex (POS)
+                        </h5>
+                        <span className="text-[10px] font-bold bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded-[3px]">
+                          Base Fuel (Fo): Rp 10.699,97 (Konstan Kontrak)
+                        </span>
+                      </div>
+
+                      <div className="overflow-x-auto rounded-[3px] border border-amber-200 bg-white shadow-xs">
+                        <table className="w-full text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-amber-100/70 text-amber-950 font-bold text-[10px] uppercase border-b border-amber-200">
+                              <th className="p-2 text-left w-36 border-r border-amber-200">Periode</th>
+                              <th className="p-2 text-right border-r border-amber-200 w-28">Qty</th>
+                              <th className="p-2 text-right border-r border-amber-200 w-32">Unit Price/Harga</th>
+                              <th className="p-2 text-right border-r border-amber-200 w-36">Total</th>
+                              <th className="p-2 text-center w-12 border-b border-amber-200">Aksi</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-amber-100 font-medium">
+                            {posRefills.map((refill: any, idx: number) => {
+                              const rowTotal = Number(refill.qty || 0) * Number(refill.unitPrice || 0);
+                              return (
+                                <tr key={refill.id || idx}>
+                                  <td className="p-1.5 border-r border-amber-100 bg-amber-50/30">
+                                    <input
+                                      type="date"
+                                      className="w-full bg-white border border-slate-300 font-bold text-slate-800 p-1 rounded-[3px] outline-none focus:border-amber-600 text-xs"
+                                      value={refill.date || ""}
+                                      onChange={(e) => handlePOSRefillChange(idx, "date", e.target.value)}
+                                    />
+                                  </td>
+                                  <td className="p-1.5 border-r border-amber-100">
+                                    <IndoDecimalInput
+                                      placeholder="0"
+                                      className="w-full bg-white border border-slate-300 font-mono font-bold text-right p-1.5 rounded-[3px] outline-none focus:border-amber-600"
+                                      value={refill.qty}
+                                      onChange={(val) => handlePOSRefillChange(idx, "qty", val)}
+                                    />
+                                  </td>
+                                  <td className="p-1.5 border-r border-amber-100">
+                                    <IndoDecimalInput
+                                      placeholder="0,00"
+                                      className="w-full bg-white border border-slate-300 font-mono font-bold text-right p-1.5 rounded-[3px] outline-none focus:border-amber-600"
+                                      value={refill.unitPrice}
+                                      onChange={(val) => handlePOSRefillChange(idx, "unitPrice", val)}
+                                    />
+                                  </td>
+                                  <td className="p-2 text-right tabular-nums font-bold text-slate-900 bg-amber-50/30 border-r border-amber-100">
+                                    Rp {rowTotal.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="p-1 text-center">
+                                    {posRefills.length > 1 ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemovePOSRefill(idx)}
+                                        title="Hapus baris pengisian"
+                                        className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-100 rounded-[3px] transition cursor-pointer mx-auto flex items-center justify-center"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          handlePOSRefillChange(0, "qty", 0);
+                                          handlePOSRefillChange(0, "unitPrice", 0);
+                                        }}
+                                        title="Reset baris pengisian"
+                                        className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-[3px] transition cursor-pointer mx-auto flex items-center justify-center"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                          <tfoot>
+                            <tr className="bg-amber-100/90 font-bold border-t-2 border-amber-300 text-amber-950">
+                              <td className="p-2 text-left uppercase text-[10px] tracking-wider border-r border-amber-200">
+                                RATA-RATA TOTAL AKTUAL FUEL (FN)
+                              </td>
+                              <td className="p-2 text-right tabular-nums font-bold border-r border-amber-200">
+                                {posTotalQty.toLocaleString("id-ID")}
+                              </td>
+                              <td className="p-2 text-right text-[10px] uppercase font-bold text-amber-900 border-r border-amber-200">
+                                TOTAL (AVERAGE)
+                              </td>
+                              <td className="p-2 text-right tabular-nums font-black text-amber-950 text-xs border-r border-amber-200">
+                                Rp {posAvgPriceIDR.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td className="p-2 bg-amber-100/90"></td>
+                            </tr>
+                            <tr className="bg-amber-50 font-bold border-t border-amber-200 text-amber-950">
+                              <td colSpan={2} className="p-2 text-left uppercase text-[10px] tracking-wider border-r border-amber-200">
+                                KONVERSI KE USD (FN) = Avg Rp / Kurs BI ({posMrateXn.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                              </td>
+                              <td colSpan={3} className="p-2 text-right tabular-nums font-black text-amber-950 text-xs">
+                                $ {effectivePosFn.toLocaleString("id-ID", { minimumFractionDigits: 4, maximumFractionDigits: 4 })} USD
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+
+                      {/* Tombol Tambah Baris Pengisian BBM */}
+                      <div className="flex justify-start">
+                        <button
+                          type="button"
+                          onClick={handleAddPOSRefill}
+                          className="px-2.5 py-1 text-[11px] font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 rounded-[3px] border border-amber-300 flex items-center gap-1 transition cursor-pointer shadow-2xs"
+                        >
+                          <Plus size={12} />
+                          <span>Tambah Baris Pengisian BBM</span>
+                        </button>
+                      </div>
+
+                      {/* Dynamic Labor & Currency Master Reference for POS (EXACTLY LIKE BGG) */}
+                      <div className="grid grid-cols-2 gap-2.5 pt-1">
+                        <div className="p-2.5 bg-white rounded-[3px] border border-amber-200 text-slate-800 shadow-2xs">
+                          <span className="text-[10px] text-slate-500 block font-bold uppercase tracking-wider">Labor (Ln IDR) • Ref UMK Site</span>
+                          <span className="font-mono font-bold text-xs text-slate-900 block mt-0.5">
+                            Rp {(rfForm.actualLaborLn || (umkRows.find((u) => u.site.includes("POS") || u.site === rfForm.projectSite)?.amountIdr || 3721423)).toLocaleString("id-ID")}
+                          </span>
                         </div>
-                        <div>
-                          <div className="flex justify-between items-center mb-0.5">
-                            <label className="text-[10px] font-bold text-slate-600">Ln (UMK IDR)</label>
-                            <span className="text-[9px] text-emerald-800 font-bold">Auto UMK ✅</span>
-                          </div>
-                          <input
-                            type="number"
-                            className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-[3px]"
-                            value={rfForm.actualLaborLn}
-                            onChange={(e) => setRfForm({ ...rfForm, actualLaborLn: parseFloat(e.target.value) || 0 })}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Xn (M-Rate IDR)</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            className="w-full bg-white border border-slate-300 font-mono font-bold p-1.5 rounded-[3px]"
-                            value={rfForm.actualMRateXn}
-                            onChange={(e) => setRfForm({ ...rfForm, actualMRateXn: parseFloat(e.target.value) || 0 })}
-                          />
+                        <div className="p-2.5 bg-white rounded-[3px] border border-amber-200 text-slate-800 shadow-2xs">
+                          <span className="text-[10px] text-slate-500 block font-bold uppercase tracking-wider">M-Rate (Xn IDR) • Ref Kurs BI</span>
+                          <span className="font-mono font-bold text-xs text-slate-900 block mt-0.5">
+                            Rp {posMrateXn.toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1272,15 +1564,15 @@ export function MasterRaiseFallPage({
                     ) : (
                       <>
                         <div className="flex justify-between text-slate-700">
-                          <span>D = (34% × {rfForm.actualFuelFn} × {rfForm.actualMRateXn}) / Fo:</span>
+                          <span>D = ({((posWeightA || 0.34) * 100).toFixed(0)}% × {effectivePosFn.toFixed(4)} × {posMrateXn.toFixed(2)}) / {posBaseFo.toLocaleString("id-ID", { maximumFractionDigits: 2 })}:</span>
                           <strong className="text-amber-900 tabular-nums font-bold">{calcFuelD.toFixed(3)}</strong>
                         </div>
                         <div className="flex justify-between text-slate-700">
-                          <span>L = 25% × ({rfForm.actualLaborLn} / {rfForm.baseLaborLo}) (Murni IDR):</span>
+                          <span>L = ({((posWeightB || 0.25) * 100).toFixed(0)}% × {Number(rfForm.actualLaborLn).toLocaleString("id-ID")} × {posMrateXn.toFixed(2)}) / (Lo × Xo):</span>
                           <strong className="text-teal-800 tabular-nums font-bold">{calcLaborL.toFixed(3)}</strong>
                         </div>
                         <div className="flex justify-between text-slate-700">
-                          <span>F = Fixed (41%):</span>
+                          <span>F = Fixed ({((posWeightC || 0.41) * 100).toFixed(0)}%):</span>
                           <strong className="text-slate-700 tabular-nums font-bold">{calcFixedF.toFixed(3)}</strong>
                         </div>
                       </>

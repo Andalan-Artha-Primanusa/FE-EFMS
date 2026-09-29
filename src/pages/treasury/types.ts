@@ -41,6 +41,10 @@ export interface TreasuryInvoice {
   pendingAmount: string;
   remainingBalance: string;
   status: "unpaid" | "partially_paid" | "pending_paid" | "paid";
+  planMonth?: string;
+  planWeek?: number;
+  voucherNo?: string;
+  voucherDate?: string;
   lastPaymentDate?: string;
   createdAt: string;
   updatedAt: string;
@@ -72,6 +76,8 @@ export interface PaymentPlan {
   voucherSeq: number;
   voucherNo: string;
   voucherDate: string;
+  planMonth?: string;
+  planWeek?: number;
   companyBankId: number;
   companyBank?: TreasuryCompanyBank;
   category: "AP" | "TUNAI_PO" | "TUNAI_NON_PO" | "LEASING" | "SOLAR" | "PETTY_CASH";

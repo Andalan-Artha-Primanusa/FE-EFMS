@@ -142,12 +142,49 @@ export function useFinanceSaveHandlers({
         const isPTRO = formData.customerCode === "PTRO" || formData.customerCode === "DBK" || formData.customerCode === "PT Petrosea";
         const isSBS = formData.customerCode === "SBS";
         const isCustomerDBK = isPTRO || formData.customerCode === "DBK";
-        const allRawItems = [...baOperatingItems, ...baMDOItems, ...baDeductionItems];
+        let rawList = [...baOperatingItems, ...baMDOItems, ...baDeductionItems];
+        if (isBGG) {
+          // Remove POS residue items
+          rawList = rawList.filter((i: any) => {
+            const m = (i.material || "").toLowerCase();
+            const id = (i.id || "").toLowerCase();
+            if (id.startsWith("ba_op") || id.startsWith("ba_mdo") || id.startsWith("ba_dist")) return false;
+            if (m.includes("limonite") || m.includes("saprolite") || m.includes("topsoil") || m.includes("cut or fill") || m.includes("land clearing")) {
+              return false;
+            }
+            return true;
+          });
+
+          // Deduplicate DP Fuel items
+          const isDP = (it: any) => {
+            const c = (it.category || "").toLowerCase();
+            const m = (it.material || "").toLowerCase();
+            const sec = (it.section || "").toUpperCase();
+            return sec === "F" || c === "dp fuel" || m.includes("dp fuel") || m.includes("pengurang solar");
+          };
+          const dpItems = rawList.filter(isDP);
+          if (dpItems.length > 1) {
+            const activeDP = dpItems.find((it: any) => Number(it.rate || 0) > 0 || Math.abs(Number(it.subtotalInitial || 0)) > 0) || dpItems[0];
+            rawList = rawList.filter((it: any) => !isDP(it) || it.id === activeDP.id);
+          }
+        }
+        const allRawItems = rawList;
         const allItems = allRawItems.map((it) => {
           const initVol = getBAEffectiveVolume(it, allRawItems, false);
           const adjVol = getBAEffectiveVolume(it, allRawItems, true);
+          const c = (it.category || "").toLowerCase();
+          const m = (it.material || "").toLowerCase();
+          const isDist = it.isDistanceVar || c.includes("distance") || m.includes("distance") || m.includes("overhaul");
+          let distProps = {};
+          if (isDist) {
+            const d = Number(it.distanceM ?? it.distance ?? it.distanceWeightAvg ?? 0);
+            if (d > 0) {
+              distProps = { distanceM: d, distance: d, distanceWeightAvg: d };
+            }
+          }
           return {
             ...it,
+            ...distProps,
             subtotalInitial: getBAItemSubtotal(it, initVol, isCustomerDBK, formData.customerCode),
             subtotalAdjusted: getBAItemSubtotal(it, adjVol, isCustomerDBK, formData.customerCode),
           };

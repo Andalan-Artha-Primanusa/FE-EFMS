@@ -59,7 +59,7 @@ export const defaultBGGSOWTemplate = [
 ];
 
 export const defaultSOWTemplate = [
-  // Operation & Mining
+  // Operation & Mining (9 Items)
   { category: "Operation & Mining", itemName: "Clear & Grub", rateUSD: 0.381, unit: "USD/m2" },
   { category: "Operation & Mining", itemName: "Topsoil Removal - Base Rate (1000m)", rateUSD: 3.380, unit: "USD/BCM" },
   { category: "Operation & Mining", itemName: "Topsoil Removal - over/underhaul", rateUSD: 0.538, unit: "USD/1KM" },
@@ -70,13 +70,24 @@ export const defaultSOWTemplate = [
   { category: "Operation & Mining", itemName: "Saprolite - Base Rate (1000m)", rateUSD: 3.472, unit: "USD/BCM" },
   { category: "Operation & Mining", itemName: "Saprolite - over/underhaul", rateUSD: 0.526, unit: "USD/1KM" },
 
-  // Rehabilitation
+  // Rehabilitation (2 Items)
   { category: "Rehabilitation", itemName: "Topsoil Reclaim/Haul/Spread - Base Rate (1000m)", rateUSD: 3.258, unit: "USD/BCM" },
   { category: "Rehabilitation", itemName: "Topsoil Reclaim/Haul/Spread - overhaul", rateUSD: 0.538, unit: "USD/1KM" },
 
-  // Mine Development (MDO)
+  // Mine Development (MDO) (17 Items)
+  { category: "Mine Development (MDO)", itemName: "Topsoil Removal - Base Rate (1000m)", rateUSD: 3.380, unit: "USD/BCM" },
+  { category: "Mine Development (MDO)", itemName: "Topsoil Removal - over/underhaul", rateUSD: 0.538, unit: "USD/1KM" },
+  { category: "Mine Development (MDO)", itemName: "Overburden/Waste - Base Rate (1000m)", rateUSD: 3.327, unit: "USD/BCM" },
+  { category: "Mine Development (MDO)", itemName: "OB/Waste - over/underhaul", rateUSD: 0.538, unit: "USD/1KM" },
+  { category: "Mine Development (MDO)", itemName: "Limonite - Base Rate (1000m)", rateUSD: 3.363, unit: "USD/BCM" },
+  { category: "Mine Development (MDO)", itemName: "Limonite - over/underhaul", rateUSD: 0.526, unit: "USD/1KM" },
+  { category: "Mine Development (MDO)", itemName: "Saprolite - Base Rate (1000m)", rateUSD: 3.472, unit: "USD/BCM" },
+  { category: "Mine Development (MDO)", itemName: "Saprolite - over/underhaul", rateUSD: 0.526, unit: "USD/1KM" },
   { category: "Mine Development (MDO)", itemName: "Cut - Base Rate (1000m)", rateUSD: 2.129, unit: "USD/BCM" },
+  { category: "Mine Development (MDO)", itemName: "Unblasted fill material", rateUSD: 3.335, unit: "USD/BCM" },
   { category: "Mine Development (MDO)", itemName: "Cut or Fill under/overhaul", rateUSD: 0.521, unit: "USD/1KM" },
+  { category: "Mine Development (MDO)", itemName: "Excess Cut disposal in dump", rateUSD: 1.157, unit: "USD/BCM" },
+  { category: "Mine Development (MDO)", itemName: "Fill", rateUSD: 1.109, unit: "USD/BCM" },
   { category: "Mine Development (MDO)", itemName: "Uncrushed rocks for construction - Base Rate (1000m)", rateUSD: 7.938, unit: "USD/BCM" },
   { category: "Mine Development (MDO)", itemName: "Crusher rocks - Base Rate (1000m)", rateUSD: 13.050, unit: "USD/BCM" },
   { category: "Mine Development (MDO)", itemName: "Rocks for construction - under/overhaul", rateUSD: 0.526, unit: "USD/1KM" },
@@ -109,7 +120,7 @@ export const defaultSBSSOWTemplate = [
 
 export const defaultPTROSOWTemplate = [
   { category: "Operating & Mining", itemName: "OVER BURDEN", unit: "USD/Bcm", rateUSD: 1.490, rateIDR: 0 },
-  { category: "Operating & Mining", itemName: "COAL GETTING", unit: "USD/MT", rateUSD: 0.840, rateIDR: 0 },
+  { category: "Operating & Mining", itemName: "COAL GETTING", unit: "TON", rateUSD: 0.840, rateIDR: 0 },
   { category: "Over Distance", itemName: "OVERHAUL OB", unit: "USD/BCM/100 Mtr", rateUSD: 0.028, rateIDR: 0, baseDistanceMeters: 1000 },
   { category: "Over Distance", itemName: "OVERHAUL COAL GETTING", unit: "IDR/TON/100 Mtr", rateUSD: 0, rateIDR: 230, baseDistanceMeters: 3000 },
 ];

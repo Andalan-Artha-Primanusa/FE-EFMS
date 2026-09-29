@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   CheckCircle,
   CheckCircle2,
@@ -19,39 +19,59 @@ type Props = {
 };
 
 export function RekapAapView({ c }: Props) {
-  const { invoices, handleExportRekapAAP, refreshAll } = c;
+  const { paidInvoices, invoices, handleExportRekapAAP, refreshAll } = c;
 
   const [search, setSearch] = useState("");
   const [siteFilter, setSiteFilter] = useState("");
 
-  // Only paid or partially paid invoices that have been executed
-  const paidInvoices = invoices.filter(
-    (inv) => inv.status === "paid" || (inv.status === "partially_paid" && Number(inv.paidAmount) > 0)
-  );
+  // Source list: use paidInvoices from controller, fallback to invoices
+  const sourceInvoices = paidInvoices && paidInvoices.length > 0 ? paidInvoices : invoices;
+  const realizedInvoices = useMemo(() => {
+    return sourceInvoices.filter(
+      (inv) => inv.status === "paid" || (inv.status === "partially_paid" && Number(inv.paidAmount) > 0)
+    );
+  }, [sourceInvoices]);
 
-  const filtered = paidInvoices.filter((inv) => {
-    if (siteFilter && inv.site !== siteFilter) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return (
-        inv.invoiceNo.toLowerCase().includes(q) ||
-        inv.poNo.toLowerCase().includes(q) ||
-        (inv.vendor?.name && inv.vendor.name.toLowerCase().includes(q)) ||
-        (inv.taxInvoiceNo && inv.taxInvoiceNo.toLowerCase().includes(q))
-      );
-    }
-    return true;
-  });
+  // Distinct available sites dynamically
+  const availableSites = useMemo(() => {
+    const set = new Set<string>();
+    realizedInvoices.forEach((i) => {
+      const s = (i.site || "HO").trim().toUpperCase();
+      if (s) set.add(s);
+    });
+    return Array.from(set).sort();
+  }, [realizedInvoices]);
+
+  const filtered = useMemo(() => {
+    return realizedInvoices.filter((inv) => {
+      if (siteFilter && (inv.site || "HO").trim().toUpperCase() !== siteFilter.trim().toUpperCase()) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        return (
+          inv.invoiceNo.toLowerCase().includes(q) ||
+          (inv.poNo && inv.poNo.toLowerCase().includes(q)) ||
+          (inv.vendor?.name && inv.vendor.name.toLowerCase().includes(q)) ||
+          (inv.taxInvoiceNo && inv.taxInvoiceNo.toLowerCase().includes(q)) ||
+          (inv.voucherNo && inv.voucherNo.toLowerCase().includes(q))
+        );
+      }
+      return true;
+    });
+  }, [realizedInvoices, siteFilter, search]);
 
   const totalReconciledAmount = filtered.reduce(
     (sum, inv) => sum + Number(inv.paidAmount || 0),
     0
   );
+  const totalSubtotal = filtered.reduce((sum, inv) => sum + Number(inv.subtotalAmount || 0), 0);
+  const totalVat = filtered.reduce((sum, inv) => sum + Number(inv.vatAmount || 0), 0);
+  const totalInvoiced = filtered.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0);
+  const totalRemaining = filtered.reduce((sum, inv) => sum + Number(inv.remainingBalance || 0), 0);
 
   return (
-    <div className="space-y-4">
+    <div className="flex-1 min-h-0 flex flex-col gap-2 font-sans text-xs overflow-hidden">
       {/* 1. Header Banner */}
-      <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
         <div>
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-emerald-600" /> REKAP AAP 2026 - Master Realisasi &amp; Jurnal Audit
@@ -71,7 +91,7 @@ export function RekapAapView({ c }: Props) {
       </div>
 
       {/* 2. Filter & Totals */}
-      <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex flex-wrap items-center gap-2 flex-1">
           <div className="relative min-w-[200px] max-w-xs">
             <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-slate-400" />
@@ -90,10 +110,11 @@ export function RekapAapView({ c }: Props) {
             className="text-xs border border-slate-300 rounded px-2.5 py-1.5 bg-white text-slate-700"
           >
             <option value="">Semua Site</option>
-            <option value="BGG">BGG</option>
-            <option value="POS">POS</option>
-            <option value="PTRO">PTRO</option>
-            <option value="HO">HO</option>
+            {availableSites.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
           </select>
 
           <button
@@ -115,10 +136,10 @@ export function RekapAapView({ c }: Props) {
       </div>
 
       {/* 3. REKAP AAP Table */}
-      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="flex-1 min-h-0 bg-white rounded-lg border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-auto">
           <table className="w-full text-left text-xs border-collapse">
-            <thead>
+            <thead className="sticky top-0 z-20 shadow-xs">
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
                 <th className="p-2.5">No</th>
                 <th className="p-2.5">Vendor &amp; Site</th>
@@ -199,6 +220,29 @@ export function RekapAapView({ c }: Props) {
                 ))
               )}
             </tbody>
+            <tfoot className="bg-[#1A1612] text-white font-bold border-t-2 border-amber-900/40 sticky bottom-0 z-20 text-[11px] shadow-[0_-4px_12px_rgba(0,0,0,0.3)]">
+              <tr className="bg-[#1A1612]">
+                <td colSpan={5} className="p-2.5 text-right font-black uppercase tracking-wider text-stone-300 bg-[#1A1612]">
+                  Grand Total ({filtered.length} Realisasi):
+                </td>
+                <td className="p-2.5 text-right font-mono font-bold text-amber-200 whitespace-nowrap bg-[#1A1612]">
+                  {formatCurrency(totalSubtotal)}
+                </td>
+                <td className="p-2.5 text-right font-mono font-bold text-amber-200 whitespace-nowrap bg-[#1A1612]">
+                  {formatCurrency(totalVat)}
+                </td>
+                <td className="p-2.5 text-right font-mono font-bold text-amber-200 whitespace-nowrap bg-[#1A1612]">
+                  {formatCurrency(totalInvoiced)}
+                </td>
+                <td className="p-2.5 text-right font-mono font-black text-amber-400 text-xs whitespace-nowrap bg-[#1A1612]">
+                  {formatCurrency(totalReconciledAmount)}
+                </td>
+                <td className="p-2.5 text-right font-mono font-bold text-amber-200 whitespace-nowrap bg-[#1A1612]">
+                  {formatCurrency(totalRemaining)}
+                </td>
+                <td className="p-2.5 bg-[#1A1612]"></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>

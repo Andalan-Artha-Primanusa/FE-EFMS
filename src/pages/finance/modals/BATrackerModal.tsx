@@ -57,6 +57,7 @@ export function BATrackerModal({ c }: { c: any }) {
     laborPriceIDR = 29500,
     raiseFallMaster,
     raiseFallMasters = [],
+    minWageMasters = [],
     getBGGActiveCoalTier,
     getSowMasterRate,
   } = c || {};
@@ -65,6 +66,7 @@ export function BATrackerModal({ c }: { c: any }) {
   const [baAuditLogs, setBaAuditLogs] = useState<any[]>([]);
 
   const isCustomerBGG = formData.customerCode === "BGG" || formData.customerCode === "PT BGG";
+  const isCustomerPOS = formData.customerCode === "POS" || formData.customerCode === "PT POSITION" || formData.customerCode === "PT. POSITION" || formData.customerCode === "PT POS";
   const isCustomerDBK = formData.customerCode === "PTRO" || formData.customerCode === "DBK";
   const allBAItems = [...baOperatingItems, ...baMDOItems, ...(baDeductionItems || [])];
 
@@ -85,10 +87,22 @@ export function BATrackerModal({ c }: { c: any }) {
   const sumAdjusted = allBAItems.reduce((acc, it) => acc + calcSubtotal(it, getBAEffectiveVolume(it, allBAItems, true)), 0);
   const deltaAmount = sumAdjusted - sumInitial;
 
-  const breakdownInitial = calculateBACommercialBreakdown(formData.customerCode, allBAItems, rfIndexCalculated, isCustomerDBK, false);
-  const breakdownAdjusted = calculateBACommercialBreakdown(formData.customerCode, allBAItems, rfIndexCalculated, isCustomerDBK, true);
+  const activeFuelPeriods = formData.bggData?.fuelPeriods || formData.posData?.fuelPeriods || formData.ptroData?.fuelPeriods || formData.sbsData?.fuelPeriods;
+  const effectiveRF = Number(
+    (isCustomerBGG && (formData.bggData?.bggRfIndex || formData.bggRfIndex)) ||
+    (isCustomerPOS && (formData.posData?.posRfIndex || formData.posRfIndex)) ||
+    formData.rfIndexCalculated ||
+    rfIndexCalculated ||
+    1.0
+  );
+  const hasAdjusted = allBAItems.some((it) => !it.isDeduction && it.category !== "DP Fuel" && Number(it.adjustedVolume || 0) > 0);
+
+  const breakdownInitial = calculateBACommercialBreakdown(formData.customerCode, allBAItems, effectiveRF, isCustomerDBK, false, activeFuelPeriods);
+  const breakdownAdjusted = calculateBACommercialBreakdown(formData.customerCode, allBAItems, effectiveRF, isCustomerDBK, true, activeFuelPeriods);
+  const activeBreakdown = (hasAdjusted && breakdownAdjusted.totalGross > 0) ? breakdownAdjusted : breakdownInitial;
+
   const totalClaimInitial = breakdownInitial.totalGross > 0 ? breakdownInitial.totalGross : sumInitial;
-  const totalClaimAdjusted = breakdownAdjusted.totalGross > 0 ? breakdownAdjusted.totalGross : sumAdjusted;
+  const totalClaimAdjusted = (hasAdjusted && breakdownAdjusted.totalGross > 0) ? breakdownAdjusted.totalGross : totalClaimInitial;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,6 +172,7 @@ export function BATrackerModal({ c }: { c: any }) {
                   defaultSBSBADeductionItems={defaultSBSBADeductionItems}
                   raiseFallMaster={raiseFallMaster}
                   raiseFallMasters={raiseFallMasters}
+                  minWageMasters={minWageMasters}
                   getBGGActiveCoalTier={getBGGActiveCoalTier}
                 />
 
@@ -183,6 +198,7 @@ export function BATrackerModal({ c }: { c: any }) {
                     rfIndexCalculated={rfIndexCalculated}
                     latestKursBI={latestKursBI}
                     raiseFallMasters={raiseFallMasters}
+                    minWageMasters={minWageMasters}
                     reorderBAItems={reorderBAItems}
                     moveBAItem={moveBAItem}
                     getSowMasterRate={getSowMasterRate}
@@ -208,6 +224,8 @@ export function BATrackerModal({ c }: { c: any }) {
                     sumInitial={sumInitial}
                     sumAdjusted={sumAdjusted}
                     deltaAmount={deltaAmount}
+                    totalClaimInitial={totalClaimInitial}
+                    totalClaimAdjusted={totalClaimAdjusted}
                     handleFileUpload={handleFileUpload}
                     setActiveBAStep={setActiveBAStep}
                   />
@@ -243,6 +261,7 @@ export function BATrackerModal({ c }: { c: any }) {
                 invoiceRows={invoiceRows}
                 sumInitial={totalClaimInitial}
                 sumAdjusted={totalClaimAdjusted}
+                netTotalInvoice={activeBreakdown.netTotalInvoice}
                 auditTab={auditTab}
                 setAuditTab={setAuditTab}
                 baAuditLogs={baAuditLogs}

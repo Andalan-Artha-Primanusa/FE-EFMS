@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { ArrowRight, Calendar, Calculator, Flame, TrendingUp, DollarSign, ShieldAlert } from "lucide-react";
+import { ArrowRight, Calendar, Calculator, Flame, TrendingUp, DollarSign, ShieldAlert, Lock, Plus, Trash2 } from "lucide-react";
 import { formatIDR, FormattedNumberInput, matchPeriod } from "../helpers";
 import { BAOperatingTable } from "./BAOperatingTable";
 import { BAMDOTable } from "./BAMDOTable";
 import { BADeductionTable } from "./BADeductionTable";
-import { calculateBACommercialBreakdown } from "../ba_calculations";
+import { calculateBACommercialBreakdown, resolveHOMasterLaborAndCurrency, calculateTripleFactorRF } from "../ba_calculations";
 
 interface BATrackerSurveyItemsProps {
   formData: any;
@@ -27,6 +27,7 @@ interface BATrackerSurveyItemsProps {
   rfIndexCalculated?: number;
   latestKursBI?: number;
   raiseFallMasters?: any[];
+  minWageMasters?: any[];
   reorderBAItems?: (startIndex: number, endIndex: number, listType?: "operating" | "mdo" | "deduction") => void;
   moveBAItem?: (id: string, dir: "up" | "down", listType?: "operating" | "mdo" | "deduction") => void;
   getSowMasterRate?: (cust: string, name: string, fb: number, isUSD?: boolean, tier?: string) => number;
@@ -54,6 +55,7 @@ export function BATrackerSurveyItems({
   rfIndexCalculated = 1.560,
   latestKursBI,
   raiseFallMasters = [],
+  minWageMasters = [],
   reorderBAItems,
   moveBAItem,
   getSowMasterRate,
@@ -81,6 +83,34 @@ export function BATrackerSurveyItems({
   }, [formData.workPeriod, baOperatingItems]);
 
   const [activeFuelPeriod, setActiveFuelPeriod] = useState<string>(() => formData.workPeriod || "Agustus 2026");
+
+  const getPeriodMonthName = (period?: string) => {
+    if (!period) return "";
+    const clean = period.trim();
+    const lower = clean.toLowerCase();
+    if (lower.includes("jan")) return "Januari";
+    if (lower.includes("feb")) return "Februari";
+    if (lower.includes("mar")) return "Maret";
+    if (lower.includes("apr")) return "April";
+    if (lower.includes("mei") || lower.includes("may")) return "Mei";
+    if (lower.includes("jun")) return "Juni";
+    if (lower.includes("jul")) return "Juli";
+    if (lower.includes("agu") || lower.includes("aug")) return "Agustus";
+    if (lower.includes("sep")) return "September";
+    if (lower.includes("okt") || lower.includes("oct")) return "Oktober";
+    if (lower.includes("nov")) return "November";
+    if (lower.includes("des") || lower.includes("dec")) return "Desember";
+
+    const parts = clean.split(/[- /_]+/);
+    for (const part of parts) {
+      const num = parseInt(part, 10);
+      if (!isNaN(num) && num >= 1 && num <= 12 && part.length <= 2) {
+        const months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+        return months[num - 1];
+      }
+    }
+    return clean;
+  };
 
   useEffect(() => {
     if (uniquePeriods.length > 0 && !uniquePeriods.includes(activeFuelPeriod)) {
@@ -168,71 +198,107 @@ export function BATrackerSurveyItems({
   const posFuelPeriods = posData.fuelPeriods || {};
 
   const getPeriodPOSData = (period: string) => {
-    if (posFuelPeriods[period]) {
-      const e = posFuelPeriods[period];
-      if (e.actualFuelFn > 0 || e.actualLaborLn > 0 || e.actualMRateXn > 0 || e.posRfIndex > 0) {
-        return e;
-      }
-    }
+    const hoResolved = resolveHOMasterLaborAndCurrency({
+      customerCode: formData.customerCode,
+      period,
+      raiseFallMasters,
+      minWageMasters,
+      latestKursBI,
+      mRate,
+    });
+
+    let fn = 0;
+    let ln = hoResolved.laborLn;
+    let xn = hoResolved.currencyXn;
+    let rf = 0;
+
     const matchedKey = Object.keys(posFuelPeriods).find((k) => matchPeriod(k, period));
-    if (matchedKey && posFuelPeriods[matchedKey]) {
-      const e = posFuelPeriods[matchedKey];
-      if (e.actualFuelFn > 0 || e.actualLaborLn > 0 || e.actualMRateXn > 0 || e.posRfIndex > 0) {
-        return e;
-      }
+    const targetPeriodData = posFuelPeriods[period] || (matchedKey ? posFuelPeriods[matchedKey] : null);
+
+    const defaultRefills = 
+      matchPeriod(period, "Aug-26") || matchPeriod(period, "August 2026") || matchPeriod(period, "Agustus 2026")
+        ? [
+            { id: "pos-rf-1", date: "2026-07-31", label: "31 Juli 2026", liters: 16000, pricePerLiter: 22961.30 },
+            { id: "pos-rf-2", date: "2026-08-04", label: "4 Agustus 2026", liters: 48000, pricePerLiter: 23918.92 },
+            { id: "pos-rf-3", date: "2026-08-11", label: "11 Agustus 2026", liters: 32000, pricePerLiter: 23918.92 },
+            { id: "pos-rf-4", date: "2026-08-15", label: "15 Agustus 2026", liters: 48000, pricePerLiter: 23918.92 },
+            { id: "pos-rf-5", date: "2026-08-22", label: "22 Agustus 2026", liters: 48000, pricePerLiter: 23918.92 },
+            { id: "pos-rf-6", date: "2026-08-28", label: "28 Agustus 2026", liters: 16000, pricePerLiter: 23918.92 },
+          ]
+        : matchPeriod(period, "Jun-26") || matchPeriod(period, "Juni 2026")
+        ? [
+            { id: "pos-rf-1", date: "2026-06-03", label: "3 Juni 2026", liters: 8000, pricePerLiter: 25600 },
+            { id: "pos-rf-2", date: "2026-06-10", label: "10 Juni 2026", liters: 14050, pricePerLiter: 25400 },
+            { id: "pos-rf-3", date: "2026-06-17", label: "17 Juni 2026", liters: 12006, pricePerLiter: 25500 },
+            { id: "pos-rf-4", date: "2026-06-22", label: "22 Juni 2026", liters: 15000, pricePerLiter: 25450 },
+            { id: "pos-rf-5", date: "2026-06-28", label: "28 Juni 2026", liters: 32000, pricePerLiter: 25500 },
+          ]
+        : [
+            { id: "pos-rf-1", date: "", label: "Pengisian 1", liters: 0, pricePerLiter: 0 },
+            { id: "pos-rf-2", date: "", label: "Pengisian 2", liters: 0, pricePerLiter: 0 },
+            { id: "pos-rf-3", date: "", label: "Pengisian 3", liters: 0, pricePerLiter: 0 },
+            { id: "pos-rf-4", date: "", label: "Pengisian 4", liters: 0, pricePerLiter: 0 },
+            { id: "pos-rf-5", date: "", label: "Pengisian 5", liters: 0, pricePerLiter: 0 },
+          ];
+
+    let fuelRefills = defaultRefills;
+    if (targetPeriodData && Array.isArray(targetPeriodData.fuelRefills) && targetPeriodData.fuelRefills.length > 0) {
+      fuelRefills = targetPeriodData.fuelRefills;
+    } else if (Array.isArray(posData.fuelRefills) && posData.fuelRefills.length > 0) {
+      fuelRefills = posData.fuelRefills;
     }
 
-    if (matchPeriod(formData.workPeriod, period) || Object.keys(posFuelPeriods).length === 0) {
-      if (Number(posData.actualFuelFn ?? 0) > 0 || Number(posData.actualLaborLn ?? 0) > 0 || Number(posData.actualMRateXn ?? 0) > 0) {
-        return {
-          actualFuelFn: Number(posData.actualFuelFn ?? 0),
-          actualLaborLn: Number(posData.actualLaborLn ?? 0),
-          actualMRateXn: Number(posData.actualMRateXn ?? 0),
-          posRfIndex: Number(posData.posRfIndex ?? 0),
-        };
+    if (targetPeriodData) {
+      fn = Number(targetPeriodData.actualFuelFn ?? 0);
+      if (Number(targetPeriodData.actualLaborLn ?? 0) > 0) ln = Number(targetPeriodData.actualLaborLn);
+      if (Number(targetPeriodData.actualMRateXn ?? 0) > 0) xn = Number(targetPeriodData.actualMRateXn);
+      if (Number(targetPeriodData.posRfIndex ?? 0) > 0) rf = Number(targetPeriodData.posRfIndex);
+    } else if (matchPeriod(formData.workPeriod, period) || Object.keys(posFuelPeriods).length === 0) {
+      fn = Number(posData.actualFuelFn ?? 0);
+      if (Number(posData.actualLaborLn ?? 0) > 0) ln = Number(posData.actualLaborLn);
+      if (Number(posData.actualMRateXn ?? 0) > 0) xn = Number(posData.actualMRateXn);
+      if (Number(posData.posRfIndex ?? 0) > 0) rf = Number(posData.posRfIndex);
+    }
+
+    let totLiters = 0;
+    let totCost = 0;
+    fuelRefills.forEach((r: any) => {
+      const l = Number(r.liters || 0);
+      const p = Number(r.pricePerLiter || 0);
+      if (l > 0) {
+        totLiters += l;
+        totCost += l * p;
       }
+    });
+    const avgPriceIDR = totLiters > 0 ? (totCost / totLiters) : 0;
+    if (avgPriceIDR > 0 && xn > 0 && (!fn || fn === 0)) {
+      fn = Number((avgPriceIDR / xn).toFixed(6));
     }
 
     if (Array.isArray(raiseFallMasters) && raiseFallMasters.length > 0) {
       const matched = raiseFallMasters.find((r: any) => {
         const rCust = (r.customerCode || "").trim().toUpperCase();
-        const custMatch = rCust.includes("POS");
-        const periodMatch = matchPeriod(r.period, period);
-        return custMatch && periodMatch;
+        return rCust.includes("POS") && matchPeriod(r.period, period);
       });
       if (matched) {
-        const fn = Number(matched.actualFuelFn ?? 0);
-        const ln = Number(matched.actualLaborLn ?? 0);
-        const xn = Number(matched.actualMRateXn || latestKursBI || mRate || 0);
-        const a = Number(matched.weightFuelA ?? 0.34);
-        const b = Number(matched.weightLaborB ?? 0.25);
-        const c = Number(matched.weightFixedC ?? 0.41);
-        const fo = Number(matched.baseFuelFo ?? 10699.970229);
-        const lo = Number(matched.baseLaborLo ?? 3594536);
-        const xo = Number(matched.baseForexXo ?? 15388.75);
-
-        const d = (fo > 0 && fn > 0 && xn > 0) ? (a * fn * xn) / fo : 0;
-        const l = (lo > 0 && xo > 0 && ln > 0 && xn > 0) ? (b * ln * xn) / (lo * xo) : 0;
-        const f = c;
-        const rf = Number(matched.rfIndexResult || ((d > 0 || l > 0) ? Number((d + l + f).toFixed(3)) : 0));
-
-        return {
-          actualFuelFn: fn,
-          actualLaborLn: ln,
-          actualMRateXn: xn,
-          posRfIndex: rf,
-        };
+        if (!fn && Number(matched.actualFuelFn ?? 0) > 0) fn = Number(matched.actualFuelFn);
+        if (Number(matched.actualLaborLn ?? 0) > 0) ln = Number(matched.actualLaborLn);
+        if (Number(matched.actualMRateXn ?? 0) > 0) xn = Number(matched.actualMRateXn);
+        if (Number(matched.rfIndexResult ?? 0) > 0) rf = Number(matched.rfIndexResult);
       }
     }
 
-    if (posFuelPeriods[period]) return posFuelPeriods[period];
-    if (matchedKey && posFuelPeriods[matchedKey]) return posFuelPeriods[matchedKey];
+    if (!rf) {
+      const { rfIndex } = calculateTripleFactorRF(fn, ln, xn);
+      rf = rfIndex;
+    }
 
     return {
-      actualFuelFn: Number(posData.actualFuelFn ?? 0),
-      actualLaborLn: Number(posData.actualLaborLn ?? 0),
-      actualMRateXn: Number(posData.actualMRateXn || latestKursBI || mRate || 0),
-      posRfIndex: Number(posData.posRfIndex ?? 0),
+      actualFuelFn: fn,
+      actualLaborLn: ln,
+      actualMRateXn: xn,
+      posRfIndex: rf,
+      fuelRefills,
     };
   };
 
@@ -305,13 +371,31 @@ export function BATrackerSurveyItems({
   const computedBggRf = avgFn > 0 ? Number((0.60 + 0.40 * (avgFn / fo)).toFixed(3)) : 0;
 
   // POS 3-Faktor DLF
+  const hoPOSResolved = resolveHOMasterLaborAndCurrency({
+    customerCode: formData.customerCode,
+    period: activeFuelPeriod,
+    raiseFallMasters,
+    minWageMasters,
+    latestKursBI,
+    mRate,
+  });
   const posFn = Number(activePeriodPOS.actualFuelFn ?? 0);
-  const posLn = Number(activePeriodPOS.actualLaborLn ?? 0);
-  const posXn = Number(activePeriodPOS.actualMRateXn ?? 0);
-  const posD = (posFn > 0 && posXn > 0) ? (0.34 * posFn * posXn) / 10699.970229 : 0;
-  const posL = (posLn > 0 && posXn > 0) ? (0.25 * posLn * posXn) / (3594536 * 15388.75) : 0;
-  const posF = 0.41;
-  const computedPosRf = (posD > 0 || posL > 0) ? Number((posD + posL + posF).toFixed(3)) : 0;
+  const posLn = Number(activePeriodPOS.actualLaborLn || hoPOSResolved.laborLn);
+  const posXn = Number(activePeriodPOS.actualMRateXn || hoPOSResolved.currencyXn);
+  const { posD, posL, posF, rfIndex: computedPosRf } = calculateTripleFactorRF(posFn, posLn, posXn);
+
+  const posRefills: any[] = Array.isArray(activePeriodPOS.fuelRefills) ? activePeriodPOS.fuelRefills : [];
+  let posTotalLiters = 0;
+  let posTotalCost = 0;
+  posRefills.forEach((r: any) => {
+    const l = Number(r.liters || 0);
+    const p = Number(r.pricePerLiter || 0);
+    if (l > 0) {
+      posTotalLiters += l;
+      posTotalCost += l * p;
+    }
+  });
+  const posAvgPriceIDR = posTotalLiters > 0 ? (posTotalCost / posTotalLiters) : 0;
 
   // PTRO Kurs M-Rate
   const ptroKurs = Number(activePeriodPTRO.actualMRate || latestKursBI || mRate || 0);
@@ -369,19 +453,70 @@ export function BATrackerSurveyItems({
 
   const handlePOSParamChange = (field: string, val: number) => {
     if (!setFormData) return;
+    const newKurs = field === "actualMRateXn" ? val : 0;
+    if (field === "actualMRateXn" && newKurs > 0) {
+      if (setBaOperatingItems) {
+        setBaOperatingItems((prev) =>
+          prev.map((it) => {
+            if (it.isUSD || (it.rateUSD && it.rateUSD > 0)) {
+              const rUSD = Number(it.rateUSD || 0);
+              if (rUSD > 0) {
+                const newIDRRate = Math.round(rUSD * newKurs);
+                const effVol = getBAEffectiveVolume(it, prev, false);
+                return {
+                  ...it,
+                  rate: newIDRRate,
+                  subtotalInitial: getBAItemSubtotal({ ...it, rate: newIDRRate }, effVol),
+                  subtotalAdjusted: getBAItemSubtotal({ ...it, rate: newIDRRate }, getBAEffectiveVolume(it, prev, true)),
+                };
+              }
+            }
+            return it;
+          })
+        );
+      }
+      if (setBaMDOItems) {
+        setBaMDOItems((prev) =>
+          prev.map((it) => {
+            if (it.isUSD || (it.rateUSD && it.rateUSD > 0)) {
+              const rUSD = Number(it.rateUSD || 0);
+              if (rUSD > 0) {
+                const newIDRRate = Math.round(rUSD * newKurs);
+                const initVol = Number(it.initialVolume || 0);
+                const adjVol = Number(it.adjustedVolume || 0);
+                return {
+                  ...it,
+                  rate: newIDRRate,
+                  subtotalInitial: Math.round(initVol * newIDRRate),
+                  subtotalAdjusted: Math.round(adjVol * newIDRRate),
+                };
+              }
+            }
+            return it;
+          })
+        );
+      }
+    }
+
     setFormData((prev: any) => {
       const curPOS = prev.posData || {};
       const curPeriods = { ...(curPOS.fuelPeriods || {}) };
       const curP = { ...(curPeriods[activeFuelPeriod] || getPeriodPOSData(activeFuelPeriod)), [field]: val };
       
+      const hoResolved = resolveHOMasterLaborAndCurrency({
+        customerCode: prev.customerCode,
+        period: activeFuelPeriod,
+        raiseFallMasters,
+        minWageMasters,
+        latestKursBI,
+        mRate,
+      });
+
       const fn = field === "actualFuelFn" ? val : Number(curP.actualFuelFn ?? curPOS.actualFuelFn ?? 0);
-      const ln = field === "actualLaborLn" ? val : Number(curP.actualLaborLn ?? curPOS.actualLaborLn ?? 0);
-      const xn = field === "actualMRateXn" ? val : Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? 0);
+      const ln = field === "actualLaborLn" ? val : Number(curP.actualLaborLn ?? curPOS.actualLaborLn ?? hoResolved.laborLn);
+      const xn = field === "actualMRateXn" ? val : Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? hoResolved.currencyXn);
       
-      const d = (fn > 0 && xn > 0) ? (0.34 * fn * xn) / 10699.970229 : 0;
-      const l = (ln > 0 && xn > 0) ? (0.25 * ln * xn) / (3594536 * 15388.75) : 0;
-      const f = 0.41;
-      const newRf = (d > 0 || l > 0) ? Number((d + l + f).toFixed(3)) : 0;
+      const { rfIndex: newRf } = calculateTripleFactorRF(fn, ln, xn);
       
       curP.actualFuelFn = fn;
       curP.actualLaborLn = ln;
@@ -401,6 +536,226 @@ export function BATrackerSurveyItems({
           actualLaborLn: isWorkPeriod ? ln : (curPOS.actualLaborLn ?? ln),
           actualMRateXn: isWorkPeriod ? xn : (curPOS.actualMRateXn ?? xn),
           posRfIndex: isWorkPeriod ? newRf : (curPOS.posRfIndex ?? newRf),
+          fuelPeriods: curPeriods,
+        }
+      };
+    });
+  };
+
+  const handlePOSRefillChange = (index: number, field: "label" | "date" | "liters" | "pricePerLiter", value: any) => {
+    if (!setFormData) return;
+    setFormData((prev: any) => {
+      const curPOS = prev.posData || {};
+      const curPeriods = { ...(curPOS.fuelPeriods || {}) };
+      const curP = { ...(curPeriods[activeFuelPeriod] || getPeriodPOSData(activeFuelPeriod)) };
+      
+      const prevRefills: any[] = Array.isArray(curP.fuelRefills) && curP.fuelRefills.length > 0 
+        ? curP.fuelRefills.map((r: any) => ({ ...r }))
+        : (activePeriodPOS.fuelRefills || []).map((r: any) => ({ ...r }));
+      
+      if (!prevRefills[index]) return prev;
+      prevRefills[index] = {
+        ...prevRefills[index],
+        [field]: (field === "label" || field === "date") ? value : Math.max(0, Number(value || 0)),
+      };
+
+      let totL = 0;
+      let totC = 0;
+      prevRefills.forEach((r: any) => {
+        const l = Number(r.liters || 0);
+        const p = Number(r.pricePerLiter || 0);
+        if (l > 0) {
+          totL += l;
+          totC += l * p;
+        }
+      });
+      const avgPriceIDR = totL > 0 ? totC / totL : 0;
+
+      const hoResolved = resolveHOMasterLaborAndCurrency({
+        customerCode: prev.customerCode,
+        period: activeFuelPeriod,
+        raiseFallMasters,
+        minWageMasters,
+        latestKursBI,
+        mRate,
+      });
+
+      const ln = Number(curP.actualLaborLn ?? curPOS.actualLaborLn ?? hoResolved.laborLn);
+      const xn = Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? hoResolved.currencyXn);
+      const newFn = (avgPriceIDR > 0 && xn > 0) ? Number((avgPriceIDR / xn).toFixed(6)) : Number(curP.actualFuelFn || 0);
+
+      const { rfIndex: newRf } = calculateTripleFactorRF(newFn, ln, xn);
+
+      curP.fuelRefills = prevRefills;
+      curP.actualFuelFn = newFn;
+      curP.actualLaborLn = ln;
+      curP.actualMRateXn = xn;
+      curP.posRfIndex = newRf;
+      curP.actualFuelCost = totC;
+      curP.posTotalCost = totC;
+
+      curPeriods[activeFuelPeriod] = curP;
+
+      const isWorkPeriod = matchPeriod(activeFuelPeriod, prev.workPeriod) || uniquePeriods.length === 1;
+
+      if (setBaOperatingItems && isWorkPeriod) {
+        setBaOperatingItems((prevItems) => {
+          let modified = false;
+          const nextItems = prevItems.map((it) => {
+            const mLow = (it.material || "").toLowerCase();
+            const cLow = (it.category || "").toLowerCase();
+            if (it.section === "E" || cLow === "dp fuel" || mLow.includes("dp fuel") || mLow.includes("pengurang solar")) {
+              modified = true;
+              return {
+                ...it,
+                rate: totC,
+                subtotalInitial: totC,
+                subtotalAdjusted: totC,
+              };
+            }
+            return it;
+          });
+          return modified ? nextItems : prevItems;
+        });
+      }
+
+      return {
+        ...prev,
+        rfIndexCalculated: isWorkPeriod && newRf > 0 ? newRf : prev.rfIndexCalculated,
+        posData: {
+          ...curPOS,
+          fuelRefills: isWorkPeriod ? prevRefills : (curPOS.fuelRefills || prevRefills),
+          actualFuelFn: isWorkPeriod ? newFn : (curPOS.actualFuelFn ?? newFn),
+          actualLaborLn: isWorkPeriod ? ln : (curPOS.actualLaborLn ?? ln),
+          actualMRateXn: isWorkPeriod ? xn : (curPOS.actualMRateXn ?? xn),
+          posRfIndex: isWorkPeriod ? newRf : (curPOS.posRfIndex ?? newRf),
+          actualFuelCost: isWorkPeriod ? totC : (curPOS.actualFuelCost ?? totC),
+          posTotalCost: isWorkPeriod ? totC : (curPOS.posTotalCost ?? totC),
+          fuelPeriods: curPeriods,
+        }
+      };
+    });
+  };
+
+  const handleAddPOSRefillRow = () => {
+    if (!setFormData) return;
+    setFormData((prev: any) => {
+      const curPOS = prev.posData || {};
+      const curPeriods = { ...(curPOS.fuelPeriods || {}) };
+      const curP = { ...(curPeriods[activeFuelPeriod] || getPeriodPOSData(activeFuelPeriod)) };
+      const prevRefills: any[] = Array.isArray(curP.fuelRefills) && curP.fuelRefills.length > 0
+        ? curP.fuelRefills.map((r: any) => ({ ...r }))
+        : (activePeriodPOS.fuelRefills || []).map((r: any) => ({ ...r }));
+      
+      const newIdx = prevRefills.length + 1;
+      const todayStr = new Date().toISOString().split("T")[0];
+      prevRefills.push({
+        id: `pos-rf-${Date.now()}-${newIdx}`,
+        date: todayStr,
+        label: `Pengisian ${newIdx}`,
+        liters: 0,
+        pricePerLiter: 0,
+      });
+
+      curP.fuelRefills = prevRefills;
+      curPeriods[activeFuelPeriod] = curP;
+      const isWorkPeriod = matchPeriod(activeFuelPeriod, prev.workPeriod) || uniquePeriods.length === 1;
+
+      return {
+        ...prev,
+        posData: {
+          ...curPOS,
+          fuelRefills: isWorkPeriod ? prevRefills : (curPOS.fuelRefills || prevRefills),
+          fuelPeriods: curPeriods,
+        }
+      };
+    });
+  };
+
+  const handleRemovePOSRefillRow = (index: number) => {
+    if (!setFormData) return;
+    setFormData((prev: any) => {
+      const curPOS = prev.posData || {};
+      const curPeriods = { ...(curPOS.fuelPeriods || {}) };
+      const curP = { ...(curPeriods[activeFuelPeriod] || getPeriodPOSData(activeFuelPeriod)) };
+      const prevRefills: any[] = Array.isArray(curP.fuelRefills) && curP.fuelRefills.length > 0
+        ? curP.fuelRefills.map((r: any) => ({ ...r }))
+        : (activePeriodPOS.fuelRefills || []).map((r: any) => ({ ...r }));
+      
+      if (prevRefills.length <= 1) return prev;
+      prevRefills.splice(index, 1);
+
+      let totL = 0;
+      let totC = 0;
+      prevRefills.forEach((r: any) => {
+        const l = Number(r.liters || 0);
+        const p = Number(r.pricePerLiter || 0);
+        if (l > 0) {
+          totL += l;
+          totC += l * p;
+        }
+      });
+      const avgPriceIDR = totL > 0 ? totC / totL : 0;
+
+      const hoResolved = resolveHOMasterLaborAndCurrency({
+        customerCode: prev.customerCode,
+        period: activeFuelPeriod,
+        raiseFallMasters,
+        minWageMasters,
+        latestKursBI,
+        mRate,
+      });
+
+      const ln = Number(curP.actualLaborLn ?? curPOS.actualLaborLn ?? hoResolved.laborLn);
+      const xn = Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? hoResolved.currencyXn);
+      const newFn = (avgPriceIDR > 0 && xn > 0) ? Number((avgPriceIDR / xn).toFixed(6)) : Number(curP.actualFuelFn || 0);
+
+      const { rfIndex: newRf } = calculateTripleFactorRF(newFn, ln, xn);
+
+      curP.fuelRefills = prevRefills;
+      curP.actualFuelFn = newFn;
+      curP.actualLaborLn = ln;
+      curP.actualMRateXn = xn;
+      curP.posRfIndex = newRf;
+      curP.actualFuelCost = totC;
+      curP.posTotalCost = totC;
+
+      curPeriods[activeFuelPeriod] = curP;
+      const isWorkPeriod = matchPeriod(activeFuelPeriod, prev.workPeriod) || uniquePeriods.length === 1;
+
+      if (setBaOperatingItems && isWorkPeriod) {
+        setBaOperatingItems((prevItems) => {
+          let modified = false;
+          const nextItems = prevItems.map((it) => {
+            const mLow = (it.material || "").toLowerCase();
+            const cLow = (it.category || "").toLowerCase();
+            if (it.section === "E" || cLow === "dp fuel" || mLow.includes("dp fuel") || mLow.includes("pengurang solar")) {
+              modified = true;
+              return {
+                ...it,
+                rate: totC,
+                subtotalInitial: totC,
+                subtotalAdjusted: totC,
+              };
+            }
+            return it;
+          });
+          return modified ? nextItems : prevItems;
+        });
+      }
+
+      return {
+        ...prev,
+        rfIndexCalculated: isWorkPeriod && newRf > 0 ? newRf : prev.rfIndexCalculated,
+        posData: {
+          ...curPOS,
+          fuelRefills: isWorkPeriod ? prevRefills : (curPOS.fuelRefills || prevRefills),
+          actualFuelFn: isWorkPeriod ? newFn : (curPOS.actualFuelFn ?? newFn),
+          actualLaborLn: isWorkPeriod ? ln : (curPOS.actualLaborLn ?? ln),
+          actualMRateXn: isWorkPeriod ? xn : (curPOS.actualMRateXn ?? xn),
+          posRfIndex: isWorkPeriod ? newRf : (curPOS.posRfIndex ?? newRf),
+          actualFuelCost: isWorkPeriod ? totC : (curPOS.actualFuelCost ?? totC),
+          posTotalCost: isWorkPeriod ? totC : (curPOS.posTotalCost ?? totC),
           fuelPeriods: curPeriods,
         }
       };
@@ -577,55 +932,71 @@ export function BATrackerSurveyItems({
         isInlineEditingBA={isInlineEditingBA}
         activeSOWCatalog={activeSOWCatalog}
         mRate={mRate}
+        allBAItems={currentAllBAItems}
+        rfIndexCalculated={effectiveRF}
+        getSowMasterRate={getSowMasterRate}
       />
 
       {/* Rekapitulasi Tagihan Gross & Pajak / Summary Table (Invoice Equivalent) */}
-      <div className="overflow-x-auto rounded-[4px] border border-slate-200 shadow-xs bg-white">
-        <table className="w-full text-xs font-mono border-collapse">
-          <tbody>
-            <tr className="border-b border-slate-200 hover:bg-slate-50/60">
-              <td className="p-2 font-bold uppercase text-slate-800 tracking-wider">
-                TOTAL
-              </td>
-              <td className="p-2 text-right font-bold text-slate-900 w-44 sm:w-56">
-                {formatIDR(breakdown.totalGross > 0 ? breakdown.totalGross : (sumAdjusted > 0 ? sumAdjusted : sumInitial))}
-              </td>
-            </tr>
-            <tr className="border-b border-slate-200 hover:bg-slate-50/60">
-              <td className="p-2 font-bold uppercase text-slate-700 tracking-wider">
-                DPP PPN 11/12
-              </td>
-              <td className="p-2 text-right font-medium text-slate-800 w-44 sm:w-56">
-                {formatIDR(breakdown.dpp11_12)}
-              </td>
-            </tr>
-            <tr className="border-b border-slate-200 hover:bg-slate-50/60">
-              <td className="p-2 font-bold uppercase text-slate-700 tracking-wider">
-                VAT ( 12%)
-              </td>
-              <td className="p-2 text-right font-medium text-slate-800 w-44 sm:w-56">
-                {formatIDR(breakdown.vat12)}
-              </td>
-            </tr>
-            <tr className="border-b border-slate-200 hover:bg-slate-50/60">
-              <td className="p-2 font-bold uppercase text-slate-700 tracking-wider">
-                WITH HOLDING TAX ART 23 (2%)
-              </td>
-              <td className="p-2 text-right font-medium text-slate-800 w-44 sm:w-56">
-                ({formatIDR(breakdown.pph23Amount)})
-              </td>
-            </tr>
-            <tr className="bg-slate-100/80 font-black text-slate-900 border-t border-slate-300">
-              <td className="p-2 font-black uppercase text-slate-900 tracking-wider text-xs">
-                TOTAL INVOICE
-              </td>
-              <td className="p-2 text-right font-black text-slate-950 w-44 sm:w-56 text-sm">
-                {formatIDR(breakdown.netTotalInvoice > 0 ? breakdown.netTotalInvoice : (sumAdjusted > 0 ? sumAdjusted : sumInitial))}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      {!isPOS ? (
+        <div className="overflow-x-auto rounded-[4px] border border-slate-200 shadow-xs bg-white">
+          <table className="w-full text-xs font-mono border-collapse">
+            <tbody>
+              <tr className="border-b border-slate-200 hover:bg-slate-50/60">
+                <td className="p-2 font-bold uppercase text-slate-800 tracking-wider">
+                  TOTAL
+                </td>
+                <td className="p-2 text-right font-bold text-slate-900 w-44 sm:w-56">
+                  {formatIDR(breakdown.totalGross > 0 ? breakdown.totalGross : (sumAdjusted > 0 ? sumAdjusted : sumInitial))}
+                </td>
+              </tr>
+              <tr className="border-b border-slate-200 hover:bg-slate-50/60">
+                <td className="p-2 font-bold uppercase text-slate-700 tracking-wider">
+                  DPP PPN 11/12
+                </td>
+                <td className="p-2 text-right font-medium text-slate-800 w-44 sm:w-56">
+                  {formatIDR(breakdown.dpp11_12)}
+                </td>
+              </tr>
+              <tr className="border-b border-slate-200 hover:bg-slate-50/60">
+                <td className="p-2 font-bold uppercase text-slate-700 tracking-wider">
+                  VAT ( 12%)
+                </td>
+                <td className="p-2 text-right font-medium text-slate-800 w-44 sm:w-56">
+                  {formatIDR(breakdown.vat12)}
+                </td>
+              </tr>
+              <tr className="border-b border-slate-200 hover:bg-slate-50/60">
+                <td className="p-2 font-bold uppercase text-slate-700 tracking-wider">
+                  WITH HOLDING TAX ART 23 (2%)
+                </td>
+                <td className="p-2 text-right font-medium text-slate-800 w-44 sm:w-56">
+                  ({formatIDR(breakdown.pph23Amount)})
+                </td>
+              </tr>
+              <tr className="bg-slate-100/80 font-black text-slate-900 border-t border-slate-300">
+                <td className="p-2 font-black uppercase text-slate-900 tracking-wider text-xs">
+                  TOTAL INVOICE
+                </td>
+                <td className="p-2 text-right font-black text-slate-950 w-44 sm:w-56 text-sm">
+                  {formatIDR(breakdown.netTotalInvoice > 0 ? breakdown.netTotalInvoice : (sumAdjusted > 0 ? sumAdjusted : sumInitial))}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        (baMDOItems || []).some((it) => Number(it.initialVolume || 0) > 0) && (
+          <div className="overflow-x-auto rounded-[4px] border border-[#A57C50]/40 shadow-xs bg-amber-50/30 px-3.5 py-2.5 flex items-center justify-between">
+            <span className="font-extrabold text-xs text-[#1A1612] uppercase tracking-wider">
+              GRAND TOTAL GABUNGAN INVOICE POS (OPERATING + MDO):
+            </span>
+            <span className="font-mono font-black text-sm text-[#A57C50]">
+              {formatIDR(breakdown.netTotalInvoice)}
+            </span>
+          </div>
+        )
+      )}
 
       {/* Tabel 3: Pengurang Pembayaran (Section P / Denda & Penalti SBS) */}
       <BADeductionTable
@@ -899,95 +1270,228 @@ export function BATrackerSurveyItems({
             </div>
           )}
 
-          {/* 3 Parameter Input Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* 1. Fuel Price (Fn) */}
-            <div className="bg-white border border-amber-200 rounded-[3px] p-2.5 space-y-1 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <label className="text-[10px] font-black uppercase tracking-wider text-amber-950 flex items-center gap-1">
-                  <Flame size={12} className="text-[#A57C50]" />
-                  Actual Fuel (Fn in USD)
-                </label>
-                <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
-                  Weight (a): 34%
-                </span>
-              </div>
-              {!isInlineEditingBA ? (
-                <div className="font-mono font-bold text-slate-900 text-sm pt-1">
-                  $ {posFn > 0 ? posFn.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 6 }) : "0,00"}
-                </div>
-              ) : (
-                <FormattedNumberInput
-                  allowDecimals
-                  maxDecimals={6}
-                  placeholder="0,000"
-                  className="w-full bg-white border border-slate-300 font-mono font-bold text-slate-900 p-1.5 rounded-[3px] outline-none focus:border-[#A57C50] text-sm"
-                  value={posFn}
-                  onChange={(val) => handlePOSParamChange("actualFuelFn", Number(val || 0))}
-                />
-              )}
-              <div className="text-[10px] text-slate-500 font-mono pt-0.5">
-                Komponen D = <strong className="text-amber-900 font-bold">{posD.toFixed(6)}</strong>
-              </div>
-            </div>
+          {/* Info Banner Alur Site vs HO */}
+          <div className="text-[11px] bg-amber-100/60 border border-amber-200 text-amber-950 p-2 rounded-[3px] flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#A57C50]"></span>
+              <strong>Standar Enterprise:</strong> Finance Site hanya menginput harga aktual Fuel (Fn). Indikator Labor (Ln) dan Kurs (Xn) ditarik otomatis dari Master Data Finance HO.
+            </span>
+          </div>
 
-            {/* 2. Labor / UMK (Ln) */}
-            <div className="bg-white border border-amber-200 rounded-[3px] p-2.5 space-y-1 shadow-2xs">
+          {/* TABEL PENGISIAN FUEL AKTUAL (~5 KALI ISI ULANG) */}
+          <div className="overflow-x-auto rounded-[3px] border border-amber-200 bg-white shadow-2xs">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="bg-amber-100/70 text-amber-950 font-extrabold text-[10px] uppercase border-b border-amber-200">
+                  <th className="p-2 text-left w-36 border-r border-amber-200">Periode</th>
+                  <th className="p-2 text-right border-r border-amber-200 w-32">Qty</th>
+                  <th className="p-2 text-right border-r border-amber-200 w-36">Unit Price/Harga</th>
+                  <th className="p-2 text-right border-r border-amber-200 w-40">Total</th>
+                  {isInlineEditingBA && <th className="p-2 text-center w-12">Aksi</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-amber-100 font-medium">
+                {posRefills.map((refill: any, idx: number) => {
+                  const rowTotal = Number(refill.liters || 0) * Number(refill.pricePerLiter || 0);
+                  return (
+                    <tr key={refill.id || idx} className="hover:bg-amber-50/20">
+                      <td className="p-1.5 border-r border-amber-100 bg-amber-50/30">
+                        {!isInlineEditingBA ? (
+                          <span className="font-bold text-slate-900 px-1">{refill.date || refill.label || `Pengisian ${idx + 1}`}</span>
+                        ) : (
+                          <input
+                            type="date"
+                            value={refill.date || ""}
+                            onChange={(e) => handlePOSRefillChange(idx, "date", e.target.value)}
+                            className="w-full bg-white border border-slate-300 font-bold text-slate-900 p-1 rounded-[3px] outline-none focus:border-[#A57C50] text-xs"
+                          />
+                        )}
+                      </td>
+                      <td className="p-1.5 border-r border-amber-100">
+                        {!isInlineEditingBA ? (
+                          <span className="block text-right font-mono font-bold text-slate-800 p-1">
+                            {Number(refill.liters || 0) > 0 ? Number(refill.liters).toLocaleString("id-ID") : "0"}
+                          </span>
+                        ) : (
+                          <FormattedNumberInput
+                            allowDecimals
+                            maxDecimals={2}
+                            placeholder="0"
+                            className="w-full bg-white border border-slate-300 font-mono font-bold text-right p-1.5 rounded-[3px] outline-none focus:border-[#A57C50]"
+                            value={Number(refill.liters || 0)}
+                            onChange={(val) => handlePOSRefillChange(idx, "liters", Number(val || 0))}
+                          />
+                        )}
+                      </td>
+                      <td className="p-1.5 border-r border-amber-100">
+                        {!isInlineEditingBA ? (
+                          <span className="block text-right font-mono font-bold text-slate-800 p-1">
+                            {Number(refill.pricePerLiter || 0) > 0
+                              ? Number(refill.pricePerLiter).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                              : "0,00"}
+                          </span>
+                        ) : (
+                          <FormattedNumberInput
+                            allowDecimals
+                            maxDecimals={2}
+                            placeholder="0,00"
+                            className="w-full bg-white border border-slate-300 font-mono font-bold text-right p-1.5 rounded-[3px] outline-none focus:border-[#A57C50]"
+                            value={Number(refill.pricePerLiter || 0)}
+                            onChange={(val) => handlePOSRefillChange(idx, "pricePerLiter", Number(val || 0))}
+                          />
+                        )}
+                      </td>
+                      <td className="p-2 text-right font-mono font-bold text-slate-900 bg-amber-50/30 border-r border-amber-100">
+                        Rp {rowTotal.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                      </td>
+                      {isInlineEditingBA && (
+                        <td className="p-1 text-center">
+                          {posRefills.length > 1 ? (
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePOSRefillRow(idx)}
+                              title="Hapus baris pengisian"
+                              className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-100 rounded-[3px] transition cursor-pointer mx-auto flex items-center justify-center"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handlePOSRefillChange(0, "liters", 0);
+                                handlePOSRefillChange(0, "pricePerLiter", 0);
+                              }}
+                              title="Reset baris pengisian"
+                              className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-[3px] transition cursor-pointer mx-auto flex items-center justify-center"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                {/* Ringkasan Total Refill & Average Rp/L */}
+                <tr className="bg-amber-100/90 font-bold border-t-2 border-amber-300 text-amber-950">
+                  <td className="p-2 text-left uppercase text-[10px] tracking-wider border-r border-amber-200">
+                    TOTAL PENGISIAN BBM ({activeFuelPeriod})
+                  </td>
+                  <td className="p-2 text-right font-mono font-bold border-r border-amber-200">
+                    {posTotalLiters.toLocaleString("id-ID")} L
+                  </td>
+                  <td className="p-2 text-right font-mono font-bold border-r border-amber-200">
+                    <span className="text-[10px] text-amber-900 block font-sans uppercase">Fuel Price {getPeriodMonthName(activeFuelPeriod)}:</span>
+                    Rp {posAvgPriceIDR.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="p-2 text-right font-mono font-black text-amber-950 text-xs border-r border-amber-200">
+                    <div>Rp {posTotalCost.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                    <span className="text-[9px] text-[#A57C50] font-sans font-bold block">Sinkron ke DP Fuel (Seksi E)</span>
+                  </td>
+                  {isInlineEditingBA && <td className="p-2 bg-amber-100/90"></td>}
+                </tr>
+                {/* Konversi ke USD Fn */}
+                <tr className="bg-amber-50 font-bold border-t border-amber-200 text-amber-950">
+                  <td colSpan={2} className="p-2 text-left uppercase text-[10px] tracking-wider border-r border-amber-200">
+                    RATA-RATA HARGA FUEL AKTUAL (Fn in USD) = Avg Rp / M-Rate BI ({posXn > 0 ? posXn.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-"})
+                  </td>
+                  <td colSpan={isInlineEditingBA ? 3 : 2} className="p-2 text-right font-mono font-black text-amber-950 text-xs">
+                    <div className="flex items-center justify-end gap-2">
+                      <span>Fn (USD/Liter):</span>
+                      {!isInlineEditingBA ? (
+                        <span className="bg-white px-2 py-0.5 rounded-[3px] border border-amber-300 shadow-2xs">
+                          $ {posFn > 0 ? posFn.toLocaleString("id-ID", { minimumFractionDigits: 4, maximumFractionDigits: 6 }) : "0,00"}
+                        </span>
+                      ) : (
+                        <div className="w-32">
+                          <FormattedNumberInput
+                            allowDecimals
+                            maxDecimals={6}
+                            placeholder="0,0000"
+                            className="w-full bg-white border border-amber-300 font-mono font-bold text-right p-1 rounded-[3px] outline-none focus:border-[#A57C50] text-xs"
+                            value={posFn}
+                            onChange={(val) => handlePOSParamChange("actualFuelFn", Number(val || 0))}
+                          />
+                        </div>
+                      )}
+                      <span className="text-[10px] text-slate-500 font-sans font-normal">(D = {posD.toFixed(4)})</span>
+                    </div>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {/* Tombol Tambah Baris Pengisian jika Mode Edit Aktif */}
+          {isInlineEditingBA && (
+            <div className="flex justify-start">
+              <button
+                type="button"
+                onClick={handleAddPOSRefillRow}
+                className="px-2.5 py-1 text-[11px] font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 rounded-[3px] border border-amber-300 flex items-center gap-1 transition cursor-pointer shadow-2xs"
+              >
+                <Plus size={12} />
+                <span>Tambah Baris Pengisian BBM</span>
+              </button>
+            </div>
+          )}
+
+          {/* 2 Parameter Master Data HO (Labor & Kurs) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            {/* 1. Labor / UMK (Ln) - Auto from Master Data HO (Locked) */}
+            <div className="bg-slate-50 border border-slate-200 rounded-[3px] p-2.5 space-y-1.5 shadow-2xs">
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-black uppercase tracking-wider text-amber-950 flex items-center gap-1">
-                  <TrendingUp size={12} className="text-[#A57C50]" />
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1">
+                  <TrendingUp size={12} className="text-slate-600" />
                   Actual Labor / UMK (Ln in IDR)
                 </label>
-                <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
-                  Weight (b): 25%
+                <span className="text-[9px] font-bold text-slate-700 bg-white px-1.5 py-0.5 rounded-[3px] border border-slate-300 flex items-center gap-1">
+                  <Lock size={10} className="text-slate-500" />
+                  Auto Master HO
                 </span>
               </div>
-              {!isInlineEditingBA ? (
-                <div className="font-mono font-bold text-slate-900 text-sm pt-1">
-                  Rp {posLn > 0 ? posLn.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : "0"}
-                </div>
-              ) : (
-                <FormattedNumberInput
-                  allowDecimals
-                  maxDecimals={2}
-                  placeholder="0"
-                  className="w-full bg-white border border-slate-300 font-mono font-bold text-slate-900 p-1.5 rounded-[3px] outline-none focus:border-[#A57C50] text-sm"
-                  value={posLn}
-                  onChange={(val) => handlePOSParamChange("actualLaborLn", Number(val || 0))}
-                />
-              )}
-              <div className="text-[10px] text-slate-500 font-mono pt-0.5">
-                Komponen L = <strong className="text-amber-900 font-bold">{posL.toFixed(6)}</strong>
+              <div className="text-[10px] text-slate-500 font-medium truncate" title={hoPOSResolved.laborSource}>
+                Sumber: {hoPOSResolved.laborSource}
+              </div>
+              <div className="w-full bg-slate-100/90 border border-slate-300 font-mono font-bold text-slate-800 p-1.5 rounded-[3px] text-sm flex items-center justify-between cursor-not-allowed select-none">
+                <span>Rp {posLn > 0 ? posLn.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : "0"}</span>
+                <span className="text-[9px] font-sans font-bold bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-[2px] uppercase tracking-wider flex items-center gap-1">
+                  <Lock size={9} /> Locked
+                </span>
+              </div>
+              <div className="text-[10px] text-slate-600 font-mono pt-0.5 flex items-center justify-between border-t border-slate-200/60">
+                <span>Komponen L (25%):</span>
+                <strong className="text-slate-900 font-bold">{posL.toFixed(6)}</strong>
               </div>
             </div>
 
-            {/* 3. Forex / M-Rate (Xn) */}
-            <div className="bg-white border border-amber-200 rounded-[3px] p-2.5 space-y-1 shadow-2xs">
+            {/* 2. Forex / M-Rate (Xn) - Auto from Master Data HO (Locked) */}
+            <div className="bg-slate-50 border border-slate-200 rounded-[3px] p-2.5 space-y-1.5 shadow-2xs">
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-black uppercase tracking-wider text-amber-950 flex items-center gap-1">
-                  <Calculator size={12} className="text-[#A57C50]" />
+                <label className="text-[10px] font-black uppercase tracking-wider text-slate-800 flex items-center gap-1">
+                  <Calculator size={12} className="text-slate-600" />
                   Actual Forex / M-Rate (Xn in IDR)
                 </label>
-                <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
-                  Fixed (c): 41%
+                <span className="text-[9px] font-bold text-slate-700 bg-white px-1.5 py-0.5 rounded-[3px] border border-slate-300 flex items-center gap-1">
+                  <Lock size={10} className="text-slate-500" />
+                  Auto Kurs BI HO
                 </span>
               </div>
-              {!isInlineEditingBA ? (
-                <div className="font-mono font-bold text-slate-900 text-sm pt-1">
-                  Rp {posXn > 0 ? posXn.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) : "0,00"}
-                </div>
-              ) : (
-                <FormattedNumberInput
-                  allowDecimals
-                  maxDecimals={3}
-                  placeholder="0,00"
-                  className="w-full bg-white border border-slate-300 font-mono font-bold text-slate-900 p-1.5 rounded-[3px] outline-none focus:border-[#A57C50] text-sm"
-                  value={posXn}
-                  onChange={(val) => handlePOSParamChange("actualMRateXn", Number(val || 0))}
-                />
-              )}
-              <div className="text-[10px] text-slate-500 font-mono pt-0.5">
-                Komponen F = <strong className="text-amber-900 font-bold">{posF.toFixed(6)}</strong>
+              <div className="text-[10px] text-slate-500 font-medium truncate" title={hoPOSResolved.currencySource}>
+                Sumber: {hoPOSResolved.currencySource}
+              </div>
+              <div className="w-full bg-slate-100/90 border border-slate-300 font-mono font-bold text-slate-800 p-1.5 rounded-[3px] text-sm flex items-center justify-between cursor-not-allowed select-none">
+                <span>Rp {posXn > 0 ? posXn.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) : "0,00"}</span>
+                <span className="text-[9px] font-sans font-bold bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-[2px] uppercase tracking-wider flex items-center gap-1">
+                  <Lock size={9} /> Locked
+                </span>
+              </div>
+              <div className="text-[10px] text-slate-600 font-mono pt-0.5 flex items-center justify-between border-t border-slate-200/60">
+                <span>Fixed F (41%):</span>
+                <strong className="text-slate-900 font-bold">{posF.toFixed(6)}</strong>
               </div>
             </div>
           </div>

@@ -762,6 +762,10 @@ th { color: #5A5046; font-size: 0.7rem; text-transform: uppercase; letter-spacin
 .form-actions-sticky { position: sticky; bottom: 0; background: #fff; padding: 14px 0; z-index: 5; }
 
 /* ===== Toast ===== */
+@keyframes toastProgress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
 .toast-stack { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); z-index: 99999; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
 .toast-item { pointer-events: auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 560px; width: 92%; padding: 10px 14px; border-radius: 12px; font-size: 13px; font-weight: 700; box-shadow: 0 10px 30px rgba(15,23,42,.18); border: 1px solid transparent; cursor: pointer; }
 .toast-success { background: #f4fbf7; color: #067647; border-color: #bfe6d2; }
