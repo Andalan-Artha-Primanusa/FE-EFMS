@@ -11,8 +11,7 @@ import {
   generateBANumberPreview, generateInvoiceNumberPreview, getYearFromPeriod,
   generateInvoiceNumber, getBAInvoiceStatus, renderBAStatusBadge,
   getBAStatusForExport, renderInvoiceStatusBadge, parsePeriodToMonthIndex,
-  RupiahInput, FormattedNumberInput, generateAuditTimeline
-} from "./helpers";
+  RupiahInput, FormattedNumberInput, generateAuditTimeline, getCustomerOfficialName } from "./helpers";
 
 export function PendingVolumeModal({ c }: { c: any }) {
   const {
@@ -250,7 +249,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
                                   <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-950 font-mono font-black text-[10px]">
                                     {item.customerCode}
                                   </span>
-                                  <span>{item.customerCode === "BGG" ? "PT Budi Gema Gempita" : item.customerCode === "SBS" ? "PT Satria Bahana Sarana" : item.customerCode}</span>
+                                  <span>{getCustomerOfficialName(item.customerCode)}</span>
                                 </div>
                               </td>
                               <td className="p-2.5 px-3 text-center font-mono font-bold text-slate-800 whitespace-nowrap">
@@ -273,8 +272,8 @@ export function PendingVolumeModal({ c }: { c: any }) {
                                 </span>
                               </td>
                               <td className="p-2.5 px-3 text-right font-mono text-[11px] text-slate-600 whitespace-nowrap">
-                                <div>75%: Rp {(item.ob1Rate || 7467).toLocaleString("id-ID")}</div>
-                                <div className="text-[10px] text-slate-400">25%: Rp {(item.ob2Rate || 7261).toLocaleString("id-ID")}</div>
+                                <div>75%: Rp {(item.ob1Rate || 0).toLocaleString("id-ID")}</div>
+                                <div className="text-[10px] text-slate-400">25%: Rp {(item.ob2Rate || 0).toLocaleString("id-ID")}</div>
                               </td>
                               <td className="p-2.5 px-3 text-right font-mono font-black text-emerald-800 whitespace-nowrap">
                                 {formatIDR(estAmount)}

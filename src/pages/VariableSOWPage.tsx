@@ -23,7 +23,8 @@ import {
 } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
-import { api, getCompanies, type Company } from "../lib/api";
+import { api } from "../lib/api";
+import { customerKind, kursForPeriod } from "./finance/masterRegistry";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const formatIDR = (val: number) => {
@@ -31,101 +32,24 @@ const formatIDR = (val: number) => {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 2 }).format(val);
 };
 
-export const SOW_OPERATIONAL_SITES = [
-  { code: "BGG", name: "PT Budi Gema Gempita", fullName: "PT Budi Gema Gempita (BGG)", contractNo: "09/BGG-AAP/VIII/2018" },
-  { code: "POS", name: "PT Position", fullName: "PT Position (POS)", contractNo: "002/POS-AAP/2025" },
-  { code: "SBS", name: "PT Satria Bahana Sarana", fullName: "PT Satria Bahana Sarana (SBS)", contractNo: "230/AAP-SBS/EXT/XII/24" },
-  { code: "PTRO", name: "PT Petrosea", fullName: "PT Petrosea (PTRO)", contractNo: "001/PTRO-AAP/2024" },
-];
+export const normalizeSOWSiteCode = (code: string): string => customerKind(code);
 
-export const VALID_SOW_SITE_CODES = new Set(["BGG", "POS", "SBS", "PTRO"]);
+/** Site & kontrak pemilik Variable SOW = Master Customer (BE). */
+export async function loadSOWCustomerSites(): Promise<{ code: string; name: string; fullName: string; contractNo: string }[]> {
+  const rows = await api<any[]>("/api/finance/customers").catch(() => []);
+  return (Array.isArray(rows) ? rows : []).map((c) => ({
+    code: normalizeSOWSiteCode(c.code),
+    name: c.fullName || c.code,
+    fullName: `${c.fullName || c.code} (${c.code})`,
+    contractNo: c.contractNo || "",
+  }));
+}
 
-export const normalizeSOWSiteCode = (code: string): string => {
-  const c = (code || "").toUpperCase().trim();
-  if (c === "PT BGG" || c === "BGG") return "BGG";
-  if (c === "PT POSITION" || c === "POSITION" || c === "POS") return "POS";
-  if (c === "PT SATRIA BAHANA SARANA" || c === "PT SBS" || c === "SBS") return "SBS";
-  if (c === "PT PETROSEA" || c === "PTRO" || c === "DBK") return "PTRO";
-  return c;
+/** M-Rate periode terbaru di Master Kurs BI (0 bila belum ada). */
+export const latestPeriodMRate = (rates: any[]): number => {
+  const period = Array.isArray(rates) && rates.length > 0 ? rates[rates.length - 1]?.period : "";
+  return period ? kursForPeriod(period, rates) : 0;
 };
-
-export const defaultBGGSOWTemplate = [
-  { category: "OB Removal", itemName: "OVER BURDEN REMOVAL 1 (75%)", tier1Rate: 27000, tier2Rate: 27250, tier3Rate: 29500, splitPercentage: 75, baseDistanceMeters: 1000, unit: "Bcm", rateIDR: 27250, rateUSD: 0 },
-  { category: "OB Removal", itemName: "OVER BURDEN REMOVAL 2 (25%)", tier1Rate: 26250, tier2Rate: 26500, tier3Rate: 28750, splitPercentage: 25, baseDistanceMeters: 1000, unit: "Bcm", rateIDR: 26500, rateUSD: 0 },
-  { category: "Coal Winning", itemName: "Coal Winning", tier1Rate: 15000, tier2Rate: 16500, tier3Rate: 17500, splitPercentage: 100, baseDistanceMeters: 1000, unit: "Ton", rateIDR: 16500, rateUSD: 0 },
-  { category: "Over Distance", itemName: "Over Distance For OB Removal", tier1Rate: 500, tier2Rate: 600, tier3Rate: 650, splitPercentage: 100, baseDistanceMeters: 1000, unit: "Bcm/100 Mtr", rateIDR: 600, rateUSD: 0 },
-  { category: "Over Distance", itemName: "Over Distance For Coal Winning", tier1Rate: 400, tier2Rate: 500, tier3Rate: 550, splitPercentage: 100, baseDistanceMeters: 1000, unit: "Ton/100 Mtr", rateIDR: 500, rateUSD: 0 },
-  { category: "Rehandling", itemName: "Rehandling Batubara", tier1Rate: 7500, tier2Rate: 7500, tier3Rate: 7500, splitPercentage: 100, baseDistanceMeters: 0, unit: "Ton", rateIDR: 7500, rateUSD: 0 },
-];
-
-export const defaultSOWTemplate = [
-  // Operation & Mining (9 Items)
-  { category: "Operation & Mining", itemName: "Clear & Grub", rateUSD: 0.381, unit: "USD/m2" },
-  { category: "Operation & Mining", itemName: "Topsoil Removal - Base Rate (1000m)", rateUSD: 3.380, unit: "USD/BCM" },
-  { category: "Operation & Mining", itemName: "Topsoil Removal - over/underhaul", rateUSD: 0.538, unit: "USD/1KM" },
-  { category: "Operation & Mining", itemName: "Overburden/Waste - Base Rate (1000m)", rateUSD: 3.327, unit: "USD/BCM" },
-  { category: "Operation & Mining", itemName: "OB/Waste - over/underhaul", rateUSD: 0.538, unit: "USD/1KM" },
-  { category: "Operation & Mining", itemName: "Limonite - Base Rate (1000m)", rateUSD: 3.363, unit: "USD/BCM" },
-  { category: "Operation & Mining", itemName: "Limonite - over/underhaul", rateUSD: 0.526, unit: "USD/1KM" },
-  { category: "Operation & Mining", itemName: "Saprolite - Base Rate (1000m)", rateUSD: 3.472, unit: "USD/BCM" },
-  { category: "Operation & Mining", itemName: "Saprolite - over/underhaul", rateUSD: 0.526, unit: "USD/1KM" },
-
-  // Rehabilitation (2 Items)
-  { category: "Rehabilitation", itemName: "Topsoil Reclaim/Haul/Spread - Base Rate (1000m)", rateUSD: 3.258, unit: "USD/BCM" },
-  { category: "Rehabilitation", itemName: "Topsoil Reclaim/Haul/Spread - overhaul", rateUSD: 0.538, unit: "USD/1KM" },
-
-  // Mine Development (MDO) (17 Items)
-  { category: "Mine Development (MDO)", itemName: "Topsoil Removal - Base Rate (1000m)", rateUSD: 3.380, unit: "USD/BCM" },
-  { category: "Mine Development (MDO)", itemName: "Topsoil Removal - over/underhaul", rateUSD: 0.538, unit: "USD/1KM" },
-  { category: "Mine Development (MDO)", itemName: "Overburden/Waste - Base Rate (1000m)", rateUSD: 3.327, unit: "USD/BCM" },
-  { category: "Mine Development (MDO)", itemName: "OB/Waste - over/underhaul", rateUSD: 0.538, unit: "USD/1KM" },
-  { category: "Mine Development (MDO)", itemName: "Limonite - Base Rate (1000m)", rateUSD: 3.363, unit: "USD/BCM" },
-  { category: "Mine Development (MDO)", itemName: "Limonite - over/underhaul", rateUSD: 0.526, unit: "USD/1KM" },
-  { category: "Mine Development (MDO)", itemName: "Saprolite - Base Rate (1000m)", rateUSD: 3.472, unit: "USD/BCM" },
-  { category: "Mine Development (MDO)", itemName: "Saprolite - over/underhaul", rateUSD: 0.526, unit: "USD/1KM" },
-  { category: "Mine Development (MDO)", itemName: "Cut - Base Rate (1000m)", rateUSD: 2.129, unit: "USD/BCM" },
-  { category: "Mine Development (MDO)", itemName: "Unblasted fill material", rateUSD: 3.335, unit: "USD/BCM" },
-  { category: "Mine Development (MDO)", itemName: "Cut or Fill under/overhaul", rateUSD: 0.521, unit: "USD/1KM" },
-  { category: "Mine Development (MDO)", itemName: "Excess Cut disposal in dump", rateUSD: 1.157, unit: "USD/BCM" },
-  { category: "Mine Development (MDO)", itemName: "Fill", rateUSD: 1.109, unit: "USD/BCM" },
-  { category: "Mine Development (MDO)", itemName: "Uncrushed rocks for construction - Base Rate (1000m)", rateUSD: 7.938, unit: "USD/BCM" },
-  { category: "Mine Development (MDO)", itemName: "Crusher rocks - Base Rate (1000m)", rateUSD: 13.050, unit: "USD/BCM" },
-  { category: "Mine Development (MDO)", itemName: "Rocks for construction - under/overhaul", rateUSD: 0.526, unit: "USD/1KM" },
-  { category: "Mine Development (MDO)", itemName: "Geotextile", rateUSD: 2.003, unit: "USD/m2" }
-];
-
-export const defaultSBSSOWTemplate = [
-  // OB Removal (Per Area Kerja)
-  { category: "OB Removal", itemName: "PIT E - DISPOSAL SEKATAN", unit: "BCM", rateIDR: 22654, rateUSD: 0 },
-  { category: "OB Removal", itemName: "PIT E - RENCANA JALAN", unit: "BCM", rateIDR: 12638, rateUSD: 0 },
-  { category: "OB Removal", itemName: "PIT E - RENCANA CSA", unit: "BCM", rateIDR: 8346, rateUSD: 0 },
-  { category: "OB Removal", itemName: "PIT E - JALAN BARITO", unit: "BCM", rateIDR: 15500, rateUSD: 0 },
-  { category: "OB Removal", itemName: "PIT E - SEKATAN", unit: "BCM", rateIDR: 16931, rateUSD: 0 },
-  { category: "OB Removal", itemName: "PIT E - TS MAHONI", unit: "BCM", rateIDR: 22654, rateUSD: 0 },
-  { category: "OB Removal", itemName: "PIT E - IPD WARWEFILL", unit: "BCM", rateIDR: 8346, rateUSD: 0 },
-  { category: "OB Removal", itemName: "PIT E - SEKATAN (High Rate)", unit: "BCM", rateIDR: 19375, rateUSD: 0 },
-
-  // Jasa Penunjang Produksi (Rental Alat Berat - Kontrak SPPH-05852)
-  { category: "Jasa Penunjang Produksi", itemName: "Dozer CAT D10 - BDCT 1001", unit: "Hours", rateIDR: 1980000, rateUSD: 0 },
-  { category: "Jasa Penunjang Produksi", itemName: "Dozer CAT D10 - BDCT 1002", unit: "Hours", rateIDR: 1980000, rateUSD: 0 },
-  { category: "Jasa Penunjang Produksi", itemName: "Excavator CAT 395 - EXCT 3901", unit: "Hours", rateIDR: 1425000, rateUSD: 0 },
-  { category: "Jasa Penunjang Produksi", itemName: "Excavator CAT 395 - EXCT 3902", unit: "Hours", rateIDR: 1425000, rateUSD: 0 },
-
-  // Pengurang Pembayaran (Denda Operasional & BBM)
-  { category: "Pengurang Pembayaran", itemName: "1. Denda Ketidaktercapaian MA", unit: "Hours", rateIDR: 0, rateUSD: 0 },
-  { category: "Pengurang Pembayaran", itemName: "2. Kelebihan Pemakaian BBM Loader", unit: "Lot", rateIDR: 0, rateUSD: 0 },
-  { category: "Pengurang Pembayaran", itemName: "3. Kelebihan Pemakaian BBM Hauler", unit: "Lot", rateIDR: 0, rateUSD: 0 },
-  { category: "Pengurang Pembayaran", itemName: "4. Denda ketidakcapaian volume", unit: "Lot", rateIDR: 0, rateUSD: 0 },
-];
-
-export const defaultPTROSOWTemplate = [
-  { category: "Operating & Mining", itemName: "OVER BURDEN", unit: "USD/Bcm", rateUSD: 1.490, rateIDR: 0 },
-  { category: "Operating & Mining", itemName: "COAL GETTING", unit: "TON", rateUSD: 0.840, rateIDR: 0 },
-  { category: "Over Distance", itemName: "OVERHAUL OB", unit: "USD/BCM/100 Mtr", rateUSD: 0.028, rateIDR: 0, baseDistanceMeters: 1000 },
-  { category: "Over Distance", itemName: "OVERHAUL COAL GETTING", unit: "IDR/TON/100 Mtr", rateUSD: 0, rateIDR: 230, baseDistanceMeters: 3000 },
-];
-
-export const defaultDBKSOWTemplate = defaultPTROSOWTemplate;
 
 export function VariableSOWPage({
   viewTitle,
@@ -138,10 +62,10 @@ export function VariableSOWPage({
 }) {
   const [loading, setLoading] = useState(true);
   const [sowRows, setSowRows] = useState<any[]>([]);
-  const [mrateBi, setMrateBi] = useState<number>(17923.30);
+  const [mrateBi, setMrateBi] = useState<number>(0);
   const [contractsList, setContractsList] = useState<any[]>([]);
   const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>("ALL");
-  const [companyList, setCompanyList] = useState<any[]>(SOW_OPERATIONAL_SITES);
+  const [companyList, setCompanyList] = useState<any[]>([]);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -157,44 +81,27 @@ export function VariableSOWPage({
   async function loadData() {
     setLoading(true);
     try {
-      const [resSow, resMrate] = await Promise.all([
+      const [resSow, resMrate, sites] = await Promise.all([
         api<any[]>("/api/master-data/variable-sow").catch(() => []),
         api<any[]>("/api/master-data/daily-exchange-rates").catch(() => []),
+        loadSOWCustomerSites(),
       ]);
 
       const activeSows = Array.isArray(resSow) ? resSow : [];
       setSowRows(activeSows);
 
-      // Latest BI M-Rate
-      if (Array.isArray(resMrate) && resMrate.length > 0) {
-        const latest = resMrate[0];
-        const val = latest.kursTengah || ((latest.kursJual + latest.kursBeli) / 2);
-        if (val > 0) setMrateBi(val);
-      }
+      setMrateBi(latestPeriodMRate(resMrate));
 
-      // Group SOWs strictly for the 4 Operational Mining Sites
+      // Kelompok SOW per customer di Master Customer (hanya data tersimpan; tanpa template tarif).
       const groupedMap: Record<string, any> = {};
 
-      SOW_OPERATIONAL_SITES.forEach((site) => {
+      sites.forEach((site) => {
         const cCode = site.code;
         const siteDbItems = activeSows.filter(
           (item) => normalizeSOWSiteCode(item.customerCode || item.customer || "") === cCode
         );
 
-        let finalItems: any[] = [];
-        if (siteDbItems.length > 0) {
-          finalItems = siteDbItems.map((it) => ({ ...it }));
-        } else {
-          let template = defaultSOWTemplate;
-          if (cCode === "BGG") {
-            template = defaultBGGSOWTemplate;
-          } else if (cCode === "SBS") {
-            template = defaultSBSSOWTemplate;
-          } else if (cCode === "PTRO") {
-            template = defaultPTROSOWTemplate;
-          }
-          finalItems = template.map((t) => ({ ...t, customerCode: cCode, customer: cCode }));
-        }
+        const finalItems = siteDbItems.map((it) => ({ ...it }));
 
         groupedMap[cCode] = {
           companyName: site.name,
@@ -209,7 +116,7 @@ export function VariableSOWPage({
       });
 
       setContractsList(Object.values(groupedMap));
-      setCompanyList(SOW_OPERATIONAL_SITES);
+      setCompanyList(sites);
     } catch (err: any) {
       onNotice(err?.message || "Gagal memuat data Variable SOW");
     } finally {

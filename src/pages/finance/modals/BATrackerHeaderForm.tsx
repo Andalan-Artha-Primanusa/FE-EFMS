@@ -2,6 +2,7 @@ import React from "react";
 import { Layers, Calculator, UserCheck } from "lucide-react";
 import { MonthPickerInput, matchPeriod } from "../helpers";
 import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF } from "../ba_calculations";
+import { obSplitSOWs, sowFor, sowTierRate, computeRFIndex, rfTemplateFor, ptroContractRates } from "../masterRegistry";
 
 interface BATrackerHeaderFormProps {
   activeBAStep: number;
@@ -46,10 +47,10 @@ export function BATrackerHeaderForm({
   setBaDeductionItems,
   latestKursBI,
   user,
-  rfIndexCalculated = 1.560,
+  rfIndexCalculated = 1.0,
   coalIndexMaster = [],
   fuelPriceUSD = 1.15,
-  laborPriceIDR = 29500,
+  laborPriceIDR = 0,
   defaultPOSBAOperatingItems = [],
   defaultPOSBAMDOItems = [],
   defaultDBKBAItems = [],
@@ -116,7 +117,7 @@ export function BATrackerHeaderForm({
                   const isPTRO = code === "PTRO" || code === "PT Petrosea";
                   const isDBK = code === "DBK";
                   const isSBS = code === "SBS";
-                  const currentPeriod = formData.workPeriod || "Agustus 2026";
+                  const currentPeriod = formData.workPeriod || "";
                   
                   if (isPOS) {
                     const matched = (raiseFallMasters || []).find((r: any) => {
@@ -161,17 +162,11 @@ export function BATrackerHeaderForm({
                       rfIndexCalculated: 1.0,
                       ptroData: {
                         actualMRate: currentM,
-                        obRateUSD: 1.490,
-                        cgRateUSD: 0.840,
-                        odObRateUSD: 0.028,
-                        odCgRateIDR: 230,
+                        ...ptroContractRates(code),
                         fuelPeriods: {
                           [currentPeriod]: {
                             actualMRate: currentM,
-                            obRateUSD: 1.490,
-                            cgRateUSD: 0.840,
-                            odObRateUSD: 0.028,
-                            odCgRateIDR: 230,
+                            ...ptroContractRates(code),
                           }
                         }
                       }
@@ -211,7 +206,7 @@ export function BATrackerHeaderForm({
                     const p2F = Number(matched?.bggFuelP2 ?? 0);
                     const p2T = Number(matched?.bggTransportP2 ?? 0);
                     const avg = Number(matched?.actualFuelFn || ((p1F + p1T > 0 && p2F + p2T > 0) ? (p1F + p1T + p2F + p2T) / 2 : (p1F + p1T || p2F + p2T || 0)));
-                    const rf = Number(matched?.rfIndexResult || (avg > 0 ? Number((0.60 + 0.40 * (avg / 9000)).toFixed(3)) : 1.560));
+                    const rf = Number(matched?.rfIndexResult || computeRFIndex(matched || rfTemplateFor(code), avg) || 1);
                     setFormData({
                       ...formData,
                       customerCode: code,
@@ -240,19 +235,15 @@ export function BATrackerHeaderForm({
                   }
 
                   if (isBGG) {
-                    const activeTier = getBGGActiveCoalTier ? getBGGActiveCoalTier(currentPeriod) : "Tier 2";
-                    const ob1Rate = activeTier === "Tier 3" ? 29500 : (activeTier === "Tier 1" ? 27000 : 27250);
-                    const ob2Rate = activeTier === "Tier 3" ? 28750 : (activeTier === "Tier 1" ? 26250 : 26500);
-                    const cwRate = activeTier === "Tier 3" ? 17500 : (activeTier === "Tier 1" ? 15000 : 16500);
-                    const odObRate = activeTier === "Tier 3" ? 650 : (activeTier === "Tier 1" ? 500 : 600);
-                    const odCwRate = activeTier === "Tier 3" ? 550 : (activeTier === "Tier 1" ? 400 : 500);
-                    const bggRows = (defaultBGGBAItems && defaultBGGBAItems.length > 0) ? defaultBGGBAItems : [
-                      { id: `bgg_ob1_${Date.now()}`, category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 1 (75%)", period: currentPeriod, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: ob1Rate, subtotalInitial: 0, subtotalAdjusted: 0 },
-                      { id: `bgg_ob2_${Date.now() + 1}`, category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 2 (25%)", period: currentPeriod, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: ob2Rate, subtotalInitial: 0, subtotalAdjusted: 0 },
-                      { id: `bgg_cw_${Date.now() + 2}`, category: "Operating & Mining", area: "Pit KKL", material: "Coal Winning", period: currentPeriod, notes: "", keterangan: "", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: cwRate, subtotalInitial: 0, subtotalAdjusted: 0 },
-                      { id: `bgg_od_ob_${Date.now() + 3}`, category: "Over Distance", area: "Pit KKL", material: "Over Distance For OB Removal", period: currentPeriod, notes: "", keterangan: "", unit: "BCM", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: odObRate, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
-                      { id: `bgg_od_cw_${Date.now() + 4}`, category: "Over Distance", area: "Pit KKL", material: "Over Distance For Coal Winning", period: currentPeriod, notes: "", keterangan: "", unit: "Ton", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: odCwRate, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 }
-                    ];
+                    // Tarif tier Coal Index periode dari Master Variable SOW customer.
+                    const activeTier = getBGGActiveCoalTier ? getBGGActiveCoalTier(currentPeriod) : undefined;
+                    const [ob1SOW, ob2SOW] = obSplitSOWs(code);
+                    const ob1Rate = sowTierRate(ob1SOW, activeTier);
+                    const ob2Rate = sowTierRate(ob2SOW, activeTier);
+                    const cwRate = sowTierRate(sowFor(code, "Coal Winning"), activeTier);
+                    const odObRate = sowTierRate(sowFor(code, "Over Distance For OB Removal"), activeTier);
+                    const odCwRate = sowTierRate(sowFor(code, "Over Distance For Coal Winning"), activeTier);
+                    const bggRows = defaultBGGBAItems || [];
                     setBaOperatingItems((bggRows || []).map((it: any) => {
                       let r = it.rate;
                       const m = (it.material || "").toUpperCase();
@@ -339,10 +330,7 @@ export function BATrackerHeaderForm({
                       const currentM = Number(matched?.actualMRateXn || newFuelPeriods[val]?.actualMRate || curPTRO.actualMRate || latestKursBI || 0);
                       newFuelPeriods[val] = {
                         actualMRate: currentM,
-                        obRateUSD: 1.490,
-                        cgRateUSD: 0.840,
-                        odObRateUSD: 0.028,
-                        odCgRateIDR: 230,
+                        ...ptroContractRates(custClean),
                       };
                       return {
                         ...prev,
@@ -390,7 +378,7 @@ export function BATrackerHeaderForm({
                       const tot1 = p1F + p1T;
                       const tot2 = p2F + p2T;
                       const avg = Number(matched?.actualFuelFn || newFuelPeriods[val]?.bggAvgFn || ((tot1 > 0 && tot2 > 0) ? (tot1 + tot2) / 2 : (tot1 || tot2 || 0)));
-                      const rf = Number(matched?.rfIndexResult || newFuelPeriods[val]?.bggRfIndex || (avg > 0 ? 0.60 + 0.40 * (avg / 9000) : 0));
+                      const rf = Number(matched?.rfIndexResult || newFuelPeriods[val]?.bggRfIndex || computeRFIndex(matched || rfTemplateFor(custClean), avg));
                       newFuelPeriods[val] = { bggFuelP1: p1F, bggTransportP1: p1T, bggFuelP2: p2F, bggTransportP2: p2T, bggAvgFn: avg, bggRfIndex: rf };
                       return {
                         ...prev,
@@ -411,11 +399,13 @@ export function BATrackerHeaderForm({
                   });
                   if (custClean.includes("BGG") && getBGGActiveCoalTier) {
                     const activeTier = getBGGActiveCoalTier(val);
-                    const ob1Rate = activeTier === "Tier 3" ? 29500 : (activeTier === "Tier 1" ? 27000 : 27250);
-                    const ob2Rate = activeTier === "Tier 3" ? 28750 : (activeTier === "Tier 1" ? 26250 : 26500);
-                    const cwRate = activeTier === "Tier 3" ? 17500 : (activeTier === "Tier 1" ? 15000 : 16500);
-                    const odObRate = activeTier === "Tier 3" ? 650 : (activeTier === "Tier 1" ? 500 : 600);
-                    const odCwRate = activeTier === "Tier 3" ? 550 : (activeTier === "Tier 1" ? 400 : 500);
+                    const code = custClean;
+                    const [ob1SOW, ob2SOW] = obSplitSOWs(code);
+                    const ob1Rate = sowTierRate(ob1SOW, activeTier);
+                    const ob2Rate = sowTierRate(ob2SOW, activeTier);
+                    const cwRate = sowTierRate(sowFor(code, "Coal Winning"), activeTier);
+                    const odObRate = sowTierRate(sowFor(code, "Over Distance For OB Removal"), activeTier);
+                    const odCwRate = sowTierRate(sowFor(code, "Over Distance For Coal Winning"), activeTier);
                     setBaOperatingItems(prev => prev.map(it => {
                       let r = it.rate;
                       const m = (it.material || "").toUpperCase();

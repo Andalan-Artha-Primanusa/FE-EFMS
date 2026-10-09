@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Clock } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { SBSPenaltyItem, User as UserType } from "../../lib/api";
-import { createFinanceCalculations, getSBSTarifByDistance, SBS_DISTANCE_TIERS, fetchServerInvoicePreview } from "./calculations";
+import { createFinanceCalculations, getSBSTarifByDistance, fetchServerInvoicePreview } from "./calculations";
 import { createFinanceExporters } from "./exporters";
 import { buildInvoiceItemsFromBA } from "./invoiceItemGenerator";
 import { useFinanceMasterData } from "./useFinanceMasterData";
@@ -49,7 +49,7 @@ export function useFinanceController({
   } = uiState;
 
   // Master Data Hook
-  const masterData = useFinanceMasterData(formData.customerCode, customerRows);
+  const masterData = useFinanceMasterData(formData.customerCode, customerRows, formData.workPeriod);
   const {
     mRate, setMRate, fuelPriceUSD, setFuelPriceUSD, laborPriceIDR, setLaborPriceIDR,
     dynamicSowOptions, setDynamicSowOptions, bankAccountOptions, setBankAccountOptions,
@@ -90,7 +90,6 @@ export function useFinanceController({
     selectedVarA, setSelectedVarA, selectedVarB, setSelectedVarB, selectedVarC, setSelectedVarC,
     selectedVarD, setSelectedVarD, selectedVarE, setSelectedVarE, selectedVarF, setSelectedVarF,
     selectedVarP, setSelectedVarP, addVariableToSection,
-    loadDemoPOSData, loadDemoBGGData, loadDemoPTROData, loadDemoDBKData, loadDemoSBSData,
     removeInvLineItem, updateInvItemVolume, updateInvItemOverhaul, updateInvItemRateIDR,
     updateInvItemRateUSD, updateInvItemKurs, updateInvItemAmount, addInvLineItem,
     updateInvItemField, reorderInvLineItems, moveInvRow, handleGenerateInvoiceFromBA,
@@ -267,12 +266,11 @@ export function useFinanceController({
     setPosInvoiceCategory, invLineItems, setInvLineItems, selectedVarA, setSelectedVarA, selectedVarB,
     setSelectedVarB, selectedVarC, setSelectedVarC, selectedVarD, setSelectedVarD, selectedVarE,
     setSelectedVarE, selectedVarF, setSelectedVarF, selectedVarP, setSelectedVarP, addVariableToSection,
-    customerContractMap, handleCompanySelect, loadDemoPOSData, loadDemoBGGData, loadDemoPTROData,
-    loadDemoDBKData, loadDemoSBSData, removeInvLineItem, addInvLineItem, updateInvItemField,
+    customerContractMap, handleCompanySelect, removeInvLineItem, addInvLineItem, updateInvItemField,
     reorderInvLineItems, moveInvRow, updateInvItemVolume, updateInvItemOverhaul, updateInvItemRateIDR,
     updateInvItemRateUSD, updateInvItemKurs, updateInvItemAmount, getItemEffectiveVolume,
     getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations: getAuthoritativeCustomerCalculations,
-    getSBSTarifByDistance, SBS_DISTANCE_TIERS, calcs, subtotalA, subtotalB, subtotalC, subtotalD,
+    getSBSTarifByDistance, calcs, subtotalA, subtotalB, subtotalC, subtotalD,
     subtotalE, subtotalF, subtotalP, totalGrossCalc, dpp11_12Calc, vat12Calc, pph23Calc,
     netTotalInvoiceCalc, totalDibayarCalc, exportPaymentDetailPDF, exportBADocumentPDF,
     exportARBAIMonitoringExcel, exportARBAIMonitoringPDF, exportBAOnlyExcel, exportBAOnlyPDF,

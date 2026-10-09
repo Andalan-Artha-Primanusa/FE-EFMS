@@ -8,7 +8,8 @@ import {
 } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { api, getCompanies, type Company } from "../../lib/api";
-import { formatIDR } from "./helpers";
+import { formatIDR, getCustomerOfficialName } from "./helpers";
+import { sowFor, obSplitSOWs, contractParams, rfTemplateFor, bankAccountForCustomer, baseDistanceFor } from "./masterRegistry";
 
 interface SOWItem {
   id?: number | string;
@@ -172,12 +173,12 @@ export function CustomerView({ c }: { c: any }) {
 
   // Coal Index details for BGG
   const latestCoal = coalIndices.length > 0 ? coalIndices[0] : {
-    period: "Jul-26",
-    avgIci3: 65.4,
-    avgIci4: 48.2,
-    avgR3: 52.8,
-    activeTier: "Tier 2",
-    status: "Verified"
+    period: "-",
+    avgIci3: 0,
+    avgIci4: 0,
+    avgR3: 0,
+    activeTier: "",
+    status: "Belum ada data Coal Index"
   };
 
   // Raise & Fall details for BGG
@@ -381,7 +382,7 @@ export function CustomerView({ c }: { c: any }) {
                     {isActive && <span className="text-[9px] font-bold uppercase text-[#A57C50] bg-[#A57C50]/15 px-1.5 py-0.5 rounded-[3px]">Aktif</span>}
                   </div>
                   <div className="font-bold text-xs text-slate-900 mt-1.5">
-                    {c.code === "POS" ? "Site POS (PT Position)" : c.code === "BGG" ? "Site BGG (PT Budi Gema Gempita)" : (c.code === "PTRO" || c.code === "DBK") ? "Site PTRO (PT Petrosea)" : "Site SBS (PT Satria Bahana Sarana)"}
+                    {`Site ${c.code} (${getCustomerOfficialName(c.code)})`}
                   </div>
                 </button>
               );
@@ -581,13 +582,13 @@ export function CustomerView({ c }: { c: any }) {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                       <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-[4px] space-y-2">
                         <h5 className="font-bold text-slate-900 uppercase tracking-wider text-[11px]">Parameter Overhaul Jarak Jauh</h5>
-                        <div className="flex justify-between"><span className="text-slate-500">Jarak Dasar:</span><strong className="tabular-nums">1.000 Meter</strong></div>
-                        <div className="flex justify-between"><span className="text-slate-500">Penyesuaian Jarak:</span><strong className="tabular-nums text-slate-900">Per 1.000 Meter (USD 0,538/1KM)</strong></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Jarak Dasar:</span><strong className="tabular-nums">{baseDistanceFor(selectedClientCode, "OB/Waste - over/underhaul").toLocaleString("id-ID")} Meter</strong></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Penyesuaian Jarak:</span><strong className="tabular-nums text-slate-900">USD {Number(sowFor(selectedClientCode, "OB/Waste - over/underhaul")?.rateUSD || 0).toLocaleString("id-ID", { maximumFractionDigits: 3 })} / {sowFor(selectedClientCode, "OB/Waste - over/underhaul")?.unit || "-"}</strong></div>
                       </div>
                       <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-[4px] space-y-2">
                         <h5 className="font-bold text-slate-900 uppercase tracking-wider text-[11px]">Pajak & Rekening Default</h5>
                         <div className="flex justify-between"><span className="text-slate-500">PPN / PPh 23:</span><strong>11% / 2%</strong></div>
-                        <div className="flex justify-between"><span className="text-slate-500">Bank AAP:</span><strong>Bank BNI (A/C 8188788882)</strong></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Bank AAP:</span><strong>{bankAccountForCustomer(selectedClientCode) ? `${bankAccountForCustomer(selectedClientCode).bankName} (A/C ${bankAccountForCustomer(selectedClientCode).accountNo})` : "Belum diatur di Master Customer"}</strong></div>
                       </div>
                     </div>
                   </div>
@@ -610,22 +611,22 @@ export function CustomerView({ c }: { c: any }) {
                               <span className={`text-[10px] uppercase block ${activeTierComputed === "Tier 1" ? "text-emerald-800 font-bold" : "text-slate-500"}`}>
                                 Tier 1 (≤$50) {activeTierComputed === "Tier 1" ? "(AKTIF)" : ""}
                               </span>
-                              <strong className="text-xs font-bold text-slate-900">Tarif OB 1: Rp 27.000 / BCM</strong>
-                              <p className="text-[10px] text-slate-600 mt-1">Tarif OB 2: Rp 26.250 / BCM</p>
+                              <strong className="text-xs font-bold text-slate-900">Tarif OB 1: {formatIDR(obSplitSOWs(selectedClientCode)[0]?.tier1Rate || 0)} / BCM</strong>
+                              <p className="text-[10px] text-slate-600 mt-1">Tarif OB 2: {formatIDR(obSplitSOWs(selectedClientCode)[1]?.tier1Rate || 0)} / BCM</p>
                             </div>
                             <div className={`p-3 rounded-[4px] border ${activeTierComputed === "Tier 2" ? "bg-emerald-100 border-emerald-400 font-bold" : "bg-white border-slate-200"}`}>
                               <span className={`text-[10px] uppercase block ${activeTierComputed === "Tier 2" ? "text-emerald-800 font-bold" : "text-slate-500"}`}>
                                 Tier 2 ($50-$75) {activeTierComputed === "Tier 2" ? "(AKTIF)" : ""}
                               </span>
-                              <strong className="text-xs font-bold text-slate-900">Tarif OB 1: Rp 27.250 / BCM</strong>
-                              <p className="text-[10px] text-slate-600 mt-1">Tarif OB 2: Rp 26.500 / BCM</p>
+                              <strong className="text-xs font-bold text-slate-900">Tarif OB 1: {formatIDR(obSplitSOWs(selectedClientCode)[0]?.tier2Rate || 0)} / BCM</strong>
+                              <p className="text-[10px] text-slate-600 mt-1">Tarif OB 2: {formatIDR(obSplitSOWs(selectedClientCode)[1]?.tier2Rate || 0)} / BCM</p>
                             </div>
                             <div className={`p-3 rounded-[4px] border ${activeTierComputed === "Tier 3" ? "bg-emerald-100 border-emerald-400 font-bold" : "bg-white border-slate-200"}`}>
                               <span className={`text-[10px] uppercase block ${activeTierComputed === "Tier 3" ? "text-emerald-800 font-bold" : "text-slate-500"}`}>
                                 Tier 3 (&gt;$75) {activeTierComputed === "Tier 3" ? "(AKTIF)" : ""}
                               </span>
-                              <strong className="text-xs font-bold text-slate-900">Tarif OB 1: Rp 29.500 / BCM</strong>
-                              <p className="text-[10px] text-slate-600 mt-1">Tarif OB 2: Rp 28.750 / BCM</p>
+                              <strong className="text-xs font-bold text-slate-900">Tarif OB 1: {formatIDR(obSplitSOWs(selectedClientCode)[0]?.tier3Rate || 0)} / BCM</strong>
+                              <p className="text-[10px] text-slate-600 mt-1">Tarif OB 2: {formatIDR(obSplitSOWs(selectedClientCode)[1]?.tier3Rate || 0)} / BCM</p>
                             </div>
                           </div>
                         </div>
@@ -634,10 +635,10 @@ export function CustomerView({ c }: { c: any }) {
 
                     <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-[4px] space-y-1.5">
                       <h4 className="font-bold uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
-                        <Scale size={15} className="text-amber-700" /> Kontrak Batas Kuota Stripping Ratio (Maks. 3.0 : 1)
+                        <Scale size={15} className="text-amber-700" /> Kontrak Batas Kuota Stripping Ratio (Maks. {contractParams(selectedClientCode).maxStrippingRatio} : 1)
                       </h4>
                       <p className="text-slate-700 text-[11px]">
-                        Volume OB yang dapat ditagihkan langsung dibatasi sebesar <strong>3x Volume Batubara (Ton)</strong>. Kelebihan volume survei OB dicatat ke <strong>Pending Volume Ledger (Carry-Forward)</strong> dan dialokasikan secara manual oleh Finance Site.
+                        Volume OB yang dapat ditagihkan langsung dibatasi sebesar <strong>{contractParams(selectedClientCode).maxStrippingRatio}x Volume Batubara (Ton)</strong>. Kelebihan volume survei OB dicatat ke <strong>Pending Volume Ledger (Carry-Forward)</strong> dan dialokasikan secara manual oleh Finance Site.
                       </p>
                     </div>
 
@@ -646,13 +647,13 @@ export function CustomerView({ c }: { c: any }) {
                         <Calculator size={15} className="text-[#A57C50]" /> Formula Eskalasi Raise & Fall: 1-Faktor BBM Murni (BGG)
                       </h4>
                       <div className="p-2 bg-white border border-slate-200 rounded-[3px] font-mono text-[11px] text-slate-800">
-                        <code>Index = 0,60 + 0,40 × (Fn / Fo)</code>
+                        <code>Index = {Number(rfTemplateFor(selectedClientCode)?.weightFixedC || 0).toLocaleString("id-ID")} + {Number(rfTemplateFor(selectedClientCode)?.weightFuelA || 0).toLocaleString("id-ID")} × (Fn / Fo)</code>
                         <span className="text-slate-500 font-sans ml-2 text-[10px]">(Tanpa komponen Upah/Labor & tanpa faktor kurs)</span>
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px] pt-1">
-                        <div><span className="text-slate-500 font-bold">Base Fuel (Fo):</span> <strong className="tabular-nums">Rp 9.000 / Liter</strong></div>
-                        <div><span className="text-slate-500 font-bold">Aktual Fuel (Fn):</span> <strong className="tabular-nums">Rp 21.601,53</strong></div>
-                        <div><span className="text-slate-500 font-bold">Faktor Pengali RF:</span> <strong className="tabular-nums text-emerald-800">1.560x</strong></div>
+                        <div><span className="text-slate-500 font-bold">Base Fuel (Fo):</span> <strong className="tabular-nums">{formatIDR(rfTemplateFor(selectedClientCode)?.baseFuelFo || 0)} / Liter</strong></div>
+                        <div><span className="text-slate-500 font-bold">Aktual Fuel (Fn):</span> <strong className="tabular-nums">{formatIDR(rfTemplateFor(selectedClientCode)?.actualFuelFn || 0, 2)} ({rfTemplateFor(selectedClientCode)?.period || "-"})</strong></div>
+                        <div><span className="text-slate-500 font-bold">Faktor Pengali RF:</span> <strong className="tabular-nums text-emerald-800">{Number(rfTemplateFor(selectedClientCode)?.rfIndexResult || 1).toFixed(3)}x</strong></div>
                       </div>
                     </div>
                   </div>

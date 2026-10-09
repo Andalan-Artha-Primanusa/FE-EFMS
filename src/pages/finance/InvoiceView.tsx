@@ -136,14 +136,10 @@ export function InvoiceView({ c }: { c: any }) {
                           onChange={(e) => setInvPeriodFilter(e.target.value)}
                         >
                           <option value="All">Semua Periode</option>
-                          <option value="Agt-26">Agt-26 (Bulan Berjalan)</option>
-                          <option value="Jul-26">Jul-26</option>
-                          <option value="Jun-26">Jun-26</option>
-                          <option value="Mei-26">Mei-26</option>
-                          <option value="Apr-26">Apr-26</option>
-                          <option value="Mar-26">Mar-26</option>
-                          <option value="Feb-26">Feb-26</option>
-                          <option value="Jan-26">Jan-26</option>
+                          {/* Periode yang benar-benar ada pada invoice tersimpan */}
+                          {Array.from(new Set(invoiceRows.map((r: any) => r?.workPeriod).filter(Boolean))).map((p: any) => (
+                            <option key={p} value={p}>{p}</option>
+                          ))}
                         </select>
                       </div>
 
@@ -491,14 +487,14 @@ export function InvoiceView({ c }: { c: any }) {
                                   </td>
                                 </tr>
                                   {clientRows.map((row: any) => {
-                                    const isImmutable = row.status === "Tax_Reported" || row.status === "Paid";
+                                    const isImmutable = ["Approved", "Tax_Reported", "Faktur Pajak Terlapor", "Paid", "Lunas"].includes(row.status);
                                     return (
                                       <tr key={row.id} className="hover:bg-slate-50 transition group">
                                         <td className="p-2.5">
                                           <div className="font-extrabold text-slate-900">{row.customerCode}</div>
                                           <div className="text-[10px] text-slate-500 font-medium">{getCustomerOfficialName(row.customerCode)}</div>
                                         </td>
-                                        <td className="p-2.5 text-slate-700 font-medium">{row.workPeriod || "Juni 2026"}</td>
+                                        <td className="p-2.5 text-slate-700 font-medium">{row.workPeriod || "-"}</td>
                                         <td className="p-2.5 font-mono font-bold text-cyan-800">
                                           <div>{row.invoiceNo}</div>
                                           {row.relatedInvoiceNo && (
@@ -531,7 +527,22 @@ export function InvoiceView({ c }: { c: any }) {
                                         </td>
                                         <td className="p-2.5 text-right whitespace-nowrap sticky right-0 z-10 bg-white group-hover:bg-slate-50 transition-colors shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] border-l border-slate-200">
                                           <div className="flex items-center justify-end gap-1.5 flex-nowrap min-w-[150px]">
-                                             {(isManager || isDirector || isSuper) && (row.status === "Draft" || !row.status || row.status === "Pending" || row.status === "Submitted" || row.status === "Verified") && (() => {
+                                             {(isSPV || isFinanceSpecialist || isSuper) && (row.status === "Draft" || !row.status || row.status === "Pending" || row.status === "Submitted") && (() => {
+                                               const isVerifying = actionLoadingKey === `verify-inv-${row.id}`;
+                                               return (
+                                                 <button
+                                                   disabled={isVerifying}
+                                                   className={`px-2.5 py-1 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-[11px] rounded shadow-xs inline-flex items-center gap-1 transition shrink-0 whitespace-nowrap font-sans cursor-pointer ${isVerifying ? "opacity-60 cursor-not-allowed" : ""}`}
+                                                   onClick={() => handleVerifyInvoice(row.id)}
+                                                   title="Verifikasi Invoice (SPV / Finance Specialist)"
+                                                 >
+                                                   {isVerifying ? <Loader2 size={12} className="animate-spin text-white" /> : <ShieldCheck size={12} />}
+                                                   <span>{isVerifying ? "Memverifikasi..." : "Verifikasi"}</span>
+                                                 </button>
+                                               );
+                                             })()}
+                                             {/* Approval hanya untuk invoice Verified; server menolak bila approver = verifikator. */}
+                                             {(isManager || isDirector || isSuper) && row.status === "Verified" && (() => {
                                                const isApproving = actionLoadingKey === `approve-inv-${row.id}`;
                                                return (
                                                  <button

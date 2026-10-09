@@ -6,6 +6,14 @@
 
 import { matchPeriod } from "./helpers";
 
+import { customerKind, customerByCode, contractParams, baseDistanceFor, rfMasterFor, rfTemplateFor, computeRFIndex, minWageFor, kursForPeriod } from "./masterRegistry";
+
+export { customerKind };
+
+// "OB" harus berdiri sendiri (OB, OB1, (OB)) agar "Mobilisasi" / "Job" tidak terbaca sebagai Overburden.
+const OB_MATERIAL_RE = /\bob(?![a-z])|overburden|over burden|waste/i;
+export const isOBMaterial = (material?: string): boolean => OB_MATERIAL_RE.test(material || "");
+
 export function isDistanceItem(item: any): boolean {
   if (!item) return false;
   return Boolean(
@@ -19,20 +27,10 @@ export function isDistanceItem(item: any): boolean {
   );
 }
 
+/** Basis jarak kontrak: dari item BA, lalu Master Variable SOW customer. 0 = belum diatur di master. */
 export function getBaseDistance(item: any, customerCode?: string): number {
-  if (item?.distanceBasis !== undefined && item?.distanceBasis !== null && Number(item.distanceBasis) > 0) {
-    return Number(item.distanceBasis);
-  }
-  const cust = (customerCode || item?.customerCode || item?.customer || "").toUpperCase();
-  const isBGG = cust.includes("BGG") || (item?.material || "").toUpperCase().includes("BGG") || (item?.area || "").toUpperCase().includes("KKL") || (item?.area || "").toUpperCase().includes("KUNGKILAN");
-  if (isBGG) {
-    return 1000;
-  }
-  const mLow = (item?.material || item?.description || item?.sowDescription || "").toLowerCase();
-  if (mLow.includes("coal") || mLow.includes("batubara")) {
-    return 3000;
-  }
-  return 1000;
+  if (Number(item?.distanceBasis) > 0) return Number(item.distanceBasis);
+  return baseDistanceFor(customerCode || item?.customerCode || item?.customer, item?.material || item?.description || item?.sowDescription);
 }
 
 export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boolean = false): number {
@@ -45,7 +43,7 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
     const mLow = (item.material || "").toLowerCase();
     const itemPeriod = (item.period || item.notes || "").trim().toLowerCase();
 
-    if (mLow.includes("ob") || mLow.includes("overburden") || mLow.includes("waste") || mLow.includes("over burden")) {
+    if (isOBMaterial(mLow)) {
       const isMDO = (item.category || "").toLowerCase().includes("mdo") || mLow.includes("mdo");
       const obParents = allItems.filter((p) => {
         if (p.id === item.id || isDistanceItem(p)) return false;
@@ -53,7 +51,7 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
         const pMat = (p.material || p.name || "").toLowerCase();
         const pIsMDO = pCat.includes("mdo") || pMat.includes("mdo");
         if (isMDO ? !pIsMDO : pIsMDO) return false;
-        const isOB = pMat.includes("ob") || pMat.includes("overburden") || pMat.includes("waste") || pMat.includes("over burden");
+        const isOB = isOBMaterial(pMat);
         if (!isOB) return false;
         if (itemPeriod) {
           const pPeriod = (p.period || p.notes || "").trim().toLowerCase();
@@ -120,7 +118,7 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
       if (mLow.includes("saprolite") || mLow.includes("saprolit")) return pLow.includes("saprolite") || pLow.includes("saprolit");
       if (mLow.includes("uncrushed") || mLow.includes("rock") || mLow.includes("crush") || mLow.includes("boulder")) return pLow.includes("uncrushed") || pLow.includes("rock") || pLow.includes("crush") || pLow.includes("boulder");
       if (mLow.includes("fill") || mLow.includes("cut")) return pLow.includes("fill") || pLow.includes("cut");
-      if (mLow.includes("ob") || mLow.includes("overburden") || mLow.includes("waste")) return pLow.includes("ob") || pLow.includes("overburden") || pLow.includes("waste");
+      if (isOBMaterial(mLow)) return isOBMaterial(pLow);
       return false;
     });
     if (parent) {
@@ -156,22 +154,12 @@ export function getBAItemSubtotal(item: any, volume: number, isCustomerDBK: bool
     const baseDist = getBaseDistance(item, customerCode || item?.customerCode);
     const rawDist = Number(item.distanceM ?? item.distance ?? item.distanceWeightAvg ?? baseDist);
     // If distance is entered as e.g. 1.325 or 4.976 (meaning 1.325 km or parsed with decimal point), scale to meters
-    let dist = (rawDist > 0 && rawDist < 50) ? rawDist * 1000 : rawDist;
-    const cust = (customerCode || item?.customerCode || "").toUpperCase();
-    if (cust.includes("BGG")) {
-      const mLow = (item.material || "").toLowerCase();
-      const pKey = (item.period || item.notes || "").toLowerCase();
-      if (mLow.includes("coal") && (Math.round(dist) === 4976 || Math.abs(dist - 4975.81) < 0.1)) {
-        dist = 4975.809903;
-      } else if (pKey.includes("jul") && (Math.round(dist) === 1230 || Math.abs(dist - 1230.352) < 0.1)) {
-        dist = 1230.352258;
-      } else if (Math.round(dist) === 1325 || Math.abs(dist - 1324.532) < 0.1) {
-        dist = 1324.532349;
-      }
-    }
-    const isPOS = cust.includes("POS") || (item.material || "").toLowerCase().includes("underhaul");
+    // Jarak dipakai apa adanya (input presisi dari survey); tidak ada lagi pembulatan "ajaib" per periode.
+    const dist = (rawDist > 0 && rawDist < 50) ? rawDist * 1000 : rawDist;
+    const cust = customerKind(customerCode || item?.customerCode);
+    const isPOS = cust === "POS" || (item.material || "").toLowerCase().includes("underhaul");
     const diffMtr = isPOS ? (dist - baseDist) : Math.max(0, dist - baseDist);
-    const isPer100m = isCustomerDBK || (item.unit || "").includes("100") || (item.material || "").includes("100m") || (item.material || "").toUpperCase().includes("PIT SAPAN") || (item.material || "").toUpperCase().includes("OVERHAUL COAL") || (item.material || "").toUpperCase().includes("BGG") || (item.material || "").toLowerCase().includes("over distance") || cust.includes("BGG");
+    const isPer100m = isCustomerDBK || customerByCode(cust)?.overhaulRateUnit === "PER_100M" || (item.unit || "").includes("100") || (item.material || "").includes("100m") || (item.material || "").toLowerCase().includes("over distance");
     if (isPer100m) {
       return Math.round(volume * (diffMtr / 100) * r);
     }
@@ -203,25 +191,32 @@ export interface BACommercialBreakdown {
   subtotalP?: number;
 }
 
+/**
+ * Indeks RF BGG per periode (sama dengan resolveBGGRFIndex di BE): harga solar survey BA dihitung dengan
+ * rumus Master Raise & Fall -> indeks yang diinput pada BA -> indeks master RF periode -> defaultRF.
+ */
 export function getBGGRFIndexForPeriod(
   itemPeriod?: string,
   defaultRF: number = 1.0,
-  fuelPeriods?: Record<string, any>
+  fuelPeriods?: Record<string, any>,
+  customerCode: string = "BGG"
 ): number {
-  if (fuelPeriods && itemPeriod) {
-    for (const [pKey, pVal] of Object.entries(fuelPeriods)) {
-      const kLow = pKey.toLowerCase();
-      const iLow = itemPeriod.toLowerCase();
-      if (kLow === iLow || kLow.includes(iLow) || iLow.includes(kLow)) {
-        if (pVal?.bggRfIndex && pVal.bggRfIndex > 0) {
-          return pVal.bggRfIndex;
-        }
-        if (pVal?.bggAvgFn && pVal.bggAvgFn > 0) {
-          return Number((0.60 + 0.40 * (pVal.bggAvgFn / 9000.0)).toFixed(3));
-        }
-      }
+  const periodRF = rfMasterFor(customerCode, itemPeriod);
+  const formula = periodRF || rfTemplateFor(customerCode);
+  const entry: any = itemPeriod && fuelPeriods
+    ? Object.entries(fuelPeriods).find(([k]) => k.trim().toLowerCase() === itemPeriod.trim().toLowerCase() || matchPeriod(k, itemPeriod))?.[1]
+    : undefined;
+  if (entry) {
+    const p1 = Number(entry.bggFuelP1 || 0) + Number(entry.bggTransportP1 || 0);
+    const p2 = Number(entry.bggFuelP2 || 0) + Number(entry.bggTransportP2 || 0);
+    const fn = p1 > 0 && p2 > 0 ? (p1 + p2) / 2 : p1 || p2 || Number(entry.bggAvgFn || 0);
+    const computed = fn > 0 ? computeRFIndex(formula, fn) : 0;
+    if (computed > 0) return computed;
+    if (Number(entry.bggRfIndex) > 0) {
+      return formula && !formula.allowFall && entry.bggRfIndex < 1 ? 1 : Number(entry.bggRfIndex);
     }
   }
+  if (Number(periodRF?.rfIndexResult) > 0) return Number(periodRF.rfIndexResult);
   return defaultRF > 0 ? defaultRF : 1.0;
 }
 
@@ -233,9 +228,10 @@ export function calculateBACommercialBreakdown(
   isSurvey?: boolean,
   fuelPeriods?: Record<string, any>
 ): BACommercialBreakdown {
-  const isBGG = customerCode === "BGG" || customerCode === "PT BGG";
-  const isPOS = customerCode === "POS" || customerCode === "PT POSITION" || customerCode === "PT. POSITION";
-  const isSBS = customerCode === "SBS";
+  const kind = customerKind(customerCode);
+  const isBGG = kind === "BGG";
+  const isPOS = kind === "POS";
+  const isSBS = kind === "SBS";
   const hasAdjustedOperatingVolume = (allItems || []).some(
     (it) => !it.isDeduction && it.category !== "DP Fuel" && Number(it.adjustedVolume || 0) > 0
   );
@@ -271,7 +267,7 @@ export function calculateBACommercialBreakdown(
       overdistanceGross += subtotal; // Note: for POS underhaul, this can be negative
     } else if (cat === "MDO" || cat === "Support" || cat === "Equipment Rental" || cat === "Penunjang" || cat === "Land Clearing" || mLow.includes("clearing")) {
       mdoGross += subtotal;
-    } else if (mLow.includes("ob") || mLow.includes("overburden") || mLow.includes("waste") || mLow.includes("over burden")) {
+    } else if (isOBMaterial(mLow)) {
       obAmount += subtotal;
     } else if (mLow.includes("coal") || mLow.includes("batubara")) {
       coalAmount += subtotal;
@@ -290,23 +286,21 @@ export function calculateBACommercialBreakdown(
     rfAmount = bggComputed.subtotalD;
     odDeduction = Math.abs(bggComputed.subtotalE);
   } else if (isPOS) {
-    if (effectiveRF > 1.0) {
+    if (effectiveRF !== 1.0) {
       rfAmount = Math.round((effectiveRF - 1.0) * (basePokok + overdistanceGross + mdoGross));
     }
     // Fallback: If no explicit DP fuel line item in items list, check if fuelPeriods or posData has fuel refill costs
     if (dpFuelDeduction === 0 && fuelPeriods) {
+      // Per periode: pakai rincian refill bila ada, selain itu actualFuelCost periode tersebut.
       let refillCost = 0;
       Object.values(fuelPeriods).forEach((pData: any) => {
-        if (pData && Array.isArray(pData.fuelRefills)) {
-          pData.fuelRefills.forEach((r: any) => {
-            const l = Number(r.liters || 0);
-            const p = Number(r.pricePerLiter || 0);
-            if (l > 0 && p > 0) refillCost += l * p;
-          });
-        }
-        if (refillCost === 0 && Number(pData?.actualFuelCost || 0) > 0) {
-          refillCost = Number(pData.actualFuelCost);
-        }
+        const refills = Array.isArray(pData?.fuelRefills) ? pData.fuelRefills : [];
+        const periodRefill = refills.reduce((acc: number, r: any) => {
+          const l = Number(r.liters || 0);
+          const p = Number(r.pricePerLiter || 0);
+          return l > 0 && p > 0 ? acc + l * p : acc;
+        }, 0);
+        refillCost += periodRefill > 0 ? periodRefill : Number(pData?.actualFuelCost || 0);
       });
       if (refillCost > 0) {
         dpFuelDeduction = refillCost;
@@ -319,7 +313,7 @@ export function calculateBACommercialBreakdown(
   const totalDeductions = isSBS ? sbsPenalties : (odDeduction + dpFuelDeduction);
   const totalGross = isSBS
     ? (basePokok + mdoGross)
-    : Math.max(0, basePokok + overdistanceGross + mdoGross + rfAmount - totalDeductions);
+    : basePokok + overdistanceGross + mdoGross + rfAmount - totalDeductions;
   const totalDPP = totalGross;
   const dpp11_12 = Math.round((totalGross * 11) / 12);
   const vat12 = Math.round(dpp11_12 * 0.12);
@@ -366,118 +360,25 @@ export function generateBAGLJournalPreview(
   customerCode: string
 ): { lines: GLJournalLinePreview[]; totalDebit: number; totalCredit: number; isBalanced: boolean } {
   const lines: GLJournalLinePreview[] = [];
+  // amount > 0 = debit, amount < 0 = kredit; nilai negatif (mis. underhaul POS) otomatis pindah sisi.
+  const post = (accountNo: string, accountName: string, amount: number, note: string) => {
+    if (!amount) return;
+    lines.push({ accountNo, accountName, debit: amount > 0 ? amount : 0, credit: amount < 0 ? -amount : 0, note });
+  };
 
-  // Dr. 1103.101 Piutang Usaha Belum Ditagih (Net AR)
-  if (breakdown.netAR > 0) {
-    lines.push({
-      accountNo: "1103.101",
-      accountName: `Piutang Usaha Belum Ditagih (${customerCode || "Customer"})`,
-      debit: breakdown.netAR,
-      credit: 0,
-      note: "Pengakuan piutang belum tertagih atas Berita Acara",
-    });
-  }
+  post("1103.101", `Piutang Usaha Belum Ditagih (${customerCode || "Customer"})`, breakdown.netAR, "Pengakuan piutang belum tertagih atas Berita Acara");
+  post("1108.002", "Uang Muka PPh Pasal 23 (2%)", breakdown.pph23Amount, "Pajak penghasilan dipotong customer");
+  post("4199.000", "Potongan Kontrak & Biaya Pengurang (OD 25% / Fuel)", breakdown.totalDeductions, "Potongan kontrak operasional & penalti");
+  post("4101.000", "Pendapatan Jasa Overburden Removal", -breakdown.obAmount, "Pendapatan operasi pengupasan tanah penutup");
+  post("4102.000", "Pendapatan Jasa Coal Mining / Winning", -breakdown.coalAmount, "Pendapatan operasi penambangan batubara");
+  post("4103.000", "Pendapatan Jasa Overdistance Hauling", -breakdown.overdistanceGross, "Pendapatan jarak angkut lebih (overdistance)");
+  post("4109.000", "Pendapatan Jasa Penunjang & MDO", -breakdown.mdoGross, "Pendapatan jasa rental alat & penunjang tambang");
+  post("4120.000", "Pendapatan Eskalasi Nilai Kontrak (Raise & Fall)", -breakdown.rfAmount, `RF kontrak (${(breakdown.rfRateFactor || 1).toFixed(3)}x)`);
+  post("2102.100", "PPN Keluaran Belum Difakturkan (11%)", -breakdown.ppnAmount, "Kewajiban PPN 11% atas pengakuan BA");
 
-  // Dr. 1108.002 Uang Muka PPh Pasal 23 (2%)
-  if (breakdown.pph23Amount > 0) {
-    lines.push({
-      accountNo: "1108.002",
-      accountName: "Uang Muka PPh Pasal 23 (2%)",
-      debit: breakdown.pph23Amount,
-      credit: 0,
-      note: "Pajak penghasilan dipotong customer",
-    });
-  }
-
-  // Dr. 4199.000 Potongan Kontrak (OD 25% / DP Fuel)
-  if (breakdown.totalDeductions > 0) {
-    lines.push({
-      accountNo: "4199.000",
-      accountName: "Potongan Kontrak & Biaya Pengurang (OD 25% / Fuel)",
-      debit: breakdown.totalDeductions,
-      credit: 0,
-      note: "Potongan kontrak operasional & penalti",
-    });
-  }
-
-  // Cr. 4101.000 Pendapatan Jasa Overburden Removal
-  if (breakdown.obAmount > 0) {
-    lines.push({
-      accountNo: "4101.000",
-      accountName: "Pendapatan Jasa Overburden Removal",
-      debit: 0,
-      credit: breakdown.obAmount,
-      note: "Pendapatan operasi pengupasan tanah penutup",
-    });
-  }
-
-  // Cr. 4102.000 Pendapatan Jasa Coal Getting / Winning
-  if (breakdown.coalAmount > 0) {
-    lines.push({
-      accountNo: "4102.000",
-      accountName: "Pendapatan Jasa Coal Mining / Winning",
-      debit: 0,
-      credit: breakdown.coalAmount,
-      note: "Pendapatan operasi penambangan batubara",
-    });
-  }
-
-  // Cr. 4103.000 Pendapatan Jasa Overdistance / Overhaul
-  if (breakdown.overdistanceGross > 0) {
-    lines.push({
-      accountNo: "4103.000",
-      accountName: "Pendapatan Jasa Overdistance Hauling",
-      debit: 0,
-      credit: breakdown.overdistanceGross,
-      note: "Pendapatan jarak angkut lebih (overdistance)",
-    });
-  }
-
-  // Cr. 4109.000 Pendapatan Jasa Penunjang & MDO
-  if (breakdown.mdoGross > 0) {
-    lines.push({
-      accountNo: "4109.000",
-      accountName: "Pendapatan Jasa Penunjang & MDO",
-      debit: 0,
-      credit: breakdown.mdoGross,
-      note: "Pendapatan jasa rental alat & penunjang tambang",
-    });
-  }
-
-  // Cr. 4120.000 Pendapatan Eskalasi Raise & Fall
-  if (breakdown.rfAmount > 0) {
-    lines.push({
-      accountNo: "4120.000",
-      accountName: "Pendapatan Eskalasi Nilai Kontrak (Raise & Fall)",
-      debit: 0,
-      credit: breakdown.rfAmount,
-      note: `RF kontrak (${(breakdown.rfRateFactor || 1).toFixed(3)}x)`,
-    });
-  }
-
-  // Cr. 2102.100 PPN Keluaran Belum Difakturkan (11%)
-  if (breakdown.ppnAmount > 0) {
-    lines.push({
-      accountNo: "2102.100",
-      accountName: "PPN Keluaran Belum Difakturkan (11%)",
-      debit: 0,
-      credit: breakdown.ppnAmount,
-      note: "Kewajiban PPN 11% atas pengakuan BA",
-    });
-  }
-
-  let totalDebit = lines.reduce((acc, l) => acc + l.debit, 0);
-  let totalCredit = lines.reduce((acc, l) => acc + l.credit, 0);
-  const diff = totalDebit - totalCredit;
-  if (Math.abs(diff) > 0 && Math.abs(diff) < 10) {
-    for (const l of lines) {
-      if (l.credit > 0) {
-        l.credit += diff;
-        break;
-      }
-    }
-    totalCredit = lines.reduce((acc, l) => acc + l.credit, 0);
-  }
+  // Tidak ada "plug" selisih pembulatan: bila tidak balance, preview harus menampilkannya apa adanya.
+  const totalDebit = lines.reduce((acc, l) => acc + l.debit, 0);
+  const totalCredit = lines.reduce((acc, l) => acc + l.credit, 0);
   const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
 
   return { lines, totalDebit, totalCredit, isBalanced };
@@ -507,6 +408,7 @@ export function getBGGComputedInvoiceLines(
   subtotalE: number;
 } {
   const effectiveRF = rfIndexCalculated > 0 ? Number(rfIndexCalculated.toFixed(3)) : 1.0;
+  const odDisc = contractParams("BGG").odDiscountPct / 100;
   const sectionDItems: BGGComputedLineItem[] = [];
   const sectionEItems: BGGComputedLineItem[] = [];
 
@@ -518,13 +420,14 @@ export function getBGGComputedInvoiceLines(
   for (const item of allItems || []) {
     const isDist = isDistanceItem(item);
     const mLow = (item.material || item.sowDescription || "").toLowerCase();
-    const isOB = mLow.includes("ob") || mLow.includes("overburden") || mLow.includes("waste") || mLow.includes("over burden");
+    const isOB = isOBMaterial(mLow);
     const isCoal = mLow.includes("coal") || mLow.includes("batubara");
     const effVol = getBAEffectiveVolume(item, allItems, isSurvey);
     const r = Number(item.rate || 0);
     const itemPeriod = (item.period || item.notes || "").trim();
     const itemRF = Number(getBGGRFIndexForPeriod(itemPeriod, effectiveRF, fuelPeriods).toFixed(3));
-    const rfDelta = Number(Math.max(0, itemRF - 1.0).toFixed(3));
+    // Indeks sudah dibatasi sesuai AllowFall Master RF; delta negatif = Fall.
+    const rfDelta = Number((itemRF - 1.0).toFixed(3));
 
     if (item.category === "DP Fuel" || item.isDeduction || mLow.includes("dp fuel")) {
       continue;
@@ -534,7 +437,7 @@ export function getBGGComputedInvoiceLines(
       const baseDist = getBaseDistance(item, "BGG");
       const rawDist = Number(item.distanceM ?? item.distance ?? item.distanceWeightAvg ?? baseDist);
       const dist = (rawDist > 0 && rawDist < 50) ? rawDist * 1000 : rawDist;
-      const diffMtr = Math.max(0, dist - baseDist);
+      const diffMtr = baseDist > 0 ? Math.max(0, dist - baseDist) : 0;
       const grossSub = getBAItemSubtotal(item, effVol, false, "BGG");
 
       if (isOB) {
@@ -553,7 +456,7 @@ export function getBGGComputedInvoiceLines(
         subtotalRF_OD_Coal += escalatedSub;
       }
 
-      if (itemRF > 1.0) {
+      if (itemRF !== 1.0) {
         sectionDItems.push({
           id: `rf-${item.id || item.material}-${itemPeriod}`,
           section: "D",
@@ -571,7 +474,7 @@ export function getBGGComputedInvoiceLines(
       const escalatedRate = r * rfDelta;
       const escalatedSub = Math.round(effVol * escalatedRate);
 
-      if (itemRF > 1.0) {
+      if (itemRF !== 1.0) {
         sectionDItems.push({
           id: `rf-${item.id || item.material}-${itemPeriod}`,
           section: "D",
@@ -590,7 +493,7 @@ export function getBGGComputedInvoiceLines(
   // Check if Over Distance items exist to display Section E structure
   const hasOD_OB = (allItems || []).some((it) => {
     const m = (it.material || it.sowDescription || "").toLowerCase();
-    return isDistanceItem(it) && (m.includes("ob") || m.includes("overburden") || m.includes("waste") || m.includes("over burden"));
+    return isDistanceItem(it) && (isOBMaterial(m));
   });
   const hasOD_Coal = (allItems || []).some((it) => {
     const m = (it.material || it.sowDescription || "").toLowerCase();
@@ -599,7 +502,7 @@ export function getBGGComputedInvoiceLines(
 
   // Section E: Discount on Overdistance (25%)
   if (hasOD_OB || subtotalOD_OB > 0) {
-    const disc = Math.round(subtotalOD_OB * 0.25);
+    const disc = Math.round(subtotalOD_OB * odDisc);
     sectionEItems.push({
       id: "disc-od-ob",
       section: "E",
@@ -611,7 +514,7 @@ export function getBGGComputedInvoiceLines(
     });
   }
   if (hasOD_Coal || subtotalOD_Coal > 0) {
-    const disc = Math.round(subtotalOD_Coal * 0.25);
+    const disc = Math.round(subtotalOD_Coal * odDisc);
     sectionEItems.push({
       id: "disc-od-coal",
       section: "E",
@@ -622,8 +525,8 @@ export function getBGGComputedInvoiceLines(
       subtotal: -disc,
     });
   }
-  if ((hasOD_OB && effectiveRF > 1.0) || subtotalRF_OD_OB > 0) {
-    const disc = Math.round(subtotalRF_OD_OB * 0.25);
+  if ((hasOD_OB && effectiveRF !== 1.0) || subtotalRF_OD_OB > 0) {
+    const disc = Math.round(subtotalRF_OD_OB * odDisc);
     sectionEItems.push({
       id: "disc-rf-od-ob",
       section: "E",
@@ -634,8 +537,8 @@ export function getBGGComputedInvoiceLines(
       subtotal: -disc,
     });
   }
-  if ((hasOD_Coal && effectiveRF > 1.0) || subtotalRF_OD_Coal > 0) {
-    const disc = Math.round(subtotalRF_OD_Coal * 0.25);
+  if ((hasOD_Coal && effectiveRF !== 1.0) || subtotalRF_OD_Coal > 0) {
+    const disc = Math.round(subtotalRF_OD_Coal * odDisc);
     sectionEItems.push({
       id: "disc-rf-od-coal",
       section: "E",
@@ -659,9 +562,8 @@ export function getBGGComputedInvoiceLines(
 }
 
 /**
- * Mengambil nilai Labor Ln dan Currency Xn secara otomatis dari Master Data HO.
- * Labor Ln jarang berubah (tahunan/multi-tahun), Currency Xn diperbarui secara berkala oleh HO.
- * Finance Site hanya perlu menginput Fuel Fn.
+ * Upah (Labor Ln) & kurs (Currency Xn) periode dari Master Data HO: Master RF periode, Master UMK site,
+ * Master Kurs BI periode. Nilai 0 + sumber "Belum ada" bila master belum diisi (tidak ada angka standar).
  */
 export function resolveHOMasterLaborAndCurrency(options: {
   customerCode?: string;
@@ -671,104 +573,47 @@ export function resolveHOMasterLaborAndCurrency(options: {
   latestKursBI?: number;
   mRate?: number;
 }): { laborLn: number; currencyXn: number; laborSource: string; currencySource: string } {
-  const { customerCode = "", period = "", raiseFallMasters = [], minWageMasters = [], latestKursBI = 0, mRate = 0 } = options;
-  const custUpper = customerCode.toUpperCase();
-  const isPOS = custUpper.includes("POS") || custUpper.includes("POSITION");
+  const { customerCode = "", period = "", latestKursBI = 0, mRate = 0 } = options;
+  const rf = rfMasterFor(customerCode, period);
 
-  // 1. Resolve Labor Ln (IDR)
-  let laborLn = 0;
-  let laborSource = "Standar Kontrak Master";
-
-  // Cek raiseFallMasters untuk period & customer spesifik
-  if (Array.isArray(raiseFallMasters) && raiseFallMasters.length > 0) {
-    const periodMatch = raiseFallMasters.find((r: any) => {
-      const rCust = (r.customerCode || "").trim().toUpperCase();
-      return (rCust.includes("POS") || rCust === custUpper) && matchPeriod(r.period, period);
-    });
-    if (periodMatch && Number(periodMatch.actualLaborLn || 0) > 0) {
-      laborLn = Number(periodMatch.actualLaborLn);
-      laborSource = `Master RF (${periodMatch.period})`;
-    } else {
-      // Fallback ke record RF terakhir/aktif untuk customer ini (karena UMK berlaku multi-periode)
-      const anyCustMatch = raiseFallMasters.find((r: any) => {
-        const rCust = (r.customerCode || "").trim().toUpperCase();
-        return (rCust.includes("POS") || rCust === custUpper) && Number(r.actualLaborLn || 0) > 0;
-      });
-      if (anyCustMatch && Number(anyCustMatch.actualLaborLn || 0) > 0) {
-        laborLn = Number(anyCustMatch.actualLaborLn);
-        laborSource = `Master RF HO (${anyCustMatch.period || "Aktif"})`;
-      }
-    }
-  }
-
-  // Jika belum ketemu, cek di minWageMasters (Master UMK Site)
-  if (!laborLn && Array.isArray(minWageMasters) && minWageMasters.length > 0) {
-    const umkMatch = minWageMasters.find((u: any) => {
-      const s = (u.site || "").toUpperCase();
-      return s.includes("POS") || s.includes("MOROWALI") || (custUpper && s.includes(custUpper));
-    });
-    if (umkMatch && Number(umkMatch.amountIdr || 0) > 0) {
-      laborLn = Number(umkMatch.amountIdr);
-      laborSource = `Master UMK Site (${umkMatch.site})`;
-    }
-  }
-
-  // Fallback standar baseline kontrak
+  let laborLn = Number(rf?.actualLaborLn || 0);
+  let laborSource = laborLn ? `Master RF (${rf.period})` : "";
   if (!laborLn) {
-    laborLn = isPOS ? 3721423 : 3600000;
-    laborSource = "Standar Kontrak Master";
+    laborLn = minWageFor(customerCode, period);
+    laborSource = laborLn ? "Master UMK Site" : "Belum ada di Master UMK / RF";
   }
 
-  // 2. Resolve Currency Xn (IDR)
-  let currencyXn = 0;
-  let currencySource = "Standar M-Rate BI";
-
-  // Cek di raiseFallMasters untuk period
-  if (Array.isArray(raiseFallMasters) && raiseFallMasters.length > 0) {
-    const periodMatch = raiseFallMasters.find((r: any) => {
-      const rCust = (r.customerCode || "").trim().toUpperCase();
-      return (rCust.includes("POS") || rCust === custUpper) && matchPeriod(r.period, period);
-    });
-    if (periodMatch && Number(periodMatch.actualMRateXn || 0) > 0) {
-      currencyXn = Number(periodMatch.actualMRateXn);
-      currencySource = `Kurs BI Master (${periodMatch.period})`;
-    }
+  let currencyXn = kursForPeriod(period);
+  let currencySource = currencyXn ? `Master Kurs BI (${period})` : "";
+  if (!currencyXn && Number(rf?.actualMRateXn) > 0) {
+    currencyXn = Number(rf.actualMRateXn);
+    currencySource = `Master RF (${rf.period})`;
   }
-
-  // Jika belum, gunakan latestKursBI dari Master Exchange Rate Bank Indonesia
-  if (!currencyXn && latestKursBI > 0) {
-    currencyXn = latestKursBI;
-    currencySource = "Master Kurs BI Terkini";
-  } else if (!currencyXn && mRate > 0) {
-    currencyXn = mRate;
-    currencySource = "Master Kurs M-Rate";
+  if (!currencyXn && (latestKursBI > 0 || mRate > 0)) {
+    currencyXn = latestKursBI || mRate;
+    currencySource = "Master Kurs BI";
   }
-
-  if (!currencyXn) {
-    currencyXn = 17923.30;
-    currencySource = "Standar M-Rate BI";
-  }
+  if (!currencyXn) currencySource = "Belum ada di Master Kurs BI";
 
   return { laborLn, currencyXn, laborSource, currencySource };
 }
 
 /**
- * Kalkulasi 3-Faktor Escalation (POS): D (Fuel) + L (Labor) + F (Fixed)
+ * Eskalasi 3-faktor (D Fuel + L Labor + F Fixed) memakai bobot & basis Master Raise & Fall customer
+ * periode tersebut (atau master RF terakhir customer untuk periode baru).
  */
 export function calculateTripleFactorRF(
   actualFuelFn: number,
   actualLaborLn: number,
   actualMRateXn: number,
-  baseFo: number = 10699.970229,
-  baseLo: number = 3594536,
-  baseXo: number = 15388.75,
-  weightA: number = 0.34,
-  weightB: number = 0.25,
-  weightC: number = 0.41
+  customerCode: string = "POS",
+  period?: string
 ): { posD: number; posL: number; posF: number; rfIndex: number } {
-  const posD = (actualFuelFn > 0 && actualMRateXn > 0 && baseFo > 0) ? (weightA * actualFuelFn * actualMRateXn) / baseFo : 0;
-  const posL = (actualLaborLn > 0 && actualMRateXn > 0 && baseLo > 0 && baseXo > 0) ? (weightB * actualLaborLn * actualMRateXn) / (baseLo * baseXo) : 0;
-  const posF = weightC;
-  const rfIndex = (posD > 0 || posL > 0) ? Number((posD + posL + posF).toFixed(3)) : 0;
+  const m = rfMasterFor(customerCode, period) || rfTemplateFor(customerCode);
+  if (!m) return { posD: 0, posL: 0, posF: 0, rfIndex: 0 };
+  const posD = (actualFuelFn > 0 && actualMRateXn > 0 && m.baseFuelFo > 0) ? (m.weightFuelA * actualFuelFn * actualMRateXn) / m.baseFuelFo : 0;
+  const posL = (actualLaborLn > 0 && actualMRateXn > 0 && m.baseLaborLo > 0 && m.baseForexXo > 0) ? (m.weightLaborB * actualLaborLn * actualMRateXn) / (m.baseLaborLo * m.baseForexXo) : 0;
+  const posF = Number(m.weightFixedC || 0);
+  const rfIndex = (posD > 0 || posL > 0) ? computeRFIndex(m, actualFuelFn, actualLaborLn, actualMRateXn) : 0;
   return { posD, posL, posF, rfIndex };
 }

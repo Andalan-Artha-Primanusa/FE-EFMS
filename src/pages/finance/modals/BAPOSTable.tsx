@@ -3,6 +3,7 @@ import { Pickaxe, Trash2, GripVertical, ChevronUp, ChevronDown } from "lucide-re
 import { formatIDR, FormattedNumberInput } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { BAAddRowDropdown } from "./BAAddRowDropdown";
+import { isOBMaterial } from "../ba_calculations";
 
 interface BAPOSTableProps {
   formData: any;
@@ -49,7 +50,7 @@ export function BAPOSTable({
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const effectiveRF = Number(rfIndexCalculated || formData.posData?.posRfIndex || formData.rfIndexCalculated || 1.0);
-  const rfFactor = effectiveRF > 1.0 ? effectiveRF - 1.0 : 0;
+  const rfFactor = effectiveRF - 1.0;
 
   const handleMoveRow = (id: string, dir: "up" | "down") => {
     if (moveBAItem) {
@@ -120,21 +121,8 @@ export function BAPOSTable({
     if (usdRate === 0 && getSowMasterRate) {
       usdRate = getSowMasterRate("POS", it.material, 0, true);
     }
-    if (usdRate === 0) {
-      const m = (it.material || "").toLowerCase();
-      if (isDistance) {
-        if (m.includes("ob") || m.includes("waste") || m.includes("topsoil") || m.includes("top soil")) usdRate = 0.538;
-        else if (m.includes("limonite") || m.includes("saprolite")) usdRate = 0.526;
-        else usdRate = 0.526;
-      } else {
-        if (m.includes("clear") || m.includes("grub")) usdRate = 0.381;
-        else if (m.includes("topsoil") || m.includes("top soil")) usdRate = 3.380;
-        else if (m.includes("ob") || m.includes("waste") || m.includes("overburden")) usdRate = 3.327;
-        else if (m.includes("limonite")) usdRate = 3.363;
-        else if (m.includes("saprolite")) usdRate = 3.472;
-      }
-    }
-    const currentMRate = Number(mRate || formData?.posData?.mRate || 17923.30);
+    // Tarif USD hanya dari Master Variable SOW (0 = belum diatur di master).
+    const currentMRate = Number(mRate || formData?.posData?.mRate || 0);
     if (usdRate > 0) {
       return Number((usdRate * currentMRate).toFixed(3));
     }
@@ -204,8 +192,8 @@ export function BAPOSTable({
 
         if (pLow && pLow === mLow) return true;
 
-        if (mLow.includes("ob") || mLow.includes("waste") || mLow.includes("overburden")) {
-          return dLow.includes("ob") || dLow.includes("waste") || dLow.includes("overburden");
+        if (isOBMaterial(mLow) || mLow.includes("waste") || mLow.includes("overburden")) {
+          return isOBMaterial(dLow) || dLow.includes("waste") || dLow.includes("overburden");
         }
         if (mLow.includes("topsoil") || mLow.includes("top soil")) {
           return dLow.includes("topsoil") || dLow.includes("top soil");

@@ -31,8 +31,6 @@ export function BATrackerView({ c }: { c: any }) {
   const accountingJournals: any[] = Array.isArray(rawAccountingJournals) ? rawAccountingJournals : [];
   const safeBaRows: any[] = baRows;
         const availablePeriods: any[] = Array.from(new Set(safeBaRows.map((r) => r?.workPeriod).filter(Boolean)));
-        if (!availablePeriods.includes("Jul-26")) availablePeriods.unshift("Jul-26");
-        if (!availablePeriods.includes("Jun-26")) availablePeriods.unshift("Jun-26");
 
         const periodRows = periodFilter === "All" ? safeBaRows : safeBaRows.filter((r) => r?.workPeriod === periodFilter);
 

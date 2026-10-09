@@ -89,106 +89,6 @@ export function useFinanceInvoiceState({
     if (section === "P") setSelectedVarP("");
   };
 
-  const loadDemoPOSData = () => {
-    setFormData((prev: any) => ({
-      ...prev,
-      customerCode: "POS",
-      invoiceNo: "003/POS-AAP/RF/VI/2026",
-      workPeriod: "Juni 2026",
-      projectSite: "POS PROJECT",
-      contractNo: "002/POS-AAP/2025",
-      bankName: "Bank BNI",
-      bankAccountNo: "8188788882",
-      bankBranch: "Harmoni, Jakarta",
-      directorName: "GAHARI CHRISTINE",
-      directorTitle: "DIRECTOR"
-    }));
-    setInvLineItems(demoPOSItems);
-    onNotice("Template preset POS Mining (Juni 2026) berhasil dimuat.");
-  };
-
-  const loadDemoBGGData = () => {
-    setFormData((prev: any) => ({
-      ...prev,
-      customerCode: "BGG",
-      invoiceNo: "091/BGG-AAP/VI/2026",
-      workPeriod: "1-30 JUN 26",
-      projectSite: "BGG MINING PROJECT",
-      contractNo: "001/BGG-AAP/2025",
-      bankName: "Bank Mandiri",
-      bankAccountNo: "070-00-2888000-8",
-      bankBranch: "Plaza Mandiri Jakarta",
-      directorName: "GAHARI CHRISTINE",
-      directorTitle: "DIRECTOR"
-    }));
-    setInvLineItems(demoBGGItems);
-    onNotice("Template preset BGG Mining (Juni 2026) berhasil dimuat.");
-  };
-
-  const loadDemoPTROData = () => {
-    setFormData((prev: any) => ({
-      ...prev,
-      customerCode: "PTRO",
-      invoiceNo: "013/AAP-PTRO/VI/2026",
-      workPeriod: "01 - 30 JUNI 2026",
-      projectSite: "PT Petrosea Site",
-      contractNo: "001/PTRO-AAP/2024",
-      bankName: "Bank BRI",
-      bankAccountNo: "0417-01-880088-30-8",
-      bankBranch: "S. Parman - Slipi Jakarta",
-      directorName: "GAHARI CHRISTINE",
-      directorTitle: "DIRECTOR"
-    }));
-    if (demoPTROItems.length > 0) {
-      setInvLineItems(demoPTROItems);
-    } else {
-      const kurs = latestKursBI;
-      const obRate = getSowMasterRate("PTRO", "OVER BURDEN REMOVAL", 1.49, true);
-      const cgRate = getSowMasterRate("PTRO", "COAL GETTING", 0.84, true);
-      const odObRate = getSowMasterRate("PTRO", "Overhaul OB", 0.028, true);
-      const odCgRate = getSowMasterRate("PTRO", "Overhaul Coal Getting", 230, false);
-      setInvLineItems([
-        { id: "ptro_inv_a1", section: "A", description: "OVER BURDEN REMOVAL", unit: "Bcm", volume: 259165.259, unitRateUSD: obRate, kursBI: kurs },
-        { id: "ptro_inv_b1", section: "B", description: "COAL GETTING", unit: "Ton", volume: 19456.32, unitRateUSD: cgRate, kursBI: kurs },
-        { id: "ptro_inv_c1", section: "C", subSection: "C1. Over Distance For OB Removal", unit: "Bcm", volume: 259165.259, overhaulMtr: 1012.92, baseMtr: 1000, unitRateUSD: odObRate, kursBI: kurs },
-        { id: "ptro_inv_c2", section: "C", subSection: "C2. Over Distance For Coal Winning", unit: "Ton", volume: 34025.212, overhaulMtr: 3174.88, baseMtr: 3000, unitRateIDR: odCgRate },
-      ]);
-    }
-    onNotice("Template preset Petrosea (PTRO Juni 2026) berhasil dimuat — rate & kurs dari master data.");
-  };
-
-  const loadDemoDBKData = loadDemoPTROData;
-
-  const loadDemoSBSData = () => {
-    setFormData((prev: any) => ({
-      ...prev,
-      customerCode: "SBS",
-      invoiceNo: "019/SBS-AAP/VI/2026",
-      workPeriod: "01 - 30 JUNI 2026",
-      projectSite: "SBS - Tanjung Enim",
-      contractNo: "SPPH-05852",
-      noPO: "I05790/0002",
-      bankName: "Bank BRI",
-      bankAccountNo: "0417-01-880088-30-8",
-      bankBranch: "S. Parman - Slipi Jakarta",
-      directorName: "GAHARI CHRISTINE",
-      directorTitle: "DIREKTUR UTAMA"
-    }));
-    const itemsWithDist = demoSBSItems.map((item: any) => {
-      if (item.section === "A" && !item.distanceM) {
-        if (item.unitRateIDR === 22654) return { ...item, distanceM: 3100, overhaulMtr: 3100 };
-        if (item.unitRateIDR === 12638) return { ...item, distanceM: 1350, overhaulMtr: 1350 };
-        if (item.unitRateIDR === 8346) return { ...item, distanceM: 600, overhaulMtr: 600 };
-        if (item.unitRateIDR === 15500) return { ...item, distanceM: 1850, overhaulMtr: 1850 };
-        if (item.unitRateIDR === 16931) return { ...item, distanceM: 2150, overhaulMtr: 2150 };
-        if (item.unitRateIDR === 19375) return { ...item, distanceM: 2450, overhaulMtr: 2450 };
-      }
-      return item;
-    });
-    setInvLineItems(itemsWithDist);
-    onNotice("Template preset SBS Mining berhasil dimuat.");
-  };
-
   const removeInvLineItem = (idToRemove: string) => {
     setInvLineItems(prev => prev.filter(item => item.id !== idToRemove));
   };
@@ -235,7 +135,7 @@ export function useFinanceInvoiceState({
       volume: 0,
       unitRateUSD: isUSD ? 0 : undefined,
       unitRateIDR: isUSD ? undefined : 0,
-      kursBI: latestKursBI || mRate || 17923.30,
+      kursBI: latestKursBI || mRate || 0,
       amount: 0,
       isCustom: true
     };
@@ -351,7 +251,6 @@ export function useFinanceInvoiceState({
     selectedVarF, setSelectedVarF,
     selectedVarP, setSelectedVarP,
     addVariableToSection,
-    loadDemoPOSData, loadDemoBGGData, loadDemoPTROData, loadDemoDBKData, loadDemoSBSData,
     removeInvLineItem, updateInvItemVolume, updateInvItemOverhaul,
     updateInvItemRateIDR, updateInvItemRateUSD, updateInvItemKurs, updateInvItemAmount,
     addInvLineItem, updateInvItemField, reorderInvLineItems, moveInvRow,

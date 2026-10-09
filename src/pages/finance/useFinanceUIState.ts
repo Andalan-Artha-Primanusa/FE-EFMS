@@ -14,7 +14,7 @@ export function useFinanceUIState() {
   const [modalType, setRawModalType] = useState<"none" | "ba" | "invoice" | "payment" | "customer" | "pending_volume">("none");
   const [editItem, setEditItem] = useState<any>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [formData, setFormData] = useState<any>({ customerCode: "POS", workPeriod: "Juni 2026" });
+  const [formData, setFormData] = useState<any>({ customerCode: "", workPeriod: "" });
   const [showActivityGroupDropdown, setShowActivityGroupDropdown] = useState(false);
   const [showExportBADropdown, setShowExportBADropdown] = useState(false);
   const [showInputBADropdown, setShowInputBADropdown] = useState(false);

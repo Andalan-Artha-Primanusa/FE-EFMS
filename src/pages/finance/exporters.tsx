@@ -316,7 +316,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           const diff = Math.max(0, (i.overhaulMtr || baseM) - baseM);
           const usdRate = i.unitRateUSD || 0.028;
           const idrRate = i.unitRateIDR || 230;
-          const kurs = i.kursBI || 17923.30;
+          const kurs = i.kursBI || 0;
           const amount = !isCoal
             ? Math.round((i.volume || 0) * (diff / 100) * usdRate * kurs)
             : Math.round((i.volume || 0) * (diff / 100) * idrRate);
@@ -681,7 +681,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
               </tr>
               <tr>
                 <td><strong>Period Covered</strong></td>
-                <td>: <strong>${itemData?.workPeriod || "Juni 2026"}</strong></td>
+                <td>: <strong>${itemData?.workPeriod || "-"}</strong></td>
                 <td></td>
                 <td></td>
               </tr>
@@ -690,7 +690,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
             <div class="title-box">
               <h2>INVOICE</h2>
               ${custCode === "SBS" ? `
-                <div class="contract-sub">(NO KONTRAK : <strong>${itemData?.contractNo || "SPPH-05852"}</strong>)</div>
+                <div class="contract-sub">(NO KONTRAK : <strong>${itemData?.contractNo || "-"}</strong>)</div>
               ` : `
                 <div class="contract-sub">Contract Number : <strong>${itemData?.contractNo || contractInfo?.contract || "001/AAP/2025"}</strong></div>
               `}
@@ -736,7 +736,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
               <table style="width: 100%; font-size: 9.5px;">
                 <tr><td width="85">Bank Name</td><td>: <strong>${itemData?.bankName || contractInfo?.bankName || "Bank BNI"}</strong></td></tr>
                 <tr><td>A/C Name</td><td>: <strong>${itemData?.bankAccountName || "PT Andalan Artha Primanusa"}</strong></td></tr>
-                <tr><td>A/C No</td><td>: <strong style="font-size: 11px;">${itemData?.bankAccountNo || contractInfo?.bankAccountNo || "8188788882"}</strong></td></tr>
+                <tr><td>A/C No</td><td>: <strong style="font-size: 11px;">${itemData?.bankAccountNo || contractInfo?.bankAccountNo || "-"}</strong></td></tr>
                 <tr><td>Branch</td><td>: <strong>${itemData?.bankBranch || contractInfo?.bankBranch || "Harmoni, Jakarta"}</strong></td></tr>
               </table>
             </div>
@@ -745,7 +745,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
               <strong style="font-size: 9.5px;">SUBMITTED BY,</strong><br/>
               <strong style="font-size: 10px;">PT ANDALAN ARTHA PRIMANUSA</strong>
               <div class="sig-space"></div>
-              <strong style="text-decoration: underline; font-size: 10px;">${itemData?.directorName || contractInfo?.directorName || "GAHARI CHRISTINE"}</strong><br/>
+              <strong style="text-decoration: underline; font-size: 10px;">${itemData?.directorName || contractInfo?.directorName || ""}</strong><br/>
               <span style="font-size: 9px;">${itemData?.directorTitle || contractInfo?.directorTitle || "DIRECTOR"}</span>
             </div>
           </div>
@@ -842,7 +842,7 @@ export function exportBADocumentPDFImpl(ctx: any, baData: any) {
 
           <div class="narrative">
             <p>
-              Pada hari ini, <strong>${formattedDate}</strong> telah selesai dilakukan perhitungan bersama (Joint Survey) hasil pelaksanaan pekerjaan penambangan batubara oleh Kontraktor <strong>PT. Andalan Artha Primanusa</strong> di area operasional <strong>${siteName}</strong> milik <strong>${clientName}</strong> untuk periode kerja <strong>${baData?.workPeriod || "Juni 2026"}</strong> dengan rincian kesepakatan sebagai berikut:
+              Pada hari ini, <strong>${formattedDate}</strong> telah selesai dilakukan perhitungan bersama (Joint Survey) hasil pelaksanaan pekerjaan penambangan batubara oleh Kontraktor <strong>PT. Andalan Artha Primanusa</strong> di area operasional <strong>${siteName}</strong> milik <strong>${clientName}</strong> untuk periode kerja <strong>${baData?.workPeriod || "-"}</strong> dengan rincian kesepakatan sebagai berikut:
             </p>
             <ol>
               <li>Pengukuran topografi original, progres penggalian (cut), dan penimbunan (fill) dilakukan secara bersama-sama oleh Tim Surveyor kedua belah pihak.</li>
@@ -968,7 +968,7 @@ export function exportBADocumentPDFImpl(ctx: any, baData: any) {
 export function exportARBAIMonitoringExcelImpl(ctx: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { 
-    baRows: rawBaRows, invoiceRows: rawInvoiceRows, periodFilter = "Jul-26", invPeriodFilter = "Jul-26", query = "", onNotice = () => {}
+    baRows: rawBaRows, invoiceRows: rawInvoiceRows, periodFilter = "All", invPeriodFilter = "All", query = "", onNotice = () => {}
   } = ctx || {};
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
@@ -1009,7 +1009,7 @@ export function exportARBAIMonitoringExcelImpl(ctx: any) {
         excelRowsAR += `
           <tr>
             <td style="border: 1px solid #cbd5e1; padding: 5px;">${row.customerCode}</td>
-            <td style="border: 1px solid #cbd5e1; padding: 5px;">${row.workPeriod || "Juni 2026"}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px;">${row.workPeriod || "-"}</td>
             <td style="border: 1px solid #cbd5e1; padding: 5px; font-family: monospace; font-weight: bold;">${row.invoiceNo}</td>
             <td style="border: 1px solid #cbd5e1; padding: 5px;">${row.jobType || row.notes || "OB & CG"}</td>
             <td style="border: 1px solid #cbd5e1; padding: 5px; text-align: right;">${formatIDR(row.totalInvoice)}</td>
@@ -1161,7 +1161,7 @@ export function exportARBAIMonitoringExcelImpl(ctx: any) {
 export function exportARBAIMonitoringPDFImpl(ctx: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { 
-    baRows: rawBaRows, invoiceRows: rawInvoiceRows, periodFilter = "Jul-26", invPeriodFilter = "Jul-26", query = ""
+    baRows: rawBaRows, invoiceRows: rawInvoiceRows, periodFilter = "All", invPeriodFilter = "All", query = ""
   } = ctx || {};
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
@@ -1206,7 +1206,7 @@ export function exportARBAIMonitoringPDFImpl(ctx: any) {
         pdfRowsAR += `
           <tr>
             <td><strong>${row.customerCode}</strong></td>
-            <td>${row.workPeriod || "Juni 2026"}</td>
+            <td>${row.workPeriod || "-"}</td>
             <td class="font-mono" style="font-weight: 700; color: #0e7490;">${row.invoiceNo}</td>
             <td>${row.jobType || row.notes || "OB & CG"}</td>
             <td class="text-right font-mono">${formatIDR(row.totalInvoice)}</td>
@@ -1404,7 +1404,7 @@ export function exportARBAIMonitoringPDFImpl(ctx: any) {
 export function exportBAOnlyExcelImpl(ctx: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { 
-    baRows: rawBaRows, invoiceRows: rawInvoiceRows, periodFilter = "Jul-26", query = "", onNotice = () => {}
+    baRows: rawBaRows, invoiceRows: rawInvoiceRows, periodFilter = "All", query = "", onNotice = () => {}
   } = ctx || {};
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
@@ -1509,7 +1509,7 @@ export function exportBAOnlyExcelImpl(ctx: any) {
 export function exportBAOnlyPDFImpl(ctx: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { 
-    baRows: rawBaRows, invoiceRows: rawInvoiceRows, periodFilter = "Jul-26", query = ""
+    baRows: rawBaRows, invoiceRows: rawInvoiceRows, periodFilter = "All", query = ""
   } = ctx || {};
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
@@ -1676,7 +1676,7 @@ export function exportBAOnlyPDFImpl(ctx: any) {
 export function exportAROnlyExcelImpl(ctx: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { 
-    invoiceRows: rawInvoiceRows, invPeriodFilter = "Jul-26", query = "", onNotice = () => {}
+    invoiceRows: rawInvoiceRows, invPeriodFilter = "All", query = "", onNotice = () => {}
   } = ctx || {};
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
   const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
@@ -1716,7 +1716,7 @@ export function exportAROnlyExcelImpl(ctx: any) {
         excelRowsAR += `
           <tr>
             <td style="border: 1px solid #cbd5e1; padding: 5px;">${row.customerCode}</td>
-            <td style="border: 1px solid #cbd5e1; padding: 5px;">${row.workPeriod || "Juni 2026"}</td>
+            <td style="border: 1px solid #cbd5e1; padding: 5px;">${row.workPeriod || "-"}</td>
             <td style="border: 1px solid #cbd5e1; padding: 5px; font-family: monospace; font-weight: bold;">${row.invoiceNo}</td>
             <td style="border: 1px solid #cbd5e1; padding: 5px;">${row.jobType || row.notes || "OB & CG"}</td>
             <td style="border: 1px solid #cbd5e1; padding: 5px; text-align: right;">${formatIDR(row.totalInvoice)}</td>
@@ -1795,7 +1795,7 @@ export function exportAROnlyExcelImpl(ctx: any) {
 export function exportAROnlyPDFImpl(ctx: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { 
-    invoiceRows: rawInvoiceRows, invPeriodFilter = "Jul-26", query = ""
+    invoiceRows: rawInvoiceRows, invPeriodFilter = "All", query = ""
   } = ctx || {};
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
   const printWin = window.open("", "_blank", "width=1200,height=900");
@@ -1839,7 +1839,7 @@ export function exportAROnlyPDFImpl(ctx: any) {
         pdfRowsAR += `
           <tr>
             <td><strong>${row.customerCode}</strong></td>
-            <td>${row.workPeriod || "Juni 2026"}</td>
+            <td>${row.workPeriod || "-"}</td>
             <td class="font-mono" style="font-weight: 700; color: #0e7490;">${row.invoiceNo}</td>
             <td>${row.jobType || row.notes || "OB & CG"}</td>
             <td class="text-right font-mono">${formatIDR(row.totalInvoice)}</td>

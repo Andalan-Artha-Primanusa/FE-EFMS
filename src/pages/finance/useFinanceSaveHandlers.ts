@@ -1,6 +1,6 @@
 import React from "react";
-import { api, saveSBSPenalty, deleteSBSPenalty, SBSPenaltyItem, generateJournalFromPayment } from "../../lib/api";
-import { getBAEffectiveVolume, getBAItemSubtotal, calculateBACommercialBreakdown } from "./ba_calculations";
+import { api, saveSBSPenalty, deleteSBSPenalty, SBSPenaltyItem } from "../../lib/api";
+import { getBAEffectiveVolume, getBAItemSubtotal, calculateBACommercialBreakdown, customerKind } from "./ba_calculations";
 
 interface UseFinanceSaveHandlersProps {
   isSaving: boolean;
@@ -115,8 +115,8 @@ export function useFinanceSaveHandlers({
 
   const handleVerifyPartialPayment = async (paymentId: number) => {
     try {
-      await api(`/api/finance/payments/${paymentId}/verify`, { method: "PUT", body: JSON.stringify({ verifiedBy: "Hendra Wijaya (Finance Specialist)" }) });
-      try { await generateJournalFromPayment(paymentId); } catch (e: any) { console.error("Gagal journal payment", e); }
+      // Verifikator diambil server dari sesi login; jurnal kas dibuat server saat verifikasi.
+      await api(`/api/finance/payments/${paymentId}/verify`, { method: "PUT", body: JSON.stringify({}) });
       onNotice("Pembayaran cicilan berhasil diverifikasi.");
       const [invRes, payRes] = await Promise.all([api<any[]>("/api/finance/invoices"), api<any[]>("/api/finance/payments")]);
       setInvoiceRows(Array.isArray(invRes) ? invRes : []);
@@ -137,11 +137,12 @@ export function useFinanceSaveHandlers({
       let payload: any = { ...formData };
       if (modalType === "ba") {
         endpoint = "/api/finance/ba-trackers";
-        const isBGG = formData.customerCode === "BGG" || formData.customerCode === "PT BGG";
-        const isPOS = formData.customerCode === "POS" || formData.customerCode === "PT POSITION" || formData.customerCode === "PT POS";
-        const isPTRO = formData.customerCode === "PTRO" || formData.customerCode === "DBK" || formData.customerCode === "PT Petrosea";
-        const isSBS = formData.customerCode === "SBS";
-        const isCustomerDBK = isPTRO || formData.customerCode === "DBK";
+        const kind = customerKind(formData.customerCode);
+        const isBGG = kind === "BGG";
+        const isPOS = kind === "POS";
+        const isPTRO = kind === "PTRO";
+        const isSBS = kind === "SBS";
+        const isCustomerDBK = isPTRO;
         let rawList = [...baOperatingItems, ...baMDOItems, ...baDeductionItems];
         if (isBGG) {
           // Remove POS residue items
@@ -202,7 +203,6 @@ export function useFinanceSaveHandlers({
         payload = {
           ...formData,
           customerCode: formData.customerCode || "",
-          workPeriod: formData.workPeriod || "Juni 2026",
           picAAP: formData.picAAP || "Operations / Site Engineer",
           items: allItems,
           initialWorkAmount: finalInitialWorkAmount,
@@ -226,22 +226,25 @@ export function useFinanceSaveHandlers({
         endpoint = "/api/finance/pending-volumes";
         const vol = Number(formData.originalOBVolume || 0);
         if (vol <= 0) { onNotice("Volume Saldo Pending wajib diisi > 0"); setIsSaving(false); return; }
-        const r1 = Number(formData.ob1Rate || (formData.customerCode === "SBS" ? 27250 : 7467));
-        const r2 = Number(formData.ob2Rate || (formData.customerCode === "SBS" ? 26500 : 7261));
+        const sourcePeriod = formData.sourcePeriod || formData.workPeriod || "";
+        if (!formData.customerCode || !sourcePeriod) { onNotice("Customer dan periode asal pending volume wajib diisi"); setIsSaving(false); return; }
+        // Tarif pending = tarif OB periode asal (default dari Master Variable SOW di form).
+        const r1 = Number(formData.ob1Rate || 0);
+        const r2 = Number(formData.ob2Rate || 0);
         const rem = formData.remainingVolume !== undefined ? Number(formData.remainingVolume) : vol;
         payload = {
-          customerCode: formData.customerCode || "BGG", sourcePeriod: formData.sourcePeriod || formData.workPeriod || "Agustus 2026",
-          sourceBARef: formData.sourceBARef || "-", originalOBVolume: vol, absorbedVolume: Number(formData.absorbedVolume || 0),
+          customerCode: formData.customerCode, sourcePeriod,
+          sourceBARef: formData.sourceBARef || "", originalOBVolume: vol, absorbedVolume: Number(formData.absorbedVolume || 0),
           remainingVolume: rem, ob1Rate: r1, ob2Rate: r2,
           status: rem <= 0 ? "Settled" : (Number(formData.absorbedVolume || 0) > 0 ? "Partially Settled" : "Active"), notes: formData.notes || ""
         };
       } else if (modalType === "invoice") {
         endpoint = "/api/finance/invoices";
+        // Nomor invoice kosong dibuatkan server (unik); status dikelola server via verify/approve.
         payload = {
-          ...formData, status: formData.status || "Draft", items: invLineItems, lineItems: invLineItems,
-          invoiceNo: formData.invoiceNo || "003/POS-AAP/RF/VI/2026", customerCode: formData.customerCode || "",
-          projectSite: formData.projectSite || "POS PROJECT", contractNo: formData.contractNo || "002/POS-AAP/2025",
-          workPeriod: formData.workPeriod || "Juni 2026", jobType: "Mining Production & Overhaul Billing", volumeUnit: "BCM",
+          ...formData, items: invLineItems, lineItems: invLineItems,
+          invoiceNo: (formData.invoiceNo || "").trim(), customerCode: formData.customerCode || "",
+          jobType: "Mining Production & Overhaul Billing", volumeUnit: "BCM",
           revenueGross: totalGrossCalc, subTotalDPP: dpp11_12Calc, ppn11: vat12Calc, pph23: pph23Calc, totalInvoice: netTotalInvoiceCalc,
           totalDibayar: (formData.customerCode === "SBS") ? calcs.totalDibayar : netTotalInvoiceCalc,
           invoiceDate: formData.invoiceDate ? new Date(formData.invoiceDate).toISOString() : new Date().toISOString(),
@@ -307,16 +310,7 @@ export function useFinanceSaveHandlers({
         setDetailViewItem({ ...detailViewItem, data: { ...(detailViewItem.data || detailViewItem), ...finalItem } });
       }
 
-      if (modalType === "invoice" && payload.baNoReference) {
-        const targetBA = baRows.find((r) => r.baNumber === payload.baNoReference);
-        if (targetBA) {
-          const linkedInvoiceId = finalItem.id || payload.id;
-          if (setBaRows) {
-            setBaRows((prev) => prev.map((b) => b.id === targetBA.id ? { ...b, statusBA: "Arsip", invoiceNoLinked: payload.invoiceNo, invoiceID: linkedInvoiceId } : b));
-          }
-          await api(`/api/finance/ba-trackers/${targetBA.id}`, { method: "PUT", body: JSON.stringify({ ...targetBA, statusBA: "Arsip", invoiceNoLinked: payload.invoiceNo, invoiceID: linkedInvoiceId }) });
-        }
-      }
+      // Tautan BA <-> invoice (status Arsip) disinkronkan server saat invoice disimpan; loadData() di bawah memuat hasilnya.
 
       const savedModalType = modalType;
       setModalType("none");

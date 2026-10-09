@@ -1,4 +1,4 @@
-export type User = {
+﻿export type User = {
   id: number;
   name: string;
   email: string;
@@ -865,4 +865,5 @@ export function saveSBSPenalty(data: Partial<SBSPenaltyItem>) {
 export function deleteSBSPenalty(id: number) {
   return api<{ message: string }>(`/api/finance/sbs-penalties/${id}`, { method: "DELETE" });
 }
+
 

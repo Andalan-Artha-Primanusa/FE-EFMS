@@ -5,6 +5,7 @@ import { BAOperatingTable } from "./BAOperatingTable";
 import { BAMDOTable } from "./BAMDOTable";
 import { BADeductionTable } from "./BADeductionTable";
 import { calculateBACommercialBreakdown, resolveHOMasterLaborAndCurrency, calculateTripleFactorRF } from "../ba_calculations";
+import { computeRFIndex, rfMasterFor, rfTemplateFor, ptroContractRates } from "../masterRegistry";
 
 interface BATrackerSurveyItemsProps {
   formData: any;
@@ -52,7 +53,7 @@ export function BATrackerSurveyItems({
   getBAItemSubtotal,
   sumInitial,
   setActiveBAStep,
-  rfIndexCalculated = 1.560,
+  rfIndexCalculated = 1.0,
   latestKursBI,
   raiseFallMasters = [],
   minWageMasters = [],
@@ -78,11 +79,10 @@ export function BATrackerSurveyItems({
         setP.add(it.period.trim());
       }
     }
-    if (setP.size === 0) setP.add("Agustus 2026");
     return Array.from(setP);
   }, [formData.workPeriod, baOperatingItems]);
 
-  const [activeFuelPeriod, setActiveFuelPeriod] = useState<string>(() => formData.workPeriod || "Agustus 2026");
+  const [activeFuelPeriod, setActiveFuelPeriod] = useState<string>(() => formData.workPeriod || "");
 
   const getPeriodMonthName = (period?: string) => {
     if (!period) return "";
@@ -168,7 +168,7 @@ export function BATrackerSurveyItems({
         const tot1 = p1F + p1T;
         const tot2 = p2F + p2T;
         const avg = Number(matched.actualFuelFn || ((tot1 > 0 && tot2 > 0) ? (tot1 + tot2) / 2 : (tot1 || tot2 || 0)));
-        const rf = Number(matched.rfIndexResult || (avg > 0 ? 0.60 + 0.40 * (avg / 9000) : 0));
+        const rf = Number(matched.rfIndexResult || computeRFIndex(matched, avg));
         return {
           bggFuelP1: p1F,
           bggTransportP1: p1T,
@@ -215,32 +215,7 @@ export function BATrackerSurveyItems({
     const matchedKey = Object.keys(posFuelPeriods).find((k) => matchPeriod(k, period));
     const targetPeriodData = posFuelPeriods[period] || (matchedKey ? posFuelPeriods[matchedKey] : null);
 
-    const defaultRefills = 
-      matchPeriod(period, "Aug-26") || matchPeriod(period, "August 2026") || matchPeriod(period, "Agustus 2026")
-        ? [
-            { id: "pos-rf-1", date: "2026-07-31", label: "31 Juli 2026", liters: 16000, pricePerLiter: 22961.30 },
-            { id: "pos-rf-2", date: "2026-08-04", label: "4 Agustus 2026", liters: 48000, pricePerLiter: 23918.92 },
-            { id: "pos-rf-3", date: "2026-08-11", label: "11 Agustus 2026", liters: 32000, pricePerLiter: 23918.92 },
-            { id: "pos-rf-4", date: "2026-08-15", label: "15 Agustus 2026", liters: 48000, pricePerLiter: 23918.92 },
-            { id: "pos-rf-5", date: "2026-08-22", label: "22 Agustus 2026", liters: 48000, pricePerLiter: 23918.92 },
-            { id: "pos-rf-6", date: "2026-08-28", label: "28 Agustus 2026", liters: 16000, pricePerLiter: 23918.92 },
-          ]
-        : matchPeriod(period, "Jun-26") || matchPeriod(period, "Juni 2026")
-        ? [
-            { id: "pos-rf-1", date: "2026-06-03", label: "3 Juni 2026", liters: 8000, pricePerLiter: 25600 },
-            { id: "pos-rf-2", date: "2026-06-10", label: "10 Juni 2026", liters: 14050, pricePerLiter: 25400 },
-            { id: "pos-rf-3", date: "2026-06-17", label: "17 Juni 2026", liters: 12006, pricePerLiter: 25500 },
-            { id: "pos-rf-4", date: "2026-06-22", label: "22 Juni 2026", liters: 15000, pricePerLiter: 25450 },
-            { id: "pos-rf-5", date: "2026-06-28", label: "28 Juni 2026", liters: 32000, pricePerLiter: 25500 },
-          ]
-        : [
-            { id: "pos-rf-1", date: "", label: "Pengisian 1", liters: 0, pricePerLiter: 0 },
-            { id: "pos-rf-2", date: "", label: "Pengisian 2", liters: 0, pricePerLiter: 0 },
-            { id: "pos-rf-3", date: "", label: "Pengisian 3", liters: 0, pricePerLiter: 0 },
-            { id: "pos-rf-4", date: "", label: "Pengisian 4", liters: 0, pricePerLiter: 0 },
-            { id: "pos-rf-5", date: "", label: "Pengisian 5", liters: 0, pricePerLiter: 0 },
-          ];
-
+    const defaultRefills: any[] = [];
     let fuelRefills = defaultRefills;
     if (targetPeriodData && Array.isArray(targetPeriodData.fuelRefills) && targetPeriodData.fuelRefills.length > 0) {
       fuelRefills = targetPeriodData.fuelRefills;
@@ -320,10 +295,10 @@ export function BATrackerSurveyItems({
     if (Number(ptroData.actualMRate ?? 0) > 0) {
       return {
         actualMRate: Number(ptroData.actualMRate),
-        obRateUSD: Number(ptroData.obRateUSD || 1.490),
-        cgRateUSD: Number(ptroData.cgRateUSD || 0.840),
-        odObRateUSD: Number(ptroData.odObRateUSD || 0.028),
-        odCgRateIDR: Number(ptroData.odCgRateIDR || 230),
+        obRateUSD: Number(ptroData.obRateUSD || ptroContractRates(formData.customerCode).obRateUSD),
+        cgRateUSD: Number(ptroData.cgRateUSD || ptroContractRates(formData.customerCode).cgRateUSD),
+        odObRateUSD: Number(ptroData.odObRateUSD || ptroContractRates(formData.customerCode).odObRateUSD),
+        odCgRateIDR: Number(ptroData.odCgRateIDR || ptroContractRates(formData.customerCode).odCgRateIDR),
       };
     }
 
@@ -337,20 +312,17 @@ export function BATrackerSurveyItems({
       if (matched && matched.actualMRateXn) {
         return {
           actualMRate: Number(matched.actualMRateXn),
-          obRateUSD: 1.490,
-          cgRateUSD: 0.840,
-          odObRateUSD: 0.028,
-          odCgRateIDR: 230,
+          ...ptroContractRates(formData.customerCode),
         };
       }
     }
     const defaultM = Number(ptroData.actualMRate || latestKursBI || mRate || 0);
     return {
       actualMRate: defaultM,
-      obRateUSD: Number(ptroData.obRateUSD || 1.490),
-      cgRateUSD: Number(ptroData.cgRateUSD || 0.840),
-      odObRateUSD: Number(ptroData.odObRateUSD || 0.028),
-      odCgRateIDR: Number(ptroData.odCgRateIDR || 230),
+      obRateUSD: Number(ptroData.obRateUSD || ptroContractRates(formData.customerCode).obRateUSD),
+      cgRateUSD: Number(ptroData.cgRateUSD || ptroContractRates(formData.customerCode).cgRateUSD),
+      odObRateUSD: Number(ptroData.odObRateUSD || ptroContractRates(formData.customerCode).odObRateUSD),
+      odCgRateIDR: Number(ptroData.odCgRateIDR || ptroContractRates(formData.customerCode).odCgRateIDR),
     };
   };
 
@@ -367,8 +339,9 @@ export function BATrackerSurveyItems({
   const totalP2 = fuelP2 + transP2;
 
   const avgFn = (totalP1 > 0 && totalP2 > 0) ? (totalP1 + totalP2) / 2 : (totalP1 > 0 ? totalP1 : (totalP2 > 0 ? totalP2 : 0));
-  const fo = 9000;
-  const computedBggRf = avgFn > 0 ? Number((0.60 + 0.40 * (avgFn / fo)).toFixed(3)) : 0;
+  const bggRfMaster = rfMasterFor(formData.customerCode, activeFuelPeriod) || rfTemplateFor(formData.customerCode);
+  const fo = Number(bggRfMaster?.baseFuelFo || 0);
+  const computedBggRf = computeRFIndex(bggRfMaster, avgFn);
 
   // POS 3-Faktor DLF
   const hoPOSResolved = resolveHOMasterLaborAndCurrency({
@@ -421,7 +394,7 @@ export function BATrackerSurveyItems({
       const tot1 = p1F + p1T;
       const tot2 = p2F + p2T;
       const newAvg = (tot1 > 0 && tot2 > 0) ? (tot1 + tot2) / 2 : (tot1 > 0 ? tot1 : (tot2 > 0 ? tot2 : 0));
-      const newRf = newAvg > 0 ? Number((0.60 + 0.40 * (newAvg / 9000)).toFixed(3)) : 0;
+      const newRf = computeRFIndex(rfMasterFor(formData.customerCode, activeFuelPeriod) || rfTemplateFor(formData.customerCode), newAvg);
       
       curP.bggFuelP1 = p1F;
       curP.bggTransportP1 = p1T;
@@ -774,10 +747,10 @@ export function BATrackerSurveyItems({
             const rUSD = Number(
               it.rateUSD ||
                 ((it.material || "").toLowerCase().includes("coal")
-                  ? 0.840
+                  ? ptroContractRates(formData.customerCode).cgRateUSD
                   : (it.material || "").toLowerCase().includes("overhaul") || (it.material || "").toLowerCase().includes("over distance")
-                  ? 0.028
-                  : 1.490)
+                  ? ptroContractRates(formData.customerCode).odObRateUSD
+                  : ptroContractRates(formData.customerCode).obRateUSD)
             );
             const newIDRRate = Math.round(rUSD * newKurs);
             const effVol = getBAEffectiveVolume(it, prev, false);
@@ -1051,7 +1024,7 @@ export function BATrackerSurveyItems({
                 const pP1 = Number(pData.bggFuelP1 ?? 0) + Number(pData.bggTransportP1 ?? 0);
                 const pP2 = Number(pData.bggFuelP2 ?? 0) + Number(pData.bggTransportP2 ?? 0);
                 const pAvg = (pP1 > 0 && pP2 > 0) ? (pP1 + pP2) / 2 : (pP1 > 0 ? pP1 : (pP2 > 0 ? pP2 : 0));
-                const pRf = pData.bggRfIndex || (pAvg > 0 ? Number((0.60 + 0.40 * (pAvg / 9000)).toFixed(3)) : 0);
+                const pRf = pData.bggRfIndex || computeRFIndex(rfMasterFor(formData.customerCode, p) || rfTemplateFor(formData.customerCode), pAvg);
                 return (
                   <button
                     key={p}
@@ -1239,10 +1212,7 @@ export function BATrackerSurveyItems({
                 const pFn = Number(pData.actualFuelFn ?? 0);
                 const pLn = Number(pData.actualLaborLn ?? 0);
                 const pXn = Number(pData.actualMRateXn ?? 0);
-                const pD = (pFn > 0 && pXn > 0) ? (0.34 * pFn * pXn) / 10699.970229 : 0;
-                const pL = (pLn > 0 && pXn > 0) ? (0.25 * pLn * pXn) / (3594536 * 15388.75) : 0;
-                const pF = 0.41;
-                const pRf = pData.posRfIndex || ((pD > 0 || pL > 0) ? Number((pD + pL + pF).toFixed(3)) : 0);
+                const pRf = pData.posRfIndex || calculateTripleFactorRF(pFn, pLn, pXn, formData.customerCode, p).rfIndex;
                 return (
                   <button
                     key={p}

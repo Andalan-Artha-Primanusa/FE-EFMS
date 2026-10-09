@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { api, verifyBATracker, approveBATracker, generateJournalFromBA } from "../../lib/api";
 import { formatDateInput } from "./helpers";
-import { FALLBACK_POS_OPERATING_ITEMS, FALLBACK_POS_MDO_ITEMS, getInitialBAItemsForRecord } from "./demoDataSeed";
+import { customerKind, baseDistanceFor } from "./masterRegistry";
 
 interface UseFinanceBAStateProps {
   setEditItem: (item: any) => void;
@@ -46,42 +46,38 @@ export function useFinanceBAState({
   setActionLoadingKey,
   setBaRows
 }: UseFinanceBAStateProps) {
-  const [baOperatingItems, setBaOperatingItems] = useState<any[]>(() =>
-    (FALLBACK_POS_OPERATING_ITEMS || []).map((it) => ({
-      ...it,
-      initialVolume: 0,
-      adjustedVolume: 0,
-      subtotalInitial: 0,
-      subtotalAdjusted: 0,
-    }))
-  );
-  const [baMDOItems, setBaMDOItems] = useState<any[]>(() =>
-    (FALLBACK_POS_MDO_ITEMS || []).map((it) => ({
-      ...it,
-      initialVolume: 0,
-      adjustedVolume: 0,
-      subtotalInitial: 0,
-      subtotalAdjusted: 0,
-    }))
-  );
+  const zeroVolumes = (rows: any[] = []) =>
+    rows.map((it) => ({ ...it, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0 }));
+  // Item awal BA: item tersimpan; BA tanpa item memakai template customer dari BE (volume nol).
+  const getInitialBAItemsForRecord = (item: any): any[] => {
+    if (Array.isArray(item?.items) && item.items.length > 0) return item.items;
+    switch (customerKind(item?.customerCode)) {
+      case "BGG": return zeroVolumes(defaultBGGBAItems);
+      case "PTRO": return zeroVolumes(defaultPTROBAItems?.length ? defaultPTROBAItems : defaultDBKBAItems);
+      case "SBS": return zeroVolumes(defaultSBSBAOperatingItems).map((it) => ({ ...it, distance: 0, distanceWeightAvg: 0, rate: 0 }));
+      default: return zeroVolumes([...(defaultPOSBAOperatingItems || []), ...(defaultPOSBAMDOItems || [])]);
+    }
+  };
+  const [baOperatingItems, setBaOperatingItems] = useState<any[]>(() => zeroVolumes(defaultPOSBAOperatingItems));
+  const [baMDOItems, setBaMDOItems] = useState<any[]>(() => zeroVolumes(defaultPOSBAMDOItems));
   const [baDeductionItems, setBaDeductionItems] = useState<any[]>([]);
   const [activeBAStep, setActiveBAStep] = useState<number>(1);
   const [isInlineEditingBA, setIsInlineEditingBA] = useState<boolean>(true);
   const [showAddRowDropdown, setShowAddRowDropdown] = useState<boolean>(false);
 
   const createBlankBGGBAItems = useCallback((period = getCurrentMonthPeriod()) => {
-    const ob1Rate = getSowMasterRate ? getSowMasterRate("BGG", "OVER BURDEN REMOVAL 1 (75%)", 27250) : 27250;
-    const ob2Rate = getSowMasterRate ? getSowMasterRate("BGG", "OVER BURDEN REMOVAL 2 (25%)", 26500) : 26500;
-    const cwRate = getSowMasterRate ? getSowMasterRate("BGG", "Coal Winning", 16500) : 16500;
-    const odObRate = getSowMasterRate ? getSowMasterRate("BGG", "Over Distance For OB Removal", 600) : 600;
-    const odCwRate = getSowMasterRate ? getSowMasterRate("BGG", "Over Distance For Coal Winning", 500) : 500;
+    const ob1Rate = getSowMasterRate ? getSowMasterRate("BGG", "OVER BURDEN REMOVAL 1 (75%)", 0) : 0;
+    const ob2Rate = getSowMasterRate ? getSowMasterRate("BGG", "OVER BURDEN REMOVAL 2 (25%)", 0) : 0;
+    const cwRate = getSowMasterRate ? getSowMasterRate("BGG", "Coal Winning", 0) : 0;
+    const odObRate = getSowMasterRate ? getSowMasterRate("BGG", "Over Distance For OB Removal", 0) : 0;
+    const odCwRate = getSowMasterRate ? getSowMasterRate("BGG", "Over Distance For Coal Winning", 0) : 0;
     return [
-      { id: `bgg_ob1_${Date.now()}`, section: "A", category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 1 (75%)", period, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: ob1Rate, subtotalInitial: 0, subtotalAdjusted: 0 },
-      { id: `bgg_ob2_${Date.now() + 1}`, section: "A", category: "Operating & Mining", area: "Pit KKL", material: "OVER BURDEN REMOVAL 2 (25%)", period, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: ob2Rate, subtotalInitial: 0, subtotalAdjusted: 0 },
-      { id: `bgg_cw_${Date.now() + 2}`, section: "B", category: "Operating & Mining", area: "Pit KKL", material: "Coal Winning", period, notes: "", keterangan: "", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: cwRate, subtotalInitial: 0, subtotalAdjusted: 0 },
-      { id: `bgg_od_ob_${Date.now() + 3}`, section: "C", category: "Over Distance", area: "Pit KKL", material: "Over Distance For OB Removal", period, notes: "", keterangan: "", unit: "BCM", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: odObRate, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
-      { id: `bgg_od_cw_${Date.now() + 4}`, section: "C", category: "Over Distance", area: "Pit KKL", material: "Over Distance For Coal Winning", period, notes: "", keterangan: "", unit: "Ton", distanceBasis: 1000, distanceWeightAvg: 1000, initialVolume: 0, adjustedVolume: 0, rate: odCwRate, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
-      { id: `bgg_dp_fuel_${Date.now() + 5}`, section: "F", category: "DP Fuel", area: "Pit KKL", material: "DP Fuel & Transport (Pengurang Solar BGG)", period, notes: "Uang Muka / Budget Solar Pengurang Tagihan", keterangan: "", unit: "Lot", initialVolume: 1, adjustedVolume: 1, rate: 0, isDeduction: true, subtotalInitial: 0, subtotalAdjusted: 0 }
+      { id: `bgg_ob1_${Date.now()}`, section: "A", category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 1 (75%)", period, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: ob1Rate, subtotalInitial: 0, subtotalAdjusted: 0 },
+      { id: `bgg_ob2_${Date.now() + 1}`, section: "A", category: "Operating & Mining", area: "", material: "OVER BURDEN REMOVAL 2 (25%)", period, notes: "", keterangan: "", unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: ob2Rate, subtotalInitial: 0, subtotalAdjusted: 0 },
+      { id: `bgg_cw_${Date.now() + 2}`, section: "B", category: "Operating & Mining", area: "", material: "Coal Winning", period, notes: "", keterangan: "", unit: "Ton", initialVolume: 0, adjustedVolume: 0, rate: cwRate, subtotalInitial: 0, subtotalAdjusted: 0 },
+      { id: `bgg_od_ob_${Date.now() + 3}`, section: "C", category: "Over Distance", area: "", material: "Over Distance For OB Removal", period, notes: "", keterangan: "", unit: "BCM", distanceBasis: baseDistanceFor("BGG", "Over Distance For OB Removal"), distanceWeightAvg: baseDistanceFor("BGG", "Over Distance For OB Removal"), initialVolume: 0, adjustedVolume: 0, rate: odObRate, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+      { id: `bgg_od_cw_${Date.now() + 4}`, section: "C", category: "Over Distance", area: "", material: "Over Distance For Coal Winning", period, notes: "", keterangan: "", unit: "Ton", distanceBasis: baseDistanceFor("BGG", "Over Distance For Coal Winning"), distanceWeightAvg: baseDistanceFor("BGG", "Over Distance For Coal Winning"), initialVolume: 0, adjustedVolume: 0, rate: odCwRate, isDistanceVar: true, subtotalInitial: 0, subtotalAdjusted: 0 },
+      { id: `bgg_dp_fuel_${Date.now() + 5}`, section: "F", category: "DP Fuel", area: "", material: "DP Fuel & Transport (Pengurang Solar BGG)", period, notes: "Uang Muka / Budget Solar Pengurang Tagihan", keterangan: "", unit: "Lot", initialVolume: 1, adjustedVolume: 1, rate: 0, isDeduction: true, subtotalInitial: 0, subtotalAdjusted: 0 }
     ];
   }, [getCurrentMonthPeriod, getSowMasterRate]);
 
@@ -146,14 +142,7 @@ export function useFinanceBAState({
       invoiceDate: formatDateInput(item.invoiceDate),
       paymentDate: formatDateInput(item.paymentDate),
     });
-    const initialItems = getInitialBAItemsForRecord(item, {
-      defaultBGGBAItems,
-      defaultDBKBAItems,
-      defaultPTROBAItems,
-      defaultSBSBAOperatingItems,
-      defaultPOSBAOperatingItems,
-      defaultPOSBAMDOItems
-    });
+    const initialItems = getInitialBAItemsForRecord(item);
     const syncedInitialItems = syncBARatesWithMasterData
       ? syncBARatesWithMasterData(initialItems, item.customerCode || "BGG", item.workPeriod)
       : initialItems;

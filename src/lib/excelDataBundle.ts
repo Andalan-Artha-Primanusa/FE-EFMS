@@ -1,4 +1,4 @@
-// Auto-generated Excel Data Bundle from FS PT AAP JUNI 2026 IN HOUSE BY PERIOD R3.xlsx
+﻿// Auto-generated Excel Data Bundle from FS PT AAP JUNI 2026 IN HOUSE BY PERIOD R3.xlsx
 
 export const excelFlatJournalRows = [
   {
@@ -18391,7 +18391,7 @@ export const excelFlatJournalRows = [
     "accountCode": "2101.1",
     "accountName": "Hutang Usaha",
     "subAccountCode": "2101.22",
-    "description": "CV SINAR BERLIAN INDAH - PO 07936/PO-AAP/XI/2025 FITTING HYDRAULIC ELBOW 90°;24PHC-INTERLOCK-90;ULTRA ALFATEC DLL",
+    "description": "CV SINAR BERLIAN INDAH - PO 07936/PO-AAP/XI/2025 FITTING HYDRAULIC ELBOW 90Â°;24PHC-INTERLOCK-90;ULTRA ALFATEC DLL",
     "debit": 4191477.66,
     "credit": 0,
     "status": "Posted to GL",
@@ -18414,7 +18414,7 @@ export const excelFlatJournalRows = [
     "accountCode": "6101",
     "accountName": "Administrasi dan Provisi",
     "subAccountCode": "",
-    "description": "CV SINAR BERLIAN INDAH - PO 07936/PO-AAP/XI/2025 FITTING HYDRAULIC ELBOW 90°;24PHC-INTERLOCK-90;ULTRA ALFATEC DLL",
+    "description": "CV SINAR BERLIAN INDAH - PO 07936/PO-AAP/XI/2025 FITTING HYDRAULIC ELBOW 90Â°;24PHC-INTERLOCK-90;ULTRA ALFATEC DLL",
     "debit": 2900,
     "credit": 0,
     "status": "Posted to GL",
@@ -18437,7 +18437,7 @@ export const excelFlatJournalRows = [
     "accountCode": "1102.002",
     "accountName": "Bank Mandiri",
     "subAccountCode": "",
-    "description": "CV SINAR BERLIAN INDAH - PO 07936/PO-AAP/XI/2025 FITTING HYDRAULIC ELBOW 90°;24PHC-INTERLOCK-90;ULTRA ALFATEC DLL",
+    "description": "CV SINAR BERLIAN INDAH - PO 07936/PO-AAP/XI/2025 FITTING HYDRAULIC ELBOW 90Â°;24PHC-INTERLOCK-90;ULTRA ALFATEC DLL",
     "debit": 0,
     "credit": 4194377.66,
     "status": "Posted to GL",
@@ -41017,7 +41017,7 @@ export const excelJournalEntries = [
         "accountCode": "2101.1",
         "accountName": "Hutang Usaha",
         "subAccountCode": "2101.22",
-        "description": "CV SINAR BERLIAN INDAH - PO 07936/PO-AAP/XI/2025 FITTING HYDRAULIC ELBOW 90°;24PHC-INTERLOCK-90;ULTRA ALFATEC DLL",
+        "description": "CV SINAR BERLIAN INDAH - PO 07936/PO-AAP/XI/2025 FITTING HYDRAULIC ELBOW 90Â°;24PHC-INTERLOCK-90;ULTRA ALFATEC DLL",
         "debit": 4191477.66,
         "credit": 0,
         "lineOrder": 43
@@ -41029,7 +41029,7 @@ export const excelJournalEntries = [
         "accountCode": "6101",
         "accountName": "Administrasi dan Provisi",
         "subAccountCode": "",
-        "description": "CV SINAR BERLIAN INDAH - PO 07936/PO-AAP/XI/2025 FITTING HYDRAULIC ELBOW 90°;24PHC-INTERLOCK-90;ULTRA ALFATEC DLL",
+        "description": "CV SINAR BERLIAN INDAH - PO 07936/PO-AAP/XI/2025 FITTING HYDRAULIC ELBOW 90Â°;24PHC-INTERLOCK-90;ULTRA ALFATEC DLL",
         "debit": 2900,
         "credit": 0,
         "lineOrder": 44
@@ -41041,7 +41041,7 @@ export const excelJournalEntries = [
         "accountCode": "1102.002",
         "accountName": "Bank Mandiri",
         "subAccountCode": "",
-        "description": "CV SINAR BERLIAN INDAH - PO 07936/PO-AAP/XI/2025 FITTING HYDRAULIC ELBOW 90°;24PHC-INTERLOCK-90;ULTRA ALFATEC DLL",
+        "description": "CV SINAR BERLIAN INDAH - PO 07936/PO-AAP/XI/2025 FITTING HYDRAULIC ELBOW 90Â°;24PHC-INTERLOCK-90;ULTRA ALFATEC DLL",
         "debit": 0,
         "credit": 4194377.66,
         "lineOrder": 45
@@ -222098,7 +222098,7 @@ export const excelSheetTables: Record<string, any[][]> = {
       "",
       "",
       "",
-      "ACCESS POINT (WIFI) RUIJIE RG-RAP2260€",
+      "ACCESS POINT (WIFI) RUIJIE RG-RAP2260â‚¬",
       "",
       "",
       "",
@@ -222434,7 +222434,7 @@ export const excelSheetTables: Record<string, any[][]> = {
       "",
       "",
       "",
-      "ACCESS POINT (WIFI) RUIJIE RG-RAP2260€ 2 UNIT",
+      "ACCESS POINT (WIFI) RUIJIE RG-RAP2260â‚¬ 2 UNIT",
       "",
       "",
       "",
@@ -246334,7 +246334,7 @@ export const excelSheetTables: Record<string, any[][]> = {
     ],
     [
       "023391-08-12",
-      "90° ISO/SAE CODE 61 FLANGE 1/2 3/4;023391-08-12;HARTEX",
+      "90Â° ISO/SAE CODE 61 FLANGE 1/2 3/4;023391-08-12;HARTEX",
       "Sparepart",
       0,
       0,
@@ -247946,7 +247946,7 @@ export const excelSheetTables: Record<string, any[][]> = {
       40000,
       "",
       "14X-11-11120",
-      "SHAFT ASS’Y;14X-11-11120;KOMATSU",
+      "SHAFT ASSâ€™Y;14X-11-11120;KOMATSU",
       "Sparepart",
       0,
       0,
@@ -247996,7 +247996,7 @@ export const excelSheetTables: Record<string, any[][]> = {
       0,
       "",
       "14X-12-11102",
-      "DISK ASS’Y;14X-12-11102;KOMATSU",
+      "DISK ASSâ€™Y;14X-12-11102;KOMATSU",
       "Sparepart",
       0,
       0,
@@ -248571,7 +248571,7 @@ export const excelSheetTables: Record<string, any[][]> = {
       0,
       "",
       "14X-49-12310",
-      "MAGNET ASS’Y;14X-49-12310;KOMATSU",
+      "MAGNET ASSâ€™Y;14X-49-12310;KOMATSU",
       "Sparepart",
       1,
       1757500,
@@ -251196,7 +251196,7 @@ export const excelSheetTables: Record<string, any[][]> = {
       0,
       "",
       "205-30-00061",
-      "O-RING ASS’Y;205-30-00061;KOMATSU",
+      "O-RING ASSâ€™Y;205-30-00061;KOMATSU",
       "Sparepart",
       2,
       140000,
@@ -251221,7 +251221,7 @@ export const excelSheetTables: Record<string, any[][]> = {
       0,
       "",
       "205-30-00150",
-      "SEAL RING ASS’Y;205-30-00150;KOMATSU",
+      "SEAL RING ASSâ€™Y;205-30-00150;KOMATSU",
       "Sparepart",
       0,
       0,
@@ -269046,7 +269046,7 @@ export const excelSheetTables: Record<string, any[][]> = {
       0,
       "",
       "9X-7317",
-      "SEAL–O–RING;9X-7317;CAT",
+      "SEALâ€“Oâ€“RING;9X-7317;CAT",
       "Sparepart",
       6,
       693900,
@@ -270109,7 +270109,7 @@ export const excelSheetTables: Record<string, any[][]> = {
     ],
     [
       "12MJ-16MB-90DERAJAT",
-      "ELBOW ADAPTOR 90°;12MJ-16MB-90DERAJAT;ULTRA ALFATEC",
+      "ELBOW ADAPTOR 90Â°;12MJ-16MB-90DERAJAT;ULTRA ALFATEC",
       "Sparepart",
       0,
       0,
@@ -270209,7 +270209,7 @@ export const excelSheetTables: Record<string, any[][]> = {
     ],
     [
       "12NJ-90",
-      "FITTING 90°",
+      "FITTING 90Â°",
       "Sparepart",
       0,
       0,
@@ -277196,7 +277196,7 @@ export const excelSheetTables: Record<string, any[][]> = {
       0,
       "",
       "H4110210901A0",
-      "WATER SEPARATOR ELEMENT",
+      "WATER SEPARATORÂ ELEMENT",
       "Sparepart",
       9,
       3714878.7,
@@ -279271,7 +279271,7 @@ export const excelSheetTables: Record<string, any[][]> = {
       0,
       "",
       "HY-S59-1616",
-      "SWAGE SAE FLANGE CODE 61, 90 DEG 1” X 1” ID HOSE;HY-S59-1616;HYDRAULINK",
+      "SWAGE SAE FLANGE CODE 61, 90 DEG 1â€ X 1â€ ID HOSE;HY-S59-1616;HYDRAULINK",
       "Sparepart",
       0,
       0,
@@ -279296,7 +279296,7 @@ export const excelSheetTables: Record<string, any[][]> = {
       0,
       "",
       "HY-S68-1616",
-      "SWAGE SAE FLANGE CODE 61, 45 DEG 1” X 1” ID HOSE;HY-S68-1616;HYDRAULINK",
+      "SWAGE SAE FLANGE CODE 61, 45 DEG 1â€ X 1â€ ID HOSE;HY-S68-1616;HYDRAULINK",
       "Sparepart",
       0,
       0,
@@ -305759,7 +305759,7 @@ export const excelSheetTables: Record<string, any[][]> = {
     ],
     [
       "222-7001",
-      "SEAL AS;222-7001;CAT",
+      "SEALÂ AS;222-7001;CAT",
       "Sparepart",
       0,
       0,
@@ -313884,7 +313884,7 @@ export const excelSheetTables: Record<string, any[][]> = {
     ],
     [
       "24PHC-INTERLOCK-90",
-      "FITTING HYDRAULIC ELBOW 90°;24PHC-INTERLOCK-90;ULTRA ALFATEC",
+      "FITTING HYDRAULIC ELBOW 90Â°;24PHC-INTERLOCK-90;ULTRA ALFATEC",
       "Sparepart",
       0,
       0,
@@ -382609,7 +382609,7 @@ export const excelSheetTables: Record<string, any[][]> = {
     ],
     [
       "6750967",
-      "·CAP-BREATHER TR50D",
+      "Â·CAP-BREATHER TR50D",
       "Sparepart",
       18,
       3645000,
@@ -386484,7 +386484,7 @@ export const excelSheetTables: Record<string, any[][]> = {
     ],
     [
       "69951-85010",
-      "HOLDER DOOR WINDOW GLASS HILUX",
+      "HOLDER DOOR WINDOWÂ GLASS HILUX",
       "Sparepart",
       0,
       0,
@@ -394434,7 +394434,7 @@ export const excelSheetTables: Record<string, any[][]> = {
     ],
     [
       "8-94130558-0",
-      "SEAT VLV IN‬;8-94130558-0;ISUZU",
+      "SEAT VLV INâ€¬;8-94130558-0;ISUZU",
       "Sparepart",
       0,
       0,
@@ -401709,7 +401709,7 @@ export const excelSheetTables: Record<string, any[][]> = {
     ],
     [
       "800367508",
-      "YOKE DIFF FRONT;800367508;XCMG",
+      "YOKEÂ DIFFÂ FRONT;800367508;XCMG",
       "Sparepart",
       0,
       0,
@@ -403959,7 +403959,7 @@ export const excelSheetTables: Record<string, any[][]> = {
     ],
     [
       "802154505",
-      "DRIVER’S SEAT;802154505;XCMG",
+      "DRIVERâ€™S SEAT;802154505;XCMG",
       "Sparepart",
       0,
       0,
@@ -404084,7 +404084,7 @@ export const excelSheetTables: Record<string, any[][]> = {
     ],
     [
       "802155778",
-      "DRIVER’S SEAT CUSHION;802155778;XCMG",
+      "DRIVERâ€™S SEAT CUSHION;802155778;XCMG",
       "Sparepart",
       0,
       0,
@@ -435959,7 +435959,7 @@ export const excelSheetTables: Record<string, any[][]> = {
     ],
     [
       "ANTENA-BASE-STATION",
-      "DIAMOND F23H – ANTENA BASE STATION DENGAN FREKUENSI VHF 144-174 MHZ;ANTENA-BASE-STATION;DIAMOND",
+      "DIAMOND F23H â€“ ANTENA BASE STATION DENGAN FREKUENSI VHF 144-174 MHZ;ANTENA-BASE-STATION;DIAMOND",
       "IT",
       0,
       0,
@@ -512384,7 +512384,7 @@ export const excelSheetTables: Record<string, any[][]> = {
     ],
     [
       "RG-E-120 GE",
-      "POWER OVER ETHERNET ADAPTOR POE ",
+      "POWER OVER ETHERNET ADAPTOR POEÂ ",
       "IT",
       0,
       0,
@@ -530859,7 +530859,7 @@ export const excelSheetTables: Record<string, any[][]> = {
     ],
     [
       "SPD-DC-ANTI-PETIR",
-      " SPD DC ANTI PETIR DSHN BDP-40 500VDC 2P",
+      "Â SPD DC ANTI PETIR DSHN BDP-40 500VDC 2P",
       "IT",
       0,
       0,
@@ -541134,7 +541134,7 @@ export const excelSheetTables: Record<string, any[][]> = {
     ],
     [
       "TANG -PRESS-SKUN",
-      "TANG PRESS SKUN HIDROLIK YQK-120",
+      "TANG PRESS SKUN HIDROLIKÂ YQK-120",
       "Tools",
       0,
       0,
@@ -820176,3 +820176,4 @@ export const excelSheetTables: Record<string, any[][]> = {
     ]
   ]
 };
+

@@ -1,6 +1,7 @@
 import { getSBSTarifByDistance } from "./calculations";
 import { buildBGGInvoiceItemsFromBA } from "./invoiceItemGeneratorBGG";
-import { getBAEffectiveVolume } from "./ba_calculations";
+import { getBAEffectiveVolume, isOBMaterial } from "./ba_calculations";
+import { ptroContractRates } from "./masterRegistry";
 
 export interface InvoiceItemGeneratorContext {
   baRows?: any[];
@@ -27,7 +28,7 @@ export function buildInvoiceItemsFromBA(
   const {
     baRows = [],
     baMDOItems = [],
-    latestKursBI = 17923.30,
+    latestKursBI = 0,
     rfIndexCalculated = 1.0,
     demoBGGItems = [],
     demoPTROItems = [],
@@ -161,12 +162,12 @@ export function buildInvoiceItemsFromBA(
 
     if (itemsToProcess && Array.isArray(itemsToProcess) && itemsToProcess.length > 0) {
       const invItems: any[] = [];
-      const kurs = latestKursBI || 17923.30;
+      const kurs = latestKursBI || 0;
       itemsToProcess.forEach((bi: any, idx: number) => {
         const mLow = (bi.material || bi.sowDescription || bi.description || "").toLowerCase();
         const isDist = bi.isDistanceVar || bi.category === "Over Distance" || mLow.includes("overhaul") || mLow.includes("distance");
         const isCoal = mLow.includes("coal") || mLow.includes("batubara");
-        const isOB = mLow.includes("ob") || mLow.includes("overburden") || mLow.includes("waste") || mLow.includes("over burden");
+        const isOB = isOBMaterial(mLow);
         const vol = getBAEffectiveVolume(bi, itemsToProcess, true);
 
         if (isDist) {
@@ -202,7 +203,7 @@ export function buildInvoiceItemsFromBA(
             notes: bi.notes || bi.keterangan || ""
           });
         } else if (isCoal) {
-          const usdRate = bi.rateUSD || (bi.isUSD ? bi.rate : 0.840);
+          const usdRate = bi.rateUSD || (bi.isUSD ? bi.rate : ptroContractRates(ba.customerCode).cgRateUSD);
           const rateIDR = bi.rateIDR || bi.rate || Number((usdRate * kurs).toFixed(3));
           const amt = Number(bi.subtotalAdjusted || bi.subtotalInitial || Math.round(vol * usdRate * kurs));
           invItems.push({
@@ -220,7 +221,7 @@ export function buildInvoiceItemsFromBA(
             notes: bi.notes || bi.keterangan || ""
           });
         } else if (isOB) {
-          const usdRate = bi.rateUSD || (bi.isUSD ? bi.rate : 1.490);
+          const usdRate = bi.rateUSD || (bi.isUSD ? bi.rate : ptroContractRates(ba.customerCode).obRateUSD);
           const rateIDR = bi.rateIDR || bi.rate || Number((usdRate * kurs).toFixed(3));
           const amt = Number(bi.subtotalAdjusted || bi.subtotalInitial || Math.round(vol * usdRate * kurs));
           invItems.push({

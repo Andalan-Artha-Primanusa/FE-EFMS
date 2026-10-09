@@ -100,7 +100,7 @@ export const InvoiceDetailSheet: React.FC<InvoiceDetailSheetProps> = ({
           </div>
           <div className="flex">
             <span className="w-28 font-bold text-slate-500">Work Period</span>
-            <span className="font-extrabold text-slate-900">: {data.workPeriod || "Juni 2026"}</span>
+            <span className="font-extrabold text-slate-900">: {data.workPeriod || "-"}</span>
           </div>
         </div>
         <div className="space-y-1">
@@ -122,7 +122,7 @@ export const InvoiceDetailSheet: React.FC<InvoiceDetailSheetProps> = ({
       {/* Title */}
       <div className="text-center py-1">
         <h3 className="text-sm font-black uppercase tracking-wider text-slate-900 underline">INVOICE</h3>
-        <p className="text-[11px] text-slate-600 font-semibold mt-0.5">(NO KONTRAK : {data.contractNo || cInfo?.contract || "SPPH-05852"})</p>
+        <p className="text-[11px] text-slate-600 font-semibold mt-0.5">(NO KONTRAK : {data.contractNo || cInfo?.contract || "-"})</p>
       </div>
 
       {/* MAIN INVOICE TABLE — DYNAMIC PER CUSTOMER */}

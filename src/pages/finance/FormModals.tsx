@@ -5,11 +5,11 @@ import { BATrackerModal } from "./modals/BATrackerModal";
 import { PaymentModal } from "./modals/PaymentModal";
 import { CustomerModal } from "./modals/CustomerModal";
 import { PendingVolumeRecordModal } from "./modals/PendingVolumeRecordModal";
-import { SITE_SOW_DEFAULTS, getSiteSOWList, SOWSelectDropdown } from "./modals/SOWSelectDropdown";
+import { getSiteSOWList, SOWSelectDropdown } from "./modals/SOWSelectDropdown";
 import { getCompanies, type Company } from "../../lib/api";
 
 // Re-export SOW helpers for backward compatibility
-export { SITE_SOW_DEFAULTS, getSiteSOWList, SOWSelectDropdown };
+export { getSiteSOWList, SOWSelectDropdown };
 
 export function FormModals({ c }: { c: any }) {
   const {

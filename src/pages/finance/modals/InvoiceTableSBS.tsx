@@ -79,7 +79,7 @@ export function InvoiceTableSBS({
             </h4>
           </div>
           <span className="text-[11px] text-slate-600 font-medium">
-            OB Removal & Jasa Penunjang Produksi (SPPH-05852)
+            OB Removal & Jasa Penunjang Produksi
           </span>
         </div>
 
