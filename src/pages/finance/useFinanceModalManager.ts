@@ -1,4 +1,4 @@
-import { uploadDocumentFile } from "../../lib/api";
+import { uploadDocumentFile, previewInvoiceFromBA } from "../../lib/api";
 import { generateInvoiceNumber, formatDateInput, matchPeriod } from "./helpers";
 import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF } from "./ba_calculations";
 import { customerKind, rfMasterFor, computeRFIndex, obSplitSOWs, ptroContractRates } from "./masterRegistry";
@@ -114,6 +114,17 @@ export function useFinanceModalManager({
     });
   };
 
+  // Item invoice dari BA dihitung backend (validasi & rumus sama dengan generate invoice).
+  const loadBAInvoiceItems = async (ba: any, category: "Operation & Mining" | "MDO"): Promise<any[] | null> => {
+    try {
+      const draft = await previewInvoiceFromBA(ba.id, category);
+      return draft.lineItems || draft.items || [];
+    } catch (err: any) {
+      onNotice(`Gagal menyiapkan item invoice dari BA ${ba.baNumber}: ${err?.message || err}`);
+      return null;
+    }
+  };
+
   const handleBASelect = (baNumber: string) => {
     if (!baNumber) {
       setFormData((prev: any) => ({ ...prev, baNoReference: "" }));
@@ -135,17 +146,22 @@ export function useFinanceModalManager({
         activityGroup: (code === "POS" && cat === "MDO") ? "MINE DEVELOPMENT OPERATION (MDO)" : (selectedBa.activityGroup || "OPERATION & MINING"),
         invoiceCategory: cat,
       }));
-      setInvLineItems(buildInvItems(selectedBa, code, cat));
-      onNotice(`No. BA ${selectedBa.baNumber} dipilih. Volume survei klaim [${cat}] berhasil diisi otomatis.`);
+      loadBAInvoiceItems(selectedBa, cat).then((items) => {
+        if (!items) return;
+        setInvLineItems(items);
+        onNotice(`No. BA ${selectedBa.baNumber} dipilih. Volume survei klaim [${cat}] berhasil diisi otomatis.`);
+      });
     }
   };
 
-  const createInvoiceFromBA = (ba: any, category: "Operation & Mining" | "MDO" = "Operation & Mining") => {
+  const createInvoiceFromBA = async (ba: any, category: "Operation & Mining" | "MDO" = "Operation & Mining") => {
     const isBAReady = ba.statusBA === "Ready to Invoice" || ba.statusBA === "Approved" || ba.statusBA === "Verified" || ba.statusBA === "Disetujui" || Boolean(ba.verifiedBy);
     if (!isBAReady) {
       onNotice("Perhatian: Berita Acara belum diverifikasi oleh Finance Specialist. Mohon verifikasi BA terlebih dahulu.");
       return;
     }
+    const items = await loadBAInvoiceItems(ba, category);
+    if (!items) return;
     const code = ba.customerCode || "";
     const period = ba.workPeriod || "";
     let autoInvNo = generateInvoiceNumber(code, period, invoiceRows.length);
@@ -160,7 +176,7 @@ export function useFinanceModalManager({
       activityGroup: (code === "POS" && category === "MDO") ? "MINE DEVELOPMENT OPERATION (MDO)" : "OPERATION & MINING",
       invoiceCategory: category,
     });
-    setInvLineItems(buildInvItems(ba, code, category));
+    setInvLineItems(items);
     setDetailViewItem(null);
     setModalType("invoice");
     onNotice(`Menyiapkan Form Draf Invoice [${category}] dari No. BA ${ba.baNumber} (${code}).`);

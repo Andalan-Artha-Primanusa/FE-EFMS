@@ -250,6 +250,11 @@ export function generateInvoiceFromBA(id: number, category?: "Operation & Mining
   return api(`/api/finance/ba-trackers/${id}/generate-invoice${category ? `?category=${encodeURIComponent(category)}` : ""}`, { method: "POST" });
 }
 
+// Draf invoice dari BA, dihitung backend (tanpa menyimpan).
+export function previewInvoiceFromBA(id: number, category?: "Operation & Mining" | "MDO") {
+  return api<{ lineItems?: any[]; items?: any[] }>(`/api/finance/ba-trackers/${id}/invoice-preview${category ? `?category=${encodeURIComponent(category)}` : ""}`);
+}
+
 export function verifyInvoice(id: number, action: "verify" | "reject", note: string) {
   return api(`/api/finance/invoices/${id}/verify`, { method: "POST", body: JSON.stringify({ action, note }) });
 }
