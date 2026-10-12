@@ -246,8 +246,13 @@ export function approveBATracker(id: number, action: "approve" | "reject", note:
   return api(`/api/finance/ba-trackers/${id}/approve`, { method: "POST", body: JSON.stringify({ action, note }) });
 }
 
-export function generateInvoiceFromBA(id: number) {
-  return api(`/api/finance/ba-trackers/${id}/generate-invoice`, { method: "POST" });
+export function generateInvoiceFromBA(id: number, category?: "Operation & Mining" | "MDO") {
+  return api(`/api/finance/ba-trackers/${id}/generate-invoice${category ? `?category=${encodeURIComponent(category)}` : ""}`, { method: "POST" });
+}
+
+// Draf invoice dari BA, dihitung backend (tanpa menyimpan).
+export function previewInvoiceFromBA(id: number, category?: "Operation & Mining" | "MDO") {
+  return api<{ lineItems?: any[]; items?: any[] }>(`/api/finance/ba-trackers/${id}/invoice-preview${category ? `?category=${encodeURIComponent(category)}` : ""}`);
 }
 
 export function verifyInvoice(id: number, action: "verify" | "reject", note: string) {
