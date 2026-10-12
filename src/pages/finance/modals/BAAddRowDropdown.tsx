@@ -46,7 +46,7 @@ export function BAAddRowDropdown({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const rawCust = (formData.customerCode || "POS").toUpperCase();
-  const curPeriod = formData.workPeriod || "Agustus 2026";
+  const curPeriod = formData.workPeriod || "";
   const isCustomerBGG = rawCust === "BGG" || rawCust === "PT BGG";
   const isCustomerSBS = rawCust === "SBS";
   const isCustomerPTRO = rawCust === "PTRO" || rawCust === "DBK" || rawCust === "PT PETROSEA";
@@ -88,7 +88,7 @@ export function BAAddRowDropdown({
     const isCoal = nameLow.includes("coal") || nameLow.includes("batubara");
     const isDed = Boolean(sow.isDeduction) || (sow.category || "").toLowerCase().includes("pengurang") || nameLow.includes("denda") || nameLow.includes("kelebihan");
 
-    let calculatedRate = sow.defaultRate || sow.rateIDR || (sow.rateUSD ? Number((sow.rateUSD * (mRate || 17923.30)).toFixed(3)) : 0);
+    let calculatedRate = sow.defaultRate || sow.rateIDR || (sow.rateUSD ? Number((sow.rateUSD * (mRate || 0)).toFixed(3)) : 0);
     if (getSowMasterRate) {
       const dynRate = getSowMasterRate(rawCust, sow.name || sow.itemName, calculatedRate, false);
       if (dynRate > 0) calculatedRate = dynRate;
@@ -133,7 +133,7 @@ export function BAAddRowDropdown({
     switch (sectionType) {
       // ================= BGG SITE PRESETS =================
       case "BGG_OB":
-        const bggObRate = getSowMasterRate ? getSowMasterRate("BGG", "Over Burden Removal", 27250) : 27250;
+        const bggObRate = getSowMasterRate ? getSowMasterRate("BGG", "Over Burden Removal", 0) : 0;
         setBaOperatingItems((prev) => [
           ...prev,
           {
@@ -156,7 +156,7 @@ export function BAAddRowDropdown({
         break;
 
       case "BGG_COAL":
-        const bggCoalRate = getSowMasterRate ? getSowMasterRate("BGG", "Coal Winning", 16500) : 16500;
+        const bggCoalRate = getSowMasterRate ? getSowMasterRate("BGG", "Coal Winning", 0) : 0;
         setBaOperatingItems((prev) => [
           ...prev,
           {
@@ -864,7 +864,7 @@ export function BAAddRowDropdown({
                 <div>
                   <div className="font-bold text-slate-900">OB Removal</div>
                   <div className="text-[10px] text-slate-500 font-normal">
-                    Pit KKL (BCM - OB1 Rp 29.500 / OB2 Rp 28.750)
+                    BCM - tarif OB1 / OB2 dari Master SOW (tier Coal Index)
                   </div>
                 </div>
               </button>
@@ -880,7 +880,7 @@ export function BAAddRowDropdown({
                 <div>
                   <div className="font-bold text-slate-900">Coal Winning</div>
                   <div className="text-[10px] text-slate-500 font-normal">
-                    Pit KKL (Ton - Rp 17.500)
+                    Ton - tarif dari Master SOW
                   </div>
                 </div>
               </button>
@@ -896,7 +896,7 @@ export function BAAddRowDropdown({
                 <div>
                   <div className="font-bold text-slate-900">Over Distance</div>
                   <div className="text-[10px] text-slate-500 font-normal">
-                    Pit KKL &gt;1000m (BCM - Rp 1.550)
+                    BCM - di atas basis jarak Master SOW
                   </div>
                 </div>
               </button>
@@ -1018,7 +1018,7 @@ export function BAAddRowDropdown({
                 <div>
                   <div className="font-bold text-slate-900">OB Removal Pit Sapan</div>
                   <div className="text-[10px] text-slate-500 font-normal">
-                    Overburden Sapan (BCM - USD 1.490)
+                    Overburden (BCM - Master SOW)
                   </div>
                 </div>
               </button>
@@ -1034,7 +1034,7 @@ export function BAAddRowDropdown({
                 <div>
                   <div className="font-bold text-slate-900">Coal Getting Pit Sapan</div>
                   <div className="text-[10px] text-slate-500 font-normal">
-                    Coal Getting Sapan (MT - USD 0.840)
+                    Coal Getting (MT - Master SOW)
                   </div>
                 </div>
               </button>

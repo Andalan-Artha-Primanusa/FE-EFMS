@@ -124,7 +124,7 @@ export const InvoiceDetailTableSBS: React.FC<InvoiceDetailTableSBSProps> = ({
             BLOK 2: TABEL KHUSUS PENGURANG PEMBAYARAN (DENDA & BBM)
           </h4>
           <span className="text-[10px] text-slate-500 font-medium">
-            Sesuai SPPH-05852
+            Sesuai kontrak customer
           </span>
         </div>
 

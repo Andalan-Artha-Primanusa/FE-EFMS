@@ -1,5 +1,6 @@
 import React from "react";
 import { RupiahInput } from "../helpers";
+import { masterRegistry } from "../masterRegistry";
 
 interface CustomerModalProps {
   formData: any;
@@ -36,7 +37,7 @@ export function CustomerModal({ formData, setFormData }: CustomerModalProps) {
             <input
               type="number"
               className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold focus:border-cyan-700 focus:bg-white outline-none"
-              value={formData.terminDays || 30}
+              value={formData.terminDays ?? ""}
               onChange={(e) =>
                 setFormData({ ...formData, terminDays: Number(e.target.value) })
               }
@@ -86,8 +87,8 @@ export function CustomerModal({ formData, setFormData }: CustomerModalProps) {
             <input
               className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none"
               placeholder="Bpk. Hendra"
-              value={formData.contactPerson || ""}
-              onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
+              value={formData.contactAR || ""}
+              onChange={(e) => setFormData({ ...formData, contactAR: e.target.value })}
             />
           </div>
           <div>
@@ -153,6 +154,68 @@ export function CustomerModal({ formData, setFormData }: CustomerModalProps) {
             value={formData.notes || ""}
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
           />
+        </div>
+      </div>
+
+      {/* Section 4: Parameter kontrak yang dipakai perhitungan BA & Invoice */}
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center gap-2 border-b border-slate-200 pb-1.5">
+          <span className="text-xs font-black uppercase text-cyan-800 tracking-wider">
+            4. Parameter Kontrak (dipakai BA Tracker & Invoice)
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Project Site</label>
+            <input className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.projectSite || ""}
+              onChange={(e) => setFormData({ ...formData, projectSite: e.target.value })} />
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Rekening Penerimaan</label>
+            <select className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.bankAccountId || ""}
+              onChange={(e) => setFormData({ ...formData, bankAccountId: Number(e.target.value) || 0 })}>
+              <option value="">— Pilih dari Master Rekening Bank —</option>
+              {masterRegistry.bankAccounts.map((b: any) => (
+                <option key={b.id} value={b.id}>{b.bankName} · {b.accountNo}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Skema Raise & Fall</label>
+            <select className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.formulaScheme || ""}
+              onChange={(e) => setFormData({ ...formData, formulaScheme: e.target.value })}>
+              <option value="">— Tanpa eskalasi —</option>
+              <option value="SINGLE_FACTOR_FUEL">Single Factor (Fuel)</option>
+              <option value="TRIPLE_FACTOR_DLF">Triple Factor (Fuel, Labor, Fixed)</option>
+              <option value="KURS_TRANSAKSI_USD">Kurs Transaksi USD</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Satuan Tarif Overhaul</label>
+            <select className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.overhaulRateUnit || ""}
+              onChange={(e) => setFormData({ ...formData, overhaulRateUnit: e.target.value })}>
+              <option value="PER_1000M">Per 1.000 m</option>
+              <option value="PER_100M">Per 100 m</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Diskon Overdistance (%)</label>
+            <input type="number" step="any" className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.overDistanceDiscountPct ?? ""}
+              onChange={(e) => setFormData({ ...formData, overDistanceDiscountPct: Number(e.target.value) })} />
+            <span className="text-[10px] text-slate-500">0 = tidak ada diskon</span>
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Kuota Stripping Ratio (OB : Coal)</label>
+            <input type="number" step="any" className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.maxStrippingRatio ?? ""}
+              onChange={(e) => setFormData({ ...formData, maxStrippingRatio: Number(e.target.value) })} />
+            <span className="text-[10px] text-slate-500">0 = tanpa kuota; kelebihan OB menjadi pending volume</span>
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Toleransi Joint Survey (%)</label>
+            <input type="number" step="any" className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.surveyTolerancePct ?? ""}
+              onChange={(e) => setFormData({ ...formData, surveyTolerancePct: Number(e.target.value) })} />
+            <span className="text-[10px] text-slate-500">Batas selisih volume AAP vs customer</span>
+          </div>
         </div>
       </div>
     </>

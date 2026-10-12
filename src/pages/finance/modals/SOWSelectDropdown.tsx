@@ -1,99 +1,5 @@
 import React, { useMemo } from "react";
 
-export const SITE_SOW_DEFAULTS: Record<string, Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean; baseDistanceMeters?: number; parentMaterial?: string }>> = {
-  BGG: [
-    { name: "OVER BURDEN REMOVAL 1 (75%)", unit: "BCM", defaultRate: 27250, category: "Operating & Mining", isDistanceVar: false },
-    { name: "OVER BURDEN REMOVAL 2 (25%)", unit: "BCM", defaultRate: 26500, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Coal Winning", unit: "Ton", defaultRate: 16500, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Over Distance For OB Removal", unit: "BCM", defaultRate: 600, category: "Over Distance", isDistanceVar: true },
-    { name: "Over Distance For Coal Winning", unit: "Ton", defaultRate: 500, category: "Over Distance", isDistanceVar: true },
-  ],
-  POS: [
-    // Operation & Mining - A. Production (Base Rates)
-    { name: "Overburden/Waste - Base Rate (1000m)", unit: "USD/BCM", defaultRate: 59385, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Topsoil Removal - Base Rate (1000m)", unit: "USD/BCM", defaultRate: 60331, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Limonite - Base Rate (1000m)", unit: "USD/BCM", defaultRate: 60027, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Saprolite - Base Rate (1000m)", unit: "USD/BCM", defaultRate: 61973, category: "Operating & Mining", isDistanceVar: false },
-
-    // Operation & Mining - B. Over Distance (Over/Underhaul)
-    { name: "OB/Waste - over/underhaul", unit: "USD/1KM", defaultRate: 9603, category: "Over Distance", isDistanceVar: true },
-    { name: "Topsoil Removal - over/underhaul", unit: "USD/1KM", defaultRate: 9603, category: "Over Distance", isDistanceVar: true },
-    { name: "Limonite - over/underhaul", unit: "USD/1KM", defaultRate: 9389, category: "Over Distance", isDistanceVar: true },
-    { name: "Saprolite - over/underhaul", unit: "USD/1KM", defaultRate: 9389, category: "Over Distance", isDistanceVar: true },
-
-    // Operation & Mining - C. Land Clearing
-    { name: "Land Clearing", unit: "USD/m2", defaultRate: 6801, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Clear & Grub", unit: "USD/m2", defaultRate: 6801, category: "Operating & Mining", isDistanceVar: false },
-
-    // Rehabilitation
-    { name: "Topsoil Reclaim/Haul/Spread - Base Rate (1000m)", unit: "USD/BCM", defaultRate: 58000, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Topsoil Reclaim/Haul/Spread - overhaul", unit: "USD/1KM", defaultRate: 9603, category: "Over Distance", isDistanceVar: true },
-
-    // Mine Development (MDO) - Exact Aug MDO order
-    { name: "Topsoil Removal - Base Rate (1000m) (MDO)", unit: "USD/BCM", defaultRate: 60331, category: "MDO", isDistanceVar: false },
-    { name: "Fill", unit: "USD/BCM", defaultRate: 19795, category: "MDO", isDistanceVar: false },
-    { name: "Saprolite - Base Rate (1000m) (MDO)", unit: "USD/BCM", defaultRate: 61973, category: "MDO", isDistanceVar: false },
-    { name: "Topsoil Removal - over/underhaul (MDO)", unit: "USD/1KM", defaultRate: 9603, category: "MDO", isDistanceVar: true },
-    { name: "Saprolite - over/underhaul (MDO)", unit: "USD/1KM", defaultRate: 9389, category: "MDO", isDistanceVar: true },
-    { name: "Cut or Fill under/overhaul", unit: "USD/1KM", defaultRate: 9299, category: "MDO", isDistanceVar: true },
-
-    // Mine Development (MDO) - Additional Contract Items
-    { name: "Cut - Base Rate (1000m)", unit: "USD/BCM", defaultRate: 38001, category: "MDO", isDistanceVar: false },
-    { name: "Overburden/Waste - Base Rate (1000m) (MDO)", unit: "USD/BCM", defaultRate: 59385, category: "MDO", isDistanceVar: false },
-    { name: "OB/Waste - over/underhaul (MDO)", unit: "USD/1KM", defaultRate: 9603, category: "MDO", isDistanceVar: true },
-    { name: "Limonite - Base Rate (1000m) (MDO)", unit: "USD/BCM", defaultRate: 60027, category: "MDO", isDistanceVar: false },
-    { name: "Limonite - over/underhaul (MDO)", unit: "USD/1KM", defaultRate: 9389, category: "MDO", isDistanceVar: true },
-    { name: "Unblasted fill material", unit: "USD/BCM", defaultRate: 59528, category: "MDO", isDistanceVar: false },
-    { name: "Excess Cut disposal in dump", unit: "USD/BCM", defaultRate: 20652, category: "MDO", isDistanceVar: false },
-    { name: "Uncrushed rocks for construction - Base Rate (1000m)", unit: "USD/BCM", defaultRate: 141688, category: "MDO", isDistanceVar: false },
-    { name: "Crusher rocks - Base Rate (1000m)", unit: "USD/BCM", defaultRate: 232934, category: "MDO", isDistanceVar: false },
-    { name: "Rocks for construction - under/overhaul", unit: "USD/1KM", defaultRate: 9389, category: "MDO", isDistanceVar: true },
-    { name: "Geotextile", unit: "USD/m2", defaultRate: 35752, category: "MDO", isDistanceVar: false },
-  ],
-  PTRO: [
-    { name: "OVER BURDEN REMOVAL", unit: "BCM", defaultRate: 26700, category: "Operating & Mining", isDistanceVar: false },
-    { name: "COAL GETTING", unit: "TON", defaultRate: 15050, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Overhaul OB", unit: "BCM", defaultRate: 500, category: "Over Distance", isDistanceVar: true, baseDistanceMeters: 1000, parentMaterial: "OVER BURDEN REMOVAL" },
-    { name: "Overhaul Coal Getting", unit: "TON", defaultRate: 230, category: "Over Distance", isDistanceVar: true, baseDistanceMeters: 3000, parentMaterial: "COAL GETTING" },
-  ],
-  DBK: [
-    { name: "OVER BURDEN REMOVAL", unit: "BCM", defaultRate: 26700, category: "Operating & Mining", isDistanceVar: false },
-    { name: "COAL GETTING", unit: "TON", defaultRate: 15050, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Overhaul OB", unit: "BCM", defaultRate: 500, category: "Over Distance", isDistanceVar: true, baseDistanceMeters: 1000, parentMaterial: "OVER BURDEN REMOVAL" },
-    { name: "Overhaul Coal Getting", unit: "TON", defaultRate: 230, category: "Over Distance", isDistanceVar: true, baseDistanceMeters: 3000, parentMaterial: "COAL GETTING" },
-  ],
-  ABN: [
-    { name: "Bulldozer D8R Rental", unit: "Hours", defaultRate: 2200000, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Bulldozer D85ESS Rental", unit: "Hours", defaultRate: 1950000, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Motor Grader 160K", unit: "Hours", defaultRate: 1720000, category: "Operating & Mining", isDistanceVar: false },
-  ],
-  SBS: [
-    { name: "PIT E - DISPOSAL SEKATAN", unit: "BCM", defaultRate: 22654, category: "Operating & Mining", isDistanceVar: false },
-    { name: "PIT E - RENCANA JALAN", unit: "BCM", defaultRate: 12638, category: "Operating & Mining", isDistanceVar: false },
-    { name: "PIT E - RENCANA CSA", unit: "BCM", defaultRate: 8346, category: "Operating & Mining", isDistanceVar: false },
-    { name: "PIT E - JALAN BARITO", unit: "BCM", defaultRate: 15500, category: "Operating & Mining", isDistanceVar: false },
-    { name: "PIT E - SEKATAN", unit: "BCM", defaultRate: 16931, category: "Operating & Mining", isDistanceVar: false },
-    { name: "PIT E - TS MAHONI", unit: "BCM", defaultRate: 22654, category: "Operating & Mining", isDistanceVar: false },
-    { name: "PIT E - IPD WARWEFILL", unit: "BCM", defaultRate: 8346, category: "Operating & Mining", isDistanceVar: false },
-    { name: "PIT E - SEKATAN (High Rate)", unit: "BCM", defaultRate: 19375, category: "Operating & Mining", isDistanceVar: false },
-    { name: "Bulldozer DZ709", unit: "Hours", defaultRate: 1980000, category: "Penunjang", isDistanceVar: false },
-    { name: "Bulldozer DZ716", unit: "Hours", defaultRate: 1980000, category: "Penunjang", isDistanceVar: false },
-    { name: "Excavator EX815", unit: "Hours", defaultRate: 1425000, category: "Penunjang", isDistanceVar: false },
-    { name: "Excavator EX816", unit: "Hours", defaultRate: 1425000, category: "Penunjang", isDistanceVar: false },
-    { name: "Excavator EX817", unit: "Hours", defaultRate: 1425000, category: "Penunjang", isDistanceVar: false },
-    { name: "Motor Grader MG607", unit: "Hours", defaultRate: 1250000, category: "Penunjang", isDistanceVar: false },
-    { name: "Motor Grader MG608", unit: "Hours", defaultRate: 1250000, category: "Penunjang", isDistanceVar: false },
-    { name: "Dozer CAT D10 - BDCT 1001", unit: "Hours", defaultRate: 1980000, category: "Penunjang", isDistanceVar: false },
-    { name: "Dozer CAT D10 - BDCT 1002", unit: "Hours", defaultRate: 1980000, category: "Penunjang", isDistanceVar: false },
-    { name: "Excavator CAT 395 - EXCT 3901", unit: "Hours", defaultRate: 1425000, category: "Penunjang", isDistanceVar: false },
-    { name: "Excavator CAT 395 - EXCT 3902", unit: "Hours", defaultRate: 1425000, category: "Penunjang", isDistanceVar: false },
-    { name: "Denda ketidaktercapaian MA", unit: "Lot", defaultRate: 0, category: "Pengurang Biaya", isDistanceVar: false },
-    { name: "Kelebihan Pemakaian BBM Loader", unit: "Lot", defaultRate: 0, category: "Pengurang Biaya", isDistanceVar: false },
-    { name: "Kelebihan Pemakaian BBM Hauler", unit: "Lot", defaultRate: 0, category: "Pengurang Biaya", isDistanceVar: false },
-    { name: "Denda ketidakcapaian Volume", unit: "Lot", defaultRate: 0, category: "Pengurang Biaya", isDistanceVar: false },
-  ]
-};
-
 export function getSiteSOWList(
   customerCode: string,
   activeSOWCatalog: any[] = [],
@@ -102,8 +8,8 @@ export function getSiteSOWList(
   isDistanceOnly: boolean = false,
   parentItems: any[] = []
 ) {
-  const code = (customerCode || "POS").toUpperCase();
-  const defs = SITE_SOW_DEFAULTS[code] || SITE_SOW_DEFAULTS["POS"] || [];
+  // Daftar item hanya dari katalog Master Variable SOW (BE); tidak ada tarif bawaan.
+  const code = (customerCode || "").toUpperCase();
   
   const matchedFromCatalog = (activeSOWCatalog || []).filter(s => {
     if (!s) return false;
@@ -129,7 +35,7 @@ export function getSiteSOWList(
       merged.push({
         name: name,
         unit: c.unit || "BCM",
-        defaultRate: c.defaultRate || c.rateIDR || (c.rateUSD ? Number((c.rateUSD * (mRate || 17923.30)).toFixed(3)) : 0),
+        defaultRate: c.defaultRate || c.rateIDR || (c.rateUSD ? Number((c.rateUSD * (mRate || 0)).toFixed(3)) : 0),
         category: isMDO ? "MDO" : (isDed ? "Pengurang Biaya" : isDist ? "Over Distance" : (c.category || "Operating & Mining")),
         isDistanceVar: isDist,
         isDeduction: isDed,
@@ -140,17 +46,6 @@ export function getSiteSOWList(
         splitPercentage: c.splitPercentage,
         parentMaterial: c.parentMaterial,
       });
-    }
-  });
-
-  // 2. Only add static defaults if not already present from live catalog
-  defs.forEach(d => {
-    const key = (d.name || "").toLowerCase().trim();
-    if (key && !seen.has(key)) {
-      seen.add(key);
-      const isDed = (d.category || "").toLowerCase().includes("pengurang") || (d.name || "").toLowerCase().includes("denda") || (d.name || "").toLowerCase().includes("kelebihan");
-      const dynRate = (d as any).rateUSD ? Number(((d as any).rateUSD * (mRate || 17923.30)).toFixed(3)) : d.defaultRate;
-      merged.push({ ...d, defaultRate: dynRate, isDeduction: isDed });
     }
   });
 

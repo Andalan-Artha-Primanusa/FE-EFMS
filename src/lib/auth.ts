@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { menuPermissionMap } from "../data/navigation";
 import { DEFAULT_COMPANIES, getCompanies, type Company, type Permission, type RoleAccess, type TCode, type User } from "./api";
 
@@ -44,7 +44,7 @@ export function canManageCoalIndex(user?: User): boolean {
   return false;
 }
 
-// Audit Trail (dan Notification) access driven by permission/T-Code — backend module
+// Audit Trail (dan Notification) access driven by permission/T-Code â€” backend module
 // "audit_trail" (read) dengan T-Code GOV_AUDIT / GOV_NOTIF. Bukan dari nama role.
 // Fail-closed: tanpa permission/T-Code yang relevan, tidak dapat melihat.
 export function canViewAuditTrail(user?: User): boolean {
@@ -304,3 +304,4 @@ function safeJson(value: string) {
     return {};
   }
 }
+

@@ -19,7 +19,7 @@ export const InvoiceDetailSummary: React.FC<InvoiceDetailSummaryProps> = ({
         <div className="pt-1 text-[11px] space-y-1">
           <div className="flex"><span className="w-24 font-bold text-slate-500">Bank Name</span><span className="font-extrabold text-[#1A1612]">: {detailData.bankName || cInfo?.bankName || "Bank BNI"}</span></div>
           <div className="flex"><span className="w-24 font-bold text-slate-500">A/C Name</span><span className="font-extrabold text-[#1A1612]">: {detailData.bankAccountName || "PT Andalan Artha Primanusa"}</span></div>
-          <div className="flex"><span className="w-24 font-bold text-slate-500">A/C No</span><span className="font-black text-[#1A1612] font-mono">: {detailData.bankAccountNo || cInfo?.bankAccountNo || "8188788882"}</span></div>
+          <div className="flex"><span className="w-24 font-bold text-slate-500">A/C No</span><span className="font-black text-[#1A1612] font-mono">: {detailData.bankAccountNo || cInfo?.bankAccountNo || "-"}</span></div>
           <div className="flex"><span className="w-24 font-bold text-slate-500">Branch</span><span className="font-extrabold text-[#1A1612]">: {detailData.bankBranch || cInfo?.bankBranch || "Harmoni, Jakarta"}</span></div>
         </div>
       </div>
@@ -40,7 +40,7 @@ export const InvoiceDetailSummary: React.FC<InvoiceDetailSummaryProps> = ({
         </div>
 
         <div>
-          <p className="text-[11px] font-black underline text-[#1A1612]">{detailData.directorName || cInfo?.directorName || "GAHARI CHRISTINE"}</p>
+          <p className="text-[11px] font-black underline text-[#1A1612]">{detailData.directorName || cInfo?.directorName || ""}</p>
           <p className="text-[10px] font-bold text-slate-600">{detailData.directorTitle || cInfo?.directorTitle || "DIRECTOR"}</p>
         </div>
       </div>

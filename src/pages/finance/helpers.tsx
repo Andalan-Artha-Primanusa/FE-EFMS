@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Archive, Clock } from "lucide-react";
 import { API_BASE } from "../../lib/api";
+import { customerByCode } from "./masterRegistry";
 
 // =============================================================
 // Helper murni modul Finance (dipisah dari file monolith)
@@ -42,29 +43,10 @@ export const formatThousand = (val: any, maxDecimals: number = 0): string => {
   }).format(roundNum);
 };
 
+/** Nama resmi customer dari Master Customer (kode bila belum terdaftar). */
 export const getCustomerOfficialName = (code: string | undefined | null): string => {
   const c = String(code || "").toUpperCase().trim();
-  switch (c) {
-    case "POS":
-      return "PT Position";
-    case "IBP":
-      return "PT Indo Bhumi Pasifik";
-    case "BBA":
-      return "PT Bara Batubara Aditama";
-    case "SBS":
-      return "PT Satria Bahana Sarana";
-    case "BGG":
-      return "PT Budi Gema Gempita";
-    case "PTRO":
-    case "DBK":
-      return "PT Petrosea";
-    case "ABN":
-      return "PT Andalan Bhumi Nusantara";
-    case "AAP":
-      return "PT Andalan Artha Primanusa";
-    default:
-      return c;
-  }
+  return customerByCode(c)?.fullName || c;
 };
 
 export const formatDateInput = (dateStr: any) => {

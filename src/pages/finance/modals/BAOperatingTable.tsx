@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { Pickaxe, Trash2, GripVertical, ChevronUp, ChevronDown, Plus } from "lucide-react";
 import { formatIDR, FormattedNumberInput, MonthPickerInput } from "../helpers";
 import { getSBSTarifByDistance } from "../calculations";
-import { getBGGComputedInvoiceLines, getBaseDistance } from "../ba_calculations";
+import { getBGGComputedInvoiceLines, getBaseDistance, isOBMaterial } from "../ba_calculations";
+import { customerByCode } from "../masterRegistry";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { BAAddRowDropdown } from "./BAAddRowDropdown";
 import { BAPOSTable } from "./BAPOSTable";
@@ -134,7 +135,7 @@ export function BAOperatingTable({
   const obItems = baOperatingItems.filter((it) => {
     if (isDistanceItem(it)) return false;
     const m = (it.material || it.sowDescription || "").toLowerCase();
-    return m.includes("ob") || m.includes("overburden") || m.includes("waste") || m.includes("over burden");
+    return isOBMaterial(m);
   });
   const coalItems = baOperatingItems.filter((it) => {
     if (isDistanceItem(it)) return false;
@@ -449,22 +450,11 @@ export function BAOperatingTable({
               if (!isDistance) return Number(item.rate || 0);
               const baseDist = getBaseDistance(item, formData.customerCode);
               const rawDist = Number(item.distanceM ?? item.distance ?? item.distanceWeightAvg ?? baseDist);
-              let dist = (rawDist > 0 && rawDist < 50) ? rawDist * 1000 : rawDist;
+              const dist = (rawDist > 0 && rawDist < 50) ? rawDist * 1000 : rawDist;
               const cust = (formData.customerCode || item?.customerCode || "").toUpperCase();
-              if (cust.includes("BGG") || isCustomerBGG) {
-                const mLow = (item.material || "").toLowerCase();
-                const pKey = (item.period || item.notes || "").toLowerCase();
-                if (mLow.includes("coal") && (Math.round(dist) === 4976 || Math.abs(dist - 4975.81) < 0.1)) {
-                  dist = 4975.809903;
-                } else if (pKey.includes("jul") && (Math.round(dist) === 1230 || Math.abs(dist - 1230.352) < 0.1)) {
-                  dist = 1230.352258;
-                } else if (Math.round(dist) === 1325 || Math.abs(dist - 1324.532) < 0.1) {
-                  dist = 1324.532349;
-                }
-              }
               const isPOS = cust.includes("POS") || (item.material || "").toLowerCase().includes("underhaul");
-              const diffMtr = isPOS ? (dist - baseDist) : Math.max(0, dist - baseDist);
-              const isPer100m = isCustomerDBK || (item.unit || "").includes("100") || (item.material || "").includes("100m") || cust.includes("BGG") || isCustomerBGG;
+              const diffMtr = baseDist <= 0 ? 0 : isPOS ? (dist - baseDist) : Math.max(0, dist - baseDist);
+              const isPer100m = isCustomerDBK || customerByCode(cust)?.overhaulRateUnit === "PER_100M" || (item.unit || "").includes("100") || (item.material || "").includes("100m");
               return Number(item.rate || 0) * (isPer100m ? diffMtr / 100 : diffMtr / 1000);
             })();
 
@@ -614,7 +604,7 @@ export function BAOperatingTable({
                         {item.notes && <span className="ml-2 text-[10px] text-slate-500 italic">({item.notes})</span>}
                       </div>
                     </td>
-                    <td className="p-2 text-center align-top font-mono text-slate-600 font-bold">{item.period || formData.workPeriod || "Agustus 2026"}</td>
+                    <td className="p-2 text-center align-top font-mono text-slate-600 font-bold">{item.period || formData.workPeriod || ""}</td>
                     <td className="p-2 text-center align-top font-mono text-slate-600 font-bold">{item.unit}</td>
                     <td className="p-2 text-right font-mono align-top font-bold">
                       {Number(item.volume).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
@@ -683,7 +673,7 @@ export function BAOperatingTable({
                           type="button"
                           onClick={() => {
                             const ts = Date.now();
-                            const curPeriod = formData.workPeriod || "Agustus 2026";
+                            const curPeriod = formData.workPeriod || "";
                             setBaOperatingItems([
                               ...baOperatingItems,
                               {
@@ -770,11 +760,11 @@ export function BAOperatingTable({
                       </td>
                       <td className="p-2 text-center align-top font-bold text-slate-700">
                         {!isInlineEditingBA ? (
-                          <span className="pt-1 block font-mono text-slate-600 font-bold">{item.period || formData.workPeriod || "Agustus 2026"}</span>
+                          <span className="pt-1 block font-mono text-slate-600 font-bold">{item.period || formData.workPeriod || ""}</span>
                         ) : (
                           <input
                             className="w-20 sm:w-24 bg-white border border-slate-300 rounded-[3px] px-1.5 py-1 text-xs font-bold text-center focus:border-[#A57C50] outline-none"
-                            value={item.period || formData.workPeriod || "Agustus 2026"}
+                            value={item.period || formData.workPeriod || ""}
                             onChange={(e) => {
                               const updated = [...baOperatingItems];
                               const targetIdx = updated.findIndex((it) => it.id === item.id);
@@ -834,7 +824,7 @@ export function BAOperatingTable({
                             type="button"
                             onClick={() => {
                               const ts = Date.now();
-                              const curPeriod = formData.workPeriod || "Agustus 2026";
+                              const curPeriod = formData.workPeriod || "";
                               setBaOperatingItems([
                                 ...baOperatingItems,
                                 {

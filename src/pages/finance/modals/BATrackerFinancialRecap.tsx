@@ -2,6 +2,7 @@ import React from "react";
 import { UserCheck, CheckCircle, Clock, CheckCircle2, ExternalLink, Pickaxe, Building2, Zap } from "lucide-react";
 import { getBAInvoiceStatus, generateAuditTimeline } from "../helpers";
 import { BAGLJournalPreview } from "./BAGLJournalPreview";
+import { verifyBATracker } from "../../../lib/api";
 
 interface BATrackerFinancialRecapProps {
   formData: any;
@@ -39,8 +40,8 @@ export function BATrackerFinancialRecap({
   auditTab,
   setAuditTab,
   allBAItems = [],
-  rfIndexCalculated = 1.560,
-  latestKursBI = 17923.3,
+  rfIndexCalculated = 1.0,
+  latestKursBI = 0,
 }: BATrackerFinancialRecapProps) {
   const isPOS = formData.customerCode === "POS" || editItem?.customerCode === "POS";
   const step3InvStatus = getBAInvoiceStatus(editItem || formData, invoiceRows);
@@ -131,14 +132,14 @@ export function BATrackerFinancialRecap({
                 {isFinanceSpecialist && !isInlineEditingBA && editItem && (
                   <button
                     type="button"
-                    onClick={() => {
-                      const now = new Date().toISOString();
-                      setFormData({
-                        ...formData,
-                        verifiedBy: user?.name || "Finance Specialist",
-                        verifiedAt: now,
-                        statusBA: "Ready to Invoice",
-                      });
+                    onClick={async () => {
+                      // Verifikasi lewat endpoint server (verifikator = user login, akrual GL diposting server).
+                      try {
+                        const updated: any = await verifyBATracker(editItem.id, "verify", "Verifikasi Berita Acara oleh Finance Specialist");
+                        setFormData({ ...formData, statusBA: updated?.statusBA, verifiedBy: updated?.verifiedBy, verifiedAt: updated?.verifiedAt });
+                      } catch (err: any) {
+                        alert(err?.message || "Gagal memverifikasi Berita Acara");
+                      }
                     }}
                     className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs transition cursor-pointer"
                   >

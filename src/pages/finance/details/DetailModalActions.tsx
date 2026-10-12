@@ -33,7 +33,7 @@ export const DetailModalActions: React.FC<DetailModalActionsProps> = ({
       <div className="flex items-center gap-2">
         {type === "ba" && (
           <>
-            {(isFinanceSpecialist || isSuper || isSPV) && (["Submit", "Pending Berita Acara", "Draft", "Revisi", "Rejected"].includes(data.statusBA) || !data.statusBA) && (
+            {(isFinanceSpecialist || isSuper || isSPV) && !data.verifiedBy && !data.invoiceNoLinked && (["Submit", "Pending Berita Acara", "Draft", "Revisi", "Rejected"].includes(data.statusBA) || !data.statusBA) && (
               <button
                 className="px-4 py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs flex items-center gap-1.5 transition cursor-pointer"
                 onClick={() => handleVerifyBA(data.id)}
@@ -41,7 +41,8 @@ export const DetailModalActions: React.FC<DetailModalActionsProps> = ({
                 <ShieldCheck size={14} /> Verifikasi Finance Specialist
               </button>
             )}
-            {(isManager || isDirector || isSuper) && (["Pending Berita Acara", "Verified", "Submit", "Draft", "Revisi"].includes(data.statusBA)) && (
+            {/* Approval hanya setelah verifikasi Finance Specialist (server menolak selain itu, termasuk approver = verifikator). */}
+            {(isManager || isDirector || isSuper) && data.statusBA === "Ready to Invoice" && Boolean(data.verifiedBy) && !data.invoiceNoLinked && (
               <button
                 className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-[3px] shadow-xs flex items-center gap-1.5 transition cursor-pointer"
                 onClick={() => handleApproveBA(data.id)}
@@ -54,7 +55,7 @@ export const DetailModalActions: React.FC<DetailModalActionsProps> = ({
 
         {type === "invoice" && (
           <>
-            {(isManager || isDirector || isSuper) && (data.status === "Draft" || !data.status || data.status === "Pending" || data.status === "Submitted" || data.status === "Verified") && (
+            {(isManager || isDirector || isSuper) && data.status === "Verified" && (
               <button
                 className="px-4 py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs flex items-center gap-1.5 transition cursor-pointer"
                 onClick={() => handleApproveInvoice(data.id)}

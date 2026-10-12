@@ -1,6 +1,17 @@
 import React from "react";
 import { Scale, Info } from "lucide-react";
 import { formatIDR, formatMonthInput, formatMonthLabel, RupiahInput, VolumeInput } from "../helpers";
+import { masterRegistry, obSplitSOWs, contractParams } from "../masterRegistry";
+
+// Tarif & porsi split OB pending dari Master Variable SOW customer.
+const masterOBRates = (code: string) => {
+  const [a, b] = obSplitSOWs(code);
+  return { r1: Number(a?.rateIDR || a?.tier2Rate || 0), r2: Number(b?.rateIDR || b?.tier2Rate || 0) };
+};
+const pendingAmount = (vol: number, r1: number, r2: number, code: string) => {
+  const [a, b] = obSplitSOWs(code);
+  return Math.round(vol * (r1 * Number(a?.splitPercentage || 0) + r2 * Number(b?.splitPercentage || 0)) / 100);
+};
 
 interface PendingVolumeRecordModalProps {
   formData: any;
@@ -61,25 +72,27 @@ export function PendingVolumeRecordModal({ formData, setFormData }: PendingVolum
           </label>
           <select
             className="w-full bg-white border border-slate-300 rounded-[3px] p-2.5 text-slate-900 font-bold focus:border-[#A57C50] outline-none text-xs"
-            value={formData.customerCode || "BGG"}
+            value={formData.customerCode || ""}
             onChange={(e) => {
               const code = e.target.value;
-              const r1 = code === "SBS" ? 27250 : 7467;
-              const r2 = code === "SBS" ? 26500 : 7261;
+              const { r1, r2 } = masterOBRates(code);
               const v = Number(formData.originalOBVolume || 0);
               setFormData({
                 ...formData,
                 customerCode: code,
                 ob1Rate: r1,
                 ob2Rate: r2,
-                workAmount: Math.round(v * (r1 * 0.75 + r2 * 0.25))
+                workAmount: pendingAmount(v, r1, r2, code)
               });
             }}
             required
           >
-            <option value="BGG">BGG - PT Budi Gema Gempita (Quota SR 3:1)</option>
-            <option value="SBS">SBS - PT Satria Bahana Sarana</option>
-            <option value="PTRO">PTRO - PT Petrosea</option>
+            <option value="" disabled>— Pilih customer (Master Customer) —</option>
+            {masterRegistry.customers.filter((c: any) => c.pendingVolumeEligible || contractParams(c.code).maxStrippingRatio > 0).map((c: any) => (
+              <option key={c.code} value={c.code}>
+                {c.code} - {c.fullName}{contractParams(c.code).maxStrippingRatio > 0 ? ` (Quota SR ${contractParams(c.code).maxStrippingRatio}:1)` : ""}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -90,7 +103,7 @@ export function PendingVolumeRecordModal({ formData, setFormData }: PendingVolum
           <input
             type="month"
             className="w-full bg-white border border-slate-300 rounded-[3px] p-2.5 text-slate-900 font-bold focus:border-[#A57C50] outline-none text-xs"
-            value={formatMonthInput(formData.workPeriod || formData.sourcePeriod || "Agustus 2026")}
+            value={formatMonthInput(formData.workPeriod || formData.sourcePeriod || "")}
             onChange={(e) => {
               const mVal = e.target.value;
               const formattedLabel = formatMonthLabel(mVal);
@@ -121,13 +134,13 @@ export function PendingVolumeRecordModal({ formData, setFormData }: PendingVolum
             required
             value={formData.originalOBVolume || 0}
             onChange={(v: number) => {
-              const r1 = Number(formData.ob1Rate || (formData.customerCode === "SBS" ? 27250 : 7467));
-              const r2 = Number(formData.ob2Rate || (formData.customerCode === "SBS" ? 26500 : 7261));
+              const r1 = Number(formData.ob1Rate || 0);
+              const r2 = Number(formData.ob2Rate || 0);
               setFormData({
                 ...formData,
                 originalOBVolume: v,
                 remainingVolume: v,
-                workAmount: Math.round(v * (r1 * 0.75 + r2 * 0.25))
+                workAmount: pendingAmount(v, r1, r2, formData.customerCode)
               });
             }}
           />
@@ -136,11 +149,11 @@ export function PendingVolumeRecordModal({ formData, setFormData }: PendingVolum
         <div>
           <RupiahInput
             label="Tarif OB1 75% (Rp)"
-            value={formData.ob1Rate || (formData.customerCode === "SBS" ? 27250 : 7467)}
+            value={formData.ob1Rate || 0}
             onChange={(r1: number) => {
               const r2 = Number(formData.ob2Rate || 7261);
               const v = Number(formData.originalOBVolume || 0);
-              setFormData({ ...formData, ob1Rate: r1, workAmount: Math.round(v * (r1 * 0.75 + r2 * 0.25)) });
+              setFormData({ ...formData, ob1Rate: r1, workAmount: pendingAmount(v, r1, r2, formData.customerCode) });
             }}
           />
         </div>
@@ -148,11 +161,11 @@ export function PendingVolumeRecordModal({ formData, setFormData }: PendingVolum
         <div>
           <RupiahInput
             label="Tarif OB2 25% (Rp)"
-            value={formData.ob2Rate || (formData.customerCode === "SBS" ? 26500 : 7261)}
+            value={formData.ob2Rate || 0}
             onChange={(r2: number) => {
-              const r1 = Number(formData.ob1Rate || 7467);
+              const r1 = Number(formData.ob1Rate || 0);
               const v = Number(formData.originalOBVolume || 0);
-              setFormData({ ...formData, ob2Rate: r2, workAmount: Math.round(v * (r1 * 0.75 + r2 * 0.25)) });
+              setFormData({ ...formData, ob2Rate: r2, workAmount: pendingAmount(v, r1, r2, formData.customerCode) });
             }}
           />
         </div>
@@ -164,7 +177,7 @@ export function PendingVolumeRecordModal({ formData, setFormData }: PendingVolum
             Estimasi Nilai Nominal Tertunda (Auto-calculated):
           </span>
           <strong className="text-sm font-mono font-black text-emerald-800">
-            {formatIDR(formData.workAmount || Math.round((Number(formData.originalOBVolume) || 0) * ((Number(formData.ob1Rate) || 7467) * 0.75 + (Number(formData.ob2Rate) || 7261) * 0.25)))}
+            {formatIDR(formData.workAmount || pendingAmount(Number(formData.originalOBVolume) || 0, Number(formData.ob1Rate) || 0, Number(formData.ob2Rate) || 0, formData.customerCode))}
           </strong>
         </div>
         <span className="text-[10px] text-slate-500 font-medium">

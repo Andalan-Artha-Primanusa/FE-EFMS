@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Building2, Trash2, Plus } from "lucide-react";
 import { formatIDR, FormattedNumberInput } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
-import { isDistanceItem, getBAEffectiveVolume, getBAItemSubtotal } from "../ba_calculations";
+import { isDistanceItem, getBAEffectiveVolume, getBAItemSubtotal, isOBMaterial } from "../ba_calculations";
 
 interface BAPOSMDOTableProps {
   formData: any;
@@ -28,32 +28,15 @@ export function BAPOSMDOTable({
   getSowMasterRate,
 }: BAPOSMDOTableProps) {
   const effectiveRF = Number(rfIndexCalculated || formData.posData?.posRfIndex || formData.rfIndexCalculated || 1.0);
-  const rfFactor = effectiveRF > 1.0 ? effectiveRF - 1.0 : 0;
+  const rfFactor = effectiveRF - 1.0;
 
   const getDynamicMDOItemBaseIDR = (it: any, isDistance: boolean = false) => {
     let usdRate = Number(it.rateUSD ?? it.baseRateUSD ?? 0);
     if (usdRate === 0 && getSowMasterRate) {
       usdRate = getSowMasterRate("POS", it.material, 0, true);
     }
-    if (usdRate === 0) {
-      const m = (it.material || "").toLowerCase();
-      if (isDistance) {
-        if (m.includes("ob") || m.includes("waste") || m.includes("topsoil") || m.includes("top soil")) usdRate = 0.538;
-        else if (m.includes("limonite") || m.includes("saprolite") || m.includes("uncrushed") || m.includes("rock") || m.includes("crush") || m.includes("boulder")) usdRate = 0.526;
-        else if (m.includes("cut") || m.includes("fill")) usdRate = 0.521;
-        else usdRate = 0.526;
-      } else {
-        if (m.includes("topsoil") || m.includes("top soil")) usdRate = 3.380;
-        else if (m.includes("ob") || m.includes("waste") || m.includes("overburden")) usdRate = 3.327;
-        else if (m.includes("limonite")) usdRate = 3.363;
-        else if (m.includes("saprolite")) usdRate = 3.472;
-        else if (m.includes("cut")) usdRate = 2.129;
-        else if (m.includes("uncrushed") || m.includes("rock")) usdRate = 7.938;
-        else if (m.includes("crusher")) usdRate = 13.050;
-        else if (m.includes("geotextile")) usdRate = 2.003;
-      }
-    }
-    const currentMRate = Number(mRate || formData?.posData?.mRate || 17923.30);
+    // Tarif USD hanya dari Master Variable SOW (0 = belum diatur di master).
+    const currentMRate = Number(mRate || formData?.posData?.mRate || 0);
     if (usdRate > 0) {
       return Number((usdRate * currentMRate).toFixed(3));
     }

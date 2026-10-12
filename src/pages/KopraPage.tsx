@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { api, API_BASE } from '../lib/api';
 import { Loader2, Upload, FileText, Download } from 'lucide-react';
+import ExportModal from './ExportModal';
 
 export function KopraPage() {
   const [tab, setTab] = useState<'voucher' | 'supplier'>('voucher');
@@ -104,39 +105,7 @@ export function KopraPage() {
     return true;
   });
 
-  const handleGenerate = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const token = localStorage.getItem('financeerp.token');
-      const response = await fetch(`${API_BASE}/api/kopra/generate-bill`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ groups: vouchers, settings, suppliers })
-      });
-      
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Gagal membuat file Kopra');
-      }
-      
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `KOPRA_VA_${settings.transferDate}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [modalOpen, setModalOpen] = useState(false);
 
   return (
     <div className="flex flex-col h-full bg-slate-50">
@@ -224,7 +193,7 @@ export function KopraPage() {
                   <button onClick={() => {setVouchers([]); setFile(null);}} className="px-4 py-2 border border-slate-300 text-slate-700 rounded-[3px] text-sm font-bold hover:bg-slate-50">
                     Ganti File
                   </button>
-                  <button onClick={handleGenerate} disabled={loading} className="bg-[#A57C50] hover:bg-[#8e6941] text-white px-6 py-2 rounded-[3px] font-bold text-sm disabled:opacity-50 flex items-center gap-2">
+                  <button onClick={() => setModalOpen(true)} className="bg-[#A57C50] hover:bg-[#8e6941] text-white px-6 py-2 rounded-[3px] font-bold text-sm disabled:opacity-50 flex items-center gap-2">
                     {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                     Export KOPRA
                   </button>
@@ -375,6 +344,7 @@ export function KopraPage() {
           )}
         </div>
       </div>
+      <ExportModal groups={vouchers} isOpen={modalOpen} onClose={() => setModalOpen(false)} />
     </div>
   );
 }

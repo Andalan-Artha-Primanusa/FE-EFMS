@@ -17,7 +17,7 @@ interface BAGLJournalPreviewProps {
 export function BAGLJournalPreview({
   customerCode,
   allBAItems = [],
-  rfIndexCalculated = 1.560,
+  rfIndexCalculated = 1.0,
   isCustomerDBK = false,
   fuelPeriods,
 }: BAGLJournalPreviewProps) {

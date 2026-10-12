@@ -1,21 +1,34 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { api, getFinanceTemplates } from "../../lib/api";
-import { calcRFIndex } from "./calculations";
 import { matchPeriod } from "./helpers";
-import {
-  FALLBACK_BLANK_PTRO_ITEMS,
-  FALLBACK_BLANK_BGG_ITEMS,
-  FALLBACK_BLANK_SBS_ITEMS,
-  FALLBACK_BLANK_POS_ITEMS,
-  FALLBACK_BGG_BA_ITEMS,
-  FALLBACK_POS_OPERATING_ITEMS,
-  FALLBACK_POS_MDO_ITEMS,
-  FALLBACK_SBS_BA_ITEMS,
-  FALLBACK_SBS_RENTAL_ITEMS,
-  FALLBACK_SBS_DEDUCTION_ITEMS
-} from "./demoDataSeed";
+import { isOBMaterial } from "./ba_calculations";
+import { setMasterData, rfMasterFor, kursForPeriod, customerKind } from "./masterRegistry";
 
-export function useFinanceMasterData(customerCode: string = "POS", customerRows: any[] = []) {
+// Master data finance dari BE. RF & kurs mengikuti customer + periode dokumen (BA / Invoice) yang sedang dibuka.
+// Baris Master Variable SOW BE -> bentuk katalog FE (tarif USD dikonversi dengan kurs periode saat dipakai).
+const mapSowRow = (d: any) => ({
+  id: d.id,
+  code: d.itemName ? d.itemName.toUpperCase().replace(/[^A-Z0-9]/g, "_") : `SOW_${d.id}`,
+  name: d.itemName,
+  itemName: d.itemName,
+  category: d.category,
+  unit: d.unit,
+  customer: d.customer || d.customerCode || "",
+  customerCode: d.customerCode || d.customer || "",
+  baseRateUSD: d.rateUSD || 0,
+  rateUSD: d.rateUSD || 0,
+  rateIDR: d.rateIDR || 0,
+  tier1Rate: d.tier1Rate || 0,
+  tier2Rate: d.tier2Rate || 0,
+  tier3Rate: d.tier3Rate || 0,
+  splitPercentage: d.splitPercentage || 0,
+  baseDistanceMeters: d.baseDistanceMeters || 0,
+  maxDistanceMeters: d.maxDistanceMeters || 0,
+  status: d.status,
+  isDistanceVar: d.category === "Over Distance" || d.category === "Distance" || (d.unit || "").toLowerCase().includes("100 m") || (d.unit || "").toLowerCase().includes("1km") || (d.itemName || "").toLowerCase().includes("overhaul") || (d.itemName || "").toLowerCase().includes("over distance"),
+});
+
+export function useFinanceMasterData(customerCode: string = "", customerRows: any[] = [], workPeriod: string = "") {
   const [mRate, setMRate] = useState(0);
   const [fuelPriceUSD, setFuelPriceUSD] = useState(0);
   const [laborPriceIDR, setLaborPriceIDR] = useState(0);
@@ -25,8 +38,9 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
 
   const [dynamicSowOptions, setDynamicSowOptions] = useState<any[]>([]);
   const [bankAccountOptions, setBankAccountOptions] = useState<any[]>([]);
-  const [latestKursBI, setLatestKursBI] = useState(0);
   const [coalIndexMaster, setCoalIndexMaster] = useState<any[]>([]);
+  const [exchangeRates, setExchangeRates] = useState<any[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
 
   const [financeTemplates, setFinanceTemplates] = useState<any[]>([]);
   const [templatesLoaded, setTemplatesLoaded] = useState(false);
@@ -43,17 +57,7 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
 
     api<any[]>("/api/master-data/raise-fall")
       .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setRaiseFallMasters(data);
-          const custUpper = (customerCode || "POS").toUpperCase();
-          const matched = data.find((r) => r.customerCode?.toUpperCase() === custUpper);
-          if (matched) {
-            setRaiseFallMaster(matched);
-            setMRate(matched.actualMRateXn || 0);
-            setFuelPriceUSD(matched.actualFuelFn || 0);
-            setLaborPriceIDR(matched.actualLaborLn || 0);
-          }
-        }
+        if (Array.isArray(data)) setRaiseFallMasters(data);
       })
       .catch(() => {});
 
@@ -62,72 +66,43 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
       .catch(() => {});
 
     api<any[]>("/api/master-data/min-wages")
-      .then((data) => { if (Array.isArray(data) && data.length > 0) setMinWageMasters(data); })
+      .then((data) => { if (Array.isArray(data)) setMinWageMasters(data); })
       .catch(() => {});
 
     api<any[]>("/api/master-data/variable-sow")
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
-          setDynamicSowOptions(
-            data.map((d) => ({
-              id: d.id,
-              code: d.itemName ? d.itemName.toUpperCase().replace(/[^A-Z0-9]/g, "_") : `SOW_${d.id}`,
-              name: d.itemName,
-              itemName: d.itemName,
-              category: d.category,
-              unit: d.unit,
-              customer: d.customer || d.customerCode || "",
-              customerCode: d.customerCode || d.customer || "",
-              baseRateUSD: d.rateUSD || d.baseRateUSD || 0,
-              rateUSD: d.rateUSD || d.baseRateUSD || 0,
-              rateIDR: d.rateIDR || d.baseRateIDR || (d.rateUSD ? Number((d.rateUSD * (latestKursBI || 0)).toFixed(3)) : 0),
-              tier1Rate: d.tier1Rate || 0,
-              tier2Rate: d.tier2Rate || 0,
-              tier3Rate: d.tier3Rate || 0,
-              splitPercentage: d.splitPercentage || 0,
-              baseDistanceMeters: d.baseDistanceMeters || 0,
-              isDistanceVar: d.category === "Over Distance" || d.category === "Distance" || (d.unit || "").toLowerCase().includes("100 m") || (d.unit || "").toLowerCase().includes("1km") || (d.itemName || "").toLowerCase().includes("overhaul") || (d.itemName || "").toLowerCase().includes("over distance"),
-            }))
-          );
+          setDynamicSowOptions(data.map(mapSowRow));
         }
       })
       .catch(() => {});
 
     api<any[]>("/api/master-data/daily-exchange-rates")
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          const valid = data.filter((r) => Number(r.kursTengah || r.tengah || 0) > 0);
-          const avgMRate = valid.length > 0
-            ? valid.reduce((acc, r) => acc + Number(r.kursTengah || r.tengah || 0), 0) / valid.length
-            : 0;
-          const sorted = [...data].sort((a, b) =>
-            new Date(b.dateStr || b.date || b.tanggal || 0).getTime() - new Date(a.dateStr || a.date || a.tanggal || 0).getTime()
-          );
-          const latestTengah = Number(sorted[0]?.kursTengah || sorted[0]?.tengah || sorted[0]?.kurs_tengah || 0);
-          const chosenKurs = avgMRate > 0 ? avgMRate : latestTengah;
-          if (chosenKurs > 0) setLatestKursBI(chosenKurs);
-        }
-      })
+      .then((data) => { if (Array.isArray(data)) setExchangeRates(data); })
+      .catch(() => {});
+
+    api<any[]>("/api/master-data/bank-accounts")
+      .then((data) => { if (Array.isArray(data)) setBankAccounts(data); })
       .catch(() => {});
   }, []);
 
+  // Registry master dipakai helper hitung (ba_calculations, tarif jarak, nama customer).
   useEffect(() => {
-    if (raiseFallMasters.length > 0) {
-      const custUpper = (customerCode || "POS").toUpperCase();
-      const matched = raiseFallMasters.find((r) => r.customerCode?.toUpperCase() === custUpper);
-      if (matched) {
-        setRaiseFallMaster(matched);
-        setMRate(matched.actualMRateXn || 0);
-        setFuelPriceUSD(matched.actualFuelFn || 0);
-        setLaborPriceIDR(matched.actualLaborLn || 0);
-      } else {
-        setRaiseFallMaster(null);
-        setMRate(0);
-        setFuelPriceUSD(0);
-        setLaborPriceIDR(0);
-      }
-    }
-  }, [customerCode, raiseFallMasters]);
+    setMasterData({ customers: customerRows || [], raiseFall: raiseFallMasters, exchangeRates, minWages: minWageMasters, bankAccounts, sows: dynamicSowOptions });
+  }, [customerRows, raiseFallMasters, exchangeRates, minWageMasters, bankAccounts, dynamicSowOptions]);
+
+  // Kurs = M-Rate periode dokumen dari Master Kurs BI (bukan rata-rata seluruh periode).
+  const latestKursBI = useMemo(() => kursForPeriod(workPeriod, exchangeRates), [exchangeRates, workPeriod]);
+
+  // Master Raise & Fall customer untuk periode dokumen.
+  useEffect(() => {
+    setMasterData({ customers: customerRows || [], raiseFall: raiseFallMasters });
+    const matched = rfMasterFor(customerCode, workPeriod) || null;
+    setRaiseFallMaster(matched);
+    setMRate(latestKursBI || matched?.actualMRateXn || 0);
+    setFuelPriceUSD(matched?.actualFuelFn || 0);
+    setLaborPriceIDR(matched?.actualLaborLn || 0);
+  }, [customerCode, workPeriod, raiseFallMasters, customerRows, latestKursBI]);
 
   const templateRows = useCallback((key: string): any[] => {
     const row = financeTemplates.find((t: any) => t.templateKey === key);
@@ -141,7 +116,8 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
   }, [financeTemplates]);
 
   const masterBankAccounts = useMemo(() => templateRows("bank_accounts"), [financeTemplates]);
-  const rfIndexCalculated = calcRFIndex(fuelPriceUSD, laborPriceIDR, mRate, raiseFallMaster);
+  // Indeks RF periode dihitung BE dari bobot & basis Master Raise & Fall; tanpa master periode = tanpa eskalasi.
+  const rfIndexCalculated = Number(raiseFallMaster?.rfIndexResult) > 0 ? Number(raiseFallMaster.rfIndexResult) : 1.0;
 
   const normalizeMonthKey = (str: string): string => {
     const s = (str || "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -160,25 +136,21 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
     return s;
   };
 
-  const getBGGActiveCoalTier = (periodStr?: string): "Tier 1" | "Tier 2" | "Tier 3" => {
-    if (!Array.isArray(coalIndexMaster) || coalIndexMaster.length === 0) return "Tier 2";
-    if (periodStr) {
-      const match = coalIndexMaster.find(c => matchPeriod(c.period, periodStr));
-      if (match) return (match.activeTier as any) || (match.avgR3 > 75 ? "Tier 3" : match.avgR3 >= 50 ? "Tier 2" : "Tier 1");
-    }
-    const latest = coalIndexMaster[0];
-    return (latest.activeTier as any) || (latest.avgR3 > 75 ? "Tier 3" : latest.avgR3 >= 50 ? "Tier 2" : "Tier 1");
+  // Tier tarif dari Master Coal Index periode (dihitung BE). Tanpa data periode -> tarif dasar SOW.
+  const getBGGActiveCoalTier = (periodStr?: string): string | undefined => {
+    const match = coalIndexMaster.find((c) => matchPeriod(c.period, periodStr || workPeriod));
+    return match?.activeTier || undefined;
   };
 
   const defaultMasterVariableOptions = templateRows("variable_sow_defaults");
   const masterVariableOptions = dynamicSowOptions.length > 0 ? dynamicSowOptions : defaultMasterVariableOptions;
 
   const getSowMasterRate = useCallback((customer: string, itemName: string, fallbackRate: number, isUSD: boolean = false, tier?: string): number => {
-    const custUpper = (customer || customerCode || "POS").toUpperCase();
+    const custUpper = customerKind(customer || customerCode);
     const itemNorm = (itemName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
     if (!itemNorm) return fallbackRate;
 
-    const currentKurs = latestKursBI || mRate || 17923.30;
+    const currentKurs = latestKursBI || mRate || 0;
     const catalog = dynamicSowOptions.length > 0 ? dynamicSowOptions : defaultMasterVariableOptions;
 
     // Filter catalog for customer and prioritize items with configured non-zero rates
@@ -210,37 +182,37 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
     // Match priority 3: Domain keyword matching
     if (!match) {
       if (custUpper === "BGG") {
-        if (itemNorm.includes("75") || (itemNorm.includes("ob") && itemNorm.includes("1") && !itemNorm.includes("distance") && !itemNorm.includes("overhaul"))) {
+        if (itemNorm.includes("75") || (isOBMaterial(itemNorm) && itemNorm.includes("1") && !itemNorm.includes("distance") && !itemNorm.includes("overhaul"))) {
           match = filtered.find((s: any) => (s.itemName || s.name || "").includes("75%"));
-        } else if (itemNorm.includes("25") || (itemNorm.includes("ob") && itemNorm.includes("2") && !itemNorm.includes("distance") && !itemNorm.includes("overhaul"))) {
+        } else if (itemNorm.includes("25") || (isOBMaterial(itemNorm) && itemNorm.includes("2") && !itemNorm.includes("distance") && !itemNorm.includes("overhaul"))) {
           match = filtered.find((s: any) => (s.itemName || s.name || "").includes("25%"));
         } else if ((itemNorm.includes("distance") || itemNorm.includes("overhaul")) && (itemNorm.includes("coal") || itemNorm.includes("cw"))) {
           match = filtered.find((s: any) => {
             const n = (s.itemName || s.name || "").toLowerCase();
             return (n.includes("distance") || n.includes("overhaul")) && (n.includes("coal") || n.includes("cw"));
           });
-        } else if ((itemNorm.includes("distance") || itemNorm.includes("overhaul")) && (itemNorm.includes("ob") || itemNorm.includes("burden") || itemNorm.includes("waste"))) {
+        } else if ((itemNorm.includes("distance") || itemNorm.includes("overhaul")) && (isOBMaterial(itemNorm) || itemNorm.includes("burden") || itemNorm.includes("waste"))) {
           match = filtered.find((s: any) => {
             const n = (s.itemName || s.name || "").toLowerCase();
-            return (n.includes("distance") || n.includes("overhaul")) && (n.includes("ob") || n.includes("burden") || n.includes("waste"));
+            return (n.includes("distance") || n.includes("overhaul")) && (isOBMaterial(n) || n.includes("burden") || n.includes("waste"));
           });
         } else if (itemNorm.includes("coal") && !itemNorm.includes("distance") && !itemNorm.includes("overhaul")) {
           match = filtered.find((s: any) => {
             const n = (s.itemName || s.name || "").toLowerCase();
             return n.includes("coal") && !n.includes("distance") && !n.includes("overhaul");
           });
-        } else if ((itemNorm.includes("ob") || itemNorm.includes("burden") || itemNorm.includes("overburden")) && !itemNorm.includes("distance") && !itemNorm.includes("overhaul")) {
+        } else if ((isOBMaterial(itemNorm) || itemNorm.includes("burden") || itemNorm.includes("overburden")) && !itemNorm.includes("distance") && !itemNorm.includes("overhaul")) {
           match = filtered.find((s: any) => {
             const n = (s.itemName || s.name || "").toLowerCase();
-            return (n.includes("over burden") || n.includes("ob")) && !n.includes("distance") && !n.includes("overhaul");
+            return (n.includes("over burden") || isOBMaterial(n)) && !n.includes("distance") && !n.includes("overhaul");
           });
         }
       } else if (custUpper === "PTRO" || custUpper === "DBK") {
-        if ((itemNorm.includes("overhaul") || itemNorm.includes("distance")) && (itemNorm.includes("ob") || itemNorm.includes("burden"))) {
+        if ((itemNorm.includes("overhaul") || itemNorm.includes("distance")) && (isOBMaterial(itemNorm) || itemNorm.includes("burden"))) {
           match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("overhaul ob"));
         } else if ((itemNorm.includes("overhaul") || itemNorm.includes("distance")) && itemNorm.includes("coal")) {
           match = filtered.find((s: any) => (s.itemName || s.name || "").toLowerCase().includes("overhaul coal"));
-        } else if (itemNorm.includes("overburden") || itemNorm.includes("burden") || itemNorm.includes("ob")) {
+        } else if (itemNorm.includes("overburden") || itemNorm.includes("burden") || isOBMaterial(itemNorm)) {
           match = filtered.find((s: any) => {
             const n = (s.itemName || s.name || "").toLowerCase();
             return (n.includes("over burden") || n.includes("overburden")) && !n.includes("overhaul");
@@ -274,10 +246,10 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
             const n = (s.itemName || s.name || "").toLowerCase();
             return n.includes("saprolite") && (isOverhaul ? (n.includes("over") || n.includes("under")) : (!n.includes("over") && !n.includes("under")));
           });
-        } else if (itemNorm.includes("overburden") || itemNorm.includes("burden") || itemNorm.includes("waste") || itemNorm.includes("ob")) {
+        } else if (itemNorm.includes("overburden") || itemNorm.includes("burden") || itemNorm.includes("waste") || isOBMaterial(itemNorm)) {
           match = filtered.find((s: any) => {
             const n = (s.itemName || s.name || "").toLowerCase();
-            return (n.includes("waste") || n.includes("overburden") || n.includes("ob")) && (isOverhaul ? (n.includes("over") || n.includes("under")) : (!n.includes("over") && !n.includes("under")));
+            return (n.includes("waste") || n.includes("overburden") || isOBMaterial(n)) && (isOverhaul ? (n.includes("over") || n.includes("under")) : (!n.includes("over") && !n.includes("under")));
           });
         } else if (itemNorm.includes("clear") || itemNorm.includes("grub")) {
           match = filtered.find((s: any) => {
@@ -361,7 +333,7 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
   }, [dynamicSowOptions, defaultMasterVariableOptions, customerCode, latestKursBI, mRate, coalIndexMaster]);
 
   const activeSOWCatalog = useMemo(() => {
-    const currentKurs = latestKursBI || mRate || 17923.30;
+    const currentKurs = latestKursBI || mRate || 0;
     const catalog = dynamicSowOptions && dynamicSowOptions.length > 0 ? dynamicSowOptions : defaultMasterVariableOptions;
     if (catalog && catalog.length > 0) {
       const custUpper = (customerCode || "").toUpperCase();
@@ -425,14 +397,16 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
     const map: Record<string, any> = {};
     (customerRows || []).forEach((c: any) => {
       if (c && c.code) {
+        // Kontrak & site dari Master Customer; rekening dari Master Rekening Bank (relasi bankAccountId).
+        const bank = bankAccounts.find((b: any) => b.id === c.bankAccountId);
         map[String(c.code).toUpperCase()] = {
-          project: c.projectSite || `${c.fullName} Site`,
-          contract: c.contractNo || `001/${c.code}-AAP/2026`,
-          bankName: c.bankName || "Bank BNI",
-          bankAccountNo: c.bankAccountNo || "8188788882",
-          bankBranch: c.bankBranch || "Harmoni, Jakarta",
-          directorName: "GAHARI CHRISTINE",
-          directorTitle: "DIRECTOR"
+          project: c.projectSite || "",
+          contract: c.contractNo || "",
+          bankName: bank?.bankName || "",
+          bankAccountNo: bank?.accountNo || "",
+          bankBranch: bank?.branch || "",
+          directorName: "",
+          directorTitle: ""
         };
       }
     });
@@ -440,7 +414,7 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
       if (c && c.customerCode) map[String(c.customerCode).toUpperCase()] = { ...map[String(c.customerCode).toUpperCase()], ...c };
     });
     return map;
-  }, [financeTemplates, customerRows]);
+  }, [financeTemplates, customerRows, bankAccounts]);
 
   const applyRateLookup = useCallback((items: any[], defaultCust?: string): any[] =>
     items.map((it: any) => {
@@ -456,26 +430,26 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
 
   const blankPOSItems = useMemo(() => {
     const rows = templateRows("invoice_blank_POS");
-    return rows && rows.length > 0 ? applyRateLookup(rows, "POS") : FALLBACK_BLANK_POS_ITEMS;
+    return rows && rows.length > 0 ? applyRateLookup(rows, "POS") : [];
   }, [financeTemplates, dynamicSowOptions, mRate, templateRows, applyRateLookup]);
 
   const demoPOSItems = useMemo(() => templateRows("invoice_demo_POS"), [financeTemplates]);
 
   const blankBGGItems = useMemo(() => {
     const rows = templateRows("invoice_blank_BGG");
-    return rows && rows.length > 0 ? applyRateLookup(rows, "BGG") : FALLBACK_BLANK_BGG_ITEMS;
+    return rows && rows.length > 0 ? applyRateLookup(rows, "BGG") : [];
   }, [financeTemplates, dynamicSowOptions, mRate, templateRows, applyRateLookup]);
 
   const demoBGGItems = useMemo(() => templateRows("invoice_demo_BGG"), [financeTemplates]);
 
   const blankPTROItems = useMemo(() => {
     const rows = templateRows("invoice_blank_PTRO");
-    const baseRows = rows && rows.length > 0 ? rows : FALLBACK_BLANK_PTRO_ITEMS;
-    const currentKurs = latestKursBI || mRate || 17923.30;
-    const obRateUSD = getSowMasterRate("PTRO", "OVER BURDEN REMOVAL", 1.490, true);
-    const cgRateUSD = getSowMasterRate("PTRO", "COAL GETTING", 0.840, true);
-    const odObRateUSD = getSowMasterRate("PTRO", "Overhaul OB", 0.028, true);
-    const odCgRateIDR = getSowMasterRate("PTRO", "Overhaul Coal Getting", 230, false);
+    const baseRows = rows && rows.length > 0 ? rows : [];
+    const currentKurs = latestKursBI || mRate || 0;
+    const obRateUSD = getSowMasterRate("PTRO", "OVER BURDEN REMOVAL", 0, true);
+    const cgRateUSD = getSowMasterRate("PTRO", "COAL GETTING", 0, true);
+    const odObRateUSD = getSowMasterRate("PTRO", "Overhaul OB", 0, true);
+    const odCgRateIDR = getSowMasterRate("PTRO", "Overhaul Coal Getting", 0, false);
     return baseRows.map(r => {
       const d = (r.description || "").toUpperCase();
       let rateUSD = r.unitRateUSD;
@@ -498,7 +472,7 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
 
   const blankSBSItems = useMemo(() => {
     const rows = templateRows("invoice_blank_SBS");
-    return rows && rows.length > 0 ? applyRateLookup(rows, "SBS") : FALLBACK_BLANK_SBS_ITEMS;
+    return rows && rows.length > 0 ? applyRateLookup(rows, "SBS") : [];
   }, [financeTemplates, dynamicSowOptions, mRate, templateRows, applyRateLookup]);
   const demoSBSItems = useMemo(() => templateRows("invoice_demo_SBS"), [financeTemplates]);
 
@@ -534,28 +508,28 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
 
   const defaultPOSBAOperatingItems = useMemo(() => {
     const rows = templateRows("ba_operating_POS");
-    const base = zeroBAVolumes(rows.length > 0 ? rows : FALLBACK_POS_OPERATING_ITEMS);
+    const base = zeroBAVolumes(rows);
     return syncBARatesWithMasterData(base, "POS");
   }, [financeTemplates, templateRows, syncBARatesWithMasterData]);
 
   const defaultPOSBAMDOItems = useMemo(() => {
     const rows = templateRows("ba_mdo_POS");
-    const base = zeroBAVolumes(rows.length > 0 ? rows : FALLBACK_POS_MDO_ITEMS);
+    const base = zeroBAVolumes(rows);
     return syncBARatesWithMasterData(base, "POS");
   }, [financeTemplates, templateRows, syncBARatesWithMasterData]);
 
   const defaultBGGBAItems = useMemo(() => {
     const rows = templateRows("ba_items_BGG");
-    const base = zeroBAVolumes(rows.length > 0 ? rows : FALLBACK_BGG_BA_ITEMS);
+    const base = zeroBAVolumes(rows);
     return syncBARatesWithMasterData(base, "BGG");
   }, [financeTemplates, templateRows, syncBARatesWithMasterData]);
 
   const defaultPTROBAItems = useMemo(() => {
-    const currentKurs = latestKursBI || mRate || 17923.30;
-    const obRateUSD = getSowMasterRate("PTRO", "OVER BURDEN REMOVAL", 1.490, true);
-    const cgRateUSD = getSowMasterRate("PTRO", "COAL GETTING", 0.840, true);
-    const odObRateUSD = getSowMasterRate("PTRO", "Overhaul OB", 0.028, true);
-    const odCgRateIDR = getSowMasterRate("PTRO", "Overhaul Coal Getting", 230, false);
+    const currentKurs = latestKursBI || mRate || 0;
+    const obRateUSD = getSowMasterRate("PTRO", "OVER BURDEN REMOVAL", 0, true);
+    const cgRateUSD = getSowMasterRate("PTRO", "COAL GETTING", 0, true);
+    const odObRateUSD = getSowMasterRate("PTRO", "Overhaul OB", 0, true);
+    const odCgRateIDR = getSowMasterRate("PTRO", "Overhaul Coal Getting", 0, false);
     const rows = templateRows("ba_items_PTRO");
     if (rows.length > 0) {
       return rows.map(r => {
@@ -577,11 +551,11 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
   }, [financeTemplates, templateRows, dynamicSowOptions, latestKursBI, mRate, getSowMasterRate]);
 
   const defaultDBKBAItems = useMemo(() => {
-    const currentKurs = latestKursBI || mRate || 17923.30;
-    const obRateUSD = getSowMasterRate("DBK", "OVER BURDEN REMOVAL", 1.490, true);
-    const cgRateUSD = getSowMasterRate("DBK", "COAL GETTING", 0.840, true);
-    const odObRateUSD = getSowMasterRate("DBK", "Overhaul OB", 0.028, true);
-    const odCgRateIDR = getSowMasterRate("DBK", "Overhaul Coal Getting", 230, false);
+    const currentKurs = latestKursBI || mRate || 0;
+    const obRateUSD = getSowMasterRate("DBK", "OVER BURDEN REMOVAL", 0, true);
+    const cgRateUSD = getSowMasterRate("DBK", "COAL GETTING", 0, true);
+    const odObRateUSD = getSowMasterRate("DBK", "Overhaul OB", 0, true);
+    const odCgRateIDR = getSowMasterRate("DBK", "Overhaul Coal Getting", 0, false);
     const rows = templateRows("ba_items_DBK");
     if (rows.length > 0) {
       return rows.map(r => {
@@ -604,85 +578,45 @@ export function useFinanceMasterData(customerCode: string = "POS", customerRows:
 
   const defaultSBSBAOperatingItems = useMemo(() => {
     const rows = templateRows("ba_operating_SBS");
-    const base = zeroBAVolumes(rows.length > 0 ? rows : FALLBACK_SBS_BA_ITEMS, false);
+    const base = zeroBAVolumes(rows, false);
     return syncBARatesWithMasterData(base, "SBS");
   }, [financeTemplates, templateRows, syncBARatesWithMasterData]);
 
   const defaultSBSBAMDOItems = useMemo(() => {
     const rows = templateRows("ba_mdo_SBS");
-    const base = zeroBAVolumes(rows.length > 0 ? rows : FALLBACK_SBS_RENTAL_ITEMS);
+    const base = zeroBAVolumes(rows);
     return syncBARatesWithMasterData(base, "SBS");
   }, [financeTemplates, templateRows, syncBARatesWithMasterData]);
 
   const defaultSBSBADeductionItems = useMemo(() => {
     const rows = templateRows("ba_deductions_SBS");
-    const base = rows.length > 0 ? rows : FALLBACK_SBS_DEDUCTION_ITEMS;
+    const base = rows.length > 0 ? rows : [];
     return base.map((r: any) => ({ ...r, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 }));
   }, [financeTemplates, templateRows]);
 
   const reloadMasterData = useCallback(async () => {
-    try {
-      const [sowData, fxData, rfData, coalData, umkData] = await Promise.all([
-        api<any[]>("/api/master-data/variable-sow").catch(() => []),
-        api<any[]>("/api/master-data/daily-exchange-rates").catch(() => []),
-        api<any[]>("/api/master-data/raise-fall").catch(() => []),
-        api<any[]>("/api/master-data/coal-index").catch(() => []),
-        api<any[]>("/api/master-data/min-wages").catch(() => []),
-      ]);
-      if (Array.isArray(coalData) && coalData.length > 0) {
-        setCoalIndexMaster(coalData);
-      }
-      if (Array.isArray(umkData) && umkData.length > 0) {
-        setMinWageMasters(umkData);
-      }
-      if (Array.isArray(rfData) && rfData.length > 0) {
-        setRaiseFallMasters(rfData);
-      }
-      if (Array.isArray(sowData) && sowData.length > 0) {
-        setDynamicSowOptions(
-          sowData.map((d) => ({
-            id: d.id,
-            code: d.itemName ? d.itemName.toUpperCase().replace(/[^A-Z0-9]/g, "_") : `SOW_${d.id}`,
-            name: d.itemName,
-            itemName: d.itemName,
-            category: d.category,
-            unit: d.unit,
-            customer: d.customer || d.customerCode || "",
-            customerCode: d.customerCode || d.customer || "",
-            baseRateUSD: d.rateUSD || d.baseRateUSD || 0,
-            rateUSD: d.rateUSD || d.baseRateUSD || 0,
-            rateIDR: d.rateIDR || d.baseRateIDR || (d.rateUSD ? Number((d.rateUSD * (latestKursBI || 0)).toFixed(3)) : 0),
-            tier1Rate: d.tier1Rate || 0,
-            tier2Rate: d.tier2Rate || 0,
-            tier3Rate: d.tier3Rate || 0,
-            splitPercentage: d.splitPercentage || 0,
-            baseDistanceMeters: d.baseDistanceMeters || 0,
-          }))
-        );
-      }
-      if (Array.isArray(fxData) && fxData.length > 0) {
-        const valid = fxData.filter((r) => Number(r.kursTengah || r.tengah || 0) > 0);
-        const avgMRate = valid.length > 0
-          ? valid.reduce((acc, r) => acc + Number(r.kursTengah || r.tengah || 0), 0) / valid.length
-          : 0;
-        const sorted = [...fxData].sort((a, b) =>
-          new Date(b.dateStr || b.date || b.tanggal || 0).getTime() - new Date(a.dateStr || a.date || a.tanggal || 0).getTime()
-        );
-        const latestTengah = Number(sorted[0]?.kursTengah || sorted[0]?.tengah || sorted[0]?.kurs_tengah || 0);
-        const chosenKurs = avgMRate > 0 ? avgMRate : latestTengah;
-        if (chosenKurs > 0) setLatestKursBI(chosenKurs);
-      }
-    } catch {
-      // silent
-    }
-  }, [latestKursBI]);
+    const [sowData, fxData, rfData, coalData, umkData, bankData] = await Promise.all([
+      api<any[]>("/api/master-data/variable-sow").catch(() => null),
+      api<any[]>("/api/master-data/daily-exchange-rates").catch(() => null),
+      api<any[]>("/api/master-data/raise-fall").catch(() => null),
+      api<any[]>("/api/master-data/coal-index").catch(() => null),
+      api<any[]>("/api/master-data/min-wages").catch(() => null),
+      api<any[]>("/api/master-data/bank-accounts").catch(() => null),
+    ]);
+    if (Array.isArray(coalData)) setCoalIndexMaster(coalData);
+    if (Array.isArray(umkData)) setMinWageMasters(umkData);
+    if (Array.isArray(rfData)) setRaiseFallMasters(rfData);
+    if (Array.isArray(fxData)) setExchangeRates(fxData);
+    if (Array.isArray(bankData)) setBankAccounts(bankData);
+    if (Array.isArray(sowData)) setDynamicSowOptions(sowData.map(mapSowRow));
+  }, []);
 
   return {
     mRate, setMRate, fuelPriceUSD, setFuelPriceUSD, laborPriceIDR, setLaborPriceIDR,
     raiseFallMasters, setRaiseFallMasters, raiseFallMaster, setRaiseFallMaster,
     minWageMasters, setMinWageMasters,
     dynamicSowOptions, setDynamicSowOptions, bankAccountOptions, setBankAccountOptions,
-    latestKursBI, setLatestKursBI, coalIndexMaster, setCoalIndexMaster,
+    latestKursBI, coalIndexMaster, setCoalIndexMaster, exchangeRates, bankAccounts,
     financeTemplates, setFinanceTemplates, templatesLoaded, setTemplatesLoaded,
     templateRows, masterBankAccounts, rfIndexCalculated, getBGGActiveCoalTier,
     getSowMasterRate, defaultMasterVariableOptions, masterVariableOptions,

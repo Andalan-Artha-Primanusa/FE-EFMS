@@ -1,3 +1,4 @@
+import { isOBMaterial } from "./ba_calculations";
 // =============================================================
 // CONTROL RUMUS FINANCE (BACKEND SSOT BRIDGE)
 // Business Logic / Service Layer: 100 – 300 lines.
@@ -11,12 +12,13 @@ import {
   calculateInvoicePreview,
 } from "../../lib/api";
 import {
-  SBS_DISTANCE_TIERS,
+
   getSBSTarifByDistance,
   type SBSDistanceTier,
 } from "./distance_tiers";
+import { baseDistanceFor } from "./masterRegistry";
 
-export { SBS_DISTANCE_TIERS, getSBSTarifByDistance, type SBSDistanceTier };
+export { getSBSTarifByDistance, type SBSDistanceTier };
 
 export async function fetchServerCalculations(input: any) {
   try {
@@ -46,44 +48,6 @@ export async function fetchServerInvoicePreview(input: any) {
     console.error("Gagal mengambil preview kalkulasi invoice server", error);
     return null;
   }
-}
-
-/** Hitung Raise & Fall Index dari harga solar, upah, dan kurs. */
-export function calcRFIndex(
-  fuelPriceUSD: number,
-  laborPriceIDR: number,
-  mRate: number,
-  rfMaster?: any
-): number {
-  if (!rfMaster) {
-    return 1.0;
-  }
-
-  if (
-    rfMaster.formulaScheme === "SINGLE_FACTOR_FUEL" ||
-    rfMaster.customerCode === "BGG"
-  ) {
-    const baseFo = rfMaster.baseFuelFo || 9000;
-    const actualFn = rfMaster.actualFuelFn || 21601.53;
-    return Number((0.6 + 0.4 * (actualFn / baseFo)).toFixed(3));
-  }
-
-  // POS (TRIPLE_FACTOR_DLF): D + L + F
-  const baseFuelPrice = rfMaster.baseFuelFo || 10699.97;
-  const baseLaborPrice = rfMaster.baseLaborLo || 3594536;
-  const baseForexRate = rfMaster.baseForexXo || 15388.75;
-  const weightA = rfMaster.weightFuelA || 0.34;
-  const weightB = rfMaster.weightLaborB || 0.25;
-  const weightC = rfMaster.weightFixedC || 0.41;
-
-  const fuelTerm = (weightA * (fuelPriceUSD * mRate)) / baseFuelPrice;
-  const laborTerm =
-    weightB > 0 && baseLaborPrice > 0 && baseForexRate > 0
-      ? (weightB * (laborPriceIDR * mRate)) / (baseLaborPrice * baseForexRate)
-      : 0;
-  const fixedTerm = weightC;
-
-  return Number((fuelTerm + laborTerm + fixedTerm).toFixed(3));
 }
 
 /** Pabrik rumus item invoice: dependensi state disuntikkan lewat parameter. */
@@ -184,8 +148,8 @@ export function createFinanceCalculations(deps: {
   };
 
   const getItemEffectiveOverhaulMtr = (item: any) => {
-    if (!item) return 1000;
-    return item.overhaulMtr ?? item.distanceM ?? item.distance ?? item.distanceWeightAvg ?? item.baseMtr ?? 1000;
+    if (!item) return 0;
+    return item.overhaulMtr ?? item.distanceM ?? item.distance ?? item.distanceWeightAvg ?? item.baseMtr ?? 0;
   };
 
   const calculateItemRateAndAmount = (item: any, currentCust?: string, currentList?: any[]) => {
@@ -200,47 +164,48 @@ export function createFinanceCalculations(deps: {
     if (cust === "BGG") {
       if (item.section === "A" || item.section === "B") {
         if (unitRate === 0) {
-          const isOB2 = item.description?.includes("25%") || item.sowDescription?.includes("25%");
-          const isCoal = item.description?.toLowerCase().includes("coal") || item.sowDescription?.toLowerCase().includes("coal");
-          unitRate = getSowMasterRate("BGG", item.description || item.sowDescription || "", isOB2 ? 26500 : isCoal ? 16500 : 27250);
+          unitRate = getSowMasterRate("BGG", item.description || item.sowDescription || "", 0);
         }
         amount = Math.round(vol * unitRate);
         return { unitRate, amount };
       }
       if (item.section === "C") {
-        const diffMtr = Math.max(0, mtr - 1000);
+        const baseMtr = baseDistanceFor("BGG", item.description || item.sowDescription || "");
+        const diffMtr = baseMtr > 0 ? Math.max(0, mtr - baseMtr) : 0;
         if (unitRate === 0) {
           const isCoal = item.subSection?.includes("Coal") || item.description?.includes("Coal");
-          const per100m = isCoal ? getSowMasterRate("BGG", "Over Distance For Coal Winning", 500) : getSowMasterRate("BGG", "Over Distance For OB Removal", 600);
+          const per100m = isCoal ? getSowMasterRate("BGG", "Over Distance For Coal Winning", 0) : getSowMasterRate("BGG", "Over Distance For OB Removal", 0);
           unitRate = Number(((per100m * diffMtr) / 100).toFixed(3));
         }
         amount = Math.round(vol * unitRate);
         return { unitRate, amount };
       }
       if (item.section === "D") {
-        const rfDelta = Math.max(0, rfFactor);
+        const rfDelta = rfFactor;
         if (unitRate === 0) {
           const isOB2 = item.description?.includes("REMOVAL 2") || item.description?.includes("25%");
           const isCoal = item.description?.toLowerCase().includes("coal");
-          const isODOB = item.subSection?.includes("D2") || (item.description?.toLowerCase().includes("ob") && item.description?.toLowerCase().includes("distance"));
+          const isODOB = item.subSection?.includes("D2") || (isOBMaterial(item.description) && item.description?.toLowerCase().includes("distance"));
           const isODCoal = item.subSection?.includes("D4") || (item.description?.toLowerCase().includes("coal") && item.description?.toLowerCase().includes("distance"));
 
           if (isODOB) {
-            const diffMtr = Math.max(0, mtr - 1000);
-            const baseRate = getSowMasterRate("BGG", "Over Distance For OB Removal", 600);
+            const baseMtr = baseDistanceFor("BGG", "Over Distance For OB Removal");
+            const diffMtr = baseMtr > 0 ? Math.max(0, mtr - baseMtr) : 0;
+            const baseRate = getSowMasterRate("BGG", "Over Distance For OB Removal", 0);
             unitRate = Number((baseRate * rfDelta * (diffMtr / 100)).toFixed(3));
           } else if (isODCoal) {
-            const diffMtr = Math.max(0, mtr - 1000);
-            const baseRate = getSowMasterRate("BGG", "Over Distance For Coal Winning", 500);
+            const baseMtr = baseDistanceFor("BGG", "Over Distance For Coal Winning");
+            const diffMtr = baseMtr > 0 ? Math.max(0, mtr - baseMtr) : 0;
+            const baseRate = getSowMasterRate("BGG", "Over Distance For Coal Winning", 0);
             unitRate = Number((baseRate * rfDelta * (diffMtr / 100)).toFixed(3));
           } else if (isOB2) {
-            const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 2 (25%)", 26500);
+            const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 2 (25%)", 0);
             unitRate = Number((baseRate * rfDelta).toFixed(3));
           } else if (isCoal) {
-            const baseRate = getSowMasterRate("BGG", "Coal Winning", 16500);
+            const baseRate = getSowMasterRate("BGG", "Coal Winning", 0);
             unitRate = Number((baseRate * rfDelta).toFixed(3));
           } else {
-            const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 1 (75%)", 27250);
+            const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 1 (75%)", 0);
             unitRate = Number((baseRate * rfDelta).toFixed(3));
           }
         }
@@ -261,7 +226,7 @@ export function createFinanceCalculations(deps: {
 
     if (cust === "PTRO" || cust === "DBK") {
       const desc = item.description || item.sowDescription || item.material || "";
-      const kurs = item.kursBI || mRate || 17923.30;
+      const kurs = item.kursBI || mRate;
       if (unitRate === 0) {
         if (item.isUSD || item.unitRateUSD !== undefined) {
           const usdRate = item.unitRateUSD || getSowMasterRate("PTRO", desc, 0, true);
@@ -294,23 +259,23 @@ export function createFinanceCalculations(deps: {
         return { unitRate: 0, amount: -Math.abs(val) };
       }
       if (item.section === "D") {
-        const rfDelta = Math.max(0, rfFactor);
+        const rfDelta = rfFactor;
         if (unitRate === 0) {
           const baseUSD = item.baseRateUSD || getSowMasterRate("POS", desc, 0, true);
-          unitRate = Number((baseUSD * rfDelta * (mRate || 17923.30)).toFixed(3));
+          unitRate = Number((baseUSD * rfDelta * mRate).toFixed(3));
         }
         amount = Math.round(vol * unitRate);
         return { unitRate, amount };
       }
       if (unitRate === 0) {
         if (item.baseRateUSD > 0) {
-          unitRate = Number((item.baseRateUSD * (mRate || 17923.30)).toFixed(3));
+          unitRate = Number((item.baseRateUSD * mRate).toFixed(3));
         } else {
           const masterIDR = getSowMasterRate("POS", desc, 0, false);
           if (masterIDR > 0) unitRate = masterIDR;
           else {
             const masterUSD = getSowMasterRate("POS", desc, 0, true);
-            if (masterUSD > 0) unitRate = Number((masterUSD * (mRate || 17923.30)).toFixed(3));
+            if (masterUSD > 0) unitRate = Number((masterUSD * mRate).toFixed(3));
           }
         }
       }

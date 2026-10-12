@@ -2,46 +2,34 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, FileSpreadsheet, Plus, Trash2, RefreshCw, Sparkles, DollarSign, Layers, Loader2, AlertCircle } from "lucide-react";
 import { api } from "../lib/api";
-import {
-  defaultSOWTemplate,
-  defaultBGGSOWTemplate,
-  defaultSBSSOWTemplate,
-  defaultPTROSOWTemplate,
-  SOW_OPERATIONAL_SITES,
-  normalizeSOWSiteCode
-} from "./VariableSOWPage";
+import { loadSOWCustomerSites, normalizeSOWSiteCode } from "./VariableSOWPage";
 import { FormattedNumberInput, formatIDR } from "./finance/helpers";
 
 export function VariableSOWFormPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const contractGroup = location.state?.contractGroup;
-  const mrateBi = location.state?.mrateBi || 17923.30;
+  const mrateBi = Number(location.state?.mrateBi || 0);
 
   const isEditing = !!contractGroup;
 
-  const getTemplateForCode = (code: string) => {
-    const c = normalizeSOWSiteCode(code);
-    if (c === "BGG") return defaultBGGSOWTemplate;
-    if (c === "SBS") return defaultSBSSOWTemplate;
-    if (c === "PTRO") return defaultPTROSOWTemplate;
-    return defaultSOWTemplate;
-  };
-
-  const initialCode = contractGroup?.companyCode || "POS";
-  const initialSite = SOW_OPERATIONAL_SITES.find(s => s.code === initialCode) || SOW_OPERATIONAL_SITES[0];
+  const initialCode = contractGroup?.companyCode || "";
+  const [sites, setSites] = useState<any[]>([]);
+  // Saran nama item = item Variable SOW yang sudah tersimpan di DB (semua customer).
+  const [sowCatalog, setSowCatalog] = useState<any[]>([]);
+  useEffect(() => { loadSOWCustomerSites().then(setSites); }, []);
 
   const [headerForm, setHeaderForm] = useState<any>({
-    companyName: contractGroup?.companyName || initialSite.name,
+    companyName: contractGroup?.companyName || "",
     companyCode: initialCode,
-    contractNo: contractGroup?.contractNo || initialSite.contractNo,
+    contractNo: contractGroup?.contractNo || "",
     type: contractGroup?.type || (initialCode === "BGG" ? "coal" : "generic")
   });
 
   const [itemsGrid, setItemsGrid] = useState<any[]>(
     contractGroup?.items
       ? contractGroup.items.map((i: any) => ({ ...i }))
-      : getTemplateForCode(initialCode).map((i: any) => ({ ...i }))
+      : []
   );
 
   const [deletedIds, setDeletedIds] = useState<number[]>([]);
@@ -55,6 +43,7 @@ export function VariableSOWFormPage() {
         const cCode = normalizeSOWSiteCode(headerForm.companyCode);
         const res = await api<any[]>("/api/master-data/variable-sow");
         if (Array.isArray(res)) {
+          setSowCatalog(res);
           const siteDbItems = res.filter(
             it => normalizeSOWSiteCode(it.customerCode || it.customer || "") === cCode
           );
@@ -98,7 +87,8 @@ export function VariableSOWFormPage() {
       tier2Rate: 0,
       tier3Rate: 0,
       splitPercentage: 100,
-      baseDistanceMeters: 0
+      baseDistanceMeters: 0,
+      maxDistanceMeters: 0
     };
     setItemsGrid(prev => [...prev, newRow]);
   };
@@ -109,11 +99,6 @@ export function VariableSOWFormPage() {
       setDeletedIds(prev => [...prev, target.id]);
     }
     setItemsGrid(itemsGrid.filter((_, i) => i !== idx));
-  };
-
-  const handleResetToTemplate = () => {
-    const tpl = getTemplateForCode(headerForm.companyCode);
-    setItemsGrid(tpl.map(i => ({ ...i })));
   };
 
   const handleSaveGrid = async (e: React.FormEvent) => {
@@ -142,6 +127,7 @@ export function VariableSOWFormPage() {
           tier3Rate: Number(item.tier3Rate || item.rateIDR || 0),
           splitPercentage: Number(item.splitPercentage || 100),
           baseDistanceMeters: Number(item.baseDistanceMeters || 0),
+          maxDistanceMeters: Number(item.maxDistanceMeters || 0),
           unit: item.unit || "BCM",
           customer: headerForm.companyCode,
           customerCode: headerForm.companyCode,
@@ -200,18 +186,18 @@ export function VariableSOWFormPage() {
               value={headerForm.companyCode}
               onChange={(e) => {
                 const code = e.target.value.toUpperCase();
-                const opt = SOW_OPERATIONAL_SITES.find((o) => o.code === code);
-                const tpl = getTemplateForCode(code);
+                const opt = sites.find((o) => o.code === code);
                 setHeaderForm({
                   companyName: opt?.name || code,
                   companyCode: code,
                   contractNo: opt?.contractNo || headerForm.contractNo,
                   type: code === "BGG" ? "coal" : "generic"
                 });
-                setItemsGrid(tpl.map(i => ({ ...i })));
+                setItemsGrid([]);
               }}
             >
-              {SOW_OPERATIONAL_SITES.map((opt) => (
+              <option value="" disabled>— Pilih customer (Master Customer) —</option>
+              {sites.map((opt) => (
                 <option key={opt.code} value={opt.code}>
                   {opt.fullName}
                 </option>
@@ -275,15 +261,6 @@ export function VariableSOWFormPage() {
               Rincian Item Pekerjaan & Parameter Tarif ({itemsGrid.length} Baris)
             </span>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleResetToTemplate}
-                className="px-2.5 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg flex items-center gap-1.5 transition cursor-pointer"
-                title="Reset ke daftar default site"
-              >
-                <RefreshCw size={12} />
-                <span>Reset Template</span>
-              </button>
               <button
                 type="button"
                 onClick={handleAddRow}
@@ -401,6 +378,7 @@ export function VariableSOWFormPage() {
                     <th className="p-3 border-r border-slate-800">ITEM PEKERJAAN (SOW SBS)</th>
                     <th className="p-3 border-r border-slate-800 text-center w-28">SATUAN</th>
                     <th className="p-3 border-r border-slate-800 text-right w-48 bg-cyan-950 text-cyan-300">TARIF DASAR (RP)</th>
+                    <th className="p-3 border-r border-slate-800 text-center w-44">RENTANG JARAK (M)</th>
                     <th className="p-3 pr-4 text-center w-12">#</th>
                   </tr>
                 </thead>
@@ -426,6 +404,7 @@ export function VariableSOWFormPage() {
                           <option value="OB Removal">OB Removal (Per Area Kerja)</option>
                           <option value="Jasa Penunjang Produksi">Jasa Penunjang Produksi (Rental Alat)</option>
                           <option value="Pengurang Pembayaran">Pengurang Pembayaran (Denda & BBM)</option>
+                          <option value="Tarif Jarak Angkut">Tarif Jarak Angkut (OB per rentang jarak)</option>
                           {item.category === "Operating & Mining" && <option value="Operating & Mining">Operating & Mining (OB)</option>}
                           {item.category === "Penunjang" && <option value="Penunjang">Penunjang (Rental Alat)</option>}
                           {item.category === "Pengurang Biaya" && <option value="Pengurang Biaya">Pengurang Biaya (Denda & BBM)</option>}
@@ -457,6 +436,15 @@ export function VariableSOWFormPage() {
                           placeholder="0"
                           onChange={(val) => handleFieldChange(idx, "rateIDR", val)}
                         />
+                      </td>
+                      <td className="p-2 border-r border-slate-200 text-center whitespace-nowrap" title="Isi untuk tarif OB per rentang jarak angkut (kategori Tarif Jarak Angkut)">
+                        <input type="number" className="w-16 text-center p-1 rounded bg-slate-50 border border-slate-300 font-mono text-xs outline-none"
+                          value={item.baseDistanceMeters || ""} placeholder="min"
+                          onChange={(e) => handleFieldChange(idx, "baseDistanceMeters", parseFloat(e.target.value) || 0)} />
+                        {" – "}
+                        <input type="number" className="w-16 text-center p-1 rounded bg-slate-50 border border-slate-300 font-mono text-xs outline-none"
+                          value={item.maxDistanceMeters || ""} placeholder="maks"
+                          onChange={(e) => handleFieldChange(idx, "maxDistanceMeters", parseFloat(e.target.value) || 0)} />
                       </td>
                       <td className="p-2 pr-4 text-center">
                         <button
@@ -595,10 +583,10 @@ export function VariableSOWFormPage() {
                         <td className="p-2 border-r border-slate-200">
                           {(() => {
                             const curCat = (item.category || "Operation & Mining").toLowerCase();
-                            const categoryOptions = defaultSOWTemplate.filter(
-                              tpl => tpl.category.toLowerCase() === curCat
-                            );
-                            const isPredefined = defaultSOWTemplate.some(t => t.itemName === item.itemName);
+                            const categoryOptions = sowCatalog
+                              .filter((tpl: any) => (tpl.category || "").toLowerCase() === curCat && tpl.itemName)
+                              .filter((tpl: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.itemName === tpl.itemName) === i);
+                            const isPredefined = categoryOptions.some((t: any) => t.itemName === item.itemName);
                             return (
                               <div className="space-y-1">
                                 <select
@@ -609,12 +597,12 @@ export function VariableSOWFormPage() {
                                     if (val === "Lainnya") {
                                       handleMultiFieldChange(idx, { isCustom: true, itemName: "" });
                                     } else {
-                                      const found = defaultSOWTemplate.find(tpl => tpl.itemName === val);
+                                      const found: any = categoryOptions.find((tpl: any) => tpl.itemName === val);
                                       if (found) {
                                         handleMultiFieldChange(idx, {
                                           itemName: found.itemName,
                                           unit: found.unit,
-                                          rateUSD: found.rateUSD,
+                                          rateUSD: Number(found.rateUSD || 0),
                                           category: found.category,
                                           isCustom: false
                                         });
@@ -625,12 +613,12 @@ export function VariableSOWFormPage() {
                                   }}
                                 >
                                   <option value="" disabled>-- Pilih Item SOW ({item.category || "POS"}) --</option>
-                                  {categoryOptions.map((opt, oIdx) => (
+                                  {categoryOptions.map((opt: any, oIdx: number) => (
                                     <option key={oIdx} value={opt.itemName}>
-                                      {opt.itemName} ({opt.unit} - ${opt.rateUSD.toFixed(3)})
+                                      {opt.itemName} ({opt.unit})
                                     </option>
                                   ))}
-                                  {item.itemName && !categoryOptions.some(o => o.itemName === item.itemName) && !item.isCustom && (
+                                  {item.itemName && !categoryOptions.some((o: any) => o.itemName === item.itemName) && !item.isCustom && (
                                     <option value={item.itemName}>{item.itemName}</option>
                                   )}
                                   <option value="Lainnya">+ Custom / Item Lainnya...</option>

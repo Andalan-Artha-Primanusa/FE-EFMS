@@ -1,7 +1,9 @@
 // =============================================================
-// SBS DISTANCE TIERS TABLE & RESOLVER
-// Single Source of Truth reference for SBS Hauling distance brackets
+// SBS DISTANCE TIERS RESOLVER
+// Rentang & tarif jarak angkut SBS dibaca dari Master Variable SOW (kategori "Tarif Jarak Angkut").
 // =============================================================
+
+import { sbsDistanceTiers } from "./masterRegistry";
 
 export interface SBSDistanceTier {
   min: number;
@@ -10,87 +12,16 @@ export interface SBSDistanceTier {
   rate: number;
 }
 
-export const SBS_DISTANCE_TIERS: SBSDistanceTier[] = [
-  { min: 0, max: 250, rangeLabel: "0-250", rate: 5485 },
-  { min: 251, max: 500, rangeLabel: "251-500", rate: 6915 },
-  { min: 501, max: 750, rangeLabel: "501-750", rate: 8346 },
-  { min: 751, max: 1000, rangeLabel: "751-1000", rate: 9777 },
-  { min: 1001, max: 1250, rangeLabel: "1001-1250", rate: 11208 },
-  { min: 1251, max: 1500, rangeLabel: "1251-1500", rate: 12638 },
-  { min: 1501, max: 1750, rangeLabel: "1501-1750", rate: 14069 },
-  { min: 1751, max: 2000, rangeLabel: "1751-2000", rate: 15500 },
-  { min: 2001, max: 2250, rangeLabel: "2001-2250", rate: 16931 },
-  { min: 2251, max: 2500, rangeLabel: "2251-2500", rate: 18362 },
-  { min: 2501, max: 2750, rangeLabel: "2501-2750", rate: 19792 },
-  { min: 2751, max: 3000, rangeLabel: "2751-3000", rate: 21223 },
-  { min: 3001, max: 3250, rangeLabel: "3001-3250", rate: 22654 },
-  { min: 3251, max: 3500, rangeLabel: "3251-3500", rate: 24085 },
-  { min: 3501, max: 3750, rangeLabel: "3501-3750", rate: 25515 },
-  { min: 3751, max: 4000, rangeLabel: "3751-4000", rate: 26946 },
-  { min: 4001, max: 4250, rangeLabel: "4001-4250", rate: 28377 },
-  { min: 4251, max: 4500, rangeLabel: "4251-4500", rate: 29808 },
-  { min: 4501, max: 4750, rangeLabel: "4501-4750", rate: 31238 },
-  { min: 4751, max: 5000, rangeLabel: "4751-5000", rate: 32669 },
-  { min: 5001, max: 5250, rangeLabel: "5001-5250", rate: 34100 },
-  { min: 5251, max: 5500, rangeLabel: "5251-5500", rate: 35531 },
-  { min: 5501, max: 5750, rangeLabel: "5501-5750", rate: 36962 },
-  { min: 5751, max: 6000, rangeLabel: "5751-6000", rate: 38392 },
-  { min: 6001, max: 6250, rangeLabel: "6001-6250", rate: 39823 },
-  { min: 6251, max: 6500, rangeLabel: "6251-6500", rate: 41254 },
-  { min: 6501, max: 6750, rangeLabel: "6501-6750", rate: 42685 },
-  { min: 6751, max: 7000, rangeLabel: "6751-7000", rate: 44115 },
-  { min: 7001, max: 7250, rangeLabel: "7001-7250", rate: 45546 },
-  { min: 7251, max: 7500, rangeLabel: "7251-7500", rate: 46977 },
-  { min: 7501, max: 7750, rangeLabel: "7501-7750", rate: 48408 },
-  { min: 7751, max: 8000, rangeLabel: "7751-8000", rate: 49838 },
-  { min: 8001, max: 8250, rangeLabel: "8001-8250", rate: 51269 },
-  { min: 8251, max: 8500, rangeLabel: "8251-8500", rate: 52700 },
-  { min: 8501, max: 8750, rangeLabel: "8501-8750", rate: 54131 },
-  { min: 8751, max: 9000, rangeLabel: "8751-9000", rate: 55562 },
-  { min: 9001, max: 9250, rangeLabel: "9001-9250", rate: 56992 },
-  { min: 9251, max: 9500, rangeLabel: "9251-9500", rate: 58423 },
-  { min: 9501, max: 9750, rangeLabel: "9501-9750", rate: 59854 },
-  { min: 9751, max: 10000, rangeLabel: "9751-10000", rate: 61285 },
-];
+/** Daftar rentang tarif dari master (dibaca saat dipanggil agar selalu mengikuti data terbaru). */
+export const getSBSDistanceTiers = (): SBSDistanceTier[] => sbsDistanceTiers();
 
-export function getSBSTarifByDistance(
-  distance: number,
-  dynamicSowRows?: any[]
-): { rate: number; tier: SBSDistanceTier | null } {
-  if (distance === undefined || distance === null || Number(distance) <= 0) {
-    return { rate: 0, tier: null };
-  }
+export function getSBSTarifByDistance(distance: number): { rate: number; tier: SBSDistanceTier | null } {
   const dist = Number(distance);
-
-  // Prioritaskan baris tarif dari Master Data Variable SOW jika tersedia
-  if (dynamicSowRows && dynamicSowRows.length > 0) {
-    const sbsSows = dynamicSowRows.filter(
-      (s) =>
-        (s.customer === "SBS" || s.customerCode === "SBS") &&
-        (s.rateIDR > 0 || s.tier1Rate > 0)
-    );
-    for (const sow of sbsSows) {
-      const min = sow.baseDistanceMeters || 0;
-      const max = sow.maxDistanceMeters || (min > 0 ? min + 250 : 0);
-      if (max > 0 && dist >= min && dist <= max) {
-        const r = sow.rateIDR || sow.tier1Rate || 0;
-        return {
-          rate: r,
-          tier: { min, max, rangeLabel: `${min}-${max}`, rate: r },
-        };
-      }
-    }
-  }
-
-  const matched = SBS_DISTANCE_TIERS.find(
-    (t) => dist >= t.min && dist <= t.max
-  );
-  if (matched) {
-    return { rate: matched.rate, tier: matched };
-  }
-  if (dist > 10000) {
-    const maxTier = SBS_DISTANCE_TIERS[SBS_DISTANCE_TIERS.length - 1];
-    return { rate: maxTier.rate, tier: maxTier };
-  }
+  if (!(dist > 0)) return { rate: 0, tier: null };
+  const tiers = sbsDistanceTiers();
+  const matched = tiers.find((t) => dist >= t.min && dist <= t.max);
+  if (matched) return { rate: matched.rate, tier: matched };
+  const last = tiers[tiers.length - 1];
+  if (last && dist > last.max) return { rate: last.rate, tier: last };
   return { rate: 0, tier: null };
 }

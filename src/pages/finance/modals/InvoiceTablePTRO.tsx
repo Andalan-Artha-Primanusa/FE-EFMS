@@ -89,7 +89,7 @@ export function InvoiceTablePTRO({
             />
           </td>
           <td className="p-2 text-right font-mono font-extrabold text-slate-900">
-            {formatIDR(Math.round((item.volume || 0) * (item.unitRateUSD || 0) * (item.kursBI || 17923.30)))}
+            {formatIDR(Math.round((item.volume || 0) * (item.unitRateUSD || 0) * (item.kursBI || 0)))}
           </td>
         </tr>
       ))}
@@ -148,7 +148,7 @@ export function InvoiceTablePTRO({
             />
           </td>
           <td className="p-2 text-right font-mono font-extrabold text-slate-900">
-            {formatIDR(Math.round((item.volume || 0) * (item.unitRateUSD || 0) * (item.kursBI || 17923.30)))}
+            {formatIDR(Math.round((item.volume || 0) * (item.unitRateUSD || 0) * (item.kursBI || 0)))}
           </td>
         </tr>
       ))}

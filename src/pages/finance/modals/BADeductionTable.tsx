@@ -50,7 +50,7 @@ export function BADeductionTable({
                 subtotalAdjusted: 0,
                 notes: "",
                 keterangan: "",
-                period: formData.workPeriod || "Agustus 2026",
+                period: formData.workPeriod || "",
               };
               setBaDeductionItems([...(baDeductionItems || []), newDed]);
             }}

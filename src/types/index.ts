@@ -856,3 +856,48 @@ export interface TunaiPOTracking {
   createdAt: string;
   updatedAt: string;
 }
+export interface VoucherRow {
+  noVoucher: string;
+  tgl: Date;
+  site: string;
+  vendor: string;
+  keterangan: string;
+  po: string;
+  kategori: string;
+  coa: string;
+  nominal: number;
+  bank: string;
+  noRekening: string;
+  namaRekening: string;
+}
+
+export interface VoucherGroup {
+  noVoucher: string;
+  vendor: string;
+  totalNominal: number;
+  bank: string;
+  noRekening: string;
+  namaRekening: string;
+  site: string;
+  transactions: VoucherRow[];
+  poNumbers: string[];
+  coaCategories: string[];
+  email: string;
+  transferMethod: string;
+}
+
+export interface Supplier {
+  nama: string;
+  email: string;
+  namaBank?: string;
+  noRekening?: string;
+  namaRekening?: string;
+}
+
+export interface ExportSettings {
+  transferDate: string;
+  debitAccountNo: string;
+  voucherFrom: string;
+  voucherTo: string;
+}
+
