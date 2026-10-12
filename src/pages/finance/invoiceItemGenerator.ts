@@ -18,6 +18,10 @@ export interface InvoiceItemGeneratorContext {
   blankPOSItems?: any[];
 }
 
+// Item BA kategori Mine Development (MDO); sama dengan isMDOItem di BE.
+const isMDOItem = (bi: any) =>
+  [bi?.category, bi?.material].some((s) => /mdo|mine dev/i.test(s || ""));
+
 export function buildInvoiceItemsFromBA(
   ba: any,
   custCode?: string,
@@ -27,7 +31,6 @@ export function buildInvoiceItemsFromBA(
   const code = custCode || ba?.customerCode || "";
   const {
     baRows = [],
-    baMDOItems = [],
     latestKursBI = 0,
     rfIndexCalculated = 1.0,
     demoBGGItems = [],
@@ -40,39 +43,9 @@ export function buildInvoiceItemsFromBA(
     blankPOSItems = []
   } = ctx;
 
-  // 1. POS/IBP/BBA MDO (Mine Development Operation)
-  if ((code === "POS" || code === "IBP" || code === "BBA") && category === "MDO") {
-    const sourceItems = (ba?.items && ba.items.length > 0) ? ba.items : baMDOItems;
-    const mdoItems = (sourceItems || []).filter((i: any) =>
-      i.category === "MDO" ||
-      (i.material || "").toLowerCase().includes("mdo") ||
-      (i.material || "").toLowerCase().includes("mine dev") ||
-      (i.material || "").toLowerCase().includes("rock") ||
-      (i.material || "").toLowerCase().includes("konstruksi")
-    );
-
-    if (mdoItems.length > 0) {
-      return mdoItems.map((bi: any, idx: number) => {
-        const vol = getBAEffectiveVolume(bi, sourceItems || [], true);
-        const rate = Number(bi.rate || bi.unitRateIDR || (bi.subtotalAdjusted && vol > 0 ? Math.round(bi.subtotalAdjusted / vol) : 0));
-        const amt = Number(bi.subtotalAdjusted || bi.subtotalInitial || Math.round(vol * rate));
-        return {
-          id: bi.id || `mdo_inv_${idx + 1}`,
-          section: "A",
-          code: bi.code || `MDO${idx + 1}`,
-          description: bi.material || bi.description || `MDO Item ${idx + 1}`,
-          sowDescription: bi.material || bi.description || `MDO Item ${idx + 1}`,
-          volume: vol,
-          unit: bi.unit || "Ha",
-          baseRateUSD: bi.baseRateUSD || 0,
-          unitRateIDR: rate,
-          amount: amt,
-          amountIDR: amt,
-          notes: bi.notes || bi.keterangan || ba?.workPeriod || "-"
-        };
-      });
-    }
-
+  // 1. POS/IBP/BBA MDO tanpa item MDO di BA: template kosong (item MDO diproses di blok 3).
+  if ((code === "POS" || code === "IBP" || code === "BBA") && category === "MDO" &&
+    !(ba?.items || []).some(isMDOItem)) {
     return [
       { id: "MDO_1", section: "A", code: "MDO1", description: "Mine Development (MDO Cut & Fill & Access Road)", volume: 0, unit: "Ha", baseRateUSD: 0, unitRateIDR: 0, amount: 0, amountIDR: 0 },
       { id: "MDO_2", section: "A", code: "MDO2", description: "Rocks for construction - under/overhaul", volume: 0, unit: "USD/1KM", baseRateUSD: 0, unitRateIDR: 0, amount: 0, amountIDR: 0 }
@@ -105,34 +78,36 @@ export function buildInvoiceItemsFromBA(
   if (code === "POS" || code === "IBP" || code === "BBA") {
     if (ba?.items && Array.isArray(ba.items) && ba.items.length > 0) {
       const isMDOCat = category === "MDO";
-      const targetItems = ba.items.filter((bi: any) => {
-        const mat = (bi.material || bi.description || "").toLowerCase();
-        const cat = (bi.category || "").toLowerCase();
-        const isMDO = cat === "mdo" || mat.includes("mine dev") || mat.includes("mdo");
-        return isMDOCat ? isMDO : !isMDO;
-      });
-
-      const itemsToUse = (targetItems.length > 0)
-        ? targetItems
-        : (isMDOCat && ctx?.baMDOItems && ctx.baMDOItems.length > 0 ? ctx.baMDOItems : targetItems);
+      const itemsToUse = ba.items.filter((bi: any) => isMDOItem(bi) === isMDOCat);
 
       const posItems: any[] = [];
+      let gross = 0;
       itemsToUse.forEach((bi: any, idx: number) => {
-        const isDist = bi.isDistanceVar || bi.category === "Over Distance";
+        const mat = (bi.material || bi.description || "").toLowerCase();
+        const cat = (bi.category || "").toLowerCase();
+        const isDed = bi.isDeduction || cat === "pengurang biaya" || cat === "pengurang pembayaran" || cat === "dp fuel" ||
+          ["dp fuel", "denda", "pengurang solar", "potongan solar"].some((k) => mat.includes(k));
+        const isDist = !isDed && (bi.isDistanceVar || cat.includes("distance") || mat.includes("overhaul") || mat.includes("underhaul"));
         const vol = getBAEffectiveVolume(bi, itemsToUse, true);
-        const overhaulMtr = Number(bi.distanceWeightAvg ?? 1000);
+        const overhaulMtr = Number(bi.distanceWeightAvg || bi.distanceM || 0);
+        const baseMtr = Number(bi.distanceBasis || 1000);
         const rate = Number(bi.rate || bi.unitRateIDR || 0);
-        // Omit distance items if amount is 0 (vol == 0, distance <= 1000, or rate == 0)
-        if (isDist && (vol <= 0 || overhaulMtr <= 1000 || rate <= 0)) {
+        // Over/underhaul hanya ditagih bila jarak berbeda dari basis (underhaul = pengurang, sama dengan BA).
+        if (isDist && (vol <= 0 || !overhaulMtr || overhaulMtr === baseMtr || rate <= 0)) {
           return;
         }
-        const amt = isDist
-          ? Math.round(vol * ((overhaulMtr - 1000) / 1000) * rate)
-          : Math.round(vol * rate);
+        const amt = isDed
+          ? -Math.abs(Number(bi.subtotalAdjusted || bi.subtotalInitial || Math.round(vol * rate)))
+          : isDist
+            ? Math.round(vol * ((overhaulMtr - baseMtr) / 1000) * rate)
+            : Math.round(vol * rate);
+        if (!isDed) gross += amt;
 
         posItems.push({
           id: bi.id || `pos_inv_${idx}`,
-          section: isDist ? "B" : "A",
+          section: isDed ? "E" : isDist ? "B" : "A",
+          isDeduction: isDed,
+          baseMtr: isDist ? baseMtr : 0,
           code: bi.code || `POS_${idx}`,
           description: bi.material || bi.description || (isMDOCat ? "Pekerjaan Mine Development POS" : "Pekerjaan Penambangan POS"),
           sowDescription: bi.material || bi.description || (isMDOCat ? "Pekerjaan Mine Development POS" : "Pekerjaan Penambangan POS"),
@@ -146,6 +121,19 @@ export function buildInvoiceItemsFromBA(
           notes: bi.notes || bi.keterangan || ba?.workPeriod || "-"
         });
       });
+
+      // Raise & Fall: indeks RF BA dikalikan ke pendapatan kotor (sama dengan generator BE).
+      const rf = Number(ba?.posData?.posRfIndex || 1);
+      if (rf > 0 && rf !== 1 && gross > 0) {
+        const rfAmt = Math.round(gross * rf) - gross;
+        const desc = `Raise & Fall (Indeks RF ${rf.toFixed(3)})`;
+        posItems.push({ id: "pos_rf_auto", section: "D", code: "RF", category: "Raise & Fall", description: desc, sowDescription: desc, unit: "Lot", volume: 1, unitRateIDR: rfAmt, amount: rfAmt, amountIDR: rfAmt, isDeduction: rfAmt < 0 });
+      }
+      // DP Fuel (biaya solar aktual) dipotong di invoice OP bila BA tidak memuat item potongan.
+      const fuelCost = Number(ba?.posData?.actualFuelCost || 0);
+      if (!isMDOCat && fuelCost > 0 && !posItems.some((p) => p.isDeduction)) {
+        posItems.push({ id: "pos_dp_fuel_auto", section: "E", code: "E1", category: "DP Fuel", description: "DP Fuel & Transport (Pengurang Solar)", sowDescription: "DP Fuel & Transport (Pengurang Solar)", unit: "Lot", volume: 1, unitRateIDR: fuelCost, amount: -fuelCost, amountIDR: -fuelCost, isDeduction: true });
+      }
       return posItems;
     }
   }
