@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Check, Send, Zap, TrendingUp, Archive, Scale, Truck, BookOpen, Loader2 } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
-import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, User as UserType } from "../../lib/api";
+import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, getFinanceTemplates, User as UserType } from "../../lib/api";
 import { SBSPenaltyModal } from "./modals/SBSPenaltyModal";
 
 import {
@@ -21,7 +21,7 @@ export function InvoiceView({ c }: { c: any }) {
     invStatusFilter, setInvStatusFilter, invCardTab, setInvCardTab, invPeriodFilter,
     setInvPeriodFilter, showExportARDropdown, setShowExportARDropdown, showInputARDropdown, setShowInputARDropdown,
     setDetailViewItem, templateRows: rawTemplateRows, exportAROnlyExcel, exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV, openCreateModal,
-    openEditModal, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, handleDelete,
+    openEditModal, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleDelete,
     sbsPenalties: rawSbsPenalties, sbsPenaltyModalOpen, sbsPenaltyEditItem, handleSaveSBSPenalty, handleDeleteSBSPenalty, openSBSPenaltyModal, closeSBSPenaltyModal,
     query = "", accountingJournals: rawAccountingJournals, deletingKey, actionLoadingKey
   } = (c || {}) as Record<string, any>;
@@ -152,8 +152,7 @@ export function InvoiceView({ c }: { c: any }) {
                         >
                           <option value="All">Semua Status</option>
                           <option value="Draft">Draft (Menunggu Approval)</option>
-                          <option value="Approved_Tier1">Approved Tier 1 (Menunggu Direktur)</option>
-                          <option value="Approved">Diterbitkan (Approved Tier 2)</option>
+                          <option value="Approved">Disetujui Manager FATB</option>
                           <option value="Paid">Paid (Lunas)</option>
                           <option value="Tax_Reported">Tax Reported (SPT)</option>
                           <option value="Overdue">Overdue</option>
@@ -427,10 +426,8 @@ export function InvoiceView({ c }: { c: any }) {
                               const s = (r.status || "").trim();
                               if (invStatusFilter === "Draft") {
                                 if (s !== "Draft" && s !== "Draft Invoice" && s !== "Pending" && s !== "Submitted" && s !== "") return false;
-                              } else if (invStatusFilter === "Approved_Tier1") {
-                                if (s !== "Approved_Tier1") return false;
                               } else if (invStatusFilter === "Issued" || invStatusFilter === "Approved") {
-                                if (s !== "Issued" && s !== "Approved_Tier2" && s !== "Approved" && s !== "Approved_FATB") return false;
+                                if (s !== "Issued" && s !== "Approved_Tier2" && s !== "Approved" && s !== "Approved_FATB" && s !== "Approved_Tier1") return false;
                               } else if (invStatusFilter === "Paid") {
                                 if (s !== "Paid" && s !== "Lunas") return false;
                               } else if (invStatusFilter === "Tax_Reported") {
@@ -544,19 +541,18 @@ export function InvoiceView({ c }: { c: any }) {
                                                  </button>
                                                );
                                              })()}
-                                             {/* Approval bertingkat (PRD 4.3): Verified -> Tier 1 Manager FATB, Approved_Tier1 -> Tier 2 Direktur. Server menolak bila approver = verifikator / approver sebelumnya. */}
-                                             {((row.status === "Verified" && (isManager || isSuper)) || (row.status === "Approved_Tier1" && (isDirector || isSuper))) && (() => {
+                                             {/* Approval hanya untuk invoice Verified; server menolak bila approver = verifikator. */}
+                                             {(isManager || isSuper) && row.status === "Verified" && (() => {
                                                const isApproving = actionLoadingKey === `approve-inv-${row.id}`;
-                                               const isTier2 = row.status === "Approved_Tier1";
                                                return (
                                                  <button
                                                    disabled={isApproving}
                                                    className={`px-2.5 py-1 bg-purple-700 hover:bg-purple-800 text-white font-bold text-[11px] rounded shadow-xs inline-flex items-center gap-1 transition shrink-0 whitespace-nowrap font-sans cursor-pointer ${isApproving ? "opacity-60 cursor-not-allowed" : ""}`}
                                                    onClick={() => handleApproveInvoice(row.id)}
-                                                   title={isTier2 ? "Approval Tier 2 Direktur (Terbitkan Invoice)" : "Approval Tier 1 Manager FATB"}
+                                                   title="Setujui Invoice (Manager FATB)"
                                                  >
                                                    {isApproving ? <Loader2 size={12} className="animate-spin text-white" /> : <UserCheck size={12} />}
-                                                   <span>{isApproving ? "Menyetujui..." : isTier2 ? "Approve Tier 2" : "Approve Tier 1"}</span>
+                                                   <span>{isApproving ? "Menyetujui..." : "Approve FATB"}</span>
                                                  </button>
                                                );
                                              })()}

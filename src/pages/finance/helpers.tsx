@@ -508,8 +508,7 @@ export function renderInvoiceStatusBadge(status: string) {
   if (s === "Tax_Reported") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-300 font-extrabold inline-block whitespace-nowrap">Tax Reported (SPT)</span>;
   if (s === "Overdue") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-block whitespace-nowrap">Overdue</span>;
   if (s === "Verified") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-100 text-cyan-800 border border-cyan-300 inline-block whitespace-nowrap">Verified Finance</span>;
-  if (s === "Approved_Tier1") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 font-extrabold inline-block whitespace-nowrap">Approved Tier 1 (Menunggu Direktur)</span>;
-  if (s === "Approved" || s === "Issued" || s === "Approved_Tier2") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300 font-extrabold inline-block whitespace-nowrap">Diterbitkan (Approved Tier 2)</span>;
+  if (s === "Approved" || s === "Issued" || s === "Approved_Tier1" || s === "Approved_Tier2") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300 font-extrabold inline-block whitespace-nowrap">Disetujui Manager FATB</span>;
   if (s === "Rejected") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-block whitespace-nowrap">Rejected</span>;
   if (s === "Draft" || s === "Draft Invoice" || !s || s === "Pending" || s === "Submitted") {
     return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-block whitespace-nowrap">Draft (Menunggu Approval FATB)</span>;
@@ -881,9 +880,7 @@ export const generateAuditTimeline = (type: string, item: any) => {
   }
 
   if (type === "invoice") {
-    // PRD 4.3: Tier 1 Manager FATB -> Tier 2 Direktur (invoice diterbitkan & jurnal piutang diposting).
-    const isIssued = ["Approved", "Approved_Tier2", "Issued", "Paid", "Lunas", "Tax_Reported", "Faktur Pajak Terlapor"].includes(item.status);
-    const isApproved = Boolean(item.approvedManagerBy) || isIssued || item.status === "Approved_Tier1";
+    const isApproved = Boolean(item.approvedManagerBy || ["Approved", "Approved_Tier1", "Approved_Tier2", "Issued", "Paid"].includes(item.status));
     const isPaid = item.status === "Paid" || (item.totalPaid && item.totalPaid >= item.totalInvoice);
     const isRejected = item.status === "Rejected";
 
@@ -905,27 +902,16 @@ export const generateAuditTimeline = (type: string, item: any) => {
         time: item.approvedManagerAt ? formatDateDisplay(item.approvedManagerAt) : (isApproved ? "Disetujui" : "Menunggu Manager FATB"),
         status: isApproved ? "completed" : (isRejected ? "rejected" : "pending"),
         desc: item.approvedManagerBy
-          ? `Approval Tier 1 oleh ${item.approvedManagerBy}.`
-          : (isApproved ? "Approval Tier 1 Manager FATB selesai." : "Menunggu Approval Tier 1 Manager FATB.")
+          ? `Invoice disetujui sah oleh ${item.approvedManagerBy}. Jurnal piutang AR diposting ke buku besar.`
+          : (isApproved ? "Persetujuan Manager FATB selesai. Invoice resmi terbit." : "Menunggu pengesahan dan persetujuan tunggal Manager FATB.")
       },
       {
         step: 3,
-        title: "Persetujuan Direktur (Penerbitan)",
-        user: item.approvedDirectorBy ? item.approvedDirectorBy : (isIssued ? "Direktur (Approved)" : "Belum Disetujui"),
-        role: "Direktur",
-        time: item.approvedDirectorAt ? formatDateDisplay(item.approvedDirectorAt) : (isIssued ? "Disetujui" : "Menunggu Direktur"),
-        status: isIssued ? "completed" : (isRejected ? "rejected" : (isApproved ? "active" : "pending")),
-        desc: isIssued
-          ? `Invoice diterbitkan resmi${item.approvedDirectorBy ? ` oleh ${item.approvedDirectorBy}` : ""}. Jurnal piutang AR diposting ke buku besar.`
-          : "Menunggu Approval Tier 2 Direktur untuk penerbitan invoice."
-      },
-      {
-        step: 4,
         title: "Penerimaan & Pelunasan AR",
         user: isPaid ? "Treasury Dept (Lunas)" : "AR Treasury",
         role: "Treasury Dept",
         time: isPaid ? formatDateDisplay(new Date()) : "Menunggu Pelunasan",
-        status: isPaid ? "completed" : (isIssued ? "active" : "pending"),
+        status: isPaid ? "completed" : (isApproved ? "active" : "pending"),
         desc: isPaid
           ? `Pembayaran piutang lunas terverifikasi di mutasi rekening koran.`
           : `Saldo tagihan berjalan: ${formatIDR(item.outstanding || item.totalInvoice)}.`

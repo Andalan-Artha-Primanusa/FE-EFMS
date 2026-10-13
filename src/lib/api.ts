@@ -267,10 +267,6 @@ export function approveInvoiceTier1(id: number, action: "approve" | "reject", no
   return approveInvoice(id, action, note);
 }
 
-export function approveInvoiceTier2(id: number, action: "approve" | "reject", note: string) {
-  return approveInvoice(id, action, note);
-}
-
 export function getUsers() {
   return api<User[]>("/api/users");
 }

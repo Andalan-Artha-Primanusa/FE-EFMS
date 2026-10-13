@@ -214,14 +214,11 @@ export function useFinanceInvoiceState({
   const handleApproveInvoice = async (id: number) => {
     const key = `approve-inv-${id}`;
     if (setActionLoadingKey) setActionLoadingKey(key);
-    onNotice("⏳ Sedang memproses persetujuan invoice...");
+    onNotice("⏳ Sedang memproses persetujuan invoice & penerbitan jurnal piutang...");
     try {
-      // Server menentukan tingkat dari status: Verified -> Tier 1 (Manager FATB), Approved_Tier1 -> Tier 2 (Direktur).
-      // Jurnal piutang diposting server saat Tier 2 (invoice diterbitkan).
-      const updated: any = await approveInvoice(id, "approve", "Persetujuan Invoice");
-      onNotice(updated?.status === "Approved"
-        ? "✅ Approval Tier 2 Direktur selesai. Invoice diterbitkan & Jurnal Piutang AR diposting."
-        : "✅ Approval Tier 1 Manager FATB selesai. Menunggu Approval Tier 2 Direktur.");
+      // Jurnal piutang diposting server saat approval Manager FATB.
+      const updated: any = await approveInvoice(id, "approve", "Persetujuan Invoice oleh Manager FATB");
+      onNotice("✅ Invoice berhasil disetujui oleh Manager FATB. Status: Disetujui & Jurnal Piutang AR Terbit.");
       if (setInvoiceRows) {
         setInvoiceRows((prev) => prev.map((i) => i.id === id ? { ...i, ...(updated || {}), status: updated?.status || "Unpaid" } : i));
       }
@@ -237,7 +234,6 @@ export function useFinanceInvoiceState({
   };
 
   const handleApproveInvoiceTier1 = async (id: number) => handleApproveInvoice(id);
-  const handleApproveInvoiceTier2 = async (id: number) => handleApproveInvoice(id);
 
   return {
     posInvoiceCategory, setPosInvoiceCategory,
@@ -254,6 +250,6 @@ export function useFinanceInvoiceState({
     updateInvItemRateIDR, updateInvItemRateUSD, updateInvItemKurs, updateInvItemAmount,
     addInvLineItem, updateInvItemField, reorderInvLineItems, moveInvRow,
     handleGenerateInvoiceFromBA, handleVerifyInvoice, handleApproveInvoice,
-    handleApproveInvoiceTier1, handleApproveInvoiceTier2
+    handleApproveInvoiceTier1
   };
 }
