@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, generateInvoiceFromBA, verifyInvoice, approveInvoice, generateJournalFromInvoice } from "../../lib/api";
+import { api, generateInvoiceFromBA, verifyInvoice, approveInvoice } from "../../lib/api";
 
 interface UseFinanceInvoiceStateProps {
   formData: any;
@@ -214,15 +214,14 @@ export function useFinanceInvoiceState({
   const handleApproveInvoice = async (id: number) => {
     const key = `approve-inv-${id}`;
     if (setActionLoadingKey) setActionLoadingKey(key);
-    onNotice("⏳ Sedang memproses persetujuan invoice & penerbitan jurnal piutang...");
+    onNotice("⏳ Sedang memproses persetujuan invoice...");
     try {
-      const updated: any = await approveInvoice(id, "approve", "Persetujuan Invoice oleh Manager FATB");
-      try {
-        await generateJournalFromInvoice(id);
-      } catch (jErr: any) {
-        console.warn("Auto-journal info/warning:", jErr);
-      }
-      onNotice("✅ Invoice berhasil disetujui oleh Manager FATB. Status: Disetujui & Jurnal Piutang AR Terbit.");
+      // Server menentukan tingkat dari status: Verified -> Tier 1 (Manager FATB), Approved_Tier1 -> Tier 2 (Direktur).
+      // Jurnal piutang diposting server saat Tier 2 (invoice diterbitkan).
+      const updated: any = await approveInvoice(id, "approve", "Persetujuan Invoice");
+      onNotice(updated?.status === "Approved"
+        ? "✅ Approval Tier 2 Direktur selesai. Invoice diterbitkan & Jurnal Piutang AR diposting."
+        : "✅ Approval Tier 1 Manager FATB selesai. Menunggu Approval Tier 2 Direktur.");
       if (setInvoiceRows) {
         setInvoiceRows((prev) => prev.map((i) => i.id === id ? { ...i, ...(updated || {}), status: updated?.status || "Unpaid" } : i));
       }

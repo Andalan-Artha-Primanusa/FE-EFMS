@@ -55,12 +55,12 @@ export const DetailModalActions: React.FC<DetailModalActionsProps> = ({
 
         {type === "invoice" && (
           <>
-            {(isManager || isDirector || isSuper) && data.status === "Verified" && (
+            {((data.status === "Verified" && (isManager || isSuper)) || (data.status === "Approved_Tier1" && (isDirector || isSuper))) && (
               <button
                 className="px-4 py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs flex items-center gap-1.5 transition cursor-pointer"
                 onClick={() => handleApproveInvoice(data.id)}
               >
-                <UserCheck size={14} /> Setujui Invoice (Manager FATB)
+                <UserCheck size={14} /> {data.status === "Approved_Tier1" ? "Setujui & Terbitkan (Tier 2 Direktur)" : "Setujui Tier 1 (Manager FATB)"}
               </button>
             )}
           </>

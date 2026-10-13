@@ -309,7 +309,7 @@ export function CoalIndexPage({
       onNotice("Akses ditolak: Hanya Finance SPV, FATB Manager, dan Direktur yang dapat mengubah status Coal Index.");
       return;
     }
-    const currentIsFinal = item.status === "Final" || item.status === "Locked" || item.status === "Verified";
+    const currentIsFinal = isCoalIndexFinal(item.status);
     const nextStatus = currentIsFinal ? "Draft" : "Final";
     try {
       await api("/api/master-data/coal-index/lock", {
@@ -327,7 +327,7 @@ export function CoalIndexPage({
   const r3Val = currentIndex?.avgR3 || 0;
   const tierPercentage = Math.min(100, Math.max(0, ((r3Val - 30) / (100 - 30)) * 100));
 
-  const isCurrentFinal = currentIndex?.status === "Final" || currentIndex?.status === "Locked" || currentIndex?.status === "Verified";
+  const isCurrentFinal = isCoalIndexFinal(currentIndex?.status);
 
   return (
     <div className="space-y-5 max-w-[1600px] mx-auto pb-12">
