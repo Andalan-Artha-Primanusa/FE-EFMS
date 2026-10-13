@@ -595,7 +595,7 @@ export function CustomerView({ c }: { c: any }) {
                 ) : selectedClientCode === "BGG" ? (
                   <div className="space-y-4 text-xs">
                     {(() => {
-                      const activeTierComputed = latestCoal.activeTier || (latestCoal.avgR3 > 75 ? "Tier 3" : latestCoal.avgR3 >= 50 ? "Tier 2" : "Tier 1");
+                      const activeTierComputed = latestCoal.activeTier || "";
                       return (
                         <div className="bg-emerald-50/60 border border-emerald-200 rounded-[4px] p-4 space-y-3">
                           <div className="flex justify-between items-center">
@@ -609,21 +609,21 @@ export function CustomerView({ c }: { c: any }) {
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div className={`p-3 rounded-[4px] border ${activeTierComputed === "Tier 1" ? "bg-emerald-100 border-emerald-400 font-bold" : "bg-white border-slate-200"}`}>
                               <span className={`text-[10px] uppercase block ${activeTierComputed === "Tier 1" ? "text-emerald-800 font-bold" : "text-slate-500"}`}>
-                                Tier 1 (≤$50) {activeTierComputed === "Tier 1" ? "(AKTIF)" : ""}
+                                Tier 1 (R3 ≤ $45) {activeTierComputed === "Tier 1" ? "(AKTIF)" : ""}
                               </span>
                               <strong className="text-xs font-bold text-slate-900">Tarif OB 1: {formatIDR(obSplitSOWs(selectedClientCode)[0]?.tier1Rate || 0)} / BCM</strong>
                               <p className="text-[10px] text-slate-600 mt-1">Tarif OB 2: {formatIDR(obSplitSOWs(selectedClientCode)[1]?.tier1Rate || 0)} / BCM</p>
                             </div>
                             <div className={`p-3 rounded-[4px] border ${activeTierComputed === "Tier 2" ? "bg-emerald-100 border-emerald-400 font-bold" : "bg-white border-slate-200"}`}>
                               <span className={`text-[10px] uppercase block ${activeTierComputed === "Tier 2" ? "text-emerald-800 font-bold" : "text-slate-500"}`}>
-                                Tier 2 ($50-$75) {activeTierComputed === "Tier 2" ? "(AKTIF)" : ""}
+                                Tier 2 ($45-$70) {activeTierComputed === "Tier 2" ? "(AKTIF)" : ""}
                               </span>
                               <strong className="text-xs font-bold text-slate-900">Tarif OB 1: {formatIDR(obSplitSOWs(selectedClientCode)[0]?.tier2Rate || 0)} / BCM</strong>
                               <p className="text-[10px] text-slate-600 mt-1">Tarif OB 2: {formatIDR(obSplitSOWs(selectedClientCode)[1]?.tier2Rate || 0)} / BCM</p>
                             </div>
                             <div className={`p-3 rounded-[4px] border ${activeTierComputed === "Tier 3" ? "bg-emerald-100 border-emerald-400 font-bold" : "bg-white border-slate-200"}`}>
                               <span className={`text-[10px] uppercase block ${activeTierComputed === "Tier 3" ? "text-emerald-800 font-bold" : "text-slate-500"}`}>
-                                Tier 3 (&gt;$75) {activeTierComputed === "Tier 3" ? "(AKTIF)" : ""}
+                                Tier 3 (R3 &gt; $70) {activeTierComputed === "Tier 3" ? "(AKTIF)" : ""}
                               </span>
                               <strong className="text-xs font-bold text-slate-900">Tarif OB 1: {formatIDR(obSplitSOWs(selectedClientCode)[0]?.tier3Rate || 0)} / BCM</strong>
                               <p className="text-[10px] text-slate-600 mt-1">Tarif OB 2: {formatIDR(obSplitSOWs(selectedClientCode)[1]?.tier3Rate || 0)} / BCM</p>

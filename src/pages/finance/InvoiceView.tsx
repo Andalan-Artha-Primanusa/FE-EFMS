@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Check, Send, Zap, TrendingUp, Archive, Scale, Truck, BookOpen, Loader2 } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
-import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, approveInvoiceTier2, getFinanceTemplates, User as UserType } from "../../lib/api";
+import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, getFinanceTemplates, User as UserType } from "../../lib/api";
 import { SBSPenaltyModal } from "./modals/SBSPenaltyModal";
 
 import {
@@ -21,7 +21,7 @@ export function InvoiceView({ c }: { c: any }) {
     invStatusFilter, setInvStatusFilter, invCardTab, setInvCardTab, invPeriodFilter,
     setInvPeriodFilter, showExportARDropdown, setShowExportARDropdown, showInputARDropdown, setShowInputARDropdown,
     setDetailViewItem, templateRows: rawTemplateRows, exportAROnlyExcel, exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV, openCreateModal,
-    openEditModal, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleApproveInvoiceTier2, handleDelete,
+    openEditModal, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleDelete,
     sbsPenalties: rawSbsPenalties, sbsPenaltyModalOpen, sbsPenaltyEditItem, handleSaveSBSPenalty, handleDeleteSBSPenalty, openSBSPenaltyModal, closeSBSPenaltyModal,
     query = "", accountingJournals: rawAccountingJournals, deletingKey, actionLoadingKey
   } = (c || {}) as Record<string, any>;
@@ -542,7 +542,7 @@ export function InvoiceView({ c }: { c: any }) {
                                                );
                                              })()}
                                              {/* Approval hanya untuk invoice Verified; server menolak bila approver = verifikator. */}
-                                             {(isManager || isDirector || isSuper) && row.status === "Verified" && (() => {
+                                             {(isManager || isSuper) && row.status === "Verified" && (() => {
                                                const isApproving = actionLoadingKey === `approve-inv-${row.id}`;
                                                return (
                                                  <button

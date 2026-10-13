@@ -164,6 +164,14 @@ export function obSplitSOWs(code?: string): any[] {
     .slice(0, 2);
 }
 
+/** Tier Coal Index dari rata-rata R3 (PRD; sama dengan backend): Tier 1 ≤ $45, Tier 2 ≤ $70, Tier 3 > $70. */
+export function coalTierForR3(avgR3: number): string {
+  if (!(avgR3 > 0)) return "";
+  return avgR3 <= 45 ? "Tier 1" : avgR3 <= 70 ? "Tier 2" : "Tier 3";
+}
+
+export const isCoalIndexFinal = (status?: string) => status === "Final" || status === "Locked" || status === "Verified";
+
 /** Tarif IDR item SOW untuk tier Coal Index (tier1/2/3), fallback tarif dasar. */
 export function sowTierRate(s: any, tier?: string): number {
   if (!s) return 0;

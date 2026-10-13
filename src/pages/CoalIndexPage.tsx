@@ -27,6 +27,7 @@ import { Panel } from "../components/Panel";
 import { api, type User } from "../lib/api";
 import { canManageCoalIndex } from "../lib/auth";
 import { MonthPickerInput } from "./finance/helpers";
+import { coalTierForR3, customerKind, isCoalIndexFinal, sowTierRate } from "./finance/masterRegistry";
 
 export interface CoalIndexWeekly {
   id?: number;
@@ -65,6 +66,18 @@ const MONTH_NAMES_MAP: Record<string, number> = {
   november: 10, nov: 10,
   desember: 11, december: 11, des: 11, dec: 11
 };
+
+const currentPeriodLabel = () => new Date().toLocaleString("id-ID", { month: "long", year: "numeric" });
+
+// Baris publikasi mingguan = semua hari Jumat pada periode; harga yang sudah diisi dipertahankan per urutan minggu.
+const weeksForPeriod = (period: string, prev: any[] = []) =>
+  getFridaysForPeriod(period).map((releaseDate, i) => ({
+    weekNumber: i + 1,
+    releaseDate,
+    ici3Price: prev[i]?.ici3Price || 0,
+    ici4Price: prev[i]?.ici4Price || 0,
+    r3Price: prev[i]?.r3Price || 0,
+  }));
 
 export function getFridaysForPeriod(periodStr: string): string[] {
   let year = new Date().getFullYear();
@@ -132,35 +145,32 @@ export function CoalIndexPage({
 }) {
   const [loading, setLoading] = useState(true);
   const [indexList, setIndexList] = useState<CoalIndexMonthly[]>([]);
-  const [selectedPeriod, setSelectedPeriod] = useState("Juni 2026");
+  const [selectedPeriod, setSelectedPeriod] = useState("");
 
   // RBAC permission check: Finance SPV, FATB Manager, Direktur (+ Super Admin)
   const canEdit = canManageCoalIndex(user);
 
   // Modal / Form state
+  const [sowRows, setSowRows] = useState<any[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<CoalIndexMonthly>({
     id: 0,
-    period: "Juni 2026",
+    period: currentPeriodLabel(),
     avgIci3: 0,
     avgIci4: 0,
     avgR3: 0,
-    activeTier: "Tier 1",
+    activeTier: "",
     status: "Draft",
     notes: "",
-    weeks: [
-      { weekNumber: 1, releaseDate: "2026-06-05", ici3Price: 0, ici4Price: 0, r3Price: 0 },
-      { weekNumber: 2, releaseDate: "2026-06-12", ici3Price: 0, ici4Price: 0, r3Price: 0 },
-      { weekNumber: 3, releaseDate: "2026-06-19", ici3Price: 0, ici4Price: 0, r3Price: 0 },
-      { weekNumber: 4, releaseDate: "2026-06-26", ici3Price: 0, ici4Price: 0, r3Price: 0 },
-    ]
+    weeks: weeksForPeriod(currentPeriodLabel()),
   });
 
   async function loadData() {
     setLoading(true);
     try {
       const res = await api<CoalIndexMonthly[]>("/api/master-data/coal-index");
+      api<any[]>("/api/master-data/variable-sow").then((rows) => setSowRows(Array.isArray(rows) ? rows : [])).catch(() => setSowRows([]));
       if (Array.isArray(res) && res.length > 0) {
         setIndexList(res);
         if (!selectedPeriod && res[0]) {
@@ -180,20 +190,23 @@ export function CoalIndexPage({
     loadData();
   }, []);
 
+  // Tarif OB BGG per tier dari Master Variable SOW (porsi split terbesar = OB 1).
+  const bggOB = sowRows
+    .filter((s) => customerKind(s.customerCode || s.customer) === "BGG" && s.status !== "Inactive" && Number(s.splitPercentage) > 0 && Number(s.splitPercentage) < 100 && !/distance|coal/i.test(s.itemName || ""))
+    .sort((a, b) => Number(b.splitPercentage) - Number(a.splitPercentage));
+  const rateLabel = (s: any, tier?: string) => (s ? `Rp ${sowTierRate(s, tier).toLocaleString("id-ID")} / Bcm` : "-");
+  const ob1RateLabel = (tier?: string) => rateLabel(bggOB[0], tier);
+  const ob2RateLabel = (tier?: string) => rateLabel(bggOB[1], tier);
+
   const currentIndex = indexList.find(
     (item) => item.period.toLowerCase() === selectedPeriod.toLowerCase()
   ) || indexList[0];
 
   const handlePeriodChange = (newPeriod: string) => {
-    const fridays = getFridaysForPeriod(newPeriod);
-    const updatedWeeks = formData.weeks.map((w, idx) => ({
-      ...w,
-      releaseDate: fridays[idx] || w.releaseDate
-    }));
     setFormData({
       ...formData,
       period: newPeriod,
-      weeks: updatedWeeks
+      weeks: weeksForPeriod(newPeriod, formData.weeks)
     });
   };
 
@@ -203,23 +216,17 @@ export function CoalIndexPage({
       return;
     }
     setIsEditing(false);
-    const targetPeriod = "Agustus 2026";
-    const fridays = getFridaysForPeriod(targetPeriod);
+    const targetPeriod = currentPeriodLabel();
     setFormData({
       id: 0,
       period: targetPeriod,
       avgIci3: 0,
       avgIci4: 0,
       avgR3: 0,
-      activeTier: "Tier 1",
+      activeTier: "",
       status: "Draft",
       notes: "",
-      weeks: [
-        { weekNumber: 1, releaseDate: fridays[0] || "2026-08-07", ici3Price: 0, ici4Price: 0, r3Price: 0 },
-        { weekNumber: 2, releaseDate: fridays[1] || "2026-08-14", ici3Price: 0, ici4Price: 0, r3Price: 0 },
-        { weekNumber: 3, releaseDate: fridays[2] || "2026-08-21", ici3Price: 0, ici4Price: 0, r3Price: 0 },
-        { weekNumber: 4, releaseDate: fridays[3] || "2026-08-28", ici3Price: 0, ici4Price: 0, r3Price: 0 },
-      ]
+      weeks: weeksForPeriod(targetPeriod),
     });
     setModalOpen(true);
   };
@@ -229,11 +236,12 @@ export function CoalIndexPage({
       onNotice("Akses ditolak: Pengubahan Coal Index hanya dapat dilakukan oleh Finance SPV, FATB Manager, dan Direktur.");
       return;
     }
+    if (isCoalIndexFinal(item.status)) {
+      onNotice(`Coal Index periode ${item.period} sudah Final. Ubah ke Draft terlebih dahulu untuk mengedit.`);
+      return;
+    }
     setIsEditing(true);
     const itemCopy = JSON.parse(JSON.stringify(item));
-    if (itemCopy.status === "Locked" || itemCopy.status === "Verified") {
-      itemCopy.status = "Final";
-    }
     setFormData(itemCopy);
     setModalOpen(true);
   };
@@ -247,13 +255,13 @@ export function CoalIndexPage({
       updatedWeeks[index][field] = numVal;
       const p3 = updatedWeeks[index].ici3Price || 0;
       const p4 = updatedWeeks[index].ici4Price || 0;
-      updatedWeeks[index].r3Price = (p3 > 0 || p4 > 0) ? (p3 + p4) / 2.0 : 0;
+      updatedWeeks[index].r3Price = (p3 > 0 && p4 > 0) ? (p3 + p4) / 2.0 : 0;
     }
 
     // Recalculate summary averages
     let sum3 = 0, sum4 = 0, sumR = 0, count = 0;
     updatedWeeks.forEach((w) => {
-      if (w.ici3Price > 0 || w.ici4Price > 0) {
+      if (w.ici3Price > 0 && w.ici4Price > 0) {
         sum3 += w.ici3Price;
         sum4 += w.ici4Price;
         sumR += w.r3Price;
@@ -265,9 +273,7 @@ export function CoalIndexPage({
     const avg4 = count > 0 ? sum4 / count : 0;
     const avgR = count > 0 ? sumR / count : 0;
 
-    let tier = "Tier 1";
-    if (avgR > 75) tier = "Tier 3";
-    else if (avgR >= 50) tier = "Tier 2";
+    const tier = coalTierForR3(avgR);
 
     setFormData({
       ...formData,
@@ -303,7 +309,7 @@ export function CoalIndexPage({
       onNotice("Akses ditolak: Hanya Finance SPV, FATB Manager, dan Direktur yang dapat mengubah status Coal Index.");
       return;
     }
-    const currentIsFinal = item.status === "Final" || item.status === "Locked" || item.status === "Verified";
+    const currentIsFinal = isCoalIndexFinal(item.status);
     const nextStatus = currentIsFinal ? "Draft" : "Final";
     try {
       await api("/api/master-data/coal-index/lock", {
@@ -321,7 +327,7 @@ export function CoalIndexPage({
   const r3Val = currentIndex?.avgR3 || 0;
   const tierPercentage = Math.min(100, Math.max(0, ((r3Val - 30) / (100 - 30)) * 100));
 
-  const isCurrentFinal = currentIndex?.status === "Final" || currentIndex?.status === "Locked" || currentIndex?.status === "Verified";
+  const isCurrentFinal = isCoalIndexFinal(currentIndex?.status);
 
   return (
     <div className="space-y-5 max-w-[1600px] mx-auto pb-12">
@@ -341,7 +347,7 @@ export function CoalIndexPage({
             >
               {indexList.map((idx) => (
                 <option key={idx.id || idx.period} value={idx.period}>
-                  Periode: {idx.period} [{idx.activeTier || "Tier 1"}]
+                  Periode: {idx.period} [{idx.activeTier || "Belum ada tier"}]
                 </option>
               ))}
             </select>
@@ -395,20 +401,22 @@ export function CoalIndexPage({
 
             <div>
               <div className="text-2xl font-bold text-slate-900 tracking-tight">
-                {currentIndex.activeTier || "Tier 3"}
+                {currentIndex.activeTier || "-"}
               </div>
               <p className="text-[11px] font-medium text-slate-600 mt-0.5">
                 {currentIndex.activeTier === "Tier 3"
-                  ? "R3 > $75 / MT (Tarif Tertinggi)"
+                  ? "R3 > $70 / MT (Tarif Tertinggi)"
                   : currentIndex.activeTier === "Tier 2"
-                  ? "$50 ≤ R3 ≤ $75 / MT (Tarif Menengah)"
-                  : "R3 < $50 / MT (Tarif Dasar)"}
+                  ? "$45 < R3 ≤ $70 / MT (Tarif Menengah)"
+                  : currentIndex.activeTier === "Tier 1"
+                  ? "R3 ≤ $45 / MT (Tarif Dasar)"
+                  : "Data ICI-3 & ICI-4 belum lengkap"}
               </p>
             </div>
 
             <div className="pt-2 border-t border-slate-100 text-[11px] font-tabular text-slate-600 flex items-center justify-between">
-              <span>OB 1: Rp 29.500</span>
-              <span>OB 2: Rp 28.750</span>
+              <span>OB 1: {ob1RateLabel(currentIndex.activeTier)}</span>
+              <span>OB 2: {ob2RateLabel(currentIndex.activeTier)}</span>
             </div>
           </div>
 
@@ -509,8 +517,8 @@ export function CoalIndexPage({
               ? "bg-emerald-50 border-emerald-300 text-emerald-950 font-bold"
               : "bg-slate-50 text-slate-700 border-slate-200"
           }`}>
-            <div className="font-bold text-xs">TIER 1 (R3 &lt; $50)</div>
-            <p className="text-[11px] text-slate-500 mt-0.5">Tarif Dasar OB 1: Rp 27.000 / Bcm</p>
+            <div className="font-bold text-xs">TIER 1 (R3 ≤ $45){currentIndex?.activeTier === "Tier 1" ? " — AKTIF" : ""}</div>
+            <p className="text-[11px] text-slate-500 mt-0.5">Tarif OB 1: {ob1RateLabel("Tier 1")}</p>
           </div>
 
           {/* Tier 2 Box */}
@@ -519,8 +527,8 @@ export function CoalIndexPage({
               ? "bg-cyan-50 border-cyan-300 text-cyan-950 font-bold"
               : "bg-slate-50 text-slate-700 border-slate-200"
           }`}>
-            <div className="font-bold text-xs">TIER 2 ($50 ≤ R3 ≤ $75)</div>
-            <p className="text-[11px] text-slate-500 mt-0.5">Tarif OB 1: Rp 27.250 / Bcm</p>
+            <div className="font-bold text-xs">TIER 2 ($45 &lt; R3 ≤ $70){currentIndex?.activeTier === "Tier 2" ? " — AKTIF" : ""}</div>
+            <p className="text-[11px] text-slate-500 mt-0.5">Tarif OB 1: {ob1RateLabel("Tier 2")}</p>
           </div>
 
           {/* Tier 3 Box */}
@@ -529,8 +537,8 @@ export function CoalIndexPage({
               ? "bg-amber-50 border-amber-300 text-amber-950 font-bold"
               : "bg-slate-50 text-slate-700 border-slate-200"
           }`}>
-            <div className="font-bold text-xs">TIER 3 (R3 &gt; $75) — AKTIF</div>
-            <p className="text-[11px] text-slate-500 mt-0.5">Tarif OB 1: Rp 29.500 / Bcm</p>
+            <div className="font-bold text-xs">TIER 3 (R3 &gt; $70){currentIndex?.activeTier === "Tier 3" ? " — AKTIF" : ""}</div>
+            <p className="text-[11px] text-slate-500 mt-0.5">Tarif OB 1: {ob1RateLabel("Tier 3")}</p>
           </div>
         </div>
       </div>
@@ -686,19 +694,6 @@ export function CoalIndexPage({
                   className="w-full p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-bold outline-none focus:border-cyan-700 focus:bg-white transition"
                   required
                 />
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Status Validasi
-                  </label>
-                  <select
-                    value={formData.status === "Locked" || formData.status === "Verified" ? "Final" : (formData.status || "Draft")}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs font-bold outline-none focus:border-cyan-700 focus:bg-white transition"
-                  >
-                    <option value="Draft">Draft</option>
-                    <option value="Final">Final</option>
-                  </select>
-                </div>
               </div>
 
               {/* Weekly Input Matrix */}

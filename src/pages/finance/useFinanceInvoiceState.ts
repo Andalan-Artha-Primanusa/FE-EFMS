@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, generateInvoiceFromBA, verifyInvoice, approveInvoice, generateJournalFromInvoice } from "../../lib/api";
+import { api, generateInvoiceFromBA, verifyInvoice, approveInvoice } from "../../lib/api";
 
 interface UseFinanceInvoiceStateProps {
   formData: any;
@@ -216,12 +216,8 @@ export function useFinanceInvoiceState({
     if (setActionLoadingKey) setActionLoadingKey(key);
     onNotice("⏳ Sedang memproses persetujuan invoice & penerbitan jurnal piutang...");
     try {
+      // Jurnal piutang diposting server saat approval Manager FATB.
       const updated: any = await approveInvoice(id, "approve", "Persetujuan Invoice oleh Manager FATB");
-      try {
-        await generateJournalFromInvoice(id);
-      } catch (jErr: any) {
-        console.warn("Auto-journal info/warning:", jErr);
-      }
       onNotice("✅ Invoice berhasil disetujui oleh Manager FATB. Status: Disetujui & Jurnal Piutang AR Terbit.");
       if (setInvoiceRows) {
         setInvoiceRows((prev) => prev.map((i) => i.id === id ? { ...i, ...(updated || {}), status: updated?.status || "Unpaid" } : i));
@@ -238,7 +234,6 @@ export function useFinanceInvoiceState({
   };
 
   const handleApproveInvoiceTier1 = async (id: number) => handleApproveInvoice(id);
-  const handleApproveInvoiceTier2 = async (id: number) => handleApproveInvoice(id);
 
   return {
     posInvoiceCategory, setPosInvoiceCategory,
@@ -255,6 +250,6 @@ export function useFinanceInvoiceState({
     updateInvItemRateIDR, updateInvItemRateUSD, updateInvItemKurs, updateInvItemAmount,
     addInvLineItem, updateInvItemField, reorderInvLineItems, moveInvRow,
     handleGenerateInvoiceFromBA, handleVerifyInvoice, handleApproveInvoice,
-    handleApproveInvoiceTier1, handleApproveInvoiceTier2
+    handleApproveInvoiceTier1
   };
 }
