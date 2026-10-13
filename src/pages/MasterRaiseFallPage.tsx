@@ -26,7 +26,7 @@ import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { api } from "../lib/api";
-import { MonthPickerInput } from "./finance/helpers";
+import { MonthPickerInput, matchPeriod } from "./finance/helpers";
 import { computeRFIndex, kursForPeriod } from "./finance/masterRegistry";
 
 const currentPeriodLabel = () => new Date().toLocaleString("id-ID", { month: "long", year: "numeric" });
@@ -121,6 +121,7 @@ export function MasterRaiseFallPage({
   // Data states
   const [rfRows, setRfRows] = useState<any[]>([]);
   const [mrateRows, setMrateRows] = useState<any[]>([]);
+  const [mratePeriod, setMratePeriod] = useState("");
   const [sowRows, setSowRows] = useState<any[]>([]);
   const [umkRows, setUmkRows] = useState<any[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState("ALL");
@@ -264,6 +265,17 @@ export function MasterRaiseFallPage({
 
   // M-Rate periode RF dari Master Kurs BI
   const avgMRateCalc = kursForPeriod(rfForm.period, mrateRows);
+
+  // Halaman Kurs: periode kurs (dari BE, diturunkan dari tanggal kurs); default periode kurs terbaru.
+  const kursTime = (s: any) => new Date(String(s || "").split(" ")[0]).getTime() || 0;
+  const mrateRowsDesc = [...mrateRows].sort((a, b) => kursTime(b.dateStr) - kursTime(a.dateStr));
+  const mratePeriods = Array.from(new Set(mrateRowsDesc.map((r) => r.period).filter(Boolean))) as string[];
+  const activeMratePeriod = mratePeriods.includes(mratePeriod) ? mratePeriod : mratePeriods[0] || "";
+  const mratePeriodRows = mrateRowsDesc.filter((r) => r.period === activeMratePeriod);
+  const mrateAvg = kursForPeriod(activeMratePeriod, mrateRows);
+  const pct = (v: any) => `${(Number(v || 0) * 100).toFixed(1)}%`;
+  // Parameter kontrak POS (bobot & indeks dasar) dari Master Raise & Fall.
+  const posRf: any = rfRows.find((r) => r.customerCode === "POS") || {};
 
   // Real-time formula calculations (bobot & basis dari form = Master Raise & Fall)
   const isBGGStyle = rfForm.formulaScheme === "SINGLE_FACTOR_FUEL";
@@ -598,11 +610,11 @@ export function MasterRaiseFallPage({
   const openCreateMRateModal = () => {
     setModalType("mrate");
     setEditItem(null);
+    // Periode kurs ditentukan backend dari tanggal kurs (YYYY-MM-DD).
     setMrateForm({
-      period: currentPeriodLabel(),
-      dateStr: new Date().toLocaleDateString("id-ID"),
-      kursJual: 18000,
-      kursBeli: 17800,
+      dateStr: new Date().toISOString().slice(0, 10),
+      kursJual: 0,
+      kursBeli: 0,
     });
     setModalOpen(true);
   };
@@ -712,10 +724,10 @@ export function MasterRaiseFallPage({
               <TrendingUp size={14} className="text-[#A57C50]" />
             </div>
             <div className="text-xl font-bold text-slate-900 tabular-nums">
-              Rp {avgMRateCalc.toLocaleString("id-ID", { minimumFractionDigits: 2 })}
+              Rp {mrateAvg.toLocaleString("id-ID", { minimumFractionDigits: 2 })}
             </div>
             <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
-              <span>Sumber: Bank Indonesia (Excel/Manual)</span>
+              <span>Periode: <strong>{activeMratePeriod || "-"}</strong> · Bank Indonesia (Excel/Manual)</span>
               <span className="text-emerald-700 font-bold">Kurs Resmi</span>
             </div>
           </div>
@@ -726,7 +738,7 @@ export function MasterRaiseFallPage({
               <Calendar size={14} className="text-slate-600" />
             </div>
             <div className="text-xl font-bold text-slate-900 tabular-nums">
-              {mrateRows.length} Hari
+              {mratePeriodRows.length} Hari
             </div>
             <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
               <span>Status: Data siap digunakan</span>
@@ -741,11 +753,11 @@ export function MasterRaiseFallPage({
               <Calculator size={14} className="text-[#A57C50]" />
             </div>
             <div className="text-xl font-bold text-slate-900 tracking-tight tabular-nums">
-              {activeRf.rfIndexResult ? activeRf.rfIndexResult.toFixed(3) : "1.521"}
+              {activeRf.rfIndexResult ? Number(activeRf.rfIndexResult).toFixed(3) : "-"}
             </div>
             <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
-              <span>Periode: <strong>{activeRf.period || "Juni 2026"}</strong></span>
-              <span className="text-emerald-700 font-bold">Terverifikasi</span>
+              <span>Periode: <strong>{activeRf.period || "-"}</strong></span>
+              <span className="text-slate-600 font-bold">{activeRf.status || "-"}</span>
             </div>
           </div>
 
@@ -758,8 +770,8 @@ export function MasterRaiseFallPage({
               Rp {Number(activeRf.baseFuelFo || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
             </div>
             <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
-              <span>Bobot Fuel (a): 34.0%</span>
-              <span>Fn: USD {(activeRf.actualFuelFn || 1.422).toFixed(3)}</span>
+              <span>Bobot Fuel (a): {pct(activeRf.weightFuelA)}</span>
+              <span>Fn: {Number(activeRf.actualFuelFn || 0).toLocaleString("id-ID", { maximumFractionDigits: 3 })}</span>
             </div>
           </div>
 
@@ -772,8 +784,8 @@ export function MasterRaiseFallPage({
               Rp {Number(activeRf.baseLaborLo || 0).toLocaleString("id-ID")}
             </div>
             <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
-              <span>Bobot (b): 25.0%</span>
-              <span>Fixed (c): 41.0%</span>
+              <span>Bobot (b): {pct(activeRf.weightLaborB)}</span>
+              <span>Fixed (c): {pct(activeRf.weightFixedC)}</span>
             </div>
           </div>
 
@@ -783,11 +795,11 @@ export function MasterRaiseFallPage({
               <TrendingUp size={14} className="text-[#A57C50]" />
             </div>
             <div className="text-lg font-bold text-slate-900 tabular-nums">
-              Rp {avgMRateCalc.toLocaleString("id-ID", { minimumFractionDigits: 2 })}
+              Rp {kursForPeriod(activeRf.period, mrateRows).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
             </div>
             <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
-              <span>Base Forex (Xo): Rp 15.388,75</span>
-              <span>Total Log: {mrateRows.length} Hari</span>
+              <span>Base Forex (Xo): Rp {Number(activeRf.baseForexXo || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</span>
+              <span>Kurs: {mrateRows.filter((r) => matchPeriod(r.period, activeRf.period)).length} Hari</span>
             </div>
           </div>
         </div>
@@ -993,15 +1005,15 @@ export function MasterRaiseFallPage({
                 <div className="space-y-1.5 text-xs">
                   <div className="flex justify-between p-2 bg-white rounded-[3px] border border-slate-200">
                     <span className="font-bold text-slate-600">a (Fuel Weighting)</span>
-                    <strong className="text-slate-900 tabular-nums">34,0%</strong>
+                    <strong className="text-slate-900 tabular-nums">{pct(posRf.weightFuelA)}</strong>
                   </div>
                   <div className="flex justify-between p-2 bg-white rounded-[3px] border border-slate-200">
                     <span className="font-bold text-slate-600">b (Labor Weighting)</span>
-                    <strong className="text-slate-900 tabular-nums">25,0%</strong>
+                    <strong className="text-slate-900 tabular-nums">{pct(posRf.weightLaborB)}</strong>
                   </div>
                   <div className="flex justify-between p-2 bg-white rounded-[3px] border border-slate-200">
                     <span className="font-bold text-slate-600">c (Fixed Weighting)</span>
-                    <strong className="text-slate-900 tabular-nums">41,0%</strong>
+                    <strong className="text-slate-900 tabular-nums">{pct(posRf.weightFixedC)}</strong>
                   </div>
                 </div>
               </div>
@@ -1013,15 +1025,15 @@ export function MasterRaiseFallPage({
                 <div className="space-y-1.5 text-xs">
                   <div className="flex justify-between p-2 bg-white rounded-[3px] border border-slate-200">
                     <span className="font-bold text-slate-600 font-sans">Fo (Base Fuel POS)</span>
-                    <strong className="text-slate-900 tabular-nums">Rp 10.699,97</strong>
+                    <strong className="text-slate-900 tabular-nums">Rp {Number(posRf.baseFuelFo || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</strong>
                   </div>
                   <div className="flex justify-between p-2 bg-white rounded-[3px] border border-slate-200">
                     <span className="font-bold text-slate-600 font-sans">Lo (Base Labor POS)</span>
-                    <strong className="text-slate-900 tabular-nums">Rp 3.594.536,00</strong>
+                    <strong className="text-slate-900 tabular-nums">Rp {Number(posRf.baseLaborLo || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</strong>
                   </div>
                   <div className="flex justify-between p-2 bg-white rounded-[3px] border border-slate-200">
                     <span className="font-bold text-slate-600 font-sans">Xo (Base Forex POS)</span>
-                    <strong className="text-slate-900 tabular-nums">Rp 15.388,75</strong>
+                    <strong className="text-slate-900 tabular-nums">Rp {Number(posRf.baseForexXo || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</strong>
                   </div>
                 </div>
               </div>
@@ -1114,6 +1126,17 @@ export function MasterRaiseFallPage({
           title="Master Record Kurs Tengah M-Rate (Bank Indonesia)"
           action={
             <div className="flex items-center gap-2">
+              <select
+                aria-label="Periode kurs"
+                value={activeMratePeriod}
+                onChange={(e) => setMratePeriod(e.target.value)}
+                className="bg-white border border-slate-300 font-bold text-xs px-2 py-1.5 rounded-[3px]"
+              >
+                {mratePeriods.length === 0 && <option value="">Belum ada kurs</option>}
+                {mratePeriods.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
               <input
                 type="file"
                 ref={fileInputRef}
@@ -1143,9 +1166,9 @@ export function MasterRaiseFallPage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium text-slate-900 tabular-nums bg-white">
-                {mrateRows.map((m, idx) => (
+                {mratePeriodRows.map((m, idx) => (
                   <tr key={m.id || idx} className="hover:bg-slate-50/80 border-b border-slate-100">
-                    <td className="p-2.5 text-center border-r border-slate-100 font-sans font-bold">{m.no || idx + 1}</td>
+                    <td className="p-2.5 text-center border-r border-slate-100 font-sans font-bold">{idx + 1}</td>
                     <td className="p-2.5 border-r border-slate-100 font-sans font-bold">{m.dateStr}</td>
                     <td className="p-2.5 text-right border-r border-slate-100">Rp {m.kursJual?.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
                     <td className="p-2.5 text-right border-r border-slate-100">Rp {m.kursBeli?.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
@@ -1155,9 +1178,9 @@ export function MasterRaiseFallPage({
               </tbody>
               <tfoot className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-300">
                 <tr>
-                  <td colSpan={4} className="p-2.5 text-left font-sans uppercase">RATA-RATA KURS TENGAH (M-RATE AVERAGE Xn):</td>
+                  <td colSpan={4} className="p-2.5 text-left font-sans uppercase">RATA-RATA KURS TENGAH (M-RATE AVERAGE Xn) {activeMratePeriod}:</td>
                   <td className="p-2.5 text-right tabular-nums text-sm font-black text-slate-950 underline">
-                    Rp {avgMRateCalc.toLocaleString("id-ID", { minimumFractionDigits: 2 })}
+                    Rp {mrateAvg.toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                   </td>
                 </tr>
               </tfoot>
@@ -1430,7 +1453,7 @@ export function MasterRaiseFallPage({
                           Parameter 3-Faktor BBM & Forex (POS)
                         </h5>
                         <span className="text-[10px] font-bold bg-amber-200/70 text-amber-900 px-2 py-0.5 rounded-[3px]">
-                          Base Fuel (Fo): Rp 10.699,97 (Konstan Kontrak)
+                          Base Fuel (Fo): Rp {Number(rfForm.baseFuelFo || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} (Konstan Kontrak)
                         </span>
                       </div>
 
@@ -1694,10 +1717,10 @@ export function MasterRaiseFallPage({
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Tanggal Kurs</label>
                     <input
+                      type="date"
                       className="w-full bg-white border border-slate-300 font-bold text-xs p-2 rounded-[3px]"
                       value={mrateForm.dateStr}
                       onChange={(e) => setMrateForm({ ...mrateForm, dateStr: e.target.value })}
-                      placeholder="e.g. 01/07/2026"
                       required
                     />
                   </div>
@@ -1707,6 +1730,7 @@ export function MasterRaiseFallPage({
                       <input
                         type="number"
                         step="0.01"
+                        min="0.01"
                         className="w-full bg-white border border-slate-300 font-mono font-bold text-xs p-2 rounded-[3px]"
                         value={mrateForm.kursJual}
                         onChange={(e) => setMrateForm({ ...mrateForm, kursJual: parseFloat(e.target.value) || 0 })}
@@ -1718,6 +1742,7 @@ export function MasterRaiseFallPage({
                       <input
                         type="number"
                         step="0.01"
+                        min="0.01"
                         className="w-full bg-white border border-slate-300 font-mono font-bold text-xs p-2 rounded-[3px]"
                         value={mrateForm.kursBeli}
                         onChange={(e) => setMrateForm({ ...mrateForm, kursBeli: parseFloat(e.target.value) || 0 })}
