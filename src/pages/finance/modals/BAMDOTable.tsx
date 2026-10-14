@@ -2,7 +2,7 @@ import React from "react";
 import { Building2, Plus, Trash2 } from "lucide-react";
 import { formatIDR, FormattedNumberInput } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
-import { isDistanceItem, getBAEffectiveVolume, getBAItemSubtotal } from "../ba_calculations";
+import { isDistanceItem, getBAEffectiveVolume, getBAItemSubtotal, customerKind } from "../ba_calculations";
 import { BAPOSMDOTable } from "./BAPOSMDOTable";
 
 interface BAMDOTableProps {
@@ -28,8 +28,8 @@ export function BAMDOTable({
   rfIndexCalculated = 1.0,
   getSowMasterRate,
 }: BAMDOTableProps) {
-  const isCustomerSBS = formData.customerCode === "SBS";
-  const isCustomerPOS = formData.customerCode === "POS" || formData.customerCode === "PT POSITION" || formData.customerCode === "PT. POSITION";
+  const isCustomerSBS = customerKind(formData.customerCode) === "SBS";
+  const isCustomerPOS = customerKind(formData.customerCode) === "POS";
 
   if (!isCustomerPOS && !isCustomerSBS) return null;
 
@@ -244,13 +244,13 @@ export function BAMDOTable({
                   {!isInlineEditingBA ? (
                     <span className="font-bold text-slate-900">
                       {isDist
-                        ? (effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00")
-                        : (item.initialVolume ? Number(item.initialVolume).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00")}
+                        ? (effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "0")
+                        : (item.initialVolume ? Number(item.initialVolume).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "0")}
                     </span>
                   ) : isDist ? (
                     <div className="pt-0.5">
                       <span className="font-mono font-extrabold text-[#1A1612] text-xs block">
-                        {effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00"}
+                        {effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "0"}
                       </span>
                       <span className="text-[9px] text-[#A57C50] font-bold block leading-none">
                         (Auto-sync)

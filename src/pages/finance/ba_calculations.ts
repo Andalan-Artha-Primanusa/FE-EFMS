@@ -41,7 +41,7 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
         : Number(item.initialVolume);
     }
     const mLow = (item.material || "").toLowerCase();
-    const itemPeriod = (item.period || item.notes || "").trim().toLowerCase();
+    const itemPeriod = (item.period || item.notes || "").trim();
 
     if (isOBMaterial(mLow)) {
       const isMDO = (item.category || "").toLowerCase().includes("mdo") || mLow.includes("mdo");
@@ -54,8 +54,8 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
         const isOB = isOBMaterial(pMat);
         if (!isOB) return false;
         if (itemPeriod) {
-          const pPeriod = (p.period || p.notes || "").trim().toLowerCase();
-          return pPeriod === itemPeriod || !pPeriod;
+          const pPeriod = (p.period || p.notes || "").trim();
+          return !pPeriod || matchPeriod(pPeriod, itemPeriod);
         }
         return true;
       });
@@ -76,8 +76,8 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
         const isCoal = pLow.includes("coal") || pLow.includes("batubara");
         if (!isCoal) return false;
         if (itemPeriod) {
-          const pPeriod = (p.period || p.notes || "").trim().toLowerCase();
-          return pPeriod === itemPeriod || !pPeriod;
+          const pPeriod = (p.period || p.notes || "").trim();
+          return !pPeriod || matchPeriod(pPeriod, itemPeriod);
         }
         return true;
       });
@@ -151,21 +151,26 @@ export function getBAItemSubtotal(item: any, volume: number, isCustomerDBK: bool
     return -Math.abs(vol === 1 ? amt : vol * amt);
   }
   if (isDistanceItem(item)) {
-    const baseDist = getBaseDistance(item, customerCode || item?.customerCode);
-    const rawDist = Number(item.distanceM ?? item.distance ?? item.distanceWeightAvg ?? baseDist);
-    // If distance is entered as e.g. 1.325 or 4.976 (meaning 1.325 km or parsed with decimal point), scale to meters
-    // Jarak dipakai apa adanya (input presisi dari survey); tidak ada lagi pembulatan "ajaib" per periode.
-    const dist = (rawDist > 0 && rawDist < 50) ? rawDist * 1000 : rawDist;
-    const cust = customerKind(customerCode || item?.customerCode);
-    const isPOS = cust === "POS" || (item.material || "").toLowerCase().includes("underhaul");
-    const diffMtr = isPOS ? (dist - baseDist) : Math.max(0, dist - baseDist);
-    const isPer100m = isCustomerDBK || customerByCode(cust)?.overhaulRateUnit === "PER_100M" || (item.unit || "").includes("100") || (item.material || "").includes("100m") || (item.material || "").toLowerCase().includes("over distance");
-    if (isPer100m) {
-      return Math.round(volume * (diffMtr / 100) * r);
-    }
-    return Math.round(volume * (diffMtr / 1000) * r);
+    return Math.round(volume * getDistanceFactor(item, customerCode, isCustomerDBK) * r);
   }
   return Math.round(volume * r);
+}
+
+/**
+ * Faktor jarak over/underhaul (selisih jarak / 100 m atau / 1.000 m), sama dengan BE RecalculateBA.
+ * 0 bila basis jarak belum diatur di Master SOW (overdistance tidak ditagih).
+ */
+export function getDistanceFactor(item: any, customerCode?: string, isCustomerDBK: boolean = false): number {
+  const baseDist = getBaseDistance(item, customerCode || item?.customerCode);
+  if (baseDist <= 0) return 0;
+  const rawDist = Number(item.distanceM ?? item.distance ?? item.distanceWeightAvg ?? baseDist);
+  // Jarak < 50 dianggap km (mis. 1.325) lalu dikonversi ke meter.
+  const dist = (rawDist > 0 && rawDist < 50) ? rawDist * 1000 : rawDist;
+  const cust = customerKind(customerCode || item?.customerCode);
+  const isPOS = cust === "POS" || (item.material || "").toLowerCase().includes("underhaul");
+  const diffMtr = isPOS ? (dist - baseDist) : Math.max(0, dist - baseDist);
+  const isPer100m = isCustomerDBK || customerByCode(cust)?.overhaulRateUnit === "PER_100M" || (item.unit || "").includes("100") || (item.material || "").includes("100m") || (item.material || "").toLowerCase().includes("over distance");
+  return diffMtr / (isPer100m ? 100 : 1000);
 }
 
 /**
@@ -590,6 +595,14 @@ export function getBGGComputedInvoiceLines(
       rate: -disc,
       subtotal: -disc,
     });
+  }
+
+  // BE membulatkan diskon sekali dari total; selisih pembulatan per baris masuk ke baris terakhir.
+  const roundedE = -Math.round((subtotalOD_OB + subtotalOD_Coal + subtotalRF_OD_OB + subtotalRF_OD_Coal) * odDisc);
+  const lastE = sectionEItems[sectionEItems.length - 1];
+  if (lastE) {
+    lastE.subtotal += roundedE - sectionEItems.reduce((acc, it) => acc + it.subtotal, 0);
+    lastE.rate = lastE.subtotal;
   }
 
   const subtotalD = sectionDItems.reduce((acc, it) => acc + it.subtotal, 0);

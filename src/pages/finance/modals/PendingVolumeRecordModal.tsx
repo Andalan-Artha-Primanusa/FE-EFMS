@@ -8,7 +8,7 @@ const masterOBRates = (code: string) => {
   const [a, b] = obSplitSOWs(code);
   return { r1: Number(a?.rateIDR || a?.tier2Rate || 0), r2: Number(b?.rateIDR || b?.tier2Rate || 0) };
 };
-const pendingAmount = (vol: number, r1: number, r2: number, code: string) => {
+export const pendingAmount = (vol: number, r1: number, r2: number, code: string) => {
   const [a, b] = obSplitSOWs(code);
   return Math.round(vol * (r1 * Number(a?.splitPercentage || 0) + r2 * Number(b?.splitPercentage || 0)) / 100);
 };
@@ -19,6 +19,10 @@ interface PendingVolumeRecordModalProps {
 }
 
 export function PendingVolumeRecordModal({ formData, setFormData }: PendingVolumeRecordModalProps) {
+  const [sow1, sow2] = obSplitSOWs(formData.customerCode);
+  const pct1 = Number(sow1?.splitPercentage || 0);
+  const pct2 = Number(sow2?.splitPercentage || 0);
+  const absorbed = Number(formData.absorbedVolume || 0);
   return (
     <div className="space-y-4 text-xs">
       <div className="p-4 bg-[#1A1612] text-white border border-amber-900/30 rounded-[4px] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-2xs">
@@ -49,6 +53,11 @@ export function PendingVolumeRecordModal({ formData, setFormData }: PendingVolum
             <span>Kuota Stripping Ratio belum diatur di Master Customer (Client Setup).</span>
           )}
         </div>
+        {absorbed > 0 && (
+          <div className="text-rose-800 font-bold pl-4">
+            Sudah ditagih {absorbed.toLocaleString("id-ID", { minimumFractionDigits: 2 })} BCM: customer terkunci dan volume saldo minimal sebesar itu.
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -72,6 +81,7 @@ export function PendingVolumeRecordModal({ formData, setFormData }: PendingVolum
               });
             }}
             required
+            disabled={absorbed > 0}
           >
             <option value="" disabled>— Pilih customer (Master Customer) —</option>
             {masterRegistry.customers.filter((c: any) => c.pendingVolumeEligible || contractParams(c.code).maxStrippingRatio > 0).map((c: any) => (
@@ -125,7 +135,6 @@ export function PendingVolumeRecordModal({ formData, setFormData }: PendingVolum
               setFormData({
                 ...formData,
                 originalOBVolume: v,
-                remainingVolume: v,
                 workAmount: pendingAmount(v, r1, r2, formData.customerCode)
               });
             }}
@@ -134,10 +143,10 @@ export function PendingVolumeRecordModal({ formData, setFormData }: PendingVolum
 
         <div>
           <RupiahInput
-            label="Tarif OB1 75% (Rp)"
+            label={`Tarif OB1 ${pct1}% (Rp)`}
             value={formData.ob1Rate || 0}
             onChange={(r1: number) => {
-              const r2 = Number(formData.ob2Rate || 7261);
+              const r2 = Number(formData.ob2Rate || 0);
               const v = Number(formData.originalOBVolume || 0);
               setFormData({ ...formData, ob1Rate: r1, workAmount: pendingAmount(v, r1, r2, formData.customerCode) });
             }}
@@ -146,7 +155,7 @@ export function PendingVolumeRecordModal({ formData, setFormData }: PendingVolum
 
         <div>
           <RupiahInput
-            label="Tarif OB2 25% (Rp)"
+            label={`Tarif OB2 ${pct2}% (Rp)`}
             value={formData.ob2Rate || 0}
             onChange={(r2: number) => {
               const r1 = Number(formData.ob1Rate || 0);
@@ -167,7 +176,7 @@ export function PendingVolumeRecordModal({ formData, setFormData }: PendingVolum
           </strong>
         </div>
         <span className="text-[10px] text-slate-500 font-medium">
-          Formula: Vol × (75% × OB1 + 25% × OB2)
+          Formula: Vol × ({pct1}% × OB1 + {pct2}% × OB2)
         </span>
       </div>
 

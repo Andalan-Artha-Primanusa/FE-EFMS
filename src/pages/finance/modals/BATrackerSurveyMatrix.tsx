@@ -111,7 +111,7 @@ export function BATrackerSurveyMatrix({
                     )}
                   </td>
                   <td className="p-2.5 text-right font-mono text-slate-600 align-top">
-                    <span className="pt-1 block">{isDPFuel ? "-" : (volAwal > 0 ? volAwal.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00")}</span>
+                    <span className="pt-1 block">{isDPFuel ? "-" : (volAwal > 0 ? volAwal.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "0")}</span>
                   </td>
                   <td className="p-2.5 text-right font-mono align-top">
                     {isDPFuel ? (
@@ -119,7 +119,7 @@ export function BATrackerSurveyMatrix({
                     ) : !isInlineEditingBA ? (
                       <div className="flex flex-col items-end pt-0.5">
                         <span className="font-mono font-bold text-slate-900 block">
-                          {volAdj > 0 ? volAdj.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00"}
+                          {volAdj > 0 ? volAdj.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "0"}
                         </span>
                         {isDistance && (
                           <span className="text-[9px] text-[#A57C50] font-semibold italic mt-0.5 whitespace-nowrap">
@@ -134,7 +134,7 @@ export function BATrackerSurveyMatrix({
                           maxDecimals={3}
                           className="w-24 bg-slate-50 border border-slate-300 rounded-[3px] px-2 py-1 text-right font-mono font-bold text-xs text-slate-900 focus:border-[#A57C50] outline-none"
                           value={isDistance ? (item.adjustedVolume ? item.adjustedVolume : "") : (item.adjustedVolume !== undefined && item.adjustedVolume !== 0 ? item.adjustedVolume : "")}
-                          placeholder={volAdj > 0 ? volAdj.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "00.00"}
+                          placeholder={volAdj > 0 ? volAdj.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "0"}
                           onChange={(val) => {
                             if (item.isDeduction || item.category === "Pengurang Biaya") {
                               const deds = [...(baDeductionItems || [])];
