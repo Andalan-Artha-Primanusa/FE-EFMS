@@ -582,7 +582,8 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
 
   const defaultSBSBAOperatingItems = useMemo(() => {
     const rows = templateRows("ba_operating_SBS");
-    const base = zeroBAVolumes(rows, false);
+    // Tarif OB SBS diisi dari jarak angkut (Tarif Jarak Angkut), bukan tarif bawaan template.
+    const base = zeroBAVolumes(rows, true);
     return syncBARatesWithMasterData(base, "SBS");
   }, [financeTemplates, templateRows, syncBARatesWithMasterData]);
 
