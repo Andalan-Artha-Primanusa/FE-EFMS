@@ -103,8 +103,8 @@ export function buildBGGInvoiceItemsFromBA(ba: any, ctx: InvoiceItemGeneratorCon
     const odCWDiffMtr = coalBase > 0 ? Math.max(0, coalDistMtr - coalBase) : 0;
     const baseODOBRate = Number(obDistItem?.rate || sowRate(sowFor(cust, "Over Distance For OB Removal")));
     const baseODCWRate = Number(coalDistItem?.rate || sowRate(sowFor(cust, "Over Distance For Coal Winning")));
-    const odOBRate = odOBDiffMtr > 0 ? Number((baseODOBRate * (odOBDiffMtr / 100)).toFixed(3)) : 0;
-    const odCWRate = odCWDiffMtr > 0 ? Number((baseODCWRate * (odCWDiffMtr / 100)).toFixed(3)) : 0;
+    const odOBRate = odOBDiffMtr > 0 ? baseODOBRate * (odOBDiffMtr / 100) : 0;
+    const odCWRate = odCWDiffMtr > 0 ? baseODCWRate * (odCWDiffMtr / 100) : 0;
     const odOBAmt = Math.round(totalOB * odOBRate);
     const odCWAmt = Math.round(cwVol * odCWRate);
 
@@ -152,11 +152,11 @@ export function buildBGGInvoiceItemsFromBA(ba: any, ctx: InvoiceItemGeneratorCon
     const rfBaseODOB = baseODOBRate;
     const rfBaseODCoal = baseODCWRate;
 
-    const rfOB1Rate = Number((rfBaseOB1 * rfFactor).toFixed(3));
-    const rfOB2Rate = Number((rfBaseOB2 * rfFactor).toFixed(3));
-    const rfOBDistRate = Number((rfBaseODOB * rfFactor * (odOBDiffMtr / 100)).toFixed(3));
-    const rfCWRate = Number((rfBaseCoal * rfFactor).toFixed(3));
-    const rfCWDistRate = Number((rfBaseODCoal * rfFactor * (odCWDiffMtr / 100)).toFixed(3));
+    const rfOB1Rate = rfBaseOB1 * rfFactor;
+    const rfOB2Rate = rfBaseOB2 * rfFactor;
+    const rfOBDistRate = rfBaseODOB * rfFactor * (odOBDiffMtr / 100);
+    const rfCWRate = rfBaseCoal * rfFactor;
+    const rfCWDistRate = rfBaseODCoal * rfFactor * (odCWDiffMtr / 100);
 
     const rfOB1Amt = Math.round(ob1Vol * rfOB1Rate);
     const rfOB2Amt = Math.round(ob2Vol * rfOB2Rate);

@@ -1072,12 +1072,12 @@ export function BATrackerSurveyItems({
                   <td className="p-1.5 border-r border-amber-100">
                     {!isInlineEditingBA ? (
                       <span className="block text-right font-mono font-bold text-slate-800 p-1">
-                        {fuelP1 > 0 ? fuelP1.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) : "0"}
+                        {fuelP1 > 0 ? Math.round(fuelP1).toLocaleString("id-ID") : "0"}
                       </span>
                     ) : (
                       <FormattedNumberInput
                         allowDecimals
-                        maxDecimals={3}
+                        maxDecimals={0}
                         placeholder="0,00"
                         className="w-full bg-white border border-slate-300 font-mono font-bold text-right p-1.5 rounded-[3px] outline-none focus:border-[#A57C50]"
                         value={fuelP1}
@@ -1088,12 +1088,12 @@ export function BATrackerSurveyItems({
                   <td className="p-1.5 border-r border-amber-100">
                     {!isInlineEditingBA ? (
                       <span className="block text-right font-mono font-bold text-slate-800 p-1">
-                        {transP1 > 0 ? transP1.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) : "0"}
+                        {transP1 > 0 ? Math.round(transP1).toLocaleString("id-ID") : "0"}
                       </span>
                     ) : (
                       <FormattedNumberInput
                         allowDecimals
-                        maxDecimals={3}
+                        maxDecimals={0}
                         placeholder="0,00"
                         className="w-full bg-white border border-slate-300 font-mono font-bold text-right p-1.5 rounded-[3px] outline-none focus:border-[#A57C50]"
                         value={transP1}
@@ -1102,7 +1102,7 @@ export function BATrackerSurveyItems({
                     )}
                   </td>
                   <td className="p-2 text-right font-mono font-bold text-slate-900 bg-amber-50/30">
-                    Rp {totalP1.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
+                    Rp {Math.round(totalP1).toLocaleString("id-ID")}
                   </td>
                 </tr>
 
@@ -1113,12 +1113,12 @@ export function BATrackerSurveyItems({
                   <td className="p-1.5 border-r border-amber-100">
                     {!isInlineEditingBA ? (
                       <span className="block text-right font-mono font-bold text-slate-800 p-1">
-                        {fuelP2 > 0 ? fuelP2.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) : "0"}
+                        {fuelP2 > 0 ? Math.round(fuelP2).toLocaleString("id-ID") : "0"}
                       </span>
                     ) : (
                       <FormattedNumberInput
                         allowDecimals
-                        maxDecimals={3}
+                        maxDecimals={0}
                         placeholder="0,00"
                         className="w-full bg-white border border-slate-300 font-mono font-bold text-right p-1.5 rounded-[3px] outline-none focus:border-[#A57C50]"
                         value={fuelP2}
@@ -1129,12 +1129,12 @@ export function BATrackerSurveyItems({
                   <td className="p-1.5 border-r border-amber-100">
                     {!isInlineEditingBA ? (
                       <span className="block text-right font-mono font-bold text-slate-800 p-1">
-                        {transP2 > 0 ? transP2.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) : "0"}
+                        {transP2 > 0 ? Math.round(transP2).toLocaleString("id-ID") : "0"}
                       </span>
                     ) : (
                       <FormattedNumberInput
                         allowDecimals
-                        maxDecimals={3}
+                        maxDecimals={0}
                         placeholder="0,00"
                         className="w-full bg-white border border-slate-300 font-mono font-bold text-right p-1.5 rounded-[3px] outline-none focus:border-[#A57C50]"
                         value={transP2}
@@ -1143,7 +1143,7 @@ export function BATrackerSurveyItems({
                     )}
                   </td>
                   <td className="p-2 text-right font-mono font-bold text-slate-900 bg-amber-50/30">
-                    Rp {totalP2.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 })}
+                    Rp {Math.round(totalP2).toLocaleString("id-ID")}
                   </td>
                 </tr>
               </tbody>
@@ -1456,7 +1456,7 @@ export function BATrackerSurveyItems({
                 Sumber: {hoPOSResolved.currencySource}
               </div>
               <div className="w-full bg-slate-100/90 border border-slate-300 font-mono font-bold text-slate-800 p-1.5 rounded-[3px] text-sm flex items-center justify-between cursor-not-allowed select-none">
-                <span>Rp {posXn > 0 ? posXn.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) : "0,00"}</span>
+                <span>Rp {posXn > 0 ? Math.round(posXn).toLocaleString("id-ID") : "0"}</span>
                 <span className="text-[9px] font-sans font-bold bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded-[2px] uppercase tracking-wider flex items-center gap-1">
                   <Lock size={9} /> Locked
                 </span>

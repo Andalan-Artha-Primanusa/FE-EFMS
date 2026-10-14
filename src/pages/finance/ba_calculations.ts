@@ -42,11 +42,15 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
     }
     const mLow = (item.material || "").toLowerCase();
     const itemPeriod = (item.period || item.notes || "").trim();
+    // Over/underhaul hanya mengambil volume produksi di area/lokasi yang sama (mis. WM1&WM2 vs Q2).
+    const normArea = (a?: string) => (a || "").replace(/\s+/g, "").toLowerCase();
+    const itemArea = normArea(item.area);
+    const sameArea = (p: any) => { const pArea = normArea(p.area); return !itemArea || !pArea || itemArea === pArea; };
 
     if (isOBMaterial(mLow)) {
       const isMDO = (item.category || "").toLowerCase().includes("mdo") || mLow.includes("mdo");
       const obParents = allItems.filter((p) => {
-        if (p.id === item.id || isDistanceItem(p)) return false;
+        if (p.id === item.id || isDistanceItem(p) || !sameArea(p)) return false;
         const pCat = (p.category || "").toLowerCase();
         const pMat = (p.material || p.name || "").toLowerCase();
         const pIsMDO = pCat.includes("mdo") || pMat.includes("mdo");
@@ -71,7 +75,7 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
 
     if (mLow.includes("coal") || mLow.includes("batubara")) {
       const coalParents = allItems.filter((p) => {
-        if (p.id === item.id || isDistanceItem(p)) return false;
+        if (p.id === item.id || isDistanceItem(p) || !sameArea(p)) return false;
         const pLow = (p.material || "").toLowerCase();
         const isCoal = pLow.includes("coal") || pLow.includes("batubara");
         if (!isCoal) return false;
@@ -101,12 +105,8 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
     });
     const searchPool = domainItems.length > 0 ? domainItems : allItems.filter((p) => p.id !== item.id && !isDistanceItem(p));
 
-    const itemArea = (item.area || "").trim().toLowerCase();
     const parent = searchPool.find((p) => {
-      const pArea = (p.area || "").trim().toLowerCase();
-      if (itemArea && pArea && itemArea !== pArea) {
-        return false;
-      }
+      if (!sameArea(p)) return false;
       if (item.parentMaterial) {
         const pmLow = item.parentMaterial.toLowerCase().trim();
         const pMatLow = (p.material || p.name || "").toLowerCase().trim();

@@ -152,7 +152,7 @@ export function InvoiceTableSBS({
                       <div className="flex items-center justify-center gap-1">
                         <FormattedNumberInput
                           allowDecimals
-                          maxDecimals={3}
+                          maxDecimals={2}
                           className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                           placeholder="00.00"
                           value={item.volume === 0 ? "" : (item.volume ?? "")}
@@ -164,7 +164,7 @@ export function InvoiceTableSBS({
                     <td className="p-2 text-right">
                       <FormattedNumberInput
                         allowDecimals
-                        maxDecimals={3}
+                        maxDecimals={0}
                         className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                         placeholder="00.00"
                         value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}
@@ -203,7 +203,7 @@ export function InvoiceTableSBS({
                     <div className="flex items-center justify-center gap-1">
                       <FormattedNumberInput
                         allowDecimals
-                        maxDecimals={3}
+                        maxDecimals={2}
                         className="w-24 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                         placeholder="00.00"
                         value={item.volume === 0 ? "" : (item.volume ?? "")}
@@ -215,7 +215,7 @@ export function InvoiceTableSBS({
                   <td className="p-2 text-right">
                     <FormattedNumberInput
                       allowDecimals
-                      maxDecimals={3}
+                      maxDecimals={0}
                       className="w-28 bg-slate-50 border border-slate-300 font-mono font-extrabold text-slate-900 text-xs px-2 py-0.5 rounded text-right focus:bg-white focus:border-cyan-600 outline-none"
                       placeholder="00.00"
                       value={item.unitRateIDR === 0 ? "" : (item.unitRateIDR ?? "")}

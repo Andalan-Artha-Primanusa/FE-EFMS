@@ -184,7 +184,7 @@ export function buildInvoiceItemsFromBA(
             overhaulMtr: curMtr,
             baseMtr: baseM,
             unitRateUSD: isUSD ? usdRate : undefined,
-            unitRateIDR: !isUSD ? idrRate : Number((usdRate * kurs).toFixed(3)),
+            unitRateIDR: !isUSD ? idrRate : usdRate * kurs,
             kursBI: isUSD ? kurs : undefined,
             amount: amt,
             amountIDR: amt,
@@ -192,7 +192,7 @@ export function buildInvoiceItemsFromBA(
           });
         } else if (isCoal) {
           const usdRate = bi.rateUSD || (bi.isUSD ? bi.rate : ptroContractRates(ba.customerCode).cgRateUSD);
-          const rateIDR = bi.rateIDR || bi.rate || Number((usdRate * kurs).toFixed(3));
+          const rateIDR = bi.rateIDR || bi.rate || usdRate * kurs;
           const amt = Number(bi.subtotalAdjusted || bi.subtotalInitial || Math.round(vol * usdRate * kurs));
           invItems.push({
             id: bi.id || `ptro_inv_b_${idx}`,
@@ -210,7 +210,7 @@ export function buildInvoiceItemsFromBA(
           });
         } else if (isOB) {
           const usdRate = bi.rateUSD || (bi.isUSD ? bi.rate : ptroContractRates(ba.customerCode).obRateUSD);
-          const rateIDR = bi.rateIDR || bi.rate || Number((usdRate * kurs).toFixed(3));
+          const rateIDR = bi.rateIDR || bi.rate || usdRate * kurs;
           const amt = Number(bi.subtotalAdjusted || bi.subtotalInitial || Math.round(vol * usdRate * kurs));
           invItems.push({
             id: bi.id || `ptro_inv_a_${idx}`,
@@ -229,7 +229,7 @@ export function buildInvoiceItemsFromBA(
         } else {
           const isUSD = bi.isUSD || bi.rateUSD > 0;
           const usdRate = bi.rateUSD || 0;
-          const rateIDR = bi.rate || bi.unitRateIDR || (isUSD ? Number((usdRate * kurs).toFixed(3)) : 0);
+          const rateIDR = bi.rate || bi.unitRateIDR || (isUSD ? usdRate * kurs : 0);
           const amt = Number(bi.subtotalAdjusted || bi.subtotalInitial || Math.round(vol * rateIDR));
           invItems.push({
             id: bi.id || `ptro_inv_custom_${idx}`,

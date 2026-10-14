@@ -346,15 +346,15 @@ export function BAOperatingTable({
         <td className="p-2 text-right font-mono align-top">
           {!isInlineEditingBA ? (
             <span className="pt-1 block font-bold">
-              {Number(effVol || 0).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
+              {Number(effVol || 0).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           ) : (
             <FormattedNumberInput
               allowDecimals
-              maxDecimals={3}
+              maxDecimals={2}
               className="w-20 sm:w-24 bg-slate-50 border border-slate-300 rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none"
               value={isDistance ? (item.initialVolume ? item.initialVolume : "") : (item.initialVolume === 0 ? "" : (item.initialVolume ?? ""))}
-              placeholder={effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "0,000"}
+              placeholder={effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0,000"}
               onChange={(val) => updateItem(item.id, { initialVolume: val })}
             />
           )}
@@ -400,7 +400,7 @@ export function BAOperatingTable({
               return (
                 <span className="pt-1 block font-mono font-bold">
                   {isDistance && effDistanceRate !== 0
-                    ? Number(effDistanceRate).toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+                    ? formatIDR(effDistanceRate)
                     : formatIDR(item.rate)}
                 </span>
               );
@@ -410,15 +410,15 @@ export function BAOperatingTable({
               <div className="space-y-1">
                 <FormattedNumberInput
                   allowDecimals
-                  maxDecimals={3}
+                  maxDecimals={0}
                   className={`w-20 sm:w-24 border rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none ${item.isCustom && (!item.rate || item.rate === 0) ? "bg-amber-50 border-amber-400 text-amber-900" : "bg-slate-50 border-slate-300"}`}
                   value={item.rate === 0 ? "" : (item.rate ?? "")}
-                  placeholder="0,000"
+                  placeholder="0"
                   onChange={(val) => updateItem(item.id, { rate: val })}
                 />
                 {isDistance && effDistanceRate !== 0 && (
                   <span className="text-[10px] text-[#A57C50] font-mono font-bold block text-right leading-tight">
-                    Eff: {effDistanceRate.toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
+                    Eff: {formatIDR(effDistanceRate)}
                   </span>
                 )}
               </div>
@@ -538,7 +538,7 @@ export function BAOperatingTable({
                     <td className="p-2 text-center align-top font-mono text-slate-600 font-bold">{item.period || formData.workPeriod || ""}</td>
                     <td className="p-2 text-center align-top font-mono text-slate-600 font-bold">{item.unit}</td>
                     <td className="p-2 text-right font-mono align-top font-bold">
-                      {Number(item.volume).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 })}
+                      {Number(item.volume).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="p-2 text-right font-mono align-top bg-slate-50/50 border-x border-slate-100 text-slate-400">-</td>
                     <td className="p-2 text-right font-mono align-top font-mono font-bold text-slate-900">
@@ -698,7 +698,7 @@ export function BAOperatingTable({
                         ) : (
                           <FormattedNumberInput
                             allowDecimals
-                            maxDecimals={3}
+                            maxDecimals={0}
                             className="w-24 sm:w-28 bg-white border border-rose-300 focus:border-rose-500 rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs text-rose-700 outline-none"
                             value={currentVal === 0 ? "" : currentVal}
                             placeholder="0"

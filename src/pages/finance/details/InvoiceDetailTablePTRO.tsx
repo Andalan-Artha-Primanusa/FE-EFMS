@@ -16,7 +16,7 @@ export const InvoiceDetailTablePTRO: React.FC<InvoiceDetailTablePTROProps> = ({
       <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
         <td className="p-2 underline border-r border-slate-200">A. OB REMOVAL</td>
         <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
-          {activeItems.filter((i: any) => i.section === "A").reduce((s: number, i: any) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}
+          {activeItems.filter((i: any) => i.section === "A").reduce((s: number, i: any) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </td>
         <td className="p-2 text-center border-r border-slate-200 font-bold">Bcm</td>
         <td className="p-2 text-right border-r border-slate-200"></td>
@@ -27,7 +27,7 @@ export const InvoiceDetailTablePTRO: React.FC<InvoiceDetailTablePTROProps> = ({
       {activeItems.filter((i: any) => i.section === "A").map((i: any) => (
         <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
           <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">{i.description}</td>
-          <td className="p-2 text-center font-mono border-r border-slate-200">{(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}</td>
+          <td className="p-2 text-center font-mono border-r border-slate-200">{(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           <td className="p-2 text-center border-r border-slate-200">{i.unit || "Bcm"}</td>
           <td className="p-2 text-right font-mono border-r border-slate-200">{(i.unitRateUSD || 0).toFixed(3)}</td>
           <td className="p-2 text-right font-mono border-r border-slate-200">{(i.kursBI || 17140.76).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
@@ -39,7 +39,7 @@ export const InvoiceDetailTablePTRO: React.FC<InvoiceDetailTablePTROProps> = ({
       <tr className="bg-slate-100/70 font-extrabold text-slate-900 border-t border-b border-slate-300">
         <td className="p-2 underline border-r border-slate-200">B. COAL WINNING</td>
         <td className="p-2 text-center font-mono border-r border-slate-200 font-black">
-          {activeItems.filter((i: any) => i.section === "B").reduce((s: number, i: any) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}
+          {activeItems.filter((i: any) => i.section === "B").reduce((s: number, i: any) => s + (i.volume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </td>
         <td className="p-2 text-center border-r border-slate-200 font-bold">Ton</td>
         <td className="p-2 text-right border-r border-slate-200"></td>
@@ -50,7 +50,7 @@ export const InvoiceDetailTablePTRO: React.FC<InvoiceDetailTablePTROProps> = ({
       {activeItems.filter((i: any) => i.section === "B").map((i: any) => (
         <tr key={i.id} className="hover:bg-slate-50 border-b border-slate-200">
           <td className="p-2 pl-6 font-bold text-slate-800 border-r border-slate-200">PIT SAPAN</td>
-          <td className="p-2 text-center font-mono border-r border-slate-200">{(i.actualVolume || i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}</td>
+          <td className="p-2 text-center font-mono border-r border-slate-200">{(i.actualVolume || i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           <td className="p-2 text-center border-r border-slate-200">{i.unit || "Ton"}</td>
           <td className="p-2 text-right font-mono border-r border-slate-200">{(i.unitRateUSD || 0).toFixed(3)}</td>
           <td className="p-2 text-right font-mono border-r border-slate-200">{(i.kursBI || 17140.76).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
@@ -88,7 +88,7 @@ export const InvoiceDetailTablePTRO: React.FC<InvoiceDetailTablePTROProps> = ({
                     PIT SAPAN {(i.overhaulMtr || baseM).toLocaleString("id-ID", { minimumFractionDigits: 2 })} mtr - {baseM} mtr = {diff.toFixed(2)} mtr
                   </div>
                 </td>
-                <td className="p-2 text-center font-mono border-r border-slate-200">{i.volume ? i.volume.toLocaleString("id-ID", { minimumFractionDigits: 3 }) : ""}</td>
+                <td className="p-2 text-center font-mono border-r border-slate-200">{i.volume ? i.volume.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""}</td>
                 <td className="p-2 text-center border-r border-slate-200">{i.volume ? (i.unit || "") : ""}</td>
                 <td className="p-2 border-r border-slate-200"></td>
                 <td className="p-2 text-right font-mono border-r border-slate-200">{i.unitRateIDR ? i.unitRateIDR.toFixed(2) : ""}</td>

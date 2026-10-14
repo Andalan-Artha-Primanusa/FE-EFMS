@@ -263,7 +263,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
       tableBodyHTML = `
         <tr class="sec-hdr">
           <td>A. OB REMOVAL</td>
-          <td class="text-center font-mono">${volA.toLocaleString("id-ID", { minimumFractionDigits: 3 })}</td>
+          <td class="text-center font-mono">${volA.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           <td class="text-center">Bcm</td>
           <td></td>
           <td></td>
@@ -273,7 +273,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         ${secAItems.map((i: any) => `
           <tr>
             <td style="padding-left: 20px;">${i.description}</td>
-            <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}</td>
+            <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td class="text-center">${i.unit || "Bcm"}</td>
             <td class="text-right font-mono">${(i.unitRateUSD || 0).toFixed(3)}</td>
             <td class="text-right font-mono">${(i.kursBI || 17140.76).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
@@ -283,7 +283,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
 
         <tr class="sec-hdr">
           <td>B. COAL WINNING</td>
-          <td class="text-center font-mono">${volB.toLocaleString("id-ID", { minimumFractionDigits: 3 })}</td>
+          <td class="text-center font-mono">${volB.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           <td class="text-center">Ton</td>
           <td></td>
           <td></td>
@@ -293,7 +293,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         ${secBItems.map((i: any) => `
           <tr>
             <td style="padding-left: 20px;">PIT SAPAN</td>
-            <td class="text-center font-mono">${(i.actualVolume || i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 3 })}</td>
+            <td class="text-center font-mono">${(i.actualVolume || i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td class="text-center">${i.unit || "Ton"}</td>
             <td class="text-right font-mono">${(i.unitRateUSD || 0).toFixed(3)}</td>
             <td class="text-right font-mono">${(i.kursBI || 17140.76).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
@@ -328,7 +328,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
                 PIT SAPAN<br/>
                 <span style="font-size: 8.5px; color: #475569;">${(i.overhaulMtr || baseM).toLocaleString("id-ID", { minimumFractionDigits: 2 })} mtr - ${baseM} mtr = ${diff.toFixed(2)} mtr</span>
               </td>
-              <td class="text-center font-mono">${i.volume ? i.volume.toLocaleString("id-ID", { minimumFractionDigits: 3 }) : "0.000"}</td>
+              <td class="text-center font-mono">${i.volume ? i.volume.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0,00"}</td>
               <td class="text-center">${i.unit || (isCoal ? "Ton" : "Bcm")}</td>
               <td class="text-right font-mono">${!isCoal ? usdRate.toFixed(3) : "-"}</td>
               <td class="text-right font-mono">${!isCoal ? kurs.toLocaleString("id-ID", { minimumFractionDigits: 2 }) : idrRate.toLocaleString("id-ID")}</td>

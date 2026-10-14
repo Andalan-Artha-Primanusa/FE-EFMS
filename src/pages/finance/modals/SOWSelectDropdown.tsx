@@ -35,7 +35,7 @@ export function getSiteSOWList(
       merged.push({
         name: name,
         unit: c.unit || "BCM",
-        defaultRate: c.defaultRate || c.rateIDR || (c.rateUSD ? Number((c.rateUSD * (mRate || 0)).toFixed(3)) : 0),
+        defaultRate: c.defaultRate || c.rateIDR || (c.rateUSD ? c.rateUSD * (mRate || 0) : 0),
         rateUSD: Number(c.rateUSD || c.baseRateUSD || 0),
         category: isMDO ? "MDO" : (isDed ? "Pengurang Biaya" : isDist ? "Over Distance" : (c.category || "Operating & Mining")),
         isDistanceVar: isDist,

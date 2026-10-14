@@ -172,7 +172,7 @@ export function baItemsFromSOW(code?: string, period?: string): { operating: any
         unit: s.unit || "BCM",
         rateUSD: usd,
         isUSD: usd > 0,
-        rate: Number(s.rateIDR || 0) || (usd > 0 && kurs > 0 ? Number((usd * kurs).toFixed(3)) : 0),
+        rate: Number(s.rateIDR || 0) || (usd > 0 && kurs > 0 ? usd * kurs : 0),
         ...(s.isDistanceVar ? { isDistanceVar: true, ...(base > 0 ? { distanceBasis: base, distanceWeightAvg: base } : {}) } : {}),
         initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0,
       };
