@@ -5,8 +5,8 @@ interface DetailModalActionsProps {
   type: string;
   data: any;
   isSuper: boolean;
-  isFinanceSpecialist: boolean;
-  isSPV: boolean;
+  canVerifyBA: boolean;
+  canVerifyInvoice: boolean;
   canApproveInvoice: boolean;
   canApproveBA: boolean;
   handleVerifyBA: (id: number) => void;
@@ -19,8 +19,8 @@ export const DetailModalActions: React.FC<DetailModalActionsProps> = ({
   type,
   data,
   isSuper,
-  isFinanceSpecialist,
-  isSPV,
+  canVerifyBA,
+  canVerifyInvoice,
   canApproveInvoice,
   canApproveBA,
   handleVerifyBA,
@@ -33,7 +33,7 @@ export const DetailModalActions: React.FC<DetailModalActionsProps> = ({
       <div className="flex items-center gap-2">
         {type === "ba" && (
           <>
-            {(isFinanceSpecialist || isSuper || isSPV) && !data.verifiedBy && !data.invoiceNoLinked && (["Submit", "Pending Berita Acara", "Draft", "Revisi", "Rejected"].includes(data.statusBA) || !data.statusBA) && (
+            {canVerifyBA && !data.verifiedBy && !data.invoiceNoLinked && (["Submit", "Pending Berita Acara", "Draft", "Revisi", "Rejected"].includes(data.statusBA) || !data.statusBA) && (
               <button
                 className="px-4 py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs flex items-center gap-1.5 transition cursor-pointer"
                 onClick={() => handleVerifyBA(data.id)}

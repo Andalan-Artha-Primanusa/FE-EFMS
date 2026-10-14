@@ -21,8 +21,9 @@ export function useFinanceDataLoader({ viewTitle, user, onNotice }: UseFinanceDa
 
   const userRole = user?.role || "User";
   const isSuper = isSuperAdminRole(user?.role || "");
-  const isFinanceSpecialist = isSuper || authorized(user, "operational_transaction", "write") || authorized(user, "ba_tracker", "write") || authorized(user, "finance", "write");
-  const isSPV = isSuper || authorized(user, "ba_tracker", "verify") || authorized(user, "invoice", "verify") || authorized(user, "finance", "verify");
+  const can = (module: string, action: string) => authorized(user, module, action);
+  const canVerifyBA = can("ba_tracker", "verify");
+  const canVerifyInvoice = can("invoice", "verify");
   const canApproveInvoice = authorized(user, "invoice", "approve_tier1");
   const canApproveBA = authorized(user, "ba_tracker", "approve");
 
@@ -105,10 +106,11 @@ export function useFinanceDataLoader({ viewTitle, user, onNotice }: UseFinanceDa
     setAccountingJournals,
     userRole,
     isSuper,
-    isFinanceSpecialist,
-    isSPV,
+    canVerifyBA,
+    canVerifyInvoice,
     canApproveInvoice,
     canApproveBA,
+    can,
     loadData
   };
 }

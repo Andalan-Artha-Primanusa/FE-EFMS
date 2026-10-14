@@ -31,8 +31,8 @@ export function BATrackerView({ c }: { c: any }) {
     setBaFilter, periodFilter, setPeriodFilter, showExportBADropdown, setShowExportBADropdown,
     showInputBADropdown, setShowInputBADropdown, baRowActionDropdownId, setBaRowActionDropdownId, setDetailViewItem,
     exportBAOnlyExcel, exportBAOnlyPDF, exportBADocumentPDF, createInvoiceFromBA, openBAModal, openCreateModal,
-    handleGenerateInvoiceFromBA, handleDelete, query = "", onNotice, handleAccrueBA, accountingJournals: rawAccountingJournals,
-    deletingKey, actionLoadingKey, loadData, user
+    handleGenerateInvoiceFromBA, handleDelete, handleVerifyBA, handleApproveBA, query = "", onNotice, handleAccrueBA, accountingJournals: rawAccountingJournals,
+    deletingKey, actionLoadingKey, loadData, user, can = () => false
   } = (c || {}) as Record<string, any>;
   // Site yang boleh dibuatkan BA mengikuti scope RBAC user (SITE hanya site miliknya).
   const siteScope = user ? companyScopeOf(user) : { all: false, codes: [] as string[] };
@@ -182,7 +182,7 @@ export function BATrackerView({ c }: { c: any }) {
                   </div>
 
                   {/* Input / Tambah BA: user SITE hanya site miliknya (tanpa dropdown), HO semua site */}
-                  {!siteScope.all ? (
+                  {!can("ba_tracker", "write") ? null : !siteScope.all ? (
                     <div className="flex items-center gap-1.5">
                       {baSiteOptions.map((s) => (
                         <button
@@ -695,7 +695,7 @@ export function BATrackerView({ c }: { c: any }) {
                                     {row.customerCode === "POS" && invStatus.isPartiallyInvoiced && (
                                       <div className="flex items-center gap-1">
                                         {/* Tombol Terbitkan Sisa Invoice */}
-                                        {invStatus.createdMiningInv ? (
+                                        {!can("invoice", "write") ? null : invStatus.createdMiningInv ? (
                                           <button
                                             type="button"
                                             className="px-2.5 py-1 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-[11px] shadow-xs flex items-center gap-1 transition cursor-pointer"
@@ -738,7 +738,7 @@ export function BATrackerView({ c }: { c: any }) {
                                     )}
 
                                     {/* POS: Kondisi Belum Ada Invoice Sama Sekali (0 dari 2) */}
-                                    {row.customerCode === "POS" && isReady && !invStatus.isPartiallyInvoiced && (
+                                    {can("invoice", "write") && row.customerCode === "POS" && isReady && !invStatus.isPartiallyInvoiced && (
                                       <div className="relative inline-block text-left">
                                         <button
                                           type="button"
@@ -790,7 +790,7 @@ export function BATrackerView({ c }: { c: any }) {
                                     )}
 
                                      {/* Tombol Akrualkan Pendapatan (Unbilled AR) */}
-                                     {(isReady || row.statusBA === "Approved") && !accountingJournals.some((j: any) => j.sourceModule === "BA_ACCRUAL" && j.sourceReference === row.baNumber && j.status !== "Void") && (() => {
+                                     {can("accounting", "generate") && (isReady || row.statusBA === "Approved") && !accountingJournals.some((j: any) => j.sourceModule === "BA_ACCRUAL" && j.sourceReference === row.baNumber && j.status !== "Void") && (() => {
                                        const isAccruing = actionLoadingKey === `accrue-ba-${row.id}`;
                                        return (
                                          <button
@@ -807,7 +807,7 @@ export function BATrackerView({ c }: { c: any }) {
                                      })()}
 
                                     {/* Non-POS: Ready to Invoice (1-Click) */}
-                                    {row.customerCode !== "POS" && isReady && (
+                                    {can("invoice", "write") && row.customerCode !== "POS" && isReady && (
                                       <button
                                         type="button"
                                         className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] shadow-xs flex items-center gap-1 transition cursor-pointer"
@@ -899,9 +899,33 @@ export function BATrackerView({ c }: { c: any }) {
 
                                     {/* Belum Diverifikasi (Belum Ready to Invoice) */}
                                     {!isReady && !invStatus.isFullyInvoiced && !invStatus.isPartiallyInvoiced && (
-                                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                                        {row.verifiedBy ? "Menunggu Approval Manager" : "Menunggu Verifikasi"}
-                                      </span>
+                                      !row.verifiedBy && !row.invoiceNoLinked && can("ba_tracker", "verify") ? (
+                                        <button
+                                          type="button"
+                                          disabled={actionLoadingKey === `verify-ba-${row.id}`}
+                                          className="px-2.5 py-1 rounded-lg bg-[#A57C50] hover:bg-[#8e6941] text-white font-extrabold text-[11px] shadow-xs flex items-center gap-1 transition cursor-pointer disabled:opacity-60"
+                                          onClick={() => handleVerifyBA(row.id)}
+                                          title="Verifikasi BA (Finance Specialist)"
+                                        >
+                                          <ShieldCheck size={13} />
+                                          <span>Verifikasi</span>
+                                        </button>
+                                      ) : row.verifiedBy && row.statusBA === "Ready to Invoice" && can("ba_tracker", "approve") ? (
+                                        <button
+                                          type="button"
+                                          disabled={actionLoadingKey === `approve-ba-${row.id}`}
+                                          className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-[11px] shadow-xs flex items-center gap-1 transition cursor-pointer disabled:opacity-60"
+                                          onClick={() => handleApproveBA(row.id)}
+                                          title={`Approve Manager (diverifikasi oleh ${row.verifiedBy})`}
+                                        >
+                                          <CheckCircle2 size={13} />
+                                          <span>Approve</span>
+                                        </button>
+                                      ) : (
+                                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                                          {row.verifiedBy ? "Menunggu Approval Manager" : "Menunggu Verifikasi"}
+                                        </span>
+                                      )
                                     )}
 
                                     <button
@@ -918,21 +942,25 @@ export function BATrackerView({ c }: { c: any }) {
                                     >
                                       <Eye size={14} />
                                     </button>
-                                    <button
-                                      className="p-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:border-amber-300 transition cursor-pointer"
-                                      onClick={() => setQuickNoteModalItem(row)}
-                                      title="Update Keterangan & Bottleneck Harian (Cepat)"
-                                    >
-                                      <StickyNote size={14} className="text-amber-700" />
-                                    </button>
-                                    <button
-                                      className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
-                                      onClick={() => openBAModal(row, true)}
-                                      title="Edit Berita Acara (Mode Edit)"
-                                    >
-                                      <Edit2 size={14} />
-                                    </button>
-                                    {(() => {
+                                    {can("ba_tracker", "write") && (
+                                      <>
+                                        <button
+                                          className="p-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:border-amber-300 transition cursor-pointer"
+                                          onClick={() => setQuickNoteModalItem(row)}
+                                          title="Update Keterangan & Bottleneck Harian (Cepat)"
+                                        >
+                                          <StickyNote size={14} className="text-amber-700" />
+                                        </button>
+                                        <button
+                                          className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                                          onClick={() => openBAModal(row, true)}
+                                          title="Edit Berita Acara (Mode Edit)"
+                                        >
+                                          <Edit2 size={14} />
+                                        </button>
+                                      </>
+                                    )}
+                                    {can("ba_tracker", "delete") && (() => {
                                        const isDeletingBA = deletingKey === `ba-${row.id}`;
                                        return (
                                          <button

@@ -17,7 +17,7 @@ import {
 
 export function InvoiceView({ c }: { c: any }) {
   const {
-    baRows: rawBaRows, isSuper, isFinanceSpecialist, isSPV, canApproveInvoice, canApproveBA, invoiceRows: rawInvoiceRows,
+    baRows: rawBaRows, isSuper, canVerifyBA, canVerifyInvoice, canApproveInvoice, canApproveBA, can = () => false, invoiceRows: rawInvoiceRows,
     invStatusFilter, setInvStatusFilter, invCardTab, setInvCardTab, invPeriodFilter,
     setInvPeriodFilter, showExportARDropdown, setShowExportARDropdown, showInputARDropdown, setShowInputARDropdown,
     setDetailViewItem, templateRows: rawTemplateRows, exportAROnlyExcel, exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV, openCreateModal,
@@ -222,7 +222,7 @@ export function InvoiceView({ c }: { c: any }) {
                       </div>
 
                       {/* Button: Catat Klaim Penalti SBS (khusus tab Penalty Uncut) */}
-                      {invCardTab === "PENALTY_UNCUT" && (
+                      {can("invoice", "write") && invCardTab === "PENALTY_UNCUT" && (
                         <button
                           type="button"
                           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-[3px] bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition shrink-0 cursor-pointer"
@@ -235,7 +235,7 @@ export function InvoiceView({ c }: { c: any }) {
                       )}
 
                       {/* Dropdown 2: Input / Buat Invoice */}
-                      <div className="relative z-30">
+                      <div className={`relative z-30 ${can("invoice", "write") ? "" : "hidden"}`}>
                         <button
                           type="button"
                           className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:brightness-95 shrink-0 cursor-pointer"
@@ -527,7 +527,7 @@ export function InvoiceView({ c }: { c: any }) {
                                         </td>
                                         <td className="p-2.5 text-right whitespace-nowrap sticky right-0 z-10 bg-white group-hover:bg-slate-50 transition-colors shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] border-l border-slate-200">
                                           <div className="flex items-center justify-end gap-1.5 flex-nowrap min-w-[150px]">
-                                             {(isSPV || isFinanceSpecialist || isSuper) && (row.status === "Draft" || !row.status || row.status === "Pending" || row.status === "Submitted") && (() => {
+                                             {canVerifyInvoice && (row.status === "Draft" || !row.status || row.status === "Pending" || row.status === "Submitted") && (() => {
                                                const isVerifying = actionLoadingKey === `verify-inv-${row.id}`;
                                                return (
                                                  <button
@@ -565,10 +565,10 @@ export function InvoiceView({ c }: { c: any }) {
                                               </span>
                                             ) : (
                                               <>
-                                                <button className="p-1.5 rounded border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition shrink-0 cursor-pointer" onClick={() => openEditModal("invoice", row)} title="Edit Invoice">
+                                                {can("invoice", "write") && <button className="p-1.5 rounded border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition shrink-0 cursor-pointer" onClick={() => openEditModal("invoice", row)} title="Edit Invoice">
                                                   <Edit2 size={14} />
-                                                </button>
-                                                {(() => {
+                                                </button>}
+                                                {can("invoice", "delete") && (() => {
                                                   const isDeleting = deletingKey === `invoice-${row.id}`;
                                                   return (
                                                     <button

@@ -57,7 +57,7 @@ function clientTags(c: any) {
 export function CustomerView({ c }: { c: any }) {
   const {
     customerRows, setDetailViewItem, openCreateModal, openEditModal, handleDelete,
-    query = "", deletingKey, coalIndexMaster
+    query = "", deletingKey, coalIndexMaster, can = () => false
   } = c as Record<string, any>;
   const safeCustomerRows: any[] = Array.isArray(customerRows) ? customerRows : [];
   const filteredRows = safeCustomerRows.filter((r) => JSON.stringify(r).toLowerCase().includes(String(query).toLowerCase()));
@@ -118,7 +118,7 @@ export function CustomerView({ c }: { c: any }) {
         />
         <div className="flex items-center gap-2 shrink-0">
           <button
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white shadow-xs transition cursor-pointer"
+            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white shadow-xs transition cursor-pointer ${can("master_data", "write") ? "" : "hidden"}`}
             onClick={() => openCreateModal("customer")}
           >
             <Plus size={14} /> Tambah Customer Baru
@@ -207,12 +207,12 @@ export function CustomerView({ c }: { c: any }) {
                     <Eye size={13} /> View Audit
                   </button>
                   <button
-                    className="text-xs font-bold text-slate-700 hover:text-[#A57C50] flex items-center gap-1 px-2.5 py-1 rounded-[3px] bg-slate-50 border border-slate-200 cursor-pointer"
+                    className={`text-xs font-bold text-slate-700 hover:text-[#A57C50] flex items-center gap-1 px-2.5 py-1 rounded-[3px] bg-slate-50 border border-slate-200 cursor-pointer ${can("master_data", "write") ? "" : "hidden"}`}
                     onClick={() => openEditModal("customer", c)}
                   >
                     <Edit2 size={13} /> Edit
                   </button>
-                  {(() => {
+                  {can("master_data", "delete") && (() => {
                     const isDeleting = deletingKey === `customer-${c.id}`;
                     return (
                       <button
