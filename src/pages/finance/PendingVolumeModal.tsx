@@ -241,18 +241,17 @@ export function PendingVolumeModal({ c }: { c: any }) {
                               >
                                 <Edit2 size={13} />
                               </button>
-                              {!(item.absorbedVolume > 0) && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (typeof handleDelete === "function") handleDelete("pending_volume", item.id);
-                                  }}
-                                  className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-md text-[11px] transition cursor-pointer"
-                                  title="Hapus Catatan Pending Volume"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                disabled={item.absorbedVolume > 0}
+                                onClick={() => {
+                                  if (typeof handleDelete === "function") handleDelete("pending_volume", item.id);
+                                }}
+                                className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-md text-[11px] transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-rose-50"
+                                title={item.absorbedVolume > 0 ? "Tidak dapat dihapus: sebagian volume sudah ditagih. Hapus invoice draft yang menyerapnya terlebih dahulu." : "Hapus Catatan Pending Volume"}
+                              >
+                                <Trash2 size={13} />
+                              </button>
                             </div>
                           </td>
                         </tr>
