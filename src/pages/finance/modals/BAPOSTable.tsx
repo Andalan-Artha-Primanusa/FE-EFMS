@@ -121,9 +121,9 @@ export function BAPOSTable({
     if (usdRate === 0 && getSowMasterRate) {
       usdRate = getSowMasterRate("POS", it.material, 0, true);
     }
-    // Tarif USD hanya dari Master Variable SOW (0 = belum diatur di master).
-    const currentMRate = Number(mRate || formData?.posData?.mRate || 0);
-    if (usdRate > 0) {
+    // Sama dengan BE RecalculateBA: USD x kurs periode bila keduanya ada, selain itu tarif IDR baris.
+    const currentMRate = Number(mRate || formData?.posData?.actualMRateXn || 0);
+    if (usdRate > 0 && currentMRate > 0) {
       return Number((usdRate * currentMRate).toFixed(3));
     }
     return Number(it.rate || 0);
@@ -420,6 +420,7 @@ export function BAPOSTable({
                     } else {
                       updated[targetIdx].isCustom = false;
                       updated[targetIdx].material = sow.name;
+                      updated[targetIdx].rateUSD = sow.rateUSD || 0;
                       updated[targetIdx].unit = sow.unit || updated[targetIdx].unit;
                       const dynamicRate = getSowMasterRate ? getSowMasterRate("POS", sow.name, sow.defaultRate || 0, false) : (sow.defaultRate || updated[targetIdx].rate);
                       updated[targetIdx].rate = dynamicRate > 0 ? dynamicRate : (sow.defaultRate || updated[targetIdx].rate);
@@ -560,6 +561,12 @@ export function BAPOSTable({
           )}
         </div>
       </div>
+
+      {!(Number(mRate || formData?.posData?.actualMRateXn || 0) > 0) && baOperatingItems.some((it) => Number(it.rateUSD || 0) > 0) && (
+        <div className="px-3 py-2 rounded-[3px] border border-amber-300 bg-amber-50 text-[11px] font-semibold text-amber-900">
+          Kurs BI periode {formData.workPeriod || "-"} belum ada di Master Kurs BI. Tarif USD belum bisa dikonversi; perhitungan memakai SOW Rate (Rp) yang diisi di baris.
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-[4px] border border-slate-200 shadow-xs bg-white">
         <table className="w-full text-xs text-left">

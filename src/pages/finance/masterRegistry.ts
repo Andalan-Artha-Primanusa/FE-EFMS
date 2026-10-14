@@ -153,6 +153,33 @@ export function sowFor(code?: string, itemName?: string): any | undefined {
     || rows.find((s) => { const n = normName(s.itemName || s.name); return n.length > 3 && name.length > 3 && (n.includes(name) || name.includes(n)); });
 }
 
+/**
+ * Baris default BA dari Master Variable SOW customer (volume 0), dipisah Operating vs MDO / Penunjang.
+ * Tarif IDR = rateIDR master, atau USD x kurs periode (0 bila kurs periode belum ada).
+ */
+export function baItemsFromSOW(code?: string, period?: string): { operating: any[]; mdo: any[] } {
+  const kurs = kursForPeriod(period);
+  const rows = masterRegistry.sows
+    .filter((s) => sameCustomer(s.customerCode || s.customer, code) && !(Number(s.maxDistanceMeters) > 0) && !/pengurang|denda/i.test(`${s.category} ${s.itemName}`))
+    .map((s, i) => {
+      const usd = Number(s.rateUSD || 0);
+      const base = Number(s.baseDistanceMeters || 0);
+      const isMDO = /mdo|development|penunjang|rental/i.test(s.category || "") || /^(hours|jam)$/i.test(s.unit || "");
+      return {
+        id: `ba_sow_${s.id ?? i}_${Date.now()}`,
+        category: isMDO ? "MDO" : s.isDistanceVar ? "Over Distance" : (s.category || "Operating & Mining"),
+        area: "", material: s.itemName || s.name, period: period || "", notes: "", keterangan: "",
+        unit: s.unit || "BCM",
+        rateUSD: usd,
+        isUSD: usd > 0,
+        rate: Number(s.rateIDR || 0) || (usd > 0 && kurs > 0 ? Number((usd * kurs).toFixed(3)) : 0),
+        ...(s.isDistanceVar ? { isDistanceVar: true, ...(base > 0 ? { distanceBasis: base, distanceWeightAvg: base } : {}) } : {}),
+        initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0,
+      };
+    });
+  return { operating: rows.filter((r) => r.category !== "MDO"), mdo: rows.filter((r) => r.category === "MDO") };
+}
+
 /** Dua item OB ber-split (mis. 75% / 25%) customer dari Master Variable SOW, porsi terbesar dulu. */
 export function obSplitSOWs(code?: string): any[] {
   return masterRegistry.sows

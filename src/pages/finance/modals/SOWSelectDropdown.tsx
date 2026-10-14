@@ -17,7 +17,7 @@ export function getSiteSOWList(
     return !c || c === code || (code === "POS" && (!c || c === "POS"));
   });
 
-  const merged: Array<{ name: string; unit: string; defaultRate: number; category?: string; isDistanceVar?: boolean; isDeduction?: boolean; parentMaterial?: string; baseDistanceMeters?: number; tier1Rate?: number; tier2Rate?: number; tier3Rate?: number; splitPercentage?: number }> = [];
+  const merged: Array<{ name: string; unit: string; defaultRate: number; rateUSD?: number; category?: string; isDistanceVar?: boolean; isDeduction?: boolean; parentMaterial?: string; baseDistanceMeters?: number; tier1Rate?: number; tier2Rate?: number; tier3Rate?: number; splitPercentage?: number }> = [];
   const seen = new Set<string>();
 
   // 1. Process real-time master data catalog FIRST
@@ -36,6 +36,7 @@ export function getSiteSOWList(
         name: name,
         unit: c.unit || "BCM",
         defaultRate: c.defaultRate || c.rateIDR || (c.rateUSD ? Number((c.rateUSD * (mRate || 0)).toFixed(3)) : 0),
+        rateUSD: Number(c.rateUSD || c.baseRateUSD || 0),
         category: isMDO ? "MDO" : (isDed ? "Pengurang Biaya" : isDist ? "Over Distance" : (c.category || "Operating & Mining")),
         isDistanceVar: isDist,
         isDeduction: isDed,
@@ -127,7 +128,7 @@ export function SOWSelectDropdown({
 }: {
   value: string;
   onChange: (val: string) => void;
-  onSelectSow: (sow: { name: string; unit: string; defaultRate: number; isDistanceVar?: boolean; category?: string; isDeduction?: boolean; parentMaterial?: string; baseDistanceMeters?: number; tier1Rate?: number; tier2Rate?: number; tier3Rate?: number }) => void;
+  onSelectSow: (sow: { name: string; unit: string; defaultRate: number; rateUSD?: number; isDistanceVar?: boolean; category?: string; isDeduction?: boolean; parentMaterial?: string; baseDistanceMeters?: number; tier1Rate?: number; tier2Rate?: number; tier3Rate?: number }) => void;
   customerCode: string;
   activeSOWCatalog?: any[];
   mRate?: number;

@@ -2,7 +2,7 @@ import React from "react";
 import { Layers, Calculator, UserCheck } from "lucide-react";
 import { MonthPickerInput, matchPeriod } from "../helpers";
 import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF, customerKind } from "../ba_calculations";
-import { obSplitSOWs, sowFor, sowTierRate, computeRFIndex, rfTemplateFor, ptroContractRates } from "../masterRegistry";
+import { obSplitSOWs, sowFor, sowTierRate, computeRFIndex, rfTemplateFor, ptroContractRates, baItemsFromSOW } from "../masterRegistry";
 
 interface BATrackerHeaderFormProps {
   activeBAStep: number;
@@ -261,14 +261,12 @@ export function BATrackerHeaderForm({
                     setBaOperatingItems((defaultSBSBAOperatingItems || []).map((it: any) => ({ ...it, distance: it.distance ?? it.distanceM ?? it.distanceWeightAvg ?? 0, distanceWeightAvg: it.distanceWeightAvg ?? it.distance ?? 0, rate: it.rate || 0, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
                     setBaMDOItems((defaultSBSBAMDOItems || []).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
                     setBaDeductionItems((defaultSBSBADeductionItems || []).map((it: any) => ({ ...it, initialVolume: 1, adjustedVolume: 1, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "", material: it.material === "Denda ketidakcapaian Volume" ? `Denda ketidakcapaian Volume ${currentPeriod}` : it.material })));
-                  } else if (!isPOS) {
-                    // Customer tanpa template BA (mis. IBP, BBA): baris ditambah manual dari Master SOW.
-                    setBaOperatingItems([]);
-                    setBaMDOItems([]);
-                    setBaDeductionItems([]);
                   } else {
-                    setBaOperatingItems(defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
-                    setBaMDOItems(defaultPOSBAMDOItems.map(it => ({ ...it, area: "", initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
+                    // POS & customer lain (IBP, BBA, ...): baris default dari Master Variable SOW; template POS hanya cadangan.
+                    const sowRows = baItemsFromSOW(code, currentPeriod);
+                    const blank = (it: any) => ({ ...it, area: "", initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" });
+                    setBaOperatingItems(sowRows.operating.length ? sowRows.operating : isPOS ? defaultPOSBAOperatingItems.map(blank) : []);
+                    setBaMDOItems(sowRows.mdo.length ? sowRows.mdo : isPOS ? defaultPOSBAMDOItems.map(blank) : []);
                     setBaDeductionItems([]);
                   }
                 }}

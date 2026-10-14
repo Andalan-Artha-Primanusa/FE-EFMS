@@ -1,7 +1,7 @@
 import { uploadDocumentFile, previewInvoiceFromBA } from "../../lib/api";
 import { generateInvoiceNumber, formatDateInput, matchPeriod, isBAApproved } from "./helpers";
 import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF } from "./ba_calculations";
-import { customerKind, rfMasterFor, computeRFIndex, obSplitSOWs, ptroContractRates } from "./masterRegistry";
+import { customerKind, rfMasterFor, computeRFIndex, obSplitSOWs, ptroContractRates, baItemsFromSOW } from "./masterRegistry";
 
 interface UseFinanceModalManagerProps {
   user: any;
@@ -284,17 +284,21 @@ export function useFinanceModalManager({
         rfIndexCalculated: matchedRfIndex,
         ...initialData,
       });
+      // POS & customer lain: baris default langsung dari Master Variable SOW; template BE hanya cadangan.
+      const sowRows = baItemsFromSOW(cust, defaultPeriod);
       setBaOperatingItems(
         (cust === "BGG" || cust === "PT BGG" ? createBlankBGGBAItems(defaultPeriod)
         : (cust === "PTRO" || cust === "PT Petrosea") ? (defaultPTROBAItems || defaultDBKBAItems || []).map((it: any) => ({ ...it, period: defaultPeriod, notes: "", keterangan: "" }))
         : cust === "DBK" ? (defaultDBKBAItems || []).map((it: any) => ({ ...it, period: defaultPeriod, notes: "", keterangan: "" }))
         : cust === "SBS" ? createBlankSBSBAItems(defaultPeriod)
+        : sowRows.operating.length ? sowRows.operating
         : defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", period: defaultPeriod, notes: "", keterangan: "" }))
         ).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0 }))
       );
       setBaMDOItems(
         (cust === "SBS" ? (defaultSBSBAMDOItems || []).map((it: any) => ({ ...it, area: "Pit E", period: defaultPeriod, notes: "", keterangan: "" }))
         : (cust === "BGG" || cust === "DBK" || cust === "PTRO" || cust === "PT Petrosea") ? []
+        : sowRows.mdo.length ? sowRows.mdo
         : defaultPOSBAMDOItems.map(it => ({ ...it, area: "", period: defaultPeriod, notes: "", keterangan: "" }))
         ).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0 }))
       );
