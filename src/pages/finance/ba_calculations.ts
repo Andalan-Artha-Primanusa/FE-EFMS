@@ -486,37 +486,33 @@ export function getBGGComputedInvoiceLines(
         subtotalRF_OD_Coal += escalatedSub;
       }
 
-      if (itemRF !== 1.0) {
-        sectionDItems.push({
-          id: `rf-${item.id || item.material}-${itemPeriod}`,
-          section: "D",
-          description: `Eskalasi ${item.material || "Over Distance"}`,
-          notes: itemPeriod ? `Periode: ${itemPeriod}` : undefined,
-          period: itemPeriod || undefined,
-          unit: item.unit || "Bcm",
-          volume: effVol,
-          rate: Number(escalatedRate.toFixed(3)),
-          subtotal: escalatedSub,
-        });
-      }
+      sectionDItems.push({
+        id: `rf-${item.id || item.material}-${itemPeriod}`,
+        section: "D",
+        description: `Eskalasi ${item.material || "Over Distance"}`,
+        notes: itemPeriod ? `Periode: ${itemPeriod}` : undefined,
+        period: itemPeriod || undefined,
+        unit: item.unit || "Bcm",
+        volume: effVol,
+        rate: Number(escalatedRate.toFixed(3)),
+        subtotal: escalatedSub,
+      });
     } else {
       // Standard OB / Coal items using item-level RF Index
       const escalatedRate = r * rfDelta;
       const escalatedSub = Math.round(effVol * escalatedRate);
 
-      if (itemRF !== 1.0) {
-        sectionDItems.push({
-          id: `rf-${item.id || item.material}-${itemPeriod}`,
-          section: "D",
-          description: `Eskalasi ${item.material || (isOB ? "OB Removal" : "Coal Winning")}`,
-          notes: itemPeriod ? `Periode: ${itemPeriod}` : undefined,
-          period: itemPeriod || undefined,
-          unit: item.unit || (isCoal ? "Ton" : "Bcm"),
-          volume: effVol,
-          rate: Number(escalatedRate.toFixed(3)),
-          subtotal: escalatedSub,
-        });
-      }
+      sectionDItems.push({
+        id: `rf-${item.id || item.material}-${itemPeriod}`,
+        section: "D",
+        description: `Eskalasi ${item.material || (isOB ? "OB Removal" : "Coal Winning")}`,
+        notes: itemPeriod ? `Periode: ${itemPeriod}` : undefined,
+        period: itemPeriod || undefined,
+        unit: item.unit || (isCoal ? "Ton" : "Bcm"),
+        volume: effVol,
+        rate: Number(escalatedRate.toFixed(3)),
+        subtotal: escalatedSub,
+      });
     }
   }
 

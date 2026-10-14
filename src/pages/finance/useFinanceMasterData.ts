@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { api, getFinanceTemplates } from "../../lib/api";
 import { matchPeriod } from "./helpers";
-import { isOBMaterial } from "./ba_calculations";
-import { setMasterData, rfMasterFor, kursForPeriod, customerKind } from "./masterRegistry";
+import { isOBMaterial, isDistanceItem } from "./ba_calculations";
+import { setMasterData, rfMasterFor, kursForPeriod, customerKind, baseDistanceFor } from "./masterRegistry";
 
 // Master data finance dari BE. RF & kurs mengikuti customer + periode dokumen (BA / Invoice) yang sedang dibuka.
 // Baris Master Variable SOW BE -> bentuk katalog FE (tarif USD dikonversi dengan kurs periode saat dipakai).
@@ -154,17 +154,16 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
     const currentKurs = latestKursBI || mRate || 0;
     const catalog = dynamicSowOptions.length > 0 ? dynamicSowOptions : defaultMasterVariableOptions;
 
-    // Filter catalog for customer and prioritize items with configured non-zero rates
+    // Filter catalog for customer: baris milik customer didahulukan dari baris generik (tanpa kode customer),
+    // lalu yang punya tarif non-nol.
+    const ownRow = (s: any) => ((s.customer || s.customerCode || "").toUpperCase() ? 1 : 0);
+    const hasRate = (s: any) => (s.rateIDR || s.tier1Rate || s.tier2Rate || s.tier3Rate || s.rateUSD || s.baseRateUSD) ? 1 : 0;
     const filtered = catalog
       .filter((s: any) => {
         const sCust = (s.customer || s.customerCode || "").toUpperCase();
         return !sCust || sCust === custUpper || ((custUpper === "POS" || custUpper === "IBP" || custUpper === "BBA") && (!sCust || sCust === "POS"));
       })
-      .sort((a: any, b: any) => {
-        const aHasRate = (a.rateIDR || a.tier1Rate || a.tier2Rate || a.tier3Rate || a.rateUSD || a.baseRateUSD) ? 1 : 0;
-        const bHasRate = (b.rateIDR || b.tier1Rate || b.tier2Rate || b.tier3Rate || b.rateUSD || b.baseRateUSD) ? 1 : 0;
-        return bHasRate - aHasRate;
-      });
+      .sort((a: any, b: any) => ownRow(b) - ownRow(a) || hasRate(b) - hasRate(a));
 
     // Match priority 1: Exact normalized match
     let match = filtered.find((s: any) => {
@@ -341,7 +340,8 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
       const filtered = catalog.filter((s: any) => {
         const sCust = (s.customer || s.customerCode || "").toUpperCase();
         return !sCust || sCust === custUpper || ((custUpper === "POS" || custUpper === "IBP" || custUpper === "BBA") && (!sCust || sCust === "POS"));
-      });
+      // Baris milik customer didahulukan: dropdown SOW memakai baris pertama per nama, jangan sampai baris generik menang.
+      }).sort((a: any, b: any) => ((b.customer || b.customerCode) ? 1 : 0) - ((a.customer || a.customerCode) ? 1 : 0));
       if (filtered.length > 0) {
         return filtered.map((s: any) => {
           let category = s.category || "Operating & Mining";
@@ -496,6 +496,9 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
       const tier = cust.toUpperCase() === "BGG" ? getBGGActiveCoalTier(itemPeriod) : undefined;
       const masterRateIDR = getSowMasterRate(cust, mat, it.rate || 0, false, tier);
       const masterRateUSD = isUSD ? getSowMasterRate(cust, mat, it.rateUSD || 0, true, tier) : 0;
+      // Basis jarak over distance selalu dari Master SOW customer (bukan nilai lama yang tersimpan di baris).
+      const masterBase = isDistanceItem(it) ? baseDistanceFor(cust, mat) : 0;
+      if (masterBase > 0) it = { ...it, distanceBasis: masterBase };
       if (masterRateIDR > 0) {
         return {
           ...it,
