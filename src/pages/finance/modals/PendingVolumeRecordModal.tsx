@@ -41,26 +41,12 @@ export function PendingVolumeRecordModal({ formData, setFormData }: PendingVolum
           <Info size={13} className="text-[#A57C50]" /> Kesepakatan Rasio Kontrak ({formData.customerCode || ""}):
         </div>
         <div className="text-slate-700 font-medium pl-4">
-          {formData.customerCode === "BGG" ? (
+          {contractParams(formData.customerCode).maxStrippingRatio > 0 ? (
             <span>
-              Kontrak BGG: Perbandingan Top Soil & Overburden adalah maksimal <strong>3.0 BCM / 1 Ton Coal (3 : 1)</strong>. Kelebihan volume pengerjaan di-pending ke invoice selanjutnya.
-            </span>
-          ) : formData.customerCode === "PTRO" || formData.customerCode === "DBK" ? (
-            <span>
-              Kontrak PTRO (PT Petrosea): Perbandingan Overburden maksimal <strong>3.5 BCM / 1 Ton Coal</strong>.
-            </span>
-          ) : formData.customerCode === "POS" ? (
-            <span>
-              Kontrak POS (PT Position): Perbandingan Waste/OB & Top Soil maksimal <strong>4.0 BCM / 1 Ton Ore</strong>.
-            </span>
-          ) : formData.customerCode === "SBS" ? (
-            <span>
-              Kontrak SBS: Penagihan berbasis 8 titik Overburden per Disposal & Jasa Alat Berat Jam-Mesin.
+              Perbandingan Top Soil & Overburden maksimal <strong>{contractParams(formData.customerCode).maxStrippingRatio} BCM / 1 Ton ({contractParams(formData.customerCode).maxStrippingRatio} : 1)</strong>. Kelebihan volume pengerjaan di-pending ke invoice selanjutnya.
             </span>
           ) : (
-            <span>
-              Kontrak Standar: Rasio Top Soil & OB maksimal <strong>3.0 BCM / 1 Ton Coal (3 : 1)</strong>.
-            </span>
+            <span>Kuota Stripping Ratio belum diatur di Master Customer (Client Setup).</span>
           )}
         </div>
       </div>
@@ -192,7 +178,7 @@ export function PendingVolumeRecordModal({ formData, setFormData }: PendingVolum
         <textarea
           className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 text-xs focus:border-cyan-700 focus:bg-white outline-none"
           rows={2}
-          placeholder="Contoh: Pending volume selisih Top Soil & Overburden over-contract ratio (3:1)..."
+          placeholder="Contoh: Pending volume selisih Top Soil & Overburden over-contract ratio..."
           value={formData.notes || ""}
           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
         />

@@ -85,11 +85,8 @@ export function computeRFIndex(m: any, fn: number, ln = 0, xn = 0): number {
         d = (m.weightFuelA * fn) / m.baseFuelFo;
       }
     }
-    if (m.baseLaborLo > 0 && ln > 0) {
-      l = m.baseForexXo > 0 && xn > 0
-        ? (m.weightLaborB * ln * xn) / (m.baseLaborLo * m.baseForexXo)
-        : (m.weightLaborB * ln) / m.baseLaborLo;
-    }
+    // Labor = rasio Rupiah murni UMK (PRD §3.2), tanpa Xn/Xo.
+    if (m.baseLaborLo > 0 && ln > 0) l = (m.weightLaborB * ln) / m.baseLaborLo;
     idx = d + l + Number(m.weightFixedC || 0);
   }
   if (!m.allowFall && idx > 0 && idx < 1) idx = 1;

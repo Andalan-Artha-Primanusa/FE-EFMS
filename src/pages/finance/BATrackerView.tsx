@@ -12,7 +12,7 @@ import {
   generateBANumberPreview, generateInvoiceNumberPreview, getYearFromPeriod,
   generateInvoiceNumber, getBAInvoiceStatus, renderBAStatusBadge,
   getBAStatusForExport, renderInvoiceStatusBadge, parsePeriodToMonthIndex,
-  RupiahInput, generateAuditTimeline, getCustomerOfficialName
+  RupiahInput, generateAuditTimeline, getCustomerOfficialName, isBAApproved
 } from "./helpers";
 
 export function BATrackerView({ c }: { c: any }) {
@@ -46,7 +46,7 @@ export function BATrackerView({ c }: { c: any }) {
         const stageDraftNominal = stageDraftRows.reduce((sum, r) => sum + (r.workAmount || 0), 0);
 
         // Stage 2: Verifikasi Internal SPV
-        const stageVerifRows = periodRows.filter((r) => r.statusBA === "Pending Berita Acara" || r.statusBA === "Pending" || r.statusBA === "Pending BAI" || r.statusBA === "Verified");
+        const stageVerifRows = periodRows.filter((r) => r.statusBA === "Pending Berita Acara" || r.statusBA === "Pending" || r.statusBA === "Pending BAI" || r.statusBA === "Verified" || (r.statusBA === "Ready to Invoice" && !isBAInvoiced(r)));
         const stageVerifNominal = stageVerifRows.reduce((sum, r) => sum + (r.workAmount || 0), 0);
 
         // Stage 3: Revisi / Tertahan
@@ -54,7 +54,7 @@ export function BATrackerView({ c }: { c: any }) {
         const stageRevisiNominal = stageRevisiRows.reduce((sum, r) => sum + (r.workAmount || 0), 0);
 
         // Stage 4: Siap Terbit Invoice (HANYA YANG BELUM TERBIT INVOICE)
-        const stageReadyRows = periodRows.filter((r) => (r.statusBA === "Ready to Invoice" || r.statusBA === "Approved") && !isBAInvoiced(r));
+        const stageReadyRows = periodRows.filter((r) => isBAApproved(r) && !isBAInvoiced(r));
         const stageReadyNominal = stageReadyRows.reduce((sum, r) => sum + (r.workAmount || 0), 0);
 
         // Stage 5: Arsip (HANYA YANG BENAR-BENAR SUDAH ADA INVOICENYA)
@@ -83,9 +83,9 @@ export function BATrackerView({ c }: { c: any }) {
           if (!matchQ) return false;
           if (periodFilter !== "All" && r.workPeriod !== periodFilter) return false;
           if (baFilter === "Submit") return r.statusBA === "Submit" || r.statusBA === "Draft" || (r.statusBA || "").startsWith("Submit");
-          if (baFilter === "Pending Berita Acara") return r.statusBA === "Pending Berita Acara" || r.statusBA === "Pending" || r.statusBA === "Pending BAI" || r.statusBA === "Verified";
+          if (baFilter === "Pending Berita Acara") return r.statusBA === "Pending Berita Acara" || r.statusBA === "Pending" || r.statusBA === "Pending BAI" || r.statusBA === "Verified" || (r.statusBA === "Ready to Invoice" && !isBAInvoiced(r));
           if (baFilter === "Revisi") return r.statusBA === "Revisi" || (r.statusBA || "").startsWith("Reject");
-          if (baFilter === "Ready to Invoice") return (r.statusBA === "Ready to Invoice" || r.statusBA === "Approved") && !isBAInvoiced(r);
+          if (baFilter === "Ready to Invoice") return isBAApproved(r) && !isBAInvoiced(r);
           if (baFilter === "Arsip") return (r.statusBA === "Ready to Invoice" || r.statusBA === "Approved" || r.statusBA === "Invoiced" || r.statusBA === "Arsip") && isBAInvoiced(r);
           return true;
         });
@@ -555,7 +555,7 @@ export function BATrackerView({ c }: { c: any }) {
                           {custRows.map((row: any) => {
                             const invStatus = getBAInvoiceStatus(row, invoiceRows);
                             const isInvoiced = invStatus.isFullyInvoiced;
-                            const isReady = (row.statusBA === "Ready to Invoice" || row.statusBA === "Approved" || row.statusBA === "Arsip" || Boolean(row.verifiedBy)) && !isInvoiced;
+                            const isReady = isBAApproved(row) && !isInvoiced;
                             const linkedInvoice = invStatus.createdMiningInv || invStatus.createdMDOInv || invStatus.createdInvoices[0] || null;
                             const isDropdownOpen = baRowActionDropdownId === row.id;
 
@@ -914,7 +914,7 @@ export function BATrackerView({ c }: { c: any }) {
                                     {/* Belum Diverifikasi (Belum Ready to Invoice) */}
                                     {!isReady && !invStatus.isFullyInvoiced && !invStatus.isPartiallyInvoiced && (
                                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                                        Menunggu Verifikasi
+                                        {row.verifiedBy ? "Menunggu Approval Manager" : "Menunggu Verifikasi"}
                                       </span>
                                     )}
 

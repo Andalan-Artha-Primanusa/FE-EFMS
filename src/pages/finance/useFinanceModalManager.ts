@@ -1,5 +1,5 @@
 import { uploadDocumentFile, previewInvoiceFromBA } from "../../lib/api";
-import { generateInvoiceNumber, formatDateInput, matchPeriod } from "./helpers";
+import { generateInvoiceNumber, formatDateInput, matchPeriod, isBAApproved } from "./helpers";
 import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF } from "./ba_calculations";
 import { customerKind, rfMasterFor, computeRFIndex, obSplitSOWs, ptroContractRates } from "./masterRegistry";
 
@@ -155,9 +155,8 @@ export function useFinanceModalManager({
   };
 
   const createInvoiceFromBA = async (ba: any, category: "Operation & Mining" | "MDO" = "Operation & Mining") => {
-    const isBAReady = ba.statusBA === "Ready to Invoice" || ba.statusBA === "Approved" || ba.statusBA === "Verified" || ba.statusBA === "Disetujui" || Boolean(ba.verifiedBy);
-    if (!isBAReady) {
-      onNotice("Perhatian: Berita Acara belum diverifikasi oleh Finance Specialist. Mohon verifikasi BA terlebih dahulu.");
+    if (!isBAApproved(ba)) {
+      onNotice("Perhatian: Berita Acara belum disetujui Manager. Invoice hanya dapat diterbitkan setelah BA diverifikasi Finance Specialist dan di-approve Manager.");
       return;
     }
     const items = await loadBAInvoiceItems(ba, category);

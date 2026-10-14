@@ -105,7 +105,7 @@ export function InvoiceView({ c }: { c: any }) {
                   invoiceSubmission: "-",
                   dueDate: "-",
                   outstanding: stiAmount,
-                  status: ba.statusBA === "Approved" || ba.statusBA === "Ready to Invoice" ? "Ready to Invoice" : (ba.statusBA || "Draft")
+                  status: ba.statusBA === "Approved" ? "Ready to Invoice" : ba.statusBA === "Ready to Invoice" ? "Menunggu Approval Manager" : (ba.statusBA || "Draft")
                 };
               });
             const totalSubjectToInvoice = subjectToInvoiceDataRows.reduce((acc, r) => acc + (r.outstanding || 0), 0);

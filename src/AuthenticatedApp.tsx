@@ -1,12 +1,12 @@
 import { lazy, Suspense } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./layouts/AppShell";
 import type { User } from "./lib/api";
 import { ProtectedRoute } from "./router/ProtectedRoute";
 import {
   DashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute,
   CoalIndexRoute, RaiseFallRoute, FinanceDashboardRoute, FinanceBATrackerRoute,
-  FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute, SiteSetupRoute,
+  FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute,
   CompanyRoute, TreasuryManagementRoute, BudgetManagementRoute, ClosingPeriodRoute,
   NotificationCenterRoute, OrgUnitsRoute, VariableSOWRoute, KopraRoute
 } from "./router/RouteWrappers";
@@ -64,8 +64,8 @@ export function AuthenticatedApp({ user, onLogout }: { user: User; onLogout: () 
 
         <Route path="notification-center" element={<ProtectedRoute requiredView="Notification Center"><NotificationCenterRoute /></ProtectedRoute>} />
         
-        <Route path="site-setup" element={<ProtectedRoute requiredView="Setup Parameter Site & Klien"><SiteSetupRoute /></ProtectedRoute>} />
-        <Route path="setup-parameter-site-klien" element={<ProtectedRoute requiredView="Setup Parameter Site & Klien"><SiteSetupRoute /></ProtectedRoute>} />
+        <Route path="site-setup" element={<Navigate to="/client-setup" replace />} />
+        <Route path="setup-parameter-site-klien" element={<Navigate to="/client-setup" replace />} />
         
         <Route path="coal-index" element={<ProtectedRoute requiredView="Coal Index"><CoalIndexRoute /></ProtectedRoute>} />
         <Route path="company" element={<ProtectedRoute requiredView="Company"><CompanyRoute /></ProtectedRoute>} />
@@ -89,7 +89,6 @@ export function AuthenticatedApp({ user, onLogout }: { user: User; onLogout: () 
         
         <Route path="variable-sow" element={<ProtectedRoute requiredView="Variable SOW"><VariableSOWRoute /></ProtectedRoute>} />
         <Route path="variable-sow/new" element={<ProtectedRoute requiredView="Variable SOW"><Suspense fallback={<FormLoadingFallback />}><VariableSOWFormPage /></Suspense></ProtectedRoute>} />
-        <Route path="variable-sow/edit" element={<ProtectedRoute requiredView="Variable SOW"><Suspense fallback={<FormLoadingFallback />}><VariableSOWFormPage /></Suspense></ProtectedRoute>} />
         <Route path="variable-sow/:id/edit" element={<ProtectedRoute requiredView="Variable SOW"><Suspense fallback={<FormLoadingFallback />}><VariableSOWFormPage /></Suspense></ProtectedRoute>} />
         <Route path=":slug/new" element={<Suspense fallback={<FormLoadingFallback />}><MasterDataFormRoute /></Suspense>} />
         <Route path=":slug/:id/edit" element={<Suspense fallback={<FormLoadingFallback />}><MasterDataFormRoute /></Suspense>} />

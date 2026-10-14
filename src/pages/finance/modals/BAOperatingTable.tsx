@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Pickaxe, Trash2, GripVertical, ChevronUp, ChevronDown, Plus } from "lucide-react";
 import { formatIDR, FormattedNumberInput, MonthPickerInput } from "../helpers";
 import { getSBSTarifByDistance } from "../calculations";
-import { getBGGComputedInvoiceLines, getBaseDistance, isOBMaterial } from "../ba_calculations";
+import { getBGGComputedInvoiceLines, getBaseDistance, isOBMaterial, bggOBBillableFactor } from "../ba_calculations";
 import { customerByCode } from "../masterRegistry";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { BAAddRowDropdown } from "./BAAddRowDropdown";
@@ -87,7 +87,7 @@ export function BAOperatingTable({
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const computedLines = isCustomerBGG
-    ? getBGGComputedInvoiceLines(allBAItems, effectiveRF, false, formData.bggData?.fuelPeriods)
+    ? getBGGComputedInvoiceLines(allBAItems, effectiveRF, false, formData.bggData?.fuelPeriods, bggOBBillableFactor(formData.customerCode, formData))
     : { sectionDItems: [], sectionEItems: [], subtotalD: 0, subtotalE: 0 };
 
   const subtotalNonBGG = baOperatingItems.reduce((acc, it) => {

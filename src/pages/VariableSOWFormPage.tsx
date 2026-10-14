@@ -1,61 +1,66 @@
 import React, { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, FileSpreadsheet, Plus, Trash2, RefreshCw, Sparkles, DollarSign, Layers, Loader2, AlertCircle } from "lucide-react";
 import { api } from "../lib/api";
-import { loadSOWCustomerSites, normalizeSOWSiteCode } from "./VariableSOWPage";
+import { latestPeriodMRate, loadSOWCustomerSites, normalizeSOWSiteCode, sowModel, SOW_MODEL_LABELS } from "./VariableSOWPage";
 import { FormattedNumberInput, formatIDR } from "./finance/helpers";
+import { routes } from "../router/routes";
+
+// Nama item dicocokkan seperti BE (sowFor): huruf/angka saja, persis lalu saling memuat.
+const normName = (s: string) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const sameItemName = (a: string, b: string) => {
+  const x = normName(a), y = normName(b);
+  return x === y || (x.length > 3 && y.length > 3 && (x.includes(y) || y.includes(x)));
+};
+const BGG_REQUIRED_ITEMS = ["Coal Winning", "Over Distance For OB Removal", "Over Distance For Coal Winning"];
+// Nama lookup tarif PTRO (ptroContractRates); wajib persis agar "COAL GETTING" tidak tertukar dengan "OVERHAUL COAL GETTING".
+const PTRO_REQUIRED_ITEMS = ["OVER BURDEN", "COAL GETTING", "OVERHAUL OB", "OVERHAUL COAL GETTING"];
 
 export function VariableSOWFormPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const contractGroup = location.state?.contractGroup;
-  const mrateBi = Number(location.state?.mrateBi || 0);
+  const { id: routeCode } = useParams();
+  const isEditing = !!routeCode;
 
-  const isEditing = !!contractGroup;
-
-  const initialCode = contractGroup?.companyCode || "";
   const [sites, setSites] = useState<any[]>([]);
   // Saran nama item = item Variable SOW yang sudah tersimpan di DB (semua customer).
   const [sowCatalog, setSowCatalog] = useState<any[]>([]);
-  useEffect(() => { loadSOWCustomerSites().then(setSites); }, []);
+  const [mrateBi, setMrateBi] = useState(0);
+  useEffect(() => {
+    loadSOWCustomerSites().then(setSites);
+    api<any[]>("/api/master-data/daily-exchange-rates").then((r) => setMrateBi(latestPeriodMRate(r).rate)).catch(() => {});
+  }, []);
 
   const [headerForm, setHeaderForm] = useState<any>({
-    companyName: contractGroup?.companyName || "",
-    companyCode: initialCode,
-    contractNo: contractGroup?.contractNo || "",
-    type: contractGroup?.type || (initialCode === "BGG" ? "coal" : "generic")
+    companyName: "",
+    companyCode: (routeCode || "").toUpperCase(),
+    contractNo: "",
   });
 
-  const [itemsGrid, setItemsGrid] = useState<any[]>(
-    contractGroup?.items
-      ? contractGroup.items.map((i: any) => ({ ...i }))
-      : []
-  );
+  // Mode edit (/variable-sow/:kode/edit): nama & nomor kontrak dari Master Customer.
+  useEffect(() => {
+    const site = sites.find((s) => s.code === headerForm.companyCode);
+    if (site) setHeaderForm((h: any) => ({ ...h, companyName: h.companyName || site.name, contractNo: h.contractNo || site.contractNo }));
+  }, [sites]);
 
+  const [itemsGrid, setItemsGrid] = useState<any[]>([]);
   const [deletedIds, setDeletedIds] = useState<number[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Fetch latest database items on mount or when company site changes
+  // Grid = item tersimpan milik customer terpilih; respons customer sebelumnya diabaikan.
   useEffect(() => {
-    async function loadFreshGrid() {
-      try {
-        const cCode = normalizeSOWSiteCode(headerForm.companyCode);
-        const res = await api<any[]>("/api/master-data/variable-sow");
-        if (Array.isArray(res)) {
-          setSowCatalog(res);
-          const siteDbItems = res.filter(
-            it => normalizeSOWSiteCode(it.customerCode || it.customer || "") === cCode
-          );
-          if (siteDbItems.length > 0) {
-            setItemsGrid(siteDbItems.map(it => ({ ...it })));
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch fresh SOW list:", err);
-      }
-    }
-    loadFreshGrid();
+    let cancelled = false;
+    const cCode = normalizeSOWSiteCode(headerForm.companyCode);
+    setItemsGrid([]);
+    setDeletedIds([]);
+    api<any[]>("/api/master-data/variable-sow")
+      .then((res) => {
+        if (cancelled || !Array.isArray(res)) return;
+        setSowCatalog(res);
+        setItemsGrid(cCode ? res.filter((it) => normalizeSOWSiteCode(it.customerCode || it.customer || "") === cCode).map((it) => ({ ...it })) : []);
+      })
+      .catch((err) => console.error("Failed to fetch fresh SOW list:", err));
+    return () => { cancelled = true; };
   }, [headerForm.companyCode]);
 
   const handleFieldChange = (idx: number, field: string, val: any) => {
@@ -75,8 +80,6 @@ export function VariableSOWFormPage() {
   };
 
   const handleAddRow = () => {
-    const isSBS = headerForm.companyCode === "SBS";
-    const isBGG = headerForm.companyCode === "BGG";
     const newRow = {
       category: isSBS ? "OB Removal" : isBGG ? "OB Removal" : "Operation & Mining",
       itemName: "",
@@ -88,7 +91,8 @@ export function VariableSOWFormPage() {
       tier3Rate: 0,
       splitPercentage: 100,
       baseDistanceMeters: 0,
-      maxDistanceMeters: 0
+      maxDistanceMeters: 0,
+      status: "Active"
     };
     setItemsGrid(prev => [...prev, newRow]);
   };
@@ -101,47 +105,61 @@ export function VariableSOWFormPage() {
     setItemsGrid(itemsGrid.filter((_, i) => i !== idx));
   };
 
+  // Model tarif dari Master Customer (kosong = default per kode) menentukan tabel & relasi kalkulasi.
+  const model = sowModel(headerForm.companyCode, sites.find((s) => s.code === headerForm.companyCode)?.sowModel);
+  const isBGG = model === "coal";
+  const isSBS = model === "idr";
+  const isPTRO = model === "multi";
+
+  // Relasi kalkulasi BGG (BE): item dicari per nama, OB 1/OB 2 = item ber-split 0-100% tanpa kata coal/distance.
+  const activeItems = itemsGrid.filter((i) => i.status !== "Inactive" && (i.itemName || "").trim());
+  const sowWarnings = isBGG ? [
+    ...BGG_REQUIRED_ITEMS.filter((n) => !activeItems.some((i) => sameItemName(i.itemName, n)))
+      .map((n) => `Item "${n}" belum ada/aktif — tarifnya akan 0 di kalkulasi invoice.`),
+    ...(activeItems.filter((i) => Number(i.splitPercentage) > 0 && Number(i.splitPercentage) < 100 && !/distance|coal/i.test(i.itemName)).length < 2
+      ? ["Butuh 2 item OB Removal aktif dengan Split % di bawah 100 (mis. 75% & 25%) dan nama tanpa kata \"coal\"/\"distance\" — tanpa itu tarif OB 1/OB 2 jadi 0."]
+      : []),
+  ] : isPTRO ? PTRO_REQUIRED_ITEMS.filter((n) => !activeItems.some((i) => normName(i.itemName) === normName(n)))
+    .map((n) => `Item "${n}" belum ada/aktif dengan nama persis — tarif BA & invoice PTRO untuk item ini bisa 0 atau salah ambil.`)
+    : [];
+
   const handleSaveGrid = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     setSaveError(null);
     try {
+      if (itemsGrid.some((item) => item.id && !(item.itemName || "").trim())) {
+        throw new Error("Nama item SOW yang sudah tersimpan tidak boleh dikosongkan. Hapus barisnya bila tidak dipakai.");
+      }
       const validItems = itemsGrid.filter(item => item.itemName && item.itemName.trim() !== "");
-      if (validItems.length === 0) {
+      if (validItems.length === 0 && deletedIds.length === 0) {
         throw new Error("Mohon masukkan minimal 1 item material/layanan SOW dengan nama yang valid.");
       }
 
-      // Delete removed rows from database
-      for (const delId of deletedIds) {
-        await api(`/api/master-data/variable-sow/${delId}`, { method: "DELETE" });
-      }
-
-      for (const item of validItems) {
-        const payload = {
-          category: item.category || "General",
-          itemName: item.itemName.trim(),
-          rateUSD: Number(item.rateUSD || 0),
-          rateIDR: Number(item.rateIDR || item.tier3Rate || 0),
-          tier1Rate: Number(item.tier1Rate || 0),
-          tier2Rate: Number(item.tier2Rate || 0),
-          tier3Rate: Number(item.tier3Rate || item.rateIDR || 0),
-          splitPercentage: Number(item.splitPercentage || 100),
-          baseDistanceMeters: Number(item.baseDistanceMeters || 0),
-          maxDistanceMeters: Number(item.maxDistanceMeters || 0),
-          unit: item.unit || "BCM",
-          customer: headerForm.companyCode,
-          customerCode: headerForm.companyCode,
-          contractNo: headerForm.contractNo,
-          description: `Contract ${headerForm.contractNo}`,
-          status: "Active"
-        };
-        if (item.id) {
-          await api(`/api/master-data/variable-sow/${item.id}`, { method: "PUT", body: JSON.stringify(payload) });
-        } else {
-          await api("/api/master-data/variable-sow", { method: "POST", body: JSON.stringify(payload) });
-        }
-      }
-      navigate("/variable-sow", { state: { notice: `Tariff Grid Variable SOW untuk ${headerForm.companyName} (${headerForm.contractNo || "Aktif"}) berhasil disimpan.` } });
+      const items = validItems.map((item) => ({
+        id: item.id,
+        category: item.category || "General",
+        itemName: item.itemName.trim(),
+        rateUSD: Number(item.rateUSD || 0),
+        rateIDR: Number(item.rateIDR || 0),
+        // Tarif tier hanya untuk BGG (Coal Index); site lain tidak punya kolom tier sehingga dikosongkan.
+        tier1Rate: isBGG ? Number(item.tier1Rate || 0) : 0,
+        tier2Rate: isBGG ? Number(item.tier2Rate || 0) : 0,
+        tier3Rate: isBGG ? Number(item.tier3Rate || 0) : 0,
+        splitPercentage: Number(item.splitPercentage || 100),
+        baseDistanceMeters: Number(item.baseDistanceMeters || 0),
+        maxDistanceMeters: Number(item.maxDistanceMeters || 0),
+        unit: item.unit || "BCM",
+        customer: headerForm.companyCode,
+        customerCode: headerForm.companyCode,
+        contractNo: headerForm.contractNo,
+        description: `Contract ${headerForm.contractNo}`,
+        status: item.status || "Active",
+        createdAt: item.createdAt
+      }));
+      // Satu request atomik: BE menolak semuanya bila ada item terhapus yang masih dipakai BA/invoice.
+      await api("/api/master-data/variable-sow/grid", { method: "POST", body: JSON.stringify({ items, deleteIds: deletedIds }) });
+      navigate(routes.variableSOW.list, { state: { notice: `Tariff Grid Variable SOW untuk ${headerForm.companyName} (${headerForm.contractNo || "Aktif"}) berhasil disimpan.` } });
     } catch (err: any) {
       console.error("Gagal menyimpan Grid Variable SOW:", err);
       setSaveError(err?.message || "Gagal menyimpan Tariff Grid SOW ke server. Pastikan koneksi backend aktif.");
@@ -150,9 +168,29 @@ export function VariableSOWFormPage() {
     }
   };
 
-  const isBGG = headerForm.companyCode === "BGG" || headerForm.companyCode === "PT BGG";
-  const isSBS = headerForm.companyCode === "SBS";
-  const isPTRO = headerForm.companyCode === "PTRO" || headerForm.companyCode === "DBK";
+  // Aksi baris: aktif/nonaktifkan (item yang dipakai BA/invoice tidak bisa dihapus) & hapus.
+  const rowActions = (idx: number) => {
+    const inactive = itemsGrid[idx]?.status === "Inactive";
+    return (
+      <div className="flex items-center justify-center gap-1">
+        <button
+          type="button"
+          onClick={() => handleFieldChange(idx, "status", inactive ? "Active" : "Inactive")}
+          className={`px-1.5 py-0.5 rounded text-[10px] font-bold border cursor-pointer ${inactive ? "bg-slate-100 text-slate-500 border-slate-300" : "bg-emerald-50 text-emerald-700 border-emerald-200"}`}
+          title={inactive ? "Aktifkan kembali" : "Nonaktifkan (tidak dipakai kalkulasi BA/Invoice)"}
+        >
+          {inactive ? "Nonaktif" : "Aktif"}
+        </button>
+        <button
+          type="button"
+          onClick={() => handleRemoveRow(idx)}
+          className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-12 mt-4">
@@ -160,7 +198,7 @@ export function VariableSOWFormPage() {
         <div className="flex items-start gap-3 border-b border-slate-100 pb-3.5">
           <button
             className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition shadow-2xs cursor-pointer"
-            onClick={() => navigate("/variable-sow")}
+            onClick={() => navigate(routes.variableSOW.list)}
             title="Kembali"
           >
             <ArrowLeft size={16} />
@@ -190,10 +228,8 @@ export function VariableSOWFormPage() {
                 setHeaderForm({
                   companyName: opt?.name || code,
                   companyCode: code,
-                  contractNo: opt?.contractNo || headerForm.contractNo,
-                  type: code === "BGG" ? "coal" : "generic"
+                  contractNo: opt?.contractNo || ""
                 });
-                setItemsGrid([]);
               }}
             >
               <option value="" disabled>— Pilih customer (Master Customer) —</option>
@@ -221,12 +257,14 @@ export function VariableSOWFormPage() {
             <label className="block text-xs font-bold text-slate-700 mb-1">
               Nomor Kontrak / SPK
             </label>
+            {/* Sumber tunggal: Master Customer (yang juga ditampilkan di daftar Variable SOW). */}
             <input
               type="text"
-              className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs text-slate-900 font-bold focus:border-cyan-700 outline-none font-mono"
+              className="w-full bg-slate-100 border border-slate-300 rounded-lg p-2 text-xs text-slate-900 font-bold font-mono"
               value={headerForm.contractNo}
-              placeholder="cth: 001/SBS-AAP/2026"
-              onChange={(e) => setHeaderForm({ ...headerForm, contractNo: e.target.value })}
+              placeholder="Atur di Master Customer"
+              title="Ubah nomor kontrak di Master Customer"
+              readOnly
             />
           </div>
 
@@ -235,15 +273,7 @@ export function VariableSOWFormPage() {
               Model Tarif SOW
             </label>
             <div className="bg-white border border-slate-200 rounded-lg p-2 text-xs text-slate-900 font-bold flex items-center gap-1.5 shadow-2xs">
-              {isBGG ? (
-                <>Multi-Tier Coal Index (PT BGG)</>
-              ) : isSBS ? (
-                <>IDR Tetap (OB, Rental Alat & Denda)</>
-              ) : isPTRO ? (
-                <>Multi-Currency USD & IDR (PT Petrosea / PTRO)</>
-              ) : (
-                <>{formatIDR(mrateBi)} / USD (M-Rate BI)</>
-              )}
+              {model === "usd" ? <>{formatIDR(mrateBi)} / USD (M-Rate BI)</> : SOW_MODEL_LABELS[model]}
             </div>
           </div>
         </div>
@@ -254,6 +284,16 @@ export function VariableSOWFormPage() {
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-[3px] text-rose-800 text-xs font-bold flex items-center gap-2">
               <AlertCircle size={16} className="text-rose-600 shrink-0" />
               <span>{saveError}</span>
+            </div>
+          )}
+          {sowWarnings.length > 0 && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-[3px] text-amber-900 text-xs font-bold space-y-1">
+              {sowWarnings.map((w) => (
+                <div key={w} className="flex items-center gap-2">
+                  <AlertCircle size={14} className="text-amber-600 shrink-0" />
+                  <span>{w}</span>
+                </div>
+              ))}
             </div>
           )}
           <div className="flex items-center justify-between">
@@ -281,12 +321,12 @@ export function VariableSOWFormPage() {
                   <tr className="bg-slate-900 text-white font-black uppercase text-[11px]">
                     <th className="p-3 pl-4 border-r border-slate-800">ITEM PEKERJAAN (SOW)</th>
                     <th className="p-3 border-r border-slate-800 text-center w-20">SATUAN</th>
-                    <th className="p-3 border-r border-slate-800 text-right bg-emerald-950 text-emerald-300 w-32">TIER 1 (&lt; $50)</th>
-                    <th className="p-3 border-r border-slate-800 text-right bg-blue-950 text-blue-300 w-32">TIER 2 ($50 - $75)</th>
-                    <th className="p-3 border-r border-slate-800 text-right bg-amber-950 text-amber-300 w-32">TIER 3 (&gt; $75)</th>
+                    <th className="p-3 border-r border-slate-800 text-right bg-emerald-950 text-emerald-300 w-32">TIER 1 (R3 &le; $45)</th>
+                    <th className="p-3 border-r border-slate-800 text-right bg-blue-950 text-blue-300 w-32">TIER 2 ($45 - $70)</th>
+                    <th className="p-3 border-r border-slate-800 text-right bg-amber-950 text-amber-300 w-32">TIER 3 (R3 &gt; $70)</th>
                     <th className="p-3 border-r border-slate-800 text-center w-24">SPLIT %</th>
                     <th className="p-3 border-r border-slate-800 text-center w-28">BASE DIST</th>
-                    <th className="p-3 pr-4 text-center w-12">#</th>
+                    <th className="p-3 pr-4 text-center w-28">STATUS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
@@ -334,7 +374,7 @@ export function VariableSOWFormPage() {
                           className="w-full text-right p-1.5 rounded-lg bg-amber-50 border border-amber-400 font-mono font-black text-amber-950 text-xs outline-none"
                           value={item.tier3Rate ?? ""}
                           onChange={(val) => {
-                            handleMultiFieldChange(idx, { tier3Rate: val, rateIDR: val });
+                            handleFieldChange(idx, "tier3Rate", val);
                           }}
                         />
                       </td>
@@ -355,13 +395,7 @@ export function VariableSOWFormPage() {
                         /> m
                       </td>
                       <td className="p-2 pr-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveRow(idx)}
-                          className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {rowActions(idx)}
                       </td>
                     </tr>
                   ))}
@@ -379,7 +413,7 @@ export function VariableSOWFormPage() {
                     <th className="p-3 border-r border-slate-800 text-center w-28">SATUAN</th>
                     <th className="p-3 border-r border-slate-800 text-right w-48 bg-cyan-950 text-cyan-300">TARIF DASAR (RP)</th>
                     <th className="p-3 border-r border-slate-800 text-center w-44">RENTANG JARAK (M)</th>
-                    <th className="p-3 pr-4 text-center w-12">#</th>
+                    <th className="p-3 pr-4 text-center w-28">STATUS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
@@ -447,13 +481,7 @@ export function VariableSOWFormPage() {
                           onChange={(e) => handleFieldChange(idx, "maxDistanceMeters", parseFloat(e.target.value) || 0)} />
                       </td>
                       <td className="p-2 pr-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveRow(idx)}
-                          className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {rowActions(idx)}
                       </td>
                     </tr>
                   ))}
@@ -472,7 +500,7 @@ export function VariableSOWFormPage() {
                     <th className="p-3 border-r border-slate-800 text-right w-36 bg-amber-950 text-amber-300">RATE USD ($)</th>
                     <th className="p-3 border-r border-slate-800 text-right w-36 bg-cyan-950 text-cyan-300">RATE IDR (RP)</th>
                     <th className="p-3 border-r border-slate-800 text-center w-28">BASE DIST</th>
-                    <th className="p-3 pr-4 text-center w-12">#</th>
+                    <th className="p-3 pr-4 text-center w-28">STATUS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
@@ -531,13 +559,7 @@ export function VariableSOWFormPage() {
                         /> m
                       </td>
                       <td className="p-2 pr-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveRow(idx)}
-                          className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {rowActions(idx)}
                       </td>
                     </tr>
                   ))}
@@ -555,7 +577,7 @@ export function VariableSOWFormPage() {
                     <th className="p-3 border-r border-slate-800 text-center w-28">SATUAN</th>
                     <th className="p-3 border-r border-slate-800 text-right bg-amber-950 text-amber-300 w-40">RATE (USD)</th>
                     <th className="p-3 border-r border-slate-800 text-right bg-emerald-950 text-emerald-300 w-48">KONVERSI IDR (M-RATE)</th>
-                    <th className="p-3 pr-4 text-center w-12">#</th>
+                    <th className="p-3 pr-4 text-center w-28">STATUS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
@@ -660,13 +682,7 @@ export function VariableSOWFormPage() {
                           {formatIDR(idrConverted)}
                         </td>
                         <td className="p-2 pr-4 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveRow(idx)}
-                            className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          {rowActions(idx)}
                         </td>
                       </tr>
                     );
@@ -688,7 +704,7 @@ export function VariableSOWFormPage() {
               <button
                 type="button"
                 className="px-5 py-2 rounded-[3px] border border-slate-300 bg-white text-slate-700 font-bold text-xs hover:bg-slate-50 transition cursor-pointer disabled:opacity-50"
-                onClick={() => navigate("/variable-sow")}
+                onClick={() => navigate(routes.variableSOW.list)}
                 disabled={isSaving}
               >
                 Batal

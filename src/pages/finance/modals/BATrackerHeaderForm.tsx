@@ -135,7 +135,7 @@ export function BATrackerHeaderForm({
                     const fn = Number(matched?.actualFuelFn ?? 0);
                     const ln = Number(matched?.actualLaborLn || hoResolved.laborLn);
                     const xn = Number(matched?.actualMRateXn || hoResolved.currencyXn);
-                    const { rfIndex: rf } = calculateTripleFactorRF(fn, ln, xn);
+                    const { rfIndex: rf } = calculateTripleFactorRF(fn, ln, xn, formData.customerCode, currentPeriod);
                     setFormData({
                       ...formData,
                       customerCode: code,
@@ -309,7 +309,7 @@ export function BATrackerHeaderForm({
                       const fn = Number(matched?.actualFuelFn ?? newFuelPeriods[val]?.actualFuelFn ?? curPOS.actualFuelFn ?? 0);
                       const ln = Number(matched?.actualLaborLn ?? newFuelPeriods[val]?.actualLaborLn ?? curPOS.actualLaborLn ?? hoResolved.laborLn);
                       const xn = Number(matched?.actualMRateXn ?? newFuelPeriods[val]?.actualMRateXn ?? curPOS.actualMRateXn ?? hoResolved.currencyXn);
-                      const { rfIndex: rf } = calculateTripleFactorRF(fn, ln, xn);
+                      const { rfIndex: rf } = calculateTripleFactorRF(fn, ln, xn, formData.customerCode, val);
                       newFuelPeriods[val] = { actualFuelFn: fn, actualLaborLn: ln, actualMRateXn: xn, posRfIndex: rf };
                       return {
                         ...prev,

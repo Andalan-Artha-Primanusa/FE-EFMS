@@ -442,7 +442,14 @@ export function renderBAStatusBadge(status: string, invoiceNoLinked?: string, is
       </span>
     );
   }
-  if (s === "Ready to Invoice" || s.startsWith("Approved")) {
+  if (s === "Ready to Invoice") {
+    return (
+      <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-100 text-sky-900 border border-sky-300 inline-flex items-center gap-1 shadow-2xs whitespace-nowrap">
+        Menunggu Approval Manager
+      </span>
+    );
+  }
+  if (s.startsWith("Approved")) {
     return (
       <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1 shadow-2xs whitespace-nowrap">
         Ready to Invoice
@@ -462,6 +469,9 @@ export function renderBAStatusBadge(status: string, invoiceNoLinked?: string, is
     </span>
   );
 }
+
+/** BA boleh ditagih: sudah diverifikasi Finance Specialist dan disetujui Manager (sama dengan BE requireBAApproved). */
+export const isBAApproved = (ba: any): boolean => ba?.statusBA === "Approved" && Boolean(ba?.verifiedBy) && Boolean(ba?.approvedBy);
 
 export function getBAStatusForExport(ba: any, allInvoices: any[]) {
   const invStatus = getBAInvoiceStatus(ba, allInvoices);
@@ -496,8 +506,11 @@ export function getBAStatusForExport(ba: any, allInvoices: any[]) {
     }
   }
 
-  if (s === "Ready to Invoice" || s === "Approved") {
+  if (s === "Approved") {
     return { label: "READY TO INVOICE", badgeClass: "bg-emerald", subtext: "" };
+  }
+  if (s === "Ready to Invoice") {
+    return { label: "MENUNGGU APPROVAL MANAGER", badgeClass: "bg-amber", subtext: "" };
   }
   return { label: "ON PROGRESS", badgeClass: "bg-amber", subtext: "" };
 }

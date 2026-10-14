@@ -1,6 +1,7 @@
 import React from "react";
 import { UserCheck, CheckCircle, Clock, CheckCircle2, ExternalLink, Pickaxe, Building2, Zap } from "lucide-react";
-import { getBAInvoiceStatus, generateAuditTimeline } from "../helpers";
+import { getBAInvoiceStatus, generateAuditTimeline, isBAApproved } from "../helpers";
+import { bggOBBillableFactor } from "../ba_calculations";
 import { BAGLJournalPreview } from "./BAGLJournalPreview";
 import { verifyBATracker } from "../../../lib/api";
 
@@ -165,6 +166,7 @@ export function BATrackerFinancialRecap({
         )}
         isCustomerDBK={formData.customerCode === "PTRO" || formData.customerCode === "DBK"}
         fuelPeriods={formData.bggData?.fuelPeriods || formData.posData?.fuelPeriods || formData.ptroData?.fuelPeriods || formData.sbsData?.fuelPeriods}
+        obFactor={bggOBBillableFactor(formData.customerCode, formData)}
       />
 
       {/* Invoice Generation & Linked Status */}
@@ -188,11 +190,11 @@ export function BATrackerFinancialRecap({
             <ExternalLink size={12} /> Lihat Invoice
           </button>
         </div>
-      ) : (formData.statusBA === "Ready to Invoice" || formData.statusBA === "Approved") ? (
+      ) : isBAApproved(formData) ? (
         <div className="bg-[#A57C50]/5 border border-[#A57C50]/20 rounded-[4px] p-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#1A1612] shadow-xs">
           <div className="flex items-center gap-2.5">
             <CheckCircle2 size={16} className="text-[#A57C50] shrink-0" />
-            <span className="font-black text-[#1A1612]">BA Disetujui (Ready to Invoice)</span>
+            <span className="font-black text-[#1A1612]">BA Disetujui Manager (Ready to Invoice)</span>
           </div>
           {isPOS ? (
             <div className="flex items-center gap-2">

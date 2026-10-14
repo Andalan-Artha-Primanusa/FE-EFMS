@@ -1,6 +1,6 @@
 import React from "react";
 import { FileText, CheckCircle, ExternalLink, ShieldCheck, History, X, Clock } from "lucide-react";
-import { formatIDR, resolveDocumentUrl, renderBAStatusBadge, generateAuditTimeline } from "../helpers";
+import { formatIDR, resolveDocumentUrl, renderBAStatusBadge, generateAuditTimeline, isBAApproved } from "../helpers";
 
 interface BATrackerSidebarProps {
   formData: any;
@@ -235,14 +235,14 @@ export function BATrackerSidebar({
             <div className="p-2.5 bg-white border border-slate-200 rounded-xl space-y-1">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                  <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-black ${formData.invoiceNoLinked ? "bg-purple-100 text-purple-800" : (formData.statusBA === "Ready to Invoice" || formData.verifiedBy) ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>3</span>
+                  <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-black ${formData.invoiceNoLinked ? "bg-purple-100 text-purple-800" : isBAApproved(formData) ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>3</span>
                   <span>Invoice & Approval FATB</span>
                 </div>
                 {formData.invoiceNoLinked ? (
                   <span className="text-[10px] text-purple-800 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
                     #{formData.invoiceNoLinked}
                   </span>
-                ) : (formData.statusBA === "Ready to Invoice" || formData.verifiedBy) ? (
+                ) : isBAApproved(formData) ? (
                   <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
                     Siap Terbit
                   </span>
@@ -255,9 +255,9 @@ export function BATrackerSidebar({
               <p className="text-slate-600 text-[11px] leading-relaxed">
                 {formData.invoiceNoLinked
                   ? `Invoice #${formData.invoiceNoLinked} telah diterbitkan dan diajukan ke FATB Manager.`
-                  : (formData.statusBA === "Ready to Invoice" || formData.verifiedBy)
-                  ? "BA telah diverifikasi. Finance Site dapat men-generate invoice untuk diapprove FATB Manager."
-                  : "Invoice akan digenerate oleh Finance site setelah BA diverifikasi oleh Finance Supervisor."}
+                  : isBAApproved(formData)
+                  ? "BA telah diverifikasi Finance Specialist dan disetujui Manager. Finance Site dapat men-generate invoice."
+                  : formData.verifiedBy ? "Menunggu approval Manager atas BA sebelum invoice dapat digenerate." : "Invoice akan digenerate oleh Finance site setelah BA diverifikasi Finance Specialist dan disetujui Manager."}
               </p>
             </div>
           </div>
