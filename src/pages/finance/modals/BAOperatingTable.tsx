@@ -553,7 +553,7 @@ export function BAOperatingTable({
                   <tr>
                     {isInlineEditingBA && <td className="p-2 text-center text-slate-300">-</td>}
                     <td colSpan={isInlineEditingBA ? 8 : 7} className="p-2.5 text-center text-slate-400 italic">
-                      Eskalasi Raise & Fall otomatis aktif saat Index RF &gt; 1.000
+                      Eskalasi Raise & Fall mengikuti baris Seksi A–C
                     </td>
                   </tr>
                 )}
