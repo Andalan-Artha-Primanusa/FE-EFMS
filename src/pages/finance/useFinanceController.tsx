@@ -29,7 +29,7 @@ export function useFinanceController({
     loading, setLoading, dashboardData, setDashboardData, baRows, setBaRows,
     invoiceRows, setInvoiceRows, paymentRows, setPaymentRows, customerRows, setCustomerRows,
     pendingVolumeLedgers, setPendingVolumeLedgers, sbsPenalties, setSbsPenalties,
-    accountingJournals, userRole, isSuper, isFinanceSpecialist, isSPV, isManager, isDirector,
+    accountingJournals, userRole, isSuper, isFinanceSpecialist, isSPV, canApproveInvoice, canApproveBA,
     loadData
   } = dataLoader;
 
@@ -241,7 +241,7 @@ export function useFinanceController({
 
   return {
     loading, setLoading, dashboardData, setDashboardData, baRows, setBaRows, userRole, isSuper,
-    isFinanceSpecialist, isSPV, isManager, isDirector, invoiceRows, setInvoiceRows, paymentRows,
+    isFinanceSpecialist, isSPV, canApproveInvoice, canApproveBA, invoiceRows, setInvoiceRows, paymentRows,
     setPaymentRows, customerRows, setCustomerRows, pendingVolumeLedgers, setPendingVolumeLedgers,
     sbsPenalties, setSbsPenalties, sbsPenaltyModalOpen, setSbsPenaltyModalOpen, sbsPenaltyEditItem,
     setSbsPenaltyEditItem, handleSaveSBSPenalty, handleDeleteSBSPenalty, openSBSPenaltyModal,

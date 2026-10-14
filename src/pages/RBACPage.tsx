@@ -53,117 +53,7 @@ import {
   type User as UserType,
   type Company
 } from "../lib/api";
-import { authorized, companyOptionsForUser, isHeadOfficeUser, loadCompanies as loadAuthCompanies, roleScopeOf, rolesAssignableBy, userScopeType } from "../lib/auth";
-
-export function isSuperAdminRole(role: string | undefined | null): boolean {
-  const r = (role ?? "").trim().toLowerCase();
-  return r === "super admin" || r === "erp super admin" || r.includes("super admin") || r.includes("superadmin");
-}
-
-// Standard Default Preset Grants per Official Role
-const OFFICIAL_ROLE_DEFAULT_GRANTS: Record<string, string[]> = {
-  "Super Admin": [
-    "master_data:*", "budget:*", "transaction_request:*", "approval:*",
-    "operational_transaction:*", "ba_tracker:*", "invoice:*", "payment:*",
-    "accounting:*", "reconciliation:*", "period_closing:*", "financial_report:*",
-    "management_dashboard:*", "user_management:*", "audit_trail:*", "treasury:*"
-  ],
-  "FATB Manager": [
-    "master_data:*", "budget:*", "transaction_request:read", "approval:act",
-    "operational_transaction:read", "ba_tracker:read", "ba_tracker:write", "ba_tracker:verify", "ba_tracker:approve",
-    "invoice:read", "invoice:write", "invoice:verify", "invoice:approve_tier1",
-    "payment:read", "payment:write", "payment:verify",
-    "accounting:read", "accounting:generate", "accounting:approve", "accounting:post",
-    "reconciliation:run", "period_closing:review", "period_closing:close",
-    "financial_report:read", "management_dashboard:read", "audit_trail:read", "treasury:*"
-  ],
-  "Finance Superintendent": [
-    "master_data:*", "budget:read", "budget:approve", "transaction_request:read", "approval:act",
-    "operational_transaction:read", "operational_transaction:write",
-    "ba_tracker:read", "ba_tracker:write", "ba_tracker:verify",
-    "invoice:read", "invoice:write", "invoice:verify",
-    "payment:read", "payment:write", "payment:verify",
-    "accounting:read", "accounting:generate", "reconciliation:run",
-    "period_closing:review", "financial_report:read", "management_dashboard:read", "treasury:read"
-  ],
-  "Finance Specialist (SPV)": [
-    "master_data:read", "budget:read", "transaction_request:read",
-    "operational_transaction:read", "operational_transaction:write",
-    "ba_tracker:read", "ba_tracker:write", "ba_tracker:verify",
-    "invoice:read", "invoice:write", "invoice:verify",
-    "payment:read", "payment:write", "payment:verify",
-    "accounting:read", "accounting:generate", "reconciliation:run",
-    "financial_report:read"
-  ],
-  "Finance Specialist": [
-    "master_data:read", "budget:read", "transaction_request:read",
-    "operational_transaction:read", "operational_transaction:write",
-    "ba_tracker:read", "ba_tracker:write", "ba_tracker:verify",
-    "invoice:read", "invoice:write", "invoice:verify",
-    "payment:read", "payment:write", "payment:verify",
-    "accounting:read", "accounting:generate", "reconciliation:run",
-    "financial_report:read"
-  ],
-  "Foreman Finance": [
-    "master_data:read", "operational_transaction:read", "operational_transaction:write",
-    "ba_tracker:read", "ba_tracker:write"
-  ],
-  "Foreman": [
-    "master_data:read", "operational_transaction:read", "operational_transaction:write",
-    "ba_tracker:read", "ba_tracker:write"
-  ],
-  "Admin Finance": [
-    "master_data:read", "master_data:write", "budget:read", "transaction_request:read", "transaction_request:submit",
-    "operational_transaction:read", "operational_transaction:write",
-    "ba_tracker:read", "ba_tracker:write",
-    "invoice:read", "invoice:write",
-    "payment:read", "payment:write",
-    "accounting:read", "accounting:generate", "reconciliation:run",
-    "financial_report:read", "treasury:read"
-  ],
-  "Admin Finance HO": [
-    "master_data:read", "master_data:write", "budget:read", "transaction_request:read", "transaction_request:submit",
-    "operational_transaction:read", "operational_transaction:write",
-    "ba_tracker:read", "ba_tracker:write",
-    "invoice:read", "invoice:write",
-    "payment:read", "payment:write",
-    "accounting:read", "accounting:generate", "reconciliation:run",
-    "financial_report:read", "treasury:read"
-  ],
-  "Finance Admin": [
-    "master_data:read", "master_data:write", "budget:read", "transaction_request:read", "transaction_request:submit",
-    "operational_transaction:read", "operational_transaction:write",
-    "ba_tracker:read", "ba_tracker:write",
-    "invoice:read", "invoice:write",
-    "payment:read", "payment:write",
-    "accounting:read", "accounting:generate", "reconciliation:run",
-    "financial_report:read", "treasury:read"
-  ],
-  "Finance Intern": [
-    "master_data:read", "operational_transaction:read",
-    "ba_tracker:read", "invoice:read", "payment:read", "financial_report:read"
-  ],
-  "Admin Finance Site": [
-    "operational_transaction:read", "operational_transaction:write",
-    "ba_tracker:read", "ba_tracker:write", "invoice:read", "invoice:write", "payment:read"
-  ],
-  "Admin Finance Site BGG": [
-    "raise_fall:read", "raise_fall:write", "raise_fall:delete", "operational_transaction:read", "operational_transaction:write",
-    "ba_tracker:read", "ba_tracker:write", "invoice:read", "invoice:write", "payment:read"
-  ],
-  "Admin Finance Site POS": [
-    "raise_fall:read", "raise_fall:write", "raise_fall:delete", "operational_transaction:read", "operational_transaction:write",
-    "ba_tracker:read", "ba_tracker:write", "invoice:read", "invoice:write", "payment:read"
-  ],
-  "Admin Finance Site SBS": [
-    "operational_transaction:read", "operational_transaction:write",
-    "ba_tracker:read", "ba_tracker:write", "invoice:read", "invoice:write", "payment:read"
-  ],
-  "Admin Finance Site PTRO": [
-    "operational_transaction:read", "operational_transaction:write",
-    "ba_tracker:read", "ba_tracker:write", "invoice:read", "invoice:write", "payment:read"
-  ]
-};
+import { authorized, companyOptionsForUser, isHeadOfficeUser, isSuperAdminRole, loadCompanies as loadAuthCompanies, roleScopeOf, rolesAssignableBy, userScopeType } from "../lib/auth";
 
 // Official Role Catalog metadata
 export const OFFICIAL_ROLES_METADATA: Array<{
@@ -474,15 +364,8 @@ export function RBACPage({
 
     return OFFICIAL_ROLES_METADATA.map((meta) => {
       const existing = apiRoleMap.get(meta.role);
-      const defaultGrants = OFFICIAL_ROLE_DEFAULT_GRANTS[meta.role] || [];
-      const permissions: Permission[] =
-        existing && existing.permissions.length > 0
-          ? existing.permissions
-          : defaultGrants.map((g) => {
-              const [mod, act] = g.split(":");
-              const match = ALL_SYSTEM_PERMISSIONS.find((p) => p.module === mod && (p.action === act || act === "*"));
-              return { module: mod, action: act, description: match?.description || g };
-            });
+      // Grant role selalu dari backend (source of truth), tanpa preset lokal.
+      const permissions: Permission[] = existing?.permissions ?? [];
 
       return {
         role: meta.role,
@@ -521,9 +404,6 @@ export function RBACPage({
   }, []);
 
   const defaultGrantsForRole = (roleName: string) => {
-    if (OFFICIAL_ROLE_DEFAULT_GRANTS[roleName]) {
-      return OFFICIAL_ROLE_DEFAULT_GRANTS[roleName];
-    }
     const matched = unifiedRoleList.find((r) => r.role === roleName);
     if (!matched) return [];
     return Array.from(new Set(matched.permissions.map((p) => `${p.module}:${p.action}`)));
@@ -723,7 +603,8 @@ export function RBACPage({
         ...formData,
         companyName: selectedCompany?.name ?? formData.companyName,
         companyScope: formData.companyCode === "HO" ? ("ALL" as const) : [formData.companyCode],
-        permissions: userGrants
+        // Hanya grant tambahan di luar role; grant role tetap ikut role (pencabutan role berlaku ke user).
+        permissions: userGrants.filter((g) => !defaultGrantsForRole(formData.role).includes(g))
       };
       if (modalMode === "create") {
         const created: any = await createUser(payload);
@@ -1738,7 +1619,9 @@ export function RBACPage({
                               setFormData({ ...formData, password: e.target.value });
                               if (modalError) setModalError(null);
                             }}
-                            placeholder={modalMode === "edit" ? "••••••••" : "Admin@123"}
+                            required={modalMode !== "edit"}
+                            minLength={8}
+                            placeholder={modalMode === "edit" ? "••••••••" : "Minimal 8 karakter"}
                             className="w-full pl-7 pr-2.5 py-1.5 text-xs font-mono bg-white border border-[#cbd5e1] rounded focus:outline-hidden focus:border-[#a57c50]"
                           />
                         </div>

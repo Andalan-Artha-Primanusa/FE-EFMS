@@ -3,6 +3,7 @@ import { Layers, Calculator, UserCheck } from "lucide-react";
 import { MonthPickerInput, matchPeriod } from "../helpers";
 import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF, customerKind } from "../ba_calculations";
 import { obSplitSOWs, sowFor, sowTierRate, computeRFIndex, rfTemplateFor, ptroContractRates, baItemsFromSOW } from "../masterRegistry";
+import { isHeadOfficeUser } from "../../../lib/auth";
 
 interface BATrackerHeaderFormProps {
   activeBAStep: number;
@@ -108,6 +109,8 @@ export function BATrackerHeaderForm({
                 Customer / Project <span className="text-rose-600">*</span>
               </label>
               <select
+                disabled={!(user && isHeadOfficeUser(user))}
+                title={user && isHeadOfficeUser(user) ? undefined : "Akun site hanya dapat membuat BA untuk site sendiri"}
                 className="w-full bg-white border border-slate-300 rounded-[3px] p-2 text-slate-900 font-bold focus:border-[#A57C50] outline-none"
                 value={formData.customerCode || ""}
                 onChange={(e) => {

@@ -5,6 +5,7 @@ import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, getFinanceTemplates, User as UserType } from "../../lib/api";
 import { BANotesUpdateModal } from "./modals/BANotesUpdateModal";
+import { companyScopeOf } from "../../lib/auth";
 
 import {
   resolveDocumentUrl, formatIDR, parseNumber, formatThousand, formatDateInput,
@@ -15,6 +16,15 @@ import {
   RupiahInput, generateAuditTimeline, getCustomerOfficialName, isBAApproved
 } from "./helpers";
 
+const BA_SITES = [
+  { code: "BGG", label: "BGG (PT Budi Gema Gempita)" },
+  { code: "POS", label: "POS (PT Position)" },
+  { code: "PTRO", label: "PTRO (PT Petrosea)" },
+  { code: "SBS", label: "SBS (PT Satria Bahana Sarana)" },
+  { code: "IBP", label: "IBP" },
+  { code: "BBA", label: "BBA" },
+];
+
 export function BATrackerView({ c }: { c: any }) {
   const {
     baRows: rawBaRows, invoiceRows: rawInvoiceRows, pendingVolumeLedgers: rawPendingVolumeLedgers, setShowPendingVolumeDrawer, baFilter,
@@ -22,8 +32,11 @@ export function BATrackerView({ c }: { c: any }) {
     showInputBADropdown, setShowInputBADropdown, baRowActionDropdownId, setBaRowActionDropdownId, setDetailViewItem,
     exportBAOnlyExcel, exportBAOnlyPDF, exportBADocumentPDF, createInvoiceFromBA, openBAModal, openCreateModal,
     handleGenerateInvoiceFromBA, handleDelete, query = "", onNotice, handleAccrueBA, accountingJournals: rawAccountingJournals,
-    deletingKey, actionLoadingKey, loadData
+    deletingKey, actionLoadingKey, loadData, user
   } = (c || {}) as Record<string, any>;
+  // Site yang boleh dibuatkan BA mengikuti scope RBAC user (SITE hanya site miliknya).
+  const siteScope = user ? companyScopeOf(user) : { all: false, codes: [] as string[] };
+  const baSiteOptions = BA_SITES.filter((s) => siteScope.all || siteScope.codes.includes(s.code));
   const [quickNoteModalItem, setQuickNoteModalItem] = useState<any | null>(null);
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
@@ -168,7 +181,31 @@ export function BATrackerView({ c }: { c: any }) {
                     )}
                   </div>
 
-                  {/* Dropdown 2: Input / Tambah BA */}
+                  {/* Input / Tambah BA: user SITE hanya site miliknya (tanpa dropdown), HO semua site */}
+                  {!siteScope.all ? (
+                    <div className="flex items-center gap-1.5">
+                      {baSiteOptions.map((s) => (
+                        <button
+                          key={s.code}
+                          type="button"
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:brightness-95 shrink-0 cursor-pointer"
+                          style={{ background: "#A57C50", borderRadius: 3 }}
+                          onClick={() => openCreateModal("ba", { customerCode: s.code })}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Buat BA {s.code}</span>
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-[3px] bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer shrink-0"
+                        onClick={() => openCreateModal("pending_volume")}
+                      >
+                        <Layers className="w-3.5 h-3.5 text-[#6E5033]" />
+                        <span>Input Pending Volume</span>
+                      </button>
+                    </div>
+                  ) : (
                   <div className="relative">
                     <button
                       type="button"
@@ -186,72 +223,20 @@ export function BATrackerView({ c }: { c: any }) {
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setShowInputBADropdown(false)} />
                         <div className="absolute right-0 mt-1 w-64 bg-white rounded-[4px] shadow-lg border border-slate-200 py-1 z-20 text-xs font-semibold divide-y divide-slate-100">
-                          <button
-                            type="button"
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
-                            onClick={() => {
-                              openCreateModal("ba", { customerCode: "BGG" });
-                              setShowInputBADropdown(false);
-                            }}
-                          >
-                            <Building2 className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
-                            <span>Buat BA BGG (PT Budi Gema Gempita)</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
-                            onClick={() => {
-                              openCreateModal("ba", { customerCode: "POS" });
-                              setShowInputBADropdown(false);
-                            }}
-                          >
-                            <Building2 className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
-                            <span>Buat BA POS (PT Position)</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
-                            onClick={() => {
-                              openCreateModal("ba", { customerCode: "PTRO" });
-                              setShowInputBADropdown(false);
-                            }}
-                          >
-                            <Building2 className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
-                            <span>Buat BA PTRO (PT Petrosea)</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
-                            onClick={() => {
-                              openCreateModal("ba", { customerCode: "SBS" });
-                              setShowInputBADropdown(false);
-                            }}
-                          >
-                            <Building2 className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
-                            <span>Buat BA SBS (PT Satria Bahana Sarana)</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
-                            onClick={() => {
-                              openCreateModal("ba", { customerCode: "IBP" });
-                              setShowInputBADropdown(false);
-                            }}
-                          >
-                            <Building2 className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
-                            <span>Buat BA IBP</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
-                            onClick={() => {
-                              openCreateModal("ba", { customerCode: "BBA" });
-                              setShowInputBADropdown(false);
-                            }}
-                          >
-                            <Building2 className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
-                            <span>Buat BA BBA</span>
-                          </button>
+                          {baSiteOptions.map((s) => (
+                            <button
+                              key={s.code}
+                              type="button"
+                              className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
+                              onClick={() => {
+                                openCreateModal("ba", { customerCode: s.code });
+                                setShowInputBADropdown(false);
+                              }}
+                            >
+                              <Building2 className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
+                              <span>Buat BA {s.label}</span>
+                            </button>
+                          ))}
                           <button
                             type="button"
                             className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
@@ -267,6 +252,7 @@ export function BATrackerView({ c }: { c: any }) {
                       </>
                     )}
                   </div>
+                  )}
                 </div>
               </div>
 

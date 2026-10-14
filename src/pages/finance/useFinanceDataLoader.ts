@@ -23,8 +23,8 @@ export function useFinanceDataLoader({ viewTitle, user, onNotice }: UseFinanceDa
   const isSuper = isSuperAdminRole(user?.role || "");
   const isFinanceSpecialist = isSuper || authorized(user, "operational_transaction", "write") || authorized(user, "ba_tracker", "write") || authorized(user, "finance", "write");
   const isSPV = isSuper || authorized(user, "ba_tracker", "verify") || authorized(user, "invoice", "verify") || authorized(user, "finance", "verify");
-  const isManager = isSuper || authorized(user, "ba_tracker", "approve") || authorized(user, "invoice", "approve_tier1") || authorized(user, "approval", "act");
-  const isDirector = isSuper || authorized(user, "invoice", "approve_tier2") || authorized(user, "finance", "approve_tier2") || authorized(user, "management_dashboard", "read");
+  const canApproveInvoice = authorized(user, "invoice", "approve_tier1");
+  const canApproveBA = authorized(user, "ba_tracker", "approve");
 
   async function loadData(showLoading = false) {
     if (showLoading) setLoading(true);
@@ -107,8 +107,8 @@ export function useFinanceDataLoader({ viewTitle, user, onNotice }: UseFinanceDa
     isSuper,
     isFinanceSpecialist,
     isSPV,
-    isManager,
-    isDirector,
+    canApproveInvoice,
+    canApproveBA,
     loadData
   };
 }
