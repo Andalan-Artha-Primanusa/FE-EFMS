@@ -3,7 +3,7 @@
 // Setiap fungsi menerima snapshot state (ctx) dari controller.
 // =============================================================
 
-import { formatIDR, getBAStatusForExport, parsePeriodToMonthIndex } from "./helpers";
+import { formatIDR, getBAStatusForExport, getCustomerOfficialName, parsePeriodToMonthIndex } from "./helpers";
 
 export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1507,170 +1507,216 @@ export function exportBAOnlyExcelImpl(ctx: any) {
 }
 
 export function exportBAOnlyPDFImpl(ctx: any) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { 
+  const {
     baRows: rawBaRows, invoiceRows: rawInvoiceRows, periodFilter = "All", query = ""
   } = ctx || {};
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
-  const printWin = window.open("", "_blank", "width=1200,height=900");
+  const printWin = window.open("", "_blank", "width=1280,height=900");
   if (!printWin) return;
 
-  const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+  const now = new Date();
+  const formattedDate = now.toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+  const printedAt = now.toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
   const logoUrl = `${window.location.origin}/andalan-logo.png`;
+  const periodLabel = periodFilter === "All" ? "Semua Periode" : periodFilter;
+  const docNo = `RPT-BAI/${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+  const esc = (v: any) => String(v ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch] as string));
+  const fmtDate = (d: any) => (d && !isNaN(new Date(d).getTime()) ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—");
 
   // Export includes only active BA rows for the selected periodFilter (BA On Progress & BA Ready to Invoice, excluding ARSIP)
-  const targetRows = baRows.filter((r) => {
-      const matchQ = JSON.stringify(r).toLowerCase().includes(query.toLowerCase());
-      if (!matchQ) return false;
-      if (periodFilter !== "All" && r.workPeriod !== periodFilter) return false;
-      const st = getBAStatusForExport(r, invoiceRows);
-      if (st.label.startsWith("ARSIP")) return false;
-      return true;
-    });
-    const groupedCust = Array.from(new Set(targetRows.map((r) => r.customerCode || "OTHER")));
+  const targetRows = baRows
+    .filter((r) => JSON.stringify(r).toLowerCase().includes(query.toLowerCase()))
+    .filter((r) => periodFilter === "All" || r.workPeriod === periodFilter)
+    .map((r) => ({ ba: r, st: getBAStatusForExport(r, invoiceRows) }))
+    .filter(({ st }) => !st.label.startsWith("ARSIP"));
 
-    let totalBAMoney = 0;
-    let pdfRowsBA = "";
+  const groupedCust = Array.from(new Set(targetRows.map(({ ba }) => ba.customerCode || "OTHER")));
+  const totalBAMoney = targetRows.reduce((s, { ba }) => s + (ba.workAmount || 0), 0);
+  const readyRows = targetRows.filter(({ st }) => st.label === "READY TO INVOICE");
+  const readyMoney = readyRows.reduce((s, { ba }) => s + (ba.workAmount || 0), 0);
 
-    groupedCust.forEach((custCode) => {
-      const custRows = targetRows.filter((r) => (r.customerCode || "OTHER") === custCode);
-      const custSubtotal = custRows.reduce((sum, r) => sum + (r.workAmount || 0), 0);
-      totalBAMoney += custSubtotal;
-
-      pdfRowsBA += `
-        <tr class="client-banner" style="background: #e2e8f0; font-weight: 800;">
-          <td colSpan="2" style="padding: 5px 8px; font-weight: 900; color: #0f172a;">
-            CLIENT / SITE: <strong>${custCode}</strong> <span style="font-size: 8.5px; font-weight: 700; color: #475569;">(${custRows.length} BA)</span>
-          </td>
-          <td class="text-right font-mono" style="font-weight: 900; color: #0891b2;">
-            Subtotal: ${formatIDR(custSubtotal)}
-          </td>
-          <td colSpan="2"></td>
-        </tr>
-      `;
-
-      custRows.forEach((ba) => {
-        const nominal = ba.workAmount || 0;
-        const st = getBAStatusForExport(ba, invoiceRows);
-        const notes = ba.notesBottleneck ? `${ba.notesBottleneck} - ${ba.notes || ""}` : (ba.notes || "-");
-        pdfRowsBA += `
+  let rowNo = 0;
+  const bodyHTML = groupedCust.map((custCode) => {
+    const custRows = targetRows.filter(({ ba }) => (ba.customerCode || "OTHER") === custCode);
+    const custSubtotal = custRows.reduce((s, { ba }) => s + (ba.workAmount || 0), 0);
+    return `
+      <tr class="grp">
+        <td colspan="7"><span class="grp-code">${esc(custCode)}</span>${esc(getCustomerOfficialName(custCode))}<span class="grp-count">${custRows.length} dokumen BA</span></td>
+        <td class="num">${formatIDR(custSubtotal)}</td>
+        <td colspan="2"></td>
+      </tr>
+      ${custRows.map(({ ba, st }) => {
+        rowNo += 1;
+        const notes = [ba.notesBottleneck, ba.notes].filter(Boolean).join(" — ") || "—";
+        const tone = st.label === "READY TO INVOICE" ? "ok" : st.label.includes("APPROVAL") || st.label.includes("1/2") ? "warn" : "neutral";
+        return `
           <tr>
-            <td><strong>${ba.customerCode}</strong></td>
-            <td class="text-center">${ba.workPeriod || "-"}</td>
-            <td class="text-right font-mono" style="font-weight: 700;">${formatIDR(nominal)}</td>
-            <td class="text-center">
-              <span class="badge ${st.badgeClass}">${st.label}</span>
-              ${st.subtext ? `<div style="font-size: 7.5px; color: #475569; font-weight: 700; margin-top: 2px;">${st.subtext}</div>` : ""}
-            </td>
-            <td>${notes}</td>
-          </tr>
-        `;
-      });
-    });
+            <td class="c muted">${rowNo}</td>
+            <td><div class="strong">${esc(ba.baNumber || "—")}</div><div class="sub">${esc(ba.dataSource || "Joint Survey")}</div></td>
+            <td>${esc(ba.picAAP || "—")}</td>
+            <td>${esc(ba.workPeriod || "—")}</td>
+            <td class="c">${ba.items?.length || "—"}</td>
+            <td class="c">${fmtDate(ba.baSubmittedDate)}</td>
+            <td class="c">${fmtDate(ba.baSignedDate)}${ba.leadTimeDays ? `<div class="sub">${ba.leadTimeDays} hari</div>` : ""}</td>
+            <td class="num strong">${formatIDR(ba.workAmount || 0)}</td>
+            <td class="c"><span class="pill ${tone}">${esc(st.label)}</span>${ba.statusBA ? `<div class="sub">${esc(ba.statusBA)}</div>` : ""}${st.subtext ? `<div class="sub">${esc(st.subtext)}</div>` : ""}</td>
+            <td class="notes">${esc(notes)}</td>
+          </tr>`;
+      }).join("")}`;
+  }).join("");
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>BERITA ACARA INVOICE (BAI) MONITORING REPORT - ANDALAN</title>
-        <style>
-          @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..900;1,300..900&display=swap');
-          @page { size: A4 landscape; margin: 8mm 10mm; }
-          * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; }
-          body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; color: #0f172a; margin: 0; padding: 8px; font-size: 9.5px; line-height: 1.25; }
-          .header-box { position: relative; margin-bottom: 12px; border-bottom: 2.5px solid #0f172a; padding-bottom: 8px; min-height: 46px; }
-          .logo-area { position: absolute; right: 0; top: 0; }
-          .logo-img { height: 38px; width: auto; }
-          .title-area { width: 100%; text-align: center; }
-          .title-area h1 { font-size: 15px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 1px; color: #0f172a; }
-          .title-area p { font-size: 10px; margin: 2px 0 0 0; color: #475569; font-weight: 700; }
+  const htmlContent = `<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <title>BA Monitoring Report - ${esc(periodLabel)}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* Lembar A4 landscape yang sama persis di layar dan di kertas: lebar isi = 297mm - 2 x 12mm */
+    @page { size: A4 landscape; margin: 10mm 12mm; }
+    :root { --ink: #1A1612; --muted: #6B6055; --line: #E6E1D9; --canvas: #FAF8F4; --gold: #A57C50; --gold-dark: #6E5033; --cream: #FBF6F0; --green: #2E7D53; --amber: #C98A12; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    html, body { margin: 0; padding: 0; }
+    body { font-family: 'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif; color: var(--ink); font-size: 8.5pt; line-height: 1.35; background: #E9E5DF; font-variant-numeric: tabular-nums; }
+    .toolbar { position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 16px; background: var(--ink); color: #fff; font-size: 9pt; }
+    .toolbar button { background: var(--gold); color: #fff; border: 0; border-radius: 6px; padding: 8px 18px; font: inherit; font-weight: 700; cursor: pointer; }
+    .toolbar button:hover { background: var(--gold-dark); }
+    .sheet { width: 297mm; min-height: 210mm; margin: 16px auto; padding: 10mm 12mm; background: #fff; box-shadow: 0 2px 12px rgba(26,22,18,.18); }
 
-          table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 9.5px; page-break-inside: avoid; border: 1.5px solid #0f172a; }
-          th { background: #0f172a; color: #ffffff; padding: 7px 8px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; border: 1.5px solid #0f172a; text-align: center; }
-          td { border: 1.2px solid #334155; padding: 6px 8px; color: #0f172a; }
+    .kop { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 2px solid var(--gold); }
+    .kop img { height: 34px; }
+    .kop .co { text-align: right; font-size: 7.5pt; color: var(--muted); }
+    .kop .co strong { display: block; color: var(--ink); font-size: 9pt; letter-spacing: .3px; }
+    .title { display: flex; justify-content: space-between; align-items: flex-end; margin: 12px 0 10px; }
+    .title h1 { margin: 0; font-size: 14pt; font-weight: 800; letter-spacing: .2px; }
+    .title .sub-title { color: var(--muted); font-size: 8.5pt; margin-top: 2px; }
+    .meta { border-collapse: collapse; font-size: 7.5pt; }
+    .meta td { padding: 1px 0 1px 10px; }
+    .meta td:first-child { color: var(--muted); }
+    .meta td:last-child { font-weight: 700; text-align: right; }
 
-          .client-banner { background: #e2e8f0; font-weight: 800; color: #0f172a; border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a; }
-          .client-banner td { border: 1.5px solid #0f172a; }
+    .kpi { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: 4px; margin-bottom: 12px; }
+    .kpi div { padding: 7px 10px; border-left: 1px solid var(--line); }
+    .kpi div:first-child { border-left: 0; }
+    .kpi span { display: block; color: var(--muted); font-size: 6.8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+    .kpi b { font-size: 11pt; font-weight: 800; }
+    .kpi .hl { background: var(--cream); }
 
-          .grand-total { background: #0f172a; color: #ffffff; font-weight: 900; font-size: 11px; border-top: 2px solid #0f172a; }
-          .grand-total td { padding: 8px; border: 1.5px solid #0f172a; }
+    table.data { width: 100%; border-collapse: collapse; }
+    .data thead { display: table-header-group; }
+    .data tr { break-inside: avoid; page-break-inside: avoid; }
+    .data th { background: var(--ink); color: #fff; font-size: 6.8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; padding: 6px; text-align: left; }
+    .data td { padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    .data .grp td { background: var(--cream); border-top: 1px solid var(--gold); border-bottom: 1px solid #E7D3BC; font-weight: 700; padding: 5px 6px; }
+    .grp-code { display: inline-block; background: var(--gold); color: #fff; border-radius: 3px; padding: 0 5px; margin-right: 6px; font-size: 7pt; }
+    .grp-count { color: var(--muted); font-weight: 500; margin-left: 8px; font-size: 7.5pt; }
+    .data tfoot td { background: var(--ink); color: #fff; font-weight: 800; padding: 7px 6px; font-size: 9pt; }
+    .c { text-align: center; } .num { text-align: right; white-space: nowrap; }
+    .data th.c { text-align: center; } .data th.num { text-align: right; }
+    .strong { font-weight: 700; } .muted { color: var(--muted); }
+    .sub { color: var(--muted); font-size: 6.8pt; margin-top: 1px; }
+    .notes { font-size: 7.5pt; color: #3A322A; }
+    .pill { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 6.5pt; font-weight: 800; letter-spacing: .3px; border: 1px solid; white-space: nowrap; }
+    .pill.ok { color: var(--green); border-color: var(--green); background: #EAF4EE; }
+    .pill.warn { color: #8A5D0A; border-color: var(--amber); background: #FBF3E2; }
+    .pill.neutral { color: var(--gold-dark); border-color: var(--gold); background: var(--cream); }
+    .empty { text-align: center; color: var(--muted); padding: 18px; }
 
-          .text-right { text-align: right; }
-          .text-center { text-align: center; }
-          .font-mono, td, th, span, div, p, strong { font-family: 'Plus Jakarta Sans', sans-serif !important; font-variant-numeric: tabular-nums; }
+    .closing { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-top: 14px; break-inside: avoid; page-break-inside: avoid; }
+    .closing .remark { font-size: 7.5pt; color: var(--muted); max-width: 45%; }
+    .sign { display: grid; grid-template-columns: repeat(2, 52mm); gap: 10mm; text-align: center; font-size: 8pt; }
+    .sign .role { color: var(--muted); }
+    .sign .space { height: 18mm; }
+    .sign .name { font-weight: 800; border-top: 1px solid var(--ink); padding-top: 3px; }
+    .foot { display: flex; justify-content: space-between; margin-top: 12px; padding-top: 5px; border-top: 1px solid var(--line); color: var(--muted); font-size: 6.8pt; }
 
-          .badge { padding: 3px 7px; border-radius: 4px; font-weight: 800; font-size: 8.5px; text-transform: uppercase; display: inline-block; }
-          .bg-emerald { background: #dcfce7; color: #166534; border: 1.2px solid #16a34a; }
-          .bg-cyan { background: #faf6f0; color: #77542e; border: 1.2px solid #a57c50; }
-          .bg-amber { background: #fef3c7; color: #92400e; border: 1.2px solid #d97706; }
-          .bg-slate { background: #f1f5f9; color: #334155; border: 1.2px solid #64748b; }
-          .bg-rose { background: #ffe4e6; color: #9f1239; border: 1.2px solid #e11d48; }
-          .bg-purple { background: #f3e8ff; color: #6b21a8; border: 1.2px solid #a855f7; }
+    @media print {
+      body { background: #fff; }
+      .toolbar { display: none; }
+      .sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <span>Pratinjau sesuai cetak — A4 Landscape. Pada dialog print pilih <b>Save as PDF</b>, matikan <b>Headers and footers</b>.</span>
+    <button onclick="window.print()">Cetak / Simpan PDF</button>
+  </div>
+  <div class="sheet">
+    <div class="kop">
+      <img src="${logoUrl}" alt="ANDALAN" />
+      <div class="co"><strong>PT ANDALAN ARTHA PRIMANUSA</strong>Finance, Accounting, Tax &amp; Budgeting Division</div>
+    </div>
 
-          .sig-table { width: 100%; border-collapse: collapse; margin-top: 20px; page-break-inside: avoid; border: 1.5px solid #0f172a; }
-          .sig-table th { background: #f1f5f9; color: #0f172a; border: 1.5px solid #0f172a; padding: 7px; font-size: 10px; font-weight: 800; }
-          .sig-table td { border: 1.5px solid #0f172a; padding: 8px; text-align: center; height: 2.2cm; min-height: 2.2cm; vertical-align: bottom; font-weight: 800; font-size: 10px; }
+    <div class="title">
+      <div>
+        <h1>Laporan Monitoring Berita Acara (BA)</h1>
+        <div class="sub-title">Berita Acara Invoice (BAI) — status siklus dokumen BA aktif sebelum penerbitan invoice</div>
+      </div>
+      <table class="meta">
+        <tr><td>No. Dokumen</td><td>${docNo}</td></tr>
+        <tr><td>Periode</td><td>${esc(periodLabel)}</td></tr>
+        <tr><td>Per Tanggal</td><td>${formattedDate}</td></tr>
+      </table>
+    </div>
 
-          .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
-          .btn-print:hover { background: #8e6941; }
-          @media print { .btn-print { display: none; } }
-        </style>
-      </head>
-      <body>
-        <button class="btn-print" onclick="window.print()">Cetak Laporan PDF Official BA Tracker (A4 Landscape)</button>
+    <div class="kpi">
+      <div><span>Jumlah BA Aktif</span><b>${targetRows.length}</b> dokumen</div>
+      <div><span>Siap Invoice</span><b>${formatIDR(readyMoney)}</b> · ${readyRows.length} BA</div>
+      <div><span>BA On Progress</span><b>${formatIDR(totalBAMoney - readyMoney)}</b> · ${targetRows.length - readyRows.length} BA</div>
+      <div class="hl"><span>Total Nilai Klaim</span><b>${formatIDR(totalBAMoney)}</b></div>
+    </div>
 
-        <div class="header-box">
-          <div class="title-area">
-            <h1>BERITA ACARA INVOICE (BAI) MONITORING REPORT</h1>
-            <p>PT ANDALAN ARTHA PRIMANUSA — As of Date: ${formattedDate}</p>
-          </div>
-          <div class="logo-area">
-            <img src="${logoUrl}" alt="ANDALAN Logo" class="logo-img" />
-          </div>
-        </div>
+    <table class="data">
+      <thead>
+        <tr>
+          <th class="c" style="width:4%">No</th>
+          <th style="width:16%">No. BA / Sumber</th>
+          <th style="width:9%">PIC</th>
+          <th style="width:9%">Periode</th>
+          <th class="c" style="width:5%">Item</th>
+          <th class="c" style="width:8%">Diajukan</th>
+          <th class="c" style="width:8%">TTD Klien</th>
+          <th class="num" style="width:12%">Nilai Klaim (IDR)</th>
+          <th class="c" style="width:12%">Status</th>
+          <th style="width:17%">Catatan / Bottleneck</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${bodyHTML || `<tr><td colspan="10" class="empty">Tidak ada Berita Acara aktif untuk periode ini.</td></tr>`}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="7">TOTAL NILAI KLAIM BA — ${esc(periodLabel.toUpperCase())}</td>
+          <td class="num">${formatIDR(totalBAMoney)}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+    </table>
 
-        <table>
-          <thead>
-            <tr>
-              <th width="14%">Project / Client</th>
-              <th width="14%">Periode Pekerjaan</th>
-              <th width="20%">Nominal Work (IDR)</th>
-              <th width="18%">Status BA / Invoicing</th>
-              <th width="34%">Keterangan / Bottleneck Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${pdfRowsBA}
-            <tr class="grand-total">
-              <td colspan="2" class="text-right">TOTAL PENDAPATAN BA:</td>
-              <td class="text-right font-mono" style="color: #38bdf8;">${formatIDR(totalBAMoney)}</td>
-              <td colspan="2"></td>
-            </tr>
-          </tbody>
-        </table>
+    <div class="closing">
+      <div class="remark">
+        Laporan ini mencakup BA berstatus aktif (draft, verifikasi, revisi, dan siap invoice); BA yang telah diarsipkan/terbit invoice tidak disertakan. Nilai klaim merupakan nilai bruto sebelum PPN dan PPh 23.
+      </div>
+      <div class="sign">
+        <div><div class="role">Diverifikasi oleh,</div><div class="space"></div><div class="name">Lambang Hermawan</div><div class="role">Finance Supervisor</div></div>
+        <div><div class="role">Disetujui oleh,</div><div class="space"></div><div class="name">M Axel Valentino</div><div class="role">FATB Manager</div></div>
+      </div>
+    </div>
 
-        <table class="sig-table">
-          <thead>
-            <tr>
-              <th width="50%">DIVERIFIKASI OLEH</th>
-              <th width="50%">DISETUJUI OLEH</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><u>Lambang Hermawan</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance Supervisor</span></td>
-              <td><u>M Axel Valentino</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">FATB Manager</span></td>
-            </tr>
-          </tbody>
-        </table>
-      </body>
-      </html>
-    `;
+    <div class="foot">
+      <span>${docNo} · Dokumen internal PT Andalan Artha Primanusa</span>
+      <span>Dicetak dari FEAST pada ${printedAt}</span>
+    </div>
+  </div>
+</body>
+</html>`;
 
-    printWin.document.open();
-    printWin.document.write(htmlContent);
-    printWin.document.close();
+  printWin.document.open();
+  printWin.document.write(htmlContent);
+  printWin.document.close();
 }
 
 export function exportAROnlyExcelImpl(ctx: any) {
