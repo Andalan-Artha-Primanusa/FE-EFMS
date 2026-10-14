@@ -326,8 +326,8 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
         if (match.tier3Rate) return match.tier3Rate;
         if (match.tier2Rate) return match.tier2Rate;
         if (match.tier1Rate) return match.tier1Rate;
-        if (match.rateUSD) return Number((match.rateUSD * currentKurs).toFixed(3));
-        if (match.baseRateUSD) return Number((match.baseRateUSD * currentKurs).toFixed(3));
+        if (match.rateUSD) return match.rateUSD * currentKurs;
+        if (match.baseRateUSD) return match.baseRateUSD * currentKurs;
       }
     }
     return fallbackRate;
@@ -353,8 +353,8 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
           }
           const isOverhaul = (s.itemName || s.name || "").toLowerCase().includes("overhaul") || catNorm.includes("distance");
           const isCoalOverhaul = isOverhaul && ((s.itemName || s.name || "").toLowerCase().includes("coal") || (s.itemName || s.name || "").toLowerCase().includes("batubara"));
-          let rateIDR = s.rateIDR ? s.rateIDR : (s.rateUSD ? Number((s.rateUSD * currentKurs).toFixed(3)) : (s.baseRateUSD ? Number((s.baseRateUSD * currentKurs).toFixed(3)) : 0));
-          if (isOverhaul && s.rateUSD) rateIDR = Number((s.rateUSD * currentKurs).toFixed(3));
+          let rateIDR = s.rateIDR ? s.rateIDR : (s.rateUSD ? s.rateUSD * currentKurs : (s.baseRateUSD ? s.baseRateUSD * currentKurs : 0));
+          if (isOverhaul && s.rateUSD) rateIDR = s.rateUSD * currentKurs;
 
           if (custUpper === "BGG") {
             const activeTier = getBGGActiveCoalTier();
@@ -536,17 +536,17 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
       return rows.map(r => {
         let rate = r.rate || 0;
         const mat = (r.material || "").toUpperCase();
-        if (mat.includes("OVER BURDEN")) rate = Number(((r.rateUSD || obRateUSD) * currentKurs).toFixed(3));
-        else if (mat.includes("COAL GETTING") || mat.includes("COAL WINNING")) rate = Number(((r.rateUSD || cgRateUSD) * currentKurs).toFixed(3));
-        else if (mat.includes("OVERHAUL OB") || mat.includes("OVER DISTANCE FOR OB")) rate = Number(((r.rateUSD || odObRateUSD) * currentKurs).toFixed(3));
+        if (mat.includes("OVER BURDEN")) rate = (r.rateUSD || obRateUSD) * currentKurs;
+        else if (mat.includes("COAL GETTING") || mat.includes("COAL WINNING")) rate = (r.rateUSD || cgRateUSD) * currentKurs;
+        else if (mat.includes("OVERHAUL OB") || mat.includes("OVER DISTANCE FOR OB")) rate = (r.rateUSD || odObRateUSD) * currentKurs;
         else if (mat.includes("OVERHAUL COAL") || mat.includes("OVER DISTANCE FOR COAL")) rate = r.rate || odCgRateIDR;
         return { ...r, rate, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0 };
       });
     }
     return [
-      { id: "ptro_ba_ob", category: "Operating & Mining", area: "Pit Sapan", material: "OVER BURDEN REMOVAL", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: obRateUSD, distanceBasis: 0, isDistanceVar: false, rate: Number((obRateUSD * currentKurs).toFixed(3)), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
-      { id: "ptro_ba_cg", category: "Operating & Mining", area: "Pit Sapan", material: "COAL GETTING", unit: "MT", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: cgRateUSD, distanceBasis: 0, isDistanceVar: false, rate: Number((cgRateUSD * currentKurs).toFixed(3)), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
-      { id: "ptro_ba_odob", category: "Over Distance", area: "Pit Sapan", material: "Overhaul OB", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: odObRateUSD, distanceBasis: 1000, isDistanceVar: true, distanceWeightAvg: 1000, rate: Number((odObRateUSD * currentKurs).toFixed(3)), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "ptro_ba_ob", category: "Operating & Mining", area: "Pit Sapan", material: "OVER BURDEN REMOVAL", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: obRateUSD, distanceBasis: 0, isDistanceVar: false, rate: obRateUSD * currentKurs, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "ptro_ba_cg", category: "Operating & Mining", area: "Pit Sapan", material: "COAL GETTING", unit: "MT", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: cgRateUSD, distanceBasis: 0, isDistanceVar: false, rate: cgRateUSD * currentKurs, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "ptro_ba_odob", category: "Over Distance", area: "Pit Sapan", material: "Overhaul OB", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: odObRateUSD, distanceBasis: 1000, isDistanceVar: true, distanceWeightAvg: 1000, rate: odObRateUSD * currentKurs, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
       { id: "ptro_ba_odcg", category: "Over Distance", area: "Pit Sapan", material: "Overhaul Coal Getting", unit: "TON", initialVolume: 0, adjustedVolume: 0, isUSD: false, rateIDR: odCgRateIDR, distanceBasis: 3000, isDistanceVar: true, distanceWeightAvg: 3000, rate: odCgRateIDR, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
     ];
   }, [financeTemplates, templateRows, dynamicSowOptions, latestKursBI, mRate, getSowMasterRate]);
@@ -562,17 +562,17 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
       return rows.map(r => {
         let rate = r.rate || 0;
         const mat = (r.material || "").toUpperCase();
-        if (mat.includes("OVER BURDEN")) rate = Number(((r.rateUSD || obRateUSD) * currentKurs).toFixed(3));
-        else if (mat.includes("COAL GETTING") || mat.includes("COAL WINNING")) rate = Number(((r.rateUSD || cgRateUSD) * currentKurs).toFixed(3));
-        else if (mat.includes("OVERHAUL OB") || mat.includes("OVER DISTANCE FOR OB")) rate = Number(((r.rateUSD || odObRateUSD) * currentKurs).toFixed(3));
+        if (mat.includes("OVER BURDEN")) rate = (r.rateUSD || obRateUSD) * currentKurs;
+        else if (mat.includes("COAL GETTING") || mat.includes("COAL WINNING")) rate = (r.rateUSD || cgRateUSD) * currentKurs;
+        else if (mat.includes("OVERHAUL OB") || mat.includes("OVER DISTANCE FOR OB")) rate = (r.rateUSD || odObRateUSD) * currentKurs;
         else if (mat.includes("OVERHAUL COAL") || mat.includes("OVER DISTANCE FOR COAL")) rate = r.rate || odCgRateIDR;
         return { ...r, rate, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0 };
       });
     }
     return [
-      { id: "dbk_ba_ob", category: "Operating & Mining", area: "Pit DBK", material: "OVER BURDEN REMOVAL", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: obRateUSD, distanceBasis: 0, isDistanceVar: false, rate: Number((obRateUSD * currentKurs).toFixed(3)), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
-      { id: "dbk_ba_cg", category: "Operating & Mining", area: "Pit DBK", material: "COAL GETTING", unit: "MT", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: cgRateUSD, distanceBasis: 0, isDistanceVar: false, rate: Number((cgRateUSD * currentKurs).toFixed(3)), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
-      { id: "dbk_ba_odob", category: "Over Distance", area: "Pit DBK", material: "Overhaul OB", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: odObRateUSD, distanceBasis: 1000, isDistanceVar: true, distanceWeightAvg: 1000, rate: Number((odObRateUSD * currentKurs).toFixed(3)), subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "dbk_ba_ob", category: "Operating & Mining", area: "Pit DBK", material: "OVER BURDEN REMOVAL", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: obRateUSD, distanceBasis: 0, isDistanceVar: false, rate: obRateUSD * currentKurs, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "dbk_ba_cg", category: "Operating & Mining", area: "Pit DBK", material: "COAL GETTING", unit: "MT", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: cgRateUSD, distanceBasis: 0, isDistanceVar: false, rate: cgRateUSD * currentKurs, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
+      { id: "dbk_ba_odob", category: "Over Distance", area: "Pit DBK", material: "Overhaul OB", unit: "BCM", initialVolume: 0, adjustedVolume: 0, isUSD: true, rateUSD: odObRateUSD, distanceBasis: 1000, isDistanceVar: true, distanceWeightAvg: 1000, rate: odObRateUSD * currentKurs, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
       { id: "dbk_ba_odcg", category: "Over Distance", area: "Pit DBK", material: "Overhaul Coal Getting", unit: "TON", initialVolume: 0, adjustedVolume: 0, isUSD: false, rateIDR: odCgRateIDR, distanceBasis: 3000, isDistanceVar: true, distanceWeightAvg: 3000, rate: odCgRateIDR, subtotalInitial: 0, subtotalAdjusted: 0, notes: "", keterangan: "" },
     ];
   }, [financeTemplates, templateRows, dynamicSowOptions, latestKursBI, mRate, getSowMasterRate]);

@@ -420,7 +420,7 @@ export function BATrackerHeaderForm({
                     setBaOperatingItems(prev => prev.map(it => {
                       let r = it.rate;
                       if (currentM > 0 && it.isUSD && it.rateUSD > 0) {
-                        r = Number((it.rateUSD * currentM).toFixed(3));
+                        r = it.rateUSD * currentM;
                       }
                       return { ...it, period: val, rate: r };
                     }));

@@ -175,7 +175,7 @@ export function createFinanceCalculations(deps: {
         if (unitRate === 0) {
           const isCoal = item.subSection?.includes("Coal") || item.description?.includes("Coal");
           const per100m = isCoal ? getSowMasterRate("BGG", "Over Distance For Coal Winning", 0) : getSowMasterRate("BGG", "Over Distance For OB Removal", 0);
-          unitRate = Number(((per100m * diffMtr) / 100).toFixed(3));
+          unitRate = (per100m * diffMtr) / 100;
         }
         amount = Math.round(vol * unitRate);
         return { unitRate, amount };
@@ -192,21 +192,21 @@ export function createFinanceCalculations(deps: {
             const baseMtr = baseDistanceFor("BGG", "Over Distance For OB Removal");
             const diffMtr = baseMtr > 0 ? Math.max(0, mtr - baseMtr) : 0;
             const baseRate = getSowMasterRate("BGG", "Over Distance For OB Removal", 0);
-            unitRate = Number((baseRate * rfDelta * (diffMtr / 100)).toFixed(3));
+            unitRate = baseRate * rfDelta * (diffMtr / 100);
           } else if (isODCoal) {
             const baseMtr = baseDistanceFor("BGG", "Over Distance For Coal Winning");
             const diffMtr = baseMtr > 0 ? Math.max(0, mtr - baseMtr) : 0;
             const baseRate = getSowMasterRate("BGG", "Over Distance For Coal Winning", 0);
-            unitRate = Number((baseRate * rfDelta * (diffMtr / 100)).toFixed(3));
+            unitRate = baseRate * rfDelta * (diffMtr / 100);
           } else if (isOB2) {
             const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 2 (25%)", 0);
-            unitRate = Number((baseRate * rfDelta).toFixed(3));
+            unitRate = baseRate * rfDelta;
           } else if (isCoal) {
             const baseRate = getSowMasterRate("BGG", "Coal Winning", 0);
-            unitRate = Number((baseRate * rfDelta).toFixed(3));
+            unitRate = baseRate * rfDelta;
           } else {
             const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 1 (75%)", 0);
-            unitRate = Number((baseRate * rfDelta).toFixed(3));
+            unitRate = baseRate * rfDelta;
           }
         }
         amount = Math.round(vol * unitRate);
@@ -230,7 +230,7 @@ export function createFinanceCalculations(deps: {
       if (unitRate === 0) {
         if (item.isUSD || item.unitRateUSD !== undefined) {
           const usdRate = item.unitRateUSD || getSowMasterRate("PTRO", desc, 0, true);
-          unitRate = Number((usdRate * kurs).toFixed(3));
+          unitRate = usdRate * kurs;
         } else {
           unitRate = getSowMasterRate("PTRO", desc, 0, false);
         }
@@ -262,20 +262,20 @@ export function createFinanceCalculations(deps: {
         const rfDelta = rfFactor;
         if (unitRate === 0) {
           const baseUSD = item.baseRateUSD || getSowMasterRate("POS", desc, 0, true);
-          unitRate = Number((baseUSD * rfDelta * mRate).toFixed(3));
+          unitRate = baseUSD * rfDelta * mRate;
         }
         amount = Math.round(vol * unitRate);
         return { unitRate, amount };
       }
       if (unitRate === 0) {
         if (item.baseRateUSD > 0) {
-          unitRate = Number((item.baseRateUSD * mRate).toFixed(3));
+          unitRate = item.baseRateUSD * mRate;
         } else {
           const masterIDR = getSowMasterRate("POS", desc, 0, false);
           if (masterIDR > 0) unitRate = masterIDR;
           else {
             const masterUSD = getSowMasterRate("POS", desc, 0, true);
-            if (masterUSD > 0) unitRate = Number((masterUSD * mRate).toFixed(3));
+            if (masterUSD > 0) unitRate = masterUSD * mRate;
           }
         }
       }

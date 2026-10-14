@@ -564,7 +564,7 @@ export function MasterRaiseFallPage({
       allowFall: Boolean(tpl?.allowFall),
       actualFuelFn: 0,
       actualLaborLn: umkFor(code)?.amountIdr || 0,
-      actualMRateXn: Number(kursForPeriod(period, mrateRows).toFixed(3)) || 0,
+      actualMRateXn: kursForPeriod(period, mrateRows) || 0,
       bggFuelP1: 0,
       bggTransportP1: 0,
       bggFuelP2: 0,
@@ -593,7 +593,7 @@ export function MasterRaiseFallPage({
     setModalType("rf");
     setEditItem(item);
     const autoLn = item.actualLaborLn || umkFor(item.customerCode)?.amountIdr || 0;
-    const autoXn = item.actualMRateXn || Number(kursForPeriod(item.period, mrateRows).toFixed(3)) || 0;
+    const autoXn = item.actualMRateXn || kursForPeriod(item.period, mrateRows) || 0;
     const refills = Array.isArray(item.posFuelRefills) ? item.posFuelRefills : [];
 
     setRfForm({

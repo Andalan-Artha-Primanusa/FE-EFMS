@@ -165,7 +165,7 @@ export function BADeductionTable({
                   ) : (
                     <FormattedNumberInput
                       allowDecimals
-                      maxDecimals={3}
+                      maxDecimals={0}
                       className="w-28 sm:w-32 bg-white border border-rose-300 focus:border-rose-500 rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs text-rose-700 outline-none"
                       value={item.rate === 0 ? "" : Math.abs(item.rate ?? 0)}
                       placeholder="00.00"

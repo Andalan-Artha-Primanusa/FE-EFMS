@@ -38,7 +38,7 @@ export function BAPOSMDOTable({
     // Sama dengan BE RecalculateBA: USD x kurs periode bila keduanya ada, selain itu tarif IDR baris.
     const currentMRate = Number(mRate || formData?.posData?.actualMRateXn || 0);
     if (usdRate > 0 && currentMRate > 0) {
-      return Number((usdRate * currentMRate).toFixed(3));
+      return usdRate * currentMRate;
     }
     return Number(it.rate || 0);
   };
@@ -70,8 +70,8 @@ export function BAPOSMDOTable({
     prodItems.forEach((it) => {
       const vol = Number(it.initialVolume || 0);
       const rawBaseIDR = getDynamicMDOItemBaseIDR(it, false);
-      const rawRfRate = Number((rfFactor * rawBaseIDR).toFixed(3));
-      const rfRate = Math.round(rawRfRate);
+      const rawRfRate = rfFactor * rawBaseIDR;
+      const rfRate = rawRfRate;
       const subtotal = Math.round(vol * rfRate);
 
       rows.push({
@@ -124,8 +124,8 @@ export function BAPOSMDOTable({
         const actualDist = (rawDist > 0 && rawDist < 50) ? Math.round(rawDist * 1000) : rawDist;
         const deltaDist = actualDist - 1000;
         const dBaseIDR = getDynamicMDOItemBaseIDR(matchedDist, true);
-        const rawDRfRate = Number((rfFactor * dBaseIDR).toFixed(3));
-        const dRfRate = Math.round(rawDRfRate);
+        const rawDRfRate = rfFactor * dBaseIDR;
+        const dRfRate = rawDRfRate;
         const dSubtotal = Math.round((dVol * dRfRate * deltaDist) / 1000);
 
         rows.push({
@@ -279,15 +279,15 @@ export function BAPOSMDOTable({
         <td className="p-2 text-right font-mono align-top">
           {!isInlineEditingBA ? (
             <span className="pt-1 block font-bold text-slate-900">
-              {effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "-"}
+              {effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-"}
             </span>
           ) : (
             <FormattedNumberInput
               allowDecimals
-              maxDecimals={3}
+              maxDecimals={2}
               className="w-20 sm:w-24 bg-slate-50 border border-slate-300 rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none"
               value={isDist ? (item.initialVolume ? item.initialVolume : "") : (item.initialVolume === 0 ? "" : (item.initialVolume ?? ""))}
-              placeholder={effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "0,000"}
+              placeholder={effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0,00"}
               onChange={(val) => {
                 const updated = [...baMDOItems];
                 const targetIdx = updated.findIndex((it) => it.id === item.id);
@@ -337,10 +337,10 @@ export function BAPOSMDOTable({
           ) : (
             <FormattedNumberInput
               allowDecimals
-              maxDecimals={3}
+              maxDecimals={0}
               className="w-20 sm:w-24 border rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs bg-slate-50 border-slate-300 focus:border-[#A57C50] outline-none"
               value={item.rate === 0 ? "" : (item.rate ?? "")}
-              placeholder="0,000"
+              placeholder="0"
               onChange={(r) => {
                 const updated = [...baMDOItems];
                 const targetIdx = updated.findIndex((it) => it.id === item.id);
@@ -461,7 +461,7 @@ export function BAPOSMDOTable({
                 </td>
                 <td className="p-2 text-center align-top font-mono text-slate-600 font-bold">{item.unit}</td>
                 <td className="p-2 text-right font-mono align-top font-bold">
-                  {item.volume > 0 ? Number(item.volume).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "-"}
+                  {item.volume > 0 ? Number(item.volume).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-"}
                 </td>
                 <td className="p-2 text-right font-mono align-top bg-slate-50/50 border-x border-slate-100 text-slate-600 font-mono">
                   {item.distance ? `${item.distance}m` : "-"}

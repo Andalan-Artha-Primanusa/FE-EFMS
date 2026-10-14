@@ -244,13 +244,13 @@ export function BAMDOTable({
                   {!isInlineEditingBA ? (
                     <span className="font-bold text-slate-900">
                       {isDist
-                        ? (effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "0")
-                        : (item.initialVolume ? Number(item.initialVolume).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "0")}
+                        ? (effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0")
+                        : (item.initialVolume ? Number(item.initialVolume).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0")}
                     </span>
                   ) : isDist ? (
                     <div className="pt-0.5">
                       <span className="font-mono font-extrabold text-[#1A1612] text-xs block">
-                        {effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : "0"}
+                        {effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0"}
                       </span>
                       <span className="text-[9px] text-[#A57C50] font-bold block leading-none">
                         (Auto-sync)
@@ -259,7 +259,7 @@ export function BAMDOTable({
                   ) : (
                     <FormattedNumberInput
                       allowDecimals
-                      maxDecimals={3}
+                      maxDecimals={2}
                       className="w-20 sm:w-24 bg-slate-50 border border-slate-300 rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none"
                       value={item.initialVolume ? item.initialVolume : ""}
                       placeholder="00.00"
@@ -308,7 +308,7 @@ export function BAMDOTable({
                   ) : (
                     <FormattedNumberInput
                       allowDecimals
-                      maxDecimals={3}
+                      maxDecimals={0}
                       className={`w-20 sm:w-24 border rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none ${item.isCustom && (!item.rate || item.rate === 0) ? "bg-amber-50 border-amber-400 text-amber-900" : "bg-slate-50 hover:bg-white border-slate-300"}`}
                       value={item.rate === 0 ? "" : (item.rate ?? "")}
                       placeholder="00.00"

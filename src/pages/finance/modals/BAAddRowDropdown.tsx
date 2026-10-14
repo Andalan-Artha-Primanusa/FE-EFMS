@@ -84,7 +84,7 @@ export function BAAddRowDropdown({
     const isPenunjang = /penunjang|rental/.test(catLow) || /^(hours|jam)$/i.test(sow.unit || "");
     const isMDO = isPenunjang || /mdo|development/.test(catLow);
 
-    let calculatedRate = sow.defaultRate || sow.rateIDR || (sow.rateUSD ? Number((sow.rateUSD * (mRate || 0)).toFixed(3)) : 0);
+    let calculatedRate = sow.defaultRate || sow.rateIDR || (sow.rateUSD ? sow.rateUSD * (mRate || 0) : 0);
     if (getSowMasterRate) {
       const dynRate = getSowMasterRate(rawCust, sow.name || sow.itemName, calculatedRate, false);
       if (dynRate > 0) calculatedRate = dynRate;

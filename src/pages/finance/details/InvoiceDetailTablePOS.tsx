@@ -51,7 +51,7 @@ export const InvoiceDetailTablePOS: React.FC<InvoiceDetailTablePOSProps> = ({
                   {(item.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                 </td>
                 <td className="p-2 text-center border-r border-slate-200 text-slate-500 font-normal">{item.unit || "Bcm"}</td>
-                <td className="p-2 text-right font-mono border-r border-slate-200">{effUnitRate.toLocaleString("id-ID", { minimumFractionDigits: effUnitRate % 1 !== 0 ? 3 : 0, maximumFractionDigits: 3 })}</td>
+                <td className="p-2 text-right font-mono border-r border-slate-200">{Math.round(effUnitRate).toLocaleString("id-ID")}</td>
                 <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(effAmount)}</td>
               </tr>
             );
@@ -85,7 +85,7 @@ export const InvoiceDetailTablePOS: React.FC<InvoiceDetailTablePOSProps> = ({
                   {effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                 </td>
                 <td className="p-2 text-center border-r border-slate-200 text-slate-500 font-normal">{item.unit}</td>
-                <td className="p-2 text-right font-mono border-r border-slate-200">{unitRate.toLocaleString("id-ID", { minimumFractionDigits: unitRate % 1 !== 0 ? 3 : 0, maximumFractionDigits: 3 })}</td>
+                <td className="p-2 text-right font-mono border-r border-slate-200">{Math.round(unitRate).toLocaleString("id-ID")}</td>
                 <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
               </tr>
             );
@@ -111,7 +111,7 @@ export const InvoiceDetailTablePOS: React.FC<InvoiceDetailTablePOSProps> = ({
                   {(item.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                 </td>
                 <td className="p-2 text-center border-r border-slate-200 text-slate-500 font-normal">{item.unit}</td>
-                <td className="p-2 text-right font-mono border-r border-slate-200">{unitRate.toLocaleString("id-ID", { minimumFractionDigits: unitRate % 1 !== 0 ? 3 : 0, maximumFractionDigits: 3 })}</td>
+                <td className="p-2 text-right font-mono border-r border-slate-200">{Math.round(unitRate).toLocaleString("id-ID")}</td>
                 <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
               </tr>
             );
@@ -137,7 +137,7 @@ export const InvoiceDetailTablePOS: React.FC<InvoiceDetailTablePOSProps> = ({
                   {(item.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
                 </td>
                 <td className="p-2 text-center border-r border-slate-200 text-slate-500 font-normal">{item.unit}</td>
-                <td className="p-2 text-right font-mono border-r border-slate-200">{unitRate.toLocaleString("id-ID", { minimumFractionDigits: unitRate % 1 !== 0 ? 3 : 0, maximumFractionDigits: 3 })}</td>
+                <td className="p-2 text-right font-mono border-r border-slate-200">{Math.round(unitRate).toLocaleString("id-ID")}</td>
                 <td className="p-2 text-right font-mono font-extrabold text-slate-900">{formatIDR(amount)}</td>
               </tr>
             );
