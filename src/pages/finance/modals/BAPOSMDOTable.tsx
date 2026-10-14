@@ -353,7 +353,7 @@ export function BAPOSMDOTable({
         </td>
         <td className="p-2 text-right font-mono font-extrabold align-top text-slate-900">
           <div className={`pt-1 ${rowSubtotal < 0 ? "text-rose-700 font-black" : "text-[#1A1612]"}`}>
-            {rowSubtotal !== 0 ? (rowSubtotal < 0 ? `(${formatIDR(Math.abs(rowSubtotal))})` : formatIDR(rowSubtotal)) : "00.00"}
+            {rowSubtotal < 0 ? `(${formatIDR(Math.abs(rowSubtotal))})` : formatIDR(rowSubtotal)}
           </div>
         </td>
       </tr>

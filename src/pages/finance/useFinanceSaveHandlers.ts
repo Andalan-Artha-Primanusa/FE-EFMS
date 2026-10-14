@@ -229,14 +229,10 @@ export function useFinanceSaveHandlers({
         const sourcePeriod = formData.sourcePeriod || formData.workPeriod || "";
         if (!formData.customerCode || !sourcePeriod) { onNotice("Customer dan periode asal pending volume wajib diisi"); setIsSaving(false); return; }
         // Tarif pending = tarif OB periode asal (default dari Master Variable SOW di form).
-        const r1 = Number(formData.ob1Rate || 0);
-        const r2 = Number(formData.ob2Rate || 0);
-        const rem = formData.remainingVolume !== undefined ? Number(formData.remainingVolume) : vol;
+        // Volume terserap, sisa saldo & status dihitung server dari alokasi invoice carry-over.
         payload = {
-          customerCode: formData.customerCode, sourcePeriod,
-          sourceBARef: formData.sourceBARef || "", originalOBVolume: vol, absorbedVolume: Number(formData.absorbedVolume || 0),
-          remainingVolume: rem, ob1Rate: r1, ob2Rate: r2,
-          status: rem <= 0 ? "Settled" : (Number(formData.absorbedVolume || 0) > 0 ? "Partially Settled" : "Active"), notes: formData.notes || ""
+          customerCode: formData.customerCode, sourcePeriod, sourceBARef: formData.sourceBARef || "",
+          originalOBVolume: vol, ob1Rate: Number(formData.ob1Rate || 0), ob2Rate: Number(formData.ob2Rate || 0), notes: formData.notes || ""
         };
       } else if (modalType === "invoice") {
         endpoint = "/api/finance/invoices";

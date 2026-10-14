@@ -460,7 +460,7 @@ export function CustomerView({ c }: { c: any }) {
                   </div>
                   {params.maxStrippingRatio > 0 && (
                     <p className="text-slate-700 text-[11px]">
-                      Volume OB yang dapat ditagihkan langsung dibatasi sebesar <strong>{params.maxStrippingRatio}x Volume Batubara (Ton)</strong>. Kelebihan volume survei OB dicatat ke <strong>Pending Volume Ledger (Carry-Forward)</strong> dan dialokasikan secara manual oleh Finance Site.
+                      Volume OB yang dapat ditagihkan langsung dibatasi sebesar <strong>{params.maxStrippingRatio}x Volume Batubara (Ton)</strong>. Kelebihan volume survei OB dicatat ke <strong>Pending Volume Ledger (Carry-Forward)</strong> dan diserap otomatis (periode terlama lebih dulu) oleh invoice berikutnya yang masih punya sisa kuota.
                     </p>
                   )}
                 </div>

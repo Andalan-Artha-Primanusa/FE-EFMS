@@ -426,7 +426,7 @@ export function BAPOSTable({
                       if (sow.isDistanceVar) {
                         updated[targetIdx].isDistanceVar = true;
                         updated[targetIdx].category = "Over Distance";
-                        updated[targetIdx].distanceBasis = sow.baseDistanceMeters || 1000;
+                        if (sow.baseDistanceMeters) updated[targetIdx].distanceBasis = sow.baseDistanceMeters;
                       }
                       if (sow.parentMaterial) {
                         updated[targetIdx].parentMaterial = sow.parentMaterial;
@@ -529,7 +529,7 @@ export function BAPOSTable({
         </td>
         <td className="p-2 text-right font-mono font-extrabold align-top">
           <div className={`pt-1 ${subtotal < 0 ? "text-rose-700 font-black" : "text-[#1A1612]"}`}>
-            {subtotal !== 0 ? (subtotal < 0 ? `(${formatIDR(Math.abs(subtotal))})` : formatIDR(subtotal)) : "00.00"}
+            {subtotal < 0 ? `(${formatIDR(Math.abs(subtotal))})` : formatIDR(subtotal)}
           </div>
         </td>
       </tr>

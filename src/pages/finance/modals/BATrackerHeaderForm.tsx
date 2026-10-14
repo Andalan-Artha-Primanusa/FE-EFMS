@@ -1,7 +1,7 @@
 import React from "react";
 import { Layers, Calculator, UserCheck } from "lucide-react";
 import { MonthPickerInput, matchPeriod } from "../helpers";
-import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF } from "../ba_calculations";
+import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF, customerKind } from "../ba_calculations";
 import { obSplitSOWs, sowFor, sowTierRate, computeRFIndex, rfTemplateFor, ptroContractRates } from "../masterRegistry";
 
 interface BATrackerHeaderFormProps {
@@ -64,8 +64,8 @@ export function BATrackerHeaderForm({
   minWageMasters = [],
   getBGGActiveCoalTier,
 }: BATrackerHeaderFormProps) {
-  const isCustomerDBK = formData.customerCode === "PTRO" || formData.customerCode === "DBK";
-  const isCustomerSBS = formData.customerCode === "SBS";
+  const isCustomerDBK = customerKind(formData.customerCode) === "PTRO";
+  const isCustomerSBS = customerKind(formData.customerCode) === "SBS";
 
   return (
     <div className="space-y-3">
@@ -112,11 +112,11 @@ export function BATrackerHeaderForm({
                 value={formData.customerCode || ""}
                 onChange={(e) => {
                   const code = e.target.value;
-                  const isBGG = code === "BGG" || code === "PT BGG";
-                  const isPOS = code === "POS" || code === "PT POSITION" || code === "PT. POSITION" || code === "PT POS";
-                  const isPTRO = code === "PTRO" || code === "PT Petrosea";
-                  const isDBK = code === "DBK";
-                  const isSBS = code === "SBS";
+                  const kind = customerKind(code);
+                  const isBGG = kind === "BGG";
+                  const isPOS = kind === "POS";
+                  const isPTRO = kind === "PTRO";
+                  const isSBS = kind === "SBS";
                   const currentPeriod = formData.workPeriod || "";
                   
                   if (isPOS) {
@@ -135,7 +135,7 @@ export function BATrackerHeaderForm({
                     const fn = Number(matched?.actualFuelFn ?? 0);
                     const ln = Number(matched?.actualLaborLn || hoResolved.laborLn);
                     const xn = Number(matched?.actualMRateXn || hoResolved.currencyXn);
-                    const { rfIndex: rf } = calculateTripleFactorRF(fn, ln, xn, formData.customerCode, currentPeriod);
+                    const { rfIndex: rf } = calculateTripleFactorRF(fn, ln, xn, code, currentPeriod);
                     setFormData({
                       ...formData,
                       customerCode: code,
@@ -150,7 +150,7 @@ export function BATrackerHeaderForm({
                         }
                       }
                     });
-                  } else if (isPTRO || isDBK) {
+                  } else if (isPTRO) {
                     const matched = (raiseFallMasters || []).find((r: any) => {
                       const rCust = (r.customerCode || "").trim().toUpperCase();
                       return (rCust.includes("PTRO") || rCust.includes("DBK")) && matchPeriod(r.period, currentPeriod);
@@ -175,12 +175,8 @@ export function BATrackerHeaderForm({
                     const curSBS = formData.sbsData || {};
                     const newFuelPeriods = { ...(curSBS.fuelPeriods || {}) };
                     if (!newFuelPeriods[currentPeriod]) {
-                      newFuelPeriods[currentPeriod] = {
-                        dendaMA: 191073864,
-                        dendaBBMLoader: 0,
-                        dendaBBMHauler: 520428670,
-                        dendaVolume: 60674886,
-                      };
+                      // Denda diinput per periode; mulai dari 0 agar sama dengan rate item pengurang.
+                      newFuelPeriods[currentPeriod] = { dendaMA: 0, dendaBBMLoader: 0, dendaBBMHauler: 0, dendaVolume: 0 };
                     }
                     const activeP = newFuelPeriods[currentPeriod];
                     setFormData({
@@ -256,7 +252,7 @@ export function BATrackerHeaderForm({
                     }));
                     setBaMDOItems([]);
                     setBaDeductionItems([]);
-                  } else if (isPTRO || isDBK) {
+                  } else if (isPTRO) {
                     const ptroRows = (defaultPTROBAItems && defaultPTROBAItems.length > 0) ? defaultPTROBAItems : defaultDBKBAItems;
                     setBaOperatingItems((ptroRows || []).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
                     setBaMDOItems([]);
@@ -265,6 +261,11 @@ export function BATrackerHeaderForm({
                     setBaOperatingItems((defaultSBSBAOperatingItems || []).map((it: any) => ({ ...it, distance: it.distance ?? it.distanceM ?? it.distanceWeightAvg ?? 0, distanceWeightAvg: it.distanceWeightAvg ?? it.distance ?? 0, rate: it.rate || 0, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
                     setBaMDOItems((defaultSBSBAMDOItems || []).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
                     setBaDeductionItems((defaultSBSBADeductionItems || []).map((it: any) => ({ ...it, initialVolume: 1, adjustedVolume: 1, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "", material: it.material === "Denda ketidakcapaian Volume" ? `Denda ketidakcapaian Volume ${currentPeriod}` : it.material })));
+                  } else if (!isPOS) {
+                    // Customer tanpa template BA (mis. IBP, BBA): baris ditambah manual dari Master SOW.
+                    setBaOperatingItems([]);
+                    setBaMDOItems([]);
+                    setBaDeductionItems([]);
                   } else {
                     setBaOperatingItems(defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));
                     setBaMDOItems(defaultPOSBAMDOItems.map(it => ({ ...it, area: "", initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0, period: currentPeriod, notes: "", keterangan: "" })));

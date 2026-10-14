@@ -8,6 +8,7 @@ import {
   getBAItemSubtotal,
   calculateBACommercialBreakdown,
   bggOBBillableFactor,
+  customerKind,
 } from "../ba_calculations";
 import { BATrackerHeaderForm } from "./BATrackerHeaderForm";
 import { BATrackerSurveyItems } from "./BATrackerSurveyItems";
@@ -66,9 +67,10 @@ export function BATrackerModal({ c }: { c: any }) {
   const [auditTab, setAuditTab] = useState<"flow" | "activity">("flow");
   const [baAuditLogs, setBaAuditLogs] = useState<any[]>([]);
 
-  const isCustomerBGG = formData.customerCode === "BGG" || formData.customerCode === "PT BGG";
-  const isCustomerPOS = formData.customerCode === "POS" || formData.customerCode === "PT POSITION" || formData.customerCode === "PT. POSITION" || formData.customerCode === "PT POS";
-  const isCustomerDBK = formData.customerCode === "PTRO" || formData.customerCode === "DBK";
+  const kind = customerKind(formData.customerCode);
+  const isCustomerBGG = kind === "BGG";
+  const isCustomerPOS = kind === "POS";
+  const isCustomerDBK = kind === "PTRO";
   const allBAItems = [...baOperatingItems, ...baMDOItems, ...(baDeductionItems || [])];
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 import React from "react";
 import { UserCheck, CheckCircle, Clock, CheckCircle2, ExternalLink, Pickaxe, Building2, Zap } from "lucide-react";
 import { getBAInvoiceStatus, generateAuditTimeline, isBAApproved } from "../helpers";
-import { bggOBBillableFactor } from "../ba_calculations";
+import { bggOBBillableFactor, customerKind } from "../ba_calculations";
 import { BAGLJournalPreview } from "./BAGLJournalPreview";
 import { verifyBATracker } from "../../../lib/api";
 
@@ -44,7 +44,7 @@ export function BATrackerFinancialRecap({
   rfIndexCalculated = 1.0,
   latestKursBI = 0,
 }: BATrackerFinancialRecapProps) {
-  const isPOS = formData.customerCode === "POS" || editItem?.customerCode === "POS";
+  const isPOS = customerKind(formData.customerCode || editItem?.customerCode) === "POS";
   const step3InvStatus = getBAInvoiceStatus(editItem || formData, invoiceRows);
   const isLinked = Boolean(formData.invoiceNoLinked || editItem?.invoiceNoLinked) || step3InvStatus.isFullyInvoiced;
   const displayInvNo = formData.invoiceNoLinked || editItem?.invoiceNoLinked || step3InvStatus.createdInvoices[0]?.invoiceNo || "Terbit";
@@ -158,13 +158,13 @@ export function BATrackerFinancialRecap({
         customerCode={formData.customerCode || editItem?.customerCode || ""}
         allBAItems={allBAItems}
         rfIndexCalculated={Number(
-          (formData.customerCode === "BGG" && (formData.bggData?.bggRfIndex || formData.bggRfIndex)) ||
-          (formData.customerCode === "POS" && (formData.posData?.posRfIndex || formData.posRfIndex)) ||
+          (customerKind(formData.customerCode) === "BGG" && (formData.bggData?.bggRfIndex || formData.bggRfIndex)) ||
+          (customerKind(formData.customerCode) === "POS" && (formData.posData?.posRfIndex || formData.posRfIndex)) ||
           formData.rfIndexCalculated ||
           rfIndexCalculated ||
           1.0
         )}
-        isCustomerDBK={formData.customerCode === "PTRO" || formData.customerCode === "DBK"}
+        isCustomerDBK={customerKind(formData.customerCode) === "PTRO"}
         fuelPeriods={formData.bggData?.fuelPeriods || formData.posData?.fuelPeriods || formData.ptroData?.fuelPeriods || formData.sbsData?.fuelPeriods}
         obFactor={bggOBBillableFactor(formData.customerCode, formData)}
       />

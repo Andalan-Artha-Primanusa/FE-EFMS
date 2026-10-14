@@ -4,7 +4,7 @@ import { formatIDR, FormattedNumberInput, matchPeriod } from "../helpers";
 import { BAOperatingTable } from "./BAOperatingTable";
 import { BAMDOTable } from "./BAMDOTable";
 import { BADeductionTable } from "./BADeductionTable";
-import { calculateBACommercialBreakdown, resolveHOMasterLaborAndCurrency, calculateTripleFactorRF, bggOBBillableFactor } from "../ba_calculations";
+import { calculateBACommercialBreakdown, resolveHOMasterLaborAndCurrency, calculateTripleFactorRF, bggOBBillableFactor, customerKind } from "../ba_calculations";
 import { computeRFIndex, rfMasterFor, rfTemplateFor, ptroContractRates } from "../masterRegistry";
 
 interface BATrackerSurveyItemsProps {
@@ -62,11 +62,12 @@ export function BATrackerSurveyItems({
   getSowMasterRate,
   getBGGActiveCoalTier,
 }: BATrackerSurveyItemsProps) {
-  const isCustomerDBK = formData.customerCode === "PTRO" || formData.customerCode === "DBK" || formData.customerCode === "PT Petrosea";
+  const kind = customerKind(formData.customerCode);
+  const isCustomerDBK = kind === "PTRO";
   const isPTRO = isCustomerDBK;
-  const isBGG = formData.customerCode === "BGG" || formData.customerCode === "PT BGG";
-  const isPOS = formData.customerCode === "POS" || formData.customerCode === "PT POSITION" || formData.customerCode === "PT. POSITION" || formData.customerCode === "PT POS";
-  const isSBS = formData.customerCode === "SBS";
+  const isBGG = kind === "BGG";
+  const isPOS = kind === "POS";
+  const isSBS = kind === "SBS";
 
   // Discover all distinct periods from items
   const uniquePeriods = useMemo(() => {
