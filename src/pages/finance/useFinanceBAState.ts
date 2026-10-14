@@ -175,7 +175,11 @@ export function useFinanceBAState({
       return (i.isDeduction || c === "pengurang biaya" || c === "pengurang pembayaran") && !isDPFuel(i);
     };
 
-    const normalizedItems = cleanedInitialItems.map((i: any) => {
+    // ID unik per baris: hapus baris & baris Raise & Fall turunan bergantung pada id.
+    const seenIds = new Set<string>();
+    const normalizedItems = cleanedInitialItems.map((i: any, idx: number) => {
+      if (!i.id || seenIds.has(i.id)) i = { ...i, id: `ba_item_${Date.now()}_${idx}` };
+      seenIds.add(i.id);
       const c = (i.category || "").toLowerCase();
       const m = (i.material || "").toLowerCase();
       const isDist = i.isDistanceVar || c.includes("distance") || m.includes("distance") || m.includes("overhaul");

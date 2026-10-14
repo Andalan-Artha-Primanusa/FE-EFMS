@@ -353,9 +353,14 @@ export function BATrackerSurveyItems({
     latestKursBI,
     mRate,
   });
-  const posFn = Number(activePeriodPOS.actualFuelFn ?? 0);
   const posLn = Number(activePeriodPOS.actualLaborLn || hoPOSResolved.laborLn);
   const posXn = Number(activePeriodPOS.actualMRateXn || hoPOSResolved.currencyXn);
+  // Fn dihitung ulang dari refill (rata-rata Rp / Xn, presisi penuh) agar tidak memakai nilai tersimpan yang sudah terbulat.
+  const posRefillTot = (Array.isArray(activePeriodPOS.fuelRefills) ? activePeriodPOS.fuelRefills : []).reduce(
+    (acc: { l: number; c: number }, r: any) => (Number(r.liters) > 0 ? { l: acc.l + Number(r.liters), c: acc.c + Number(r.liters) * Number(r.pricePerLiter || 0) } : acc),
+    { l: 0, c: 0 }
+  );
+  const posFn = posRefillTot.l > 0 && posXn > 0 ? posRefillTot.c / posRefillTot.l / posXn : Number(activePeriodPOS.actualFuelFn ?? 0);
   const { posD, posL, posF, rfIndex: computedPosRf } = calculateTripleFactorRF(posFn, posLn, posXn, formData.customerCode, activeFuelPeriod);
 
   const posRefills: any[] = Array.isArray(activePeriodPOS.fuelRefills) ? activePeriodPOS.fuelRefills : [];
@@ -377,7 +382,7 @@ export function BATrackerSurveyItems({
   const effectiveRF = isBGG
     ? (activePeriodFuel.bggRfIndex || computedBggRf)
     : isPOS
-      ? (activePeriodPOS.posRfIndex || computedPosRf)
+      ? (computedPosRf || activePeriodPOS.posRfIndex)
       : (rfIndexCalculated > 0 ? rfIndexCalculated : 1.0);
 
   const handleFuelParamChange = (field: string, val: number) => {
