@@ -257,29 +257,11 @@ export function BAPOSTable({
   const subtotalD = rfRows.reduce((acc, r) => acc + r.subtotal, 0);
 
   // Seksi E: DP Fuel & Transport Subtotal
-  const subtotalDPExplicit = dpFuelItems.reduce(
+  // Seksi E non-BGG: hanya baris manual (Tambah Baris), nominal final — tidak ditarik dari refill survey.
+  const subtotalDP = dpFuelItems.reduce(
     (acc, it) => acc + Math.abs(Number(it.rate || it.subtotalInitial || it.subtotalAdjusted || it.amount || 0)),
     0
   );
-
-  const posRefillsCost = useMemo(() => {
-    const pos = formData?.posData || {};
-    const periods = pos.fuelPeriods || {};
-    const curP = periods[formData?.workPeriod] || Object.values(periods)[0] || pos;
-    const refills = curP.fuelRefills || pos.fuelRefills || [];
-    let tot = 0;
-    if (Array.isArray(refills) && refills.length > 0) {
-      refills.forEach((r: any) => {
-        tot += Number(r.liters || 0) * Number(r.pricePerLiter || 0);
-      });
-    }
-    if (tot === 0) {
-      tot = Number(curP.actualFuelCost || pos.actualFuelCost || curP.posTotalCost || pos.posTotalCost || 0);
-    }
-    return tot;
-  }, [formData?.posData, formData?.workPeriod]);
-
-  const subtotalDP = subtotalDPExplicit > 0 ? subtotalDPExplicit : posRefillsCost;
 
   // Kategori 1 Rekapitulasi Pajak
   const totalGrossOpBeforeDP = subtotalA + subtotalB + subtotalC + subtotalD;
@@ -296,7 +278,9 @@ export function BAPOSTable({
     const actualDist = (rawDist > 0 && rawDist < 50) ? Math.round(rawDist * 1000) : rawDist;
     const deltaDist = actualDist - 1000;
     const effRate = getDynamicItemBaseIDR(item, isDist);
-    const subtotal = isDist
+    const subtotal = isDPFuelItem(item)
+      ? -Math.abs(Math.round(effVol * effRate))
+      : isDist
       ? Math.round((effVol * effRate * deltaDist) / 1000)
       : Math.round(effVol * effRate);
 
@@ -675,11 +659,6 @@ export function BAPOSTable({
               <td colSpan={6} className="p-2 uppercase font-extrabold tracking-wider">
                 <div className="flex items-center justify-between">
                   <span>E. DP FUEL &amp; TRANSPORT (Pengurang Solar)</span>
-                  {subtotalDP > 0 && dpFuelItems.length === 0 && (
-                    <span className="text-[10px] font-normal text-slate-500 font-sans normal-case">
-                      (Sinkron otomatis dari Total Refill Aktual)
-                    </span>
-                  )}
                 </div>
               </td>
               <td className="p-2 text-right font-mono text-rose-700 font-extrabold">
@@ -687,33 +666,10 @@ export function BAPOSTable({
               </td>
             </tr>
             {dpFuelItems.map((item, idx) => renderItemRow(item, idx))}
-            {dpFuelItems.length === 0 && subtotalDP > 0 && (
-              <tr className="hover:bg-slate-50/80 transition bg-rose-50/20">
-                {isInlineEditingBA && <td className="p-2 text-center text-slate-300 font-mono text-[10px]">E1.</td>}
-                <td className="p-2 font-bold text-slate-800 align-top">SITE</td>
-                <td className="p-2 font-medium text-slate-900 align-top">
-                  <div>
-                    <span className="font-bold text-rose-900">DP Fuel &amp; Transportasi BBM Solar Aktual</span>
-                    <div className="text-[10px] text-slate-500 font-sans">
-                      Terakumulasi otomatis dari transaksi pengisian BBM di Tabel Survey
-                    </div>
-                  </div>
-                </td>
-                <td className="p-2 text-center align-top font-mono text-slate-600 font-bold">Lot</td>
-                <td className="p-2 text-right font-mono align-top font-bold">1</td>
-                <td className="p-2 text-right font-mono align-top text-slate-400">-</td>
-                <td className="p-2 text-right font-mono align-top text-rose-700 font-bold">
-                  ({formatIDR(subtotalDP)})
-                </td>
-                <td className="p-2 text-right font-mono font-extrabold align-top text-rose-700">
-                  ({formatIDR(subtotalDP)})
-                </td>
-              </tr>
-            )}
-            {dpFuelItems.length === 0 && subtotalDP === 0 && (
+            {dpFuelItems.length === 0 && (
               <tr>
                 <td colSpan={isInlineEditingBA ? 8 : 7} className="p-2.5 text-center text-slate-400 italic">
-                  Tidak ada pengurang DP Fuel &amp; Transport untuk periode ini.
+                  Tidak ada pengurang DP Fuel &amp; Transport. Tambahkan manual lewat <b>Tambah Baris</b> bila ada (nominal final).
                 </td>
               </tr>
             )}
@@ -737,9 +693,6 @@ export function BAPOSTable({
               <tr className="border-b border-slate-200 hover:bg-slate-100/60 font-bold text-rose-700">
                 <td className="p-2 uppercase tracking-wider pl-3 flex items-center justify-between">
                   <span>POTONGAN DP FUEL &amp; TRANSPORT (SEKSI E)</span>
-                  <span className="text-[10px] text-slate-500 font-normal font-sans">
-                    {dpFuelItems.length > 0 ? "Line Item" : "Tabel Refill Aktual"}
-                  </span>
                 </td>
                 <td className="p-2 text-right font-extrabold text-rose-700 w-48 sm:w-56 pr-3">
                   ({formatIDR(subtotalDP)})

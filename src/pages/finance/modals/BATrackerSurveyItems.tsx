@@ -248,7 +248,7 @@ export function BATrackerSurveyItems({
     });
     const avgPriceIDR = totLiters > 0 ? (totCost / totLiters) : 0;
     if (avgPriceIDR > 0 && xn > 0 && (!fn || fn === 0)) {
-      fn = Number((avgPriceIDR / xn).toFixed(6));
+      fn = avgPriceIDR / xn;
     }
 
     if (Array.isArray(raiseFallMasters) && raiseFallMasters.length > 0) {
@@ -556,7 +556,7 @@ export function BATrackerSurveyItems({
 
       const ln = Number(curP.actualLaborLn ?? curPOS.actualLaborLn ?? hoResolved.laborLn);
       const xn = Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? hoResolved.currencyXn);
-      const newFn = (avgPriceIDR > 0 && xn > 0) ? Number((avgPriceIDR / xn).toFixed(6)) : Number(curP.actualFuelFn || 0);
+      const newFn = (avgPriceIDR > 0 && xn > 0) ? avgPriceIDR / xn : Number(curP.actualFuelFn || 0);
 
       const { rfIndex: newRf } = calculateTripleFactorRF(newFn, ln, xn, formData.customerCode, activeFuelPeriod);
 
@@ -682,7 +682,7 @@ export function BATrackerSurveyItems({
 
       const ln = Number(curP.actualLaborLn ?? curPOS.actualLaborLn ?? hoResolved.laborLn);
       const xn = Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? hoResolved.currencyXn);
-      const newFn = (avgPriceIDR > 0 && xn > 0) ? Number((avgPriceIDR / xn).toFixed(6)) : Number(curP.actualFuelFn || 0);
+      const newFn = (avgPriceIDR > 0 && xn > 0) ? avgPriceIDR / xn : Number(curP.actualFuelFn || 0);
 
       const { rfIndex: newRf } = calculateTripleFactorRF(newFn, ln, xn, formData.customerCode, activeFuelPeriod);
 

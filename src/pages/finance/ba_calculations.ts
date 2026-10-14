@@ -6,7 +6,7 @@
 
 import { matchPeriod } from "./helpers";
 
-import { customerKind, customerByCode, contractParams, baseDistanceFor, rfMasterFor, rfTemplateFor, computeRFIndex, minWageFor, kursForPeriod } from "./masterRegistry";
+import { customerKind, customerByCode, contractParams, baseDistanceFor, rfMasterFor, rfTemplateFor, computeRFIndex, forexRatio, minWageFor, kursForPeriod } from "./masterRegistry";
 
 export { customerKind };
 
@@ -323,23 +323,6 @@ export function calculateBACommercialBreakdown(
   } else if (isPOS) {
     if (effectiveRF !== 1.0) {
       rfAmount = Math.round((effectiveRF - 1.0) * (basePokok + overdistanceGross + mdoGross));
-    }
-    // Fallback: If no explicit DP fuel line item in items list, check if fuelPeriods or posData has fuel refill costs
-    if (dpFuelDeduction === 0 && fuelPeriods) {
-      // Per periode: pakai rincian refill bila ada, selain itu actualFuelCost periode tersebut.
-      let refillCost = 0;
-      Object.values(fuelPeriods).forEach((pData: any) => {
-        const refills = Array.isArray(pData?.fuelRefills) ? pData.fuelRefills : [];
-        const periodRefill = refills.reduce((acc: number, r: any) => {
-          const l = Number(r.liters || 0);
-          const p = Number(r.pricePerLiter || 0);
-          return l > 0 && p > 0 ? acc + l * p : acc;
-        }, 0);
-        refillCost += periodRefill > 0 ? periodRefill : Number(pData?.actualFuelCost || 0);
-      });
-      if (refillCost > 0) {
-        dpFuelDeduction = refillCost;
-      }
     }
   }
 
@@ -670,7 +653,7 @@ export function calculateTripleFactorRF(
   const fuelUSD = actualMRateXn > 0 && actualFuelFn < 100;
   const baseFo = fuelUSD && m.baseFuelFo < 100 && m.baseForexXo > 0 ? m.baseFuelFo * m.baseForexXo : m.baseFuelFo;
   const posD = (actualFuelFn > 0 && m.baseFuelFo > 0) ? (m.weightFuelA * actualFuelFn * (fuelUSD ? actualMRateXn : 1)) / baseFo : 0;
-  const posL = (actualLaborLn > 0 && m.baseLaborLo > 0) ? (m.weightLaborB * actualLaborLn) / m.baseLaborLo : 0;
+  const posL = (actualLaborLn > 0 && m.baseLaborLo > 0) ? (m.weightLaborB * actualLaborLn * forexRatio(actualMRateXn, m.baseForexXo)) / m.baseLaborLo : 0;
   const posF = Number(m.weightFixedC || 0);
   const rfIndex = (posD > 0 || posL > 0) ? computeRFIndex(m, actualFuelFn, actualLaborLn, actualMRateXn) : 0;
   return { posD, posL, posF, rfIndex };
