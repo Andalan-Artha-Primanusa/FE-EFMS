@@ -258,6 +258,14 @@ export function BAOperatingTable({
                 <span className="ml-2 text-[10px] text-slate-500 italic">({item.keterangan || item.notes})</span>
               )}
             </div>
+          ) : isCustomerSBS ? (
+            // SBS: nama lokasi/pekerjaan bebas; tarif mengikuti kolom Jarak (Master "Tarif Jarak Angkut").
+            <input
+              className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#A57C50] rounded-[3px] px-2 py-1 text-xs font-bold text-slate-900 outline-none"
+              value={item.material || ""}
+              placeholder="Contoh: PIT E - DISPOSAL SELATAN"
+              onChange={(e) => updateItem(item.id, { material: e.target.value, isCustom: false })}
+            />
           ) : (
             <div className="space-y-1">
               <div className="w-full">
