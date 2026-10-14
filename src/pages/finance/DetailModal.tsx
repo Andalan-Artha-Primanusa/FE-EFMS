@@ -9,7 +9,7 @@ import { DetailModalActions } from "./details/DetailModalActions";
 
 export function DetailModal({ c }: { c: any }) {
   const {
-    isSuper, isFinanceSpecialist, isSPV, isManager, isDirector, invoiceRows: rawInvoiceRows, paymentRows: rawPaymentRows, baRows: rawBaRows,
+    isSuper, isFinanceSpecialist, isSPV, canApproveInvoice, canApproveBA, invoiceRows: rawInvoiceRows, paymentRows: rawPaymentRows, baRows: rawBaRows,
     detailViewItem, setDetailViewItem, showAddPartialPayment, setShowAddPartialPayment, partialPaymentForm,
     setPartialPaymentForm, rfIndexCalculated, invLineItems, formData, buildInvoiceItemsFromBA, customerContractMap, getItemEffectiveVolume,
     getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations,
@@ -162,8 +162,8 @@ export function DetailModal({ c }: { c: any }) {
             isSuper={isSuper}
             isFinanceSpecialist={isFinanceSpecialist}
             isSPV={isSPV}
-            isManager={isManager}
-            isDirector={isDirector}
+            canApproveInvoice={canApproveInvoice}
+            canApproveBA={canApproveBA}
             handleVerifyBA={handleVerifyBA}
             handleApproveBA={handleApproveBA}
             handleApproveInvoice={handleApproveInvoice}

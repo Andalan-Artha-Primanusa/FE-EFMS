@@ -2,9 +2,9 @@
 import { menuPermissionMap } from "../data/navigation";
 import { DEFAULT_COMPANIES, getCompanies, type Company, type Permission, type RoleAccess, type TCode, type User } from "./api";
 
-export function isSuperAdminRole(role: string) {
-  const normalized = role?.toLowerCase() ?? "";
-  return normalized === "super admin" || normalized === "super_admin" || normalized === "system administrator" || normalized === "erp super admin" || normalized.includes("super admin") || normalized.includes("super_admin");
+// Harus sama dengan app.IsSuperAdminRole di backend (exact match, bukan substring).
+export function isSuperAdminRole(role: string | undefined | null) {
+  return ["super admin", "super_admin", "superadmin", "erp super admin"].includes((role ?? "").trim().toLowerCase());
 }
 
 // RBAC check for Coal Index: driven by RBAC permissions (coal_index:write / master_data:write) + fallback

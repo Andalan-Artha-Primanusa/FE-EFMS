@@ -17,7 +17,7 @@ import {
 
 export function InvoiceView({ c }: { c: any }) {
   const {
-    baRows: rawBaRows, isSuper, isFinanceSpecialist, isSPV, isManager, isDirector, invoiceRows: rawInvoiceRows,
+    baRows: rawBaRows, isSuper, isFinanceSpecialist, isSPV, canApproveInvoice, canApproveBA, invoiceRows: rawInvoiceRows,
     invStatusFilter, setInvStatusFilter, invCardTab, setInvCardTab, invPeriodFilter,
     setInvPeriodFilter, showExportARDropdown, setShowExportARDropdown, showInputARDropdown, setShowInputARDropdown,
     setDetailViewItem, templateRows: rawTemplateRows, exportAROnlyExcel, exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV, openCreateModal,
@@ -542,7 +542,7 @@ export function InvoiceView({ c }: { c: any }) {
                                                );
                                              })()}
                                              {/* Approval hanya untuk invoice Verified; server menolak bila approver = verifikator. */}
-                                             {(isManager || isSuper) && row.status === "Verified" && (() => {
+                                             {canApproveInvoice && row.status === "Verified" && (() => {
                                                const isApproving = actionLoadingKey === `approve-inv-${row.id}`;
                                                return (
                                                  <button

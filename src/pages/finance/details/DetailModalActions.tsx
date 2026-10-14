@@ -7,8 +7,8 @@ interface DetailModalActionsProps {
   isSuper: boolean;
   isFinanceSpecialist: boolean;
   isSPV: boolean;
-  isManager: boolean;
-  isDirector: boolean;
+  canApproveInvoice: boolean;
+  canApproveBA: boolean;
   handleVerifyBA: (id: number) => void;
   handleApproveBA: (id: number) => void;
   handleApproveInvoice: (id: number) => void;
@@ -21,8 +21,8 @@ export const DetailModalActions: React.FC<DetailModalActionsProps> = ({
   isSuper,
   isFinanceSpecialist,
   isSPV,
-  isManager,
-  isDirector,
+  canApproveInvoice,
+  canApproveBA,
   handleVerifyBA,
   handleApproveBA,
   handleApproveInvoice,
@@ -42,7 +42,7 @@ export const DetailModalActions: React.FC<DetailModalActionsProps> = ({
               </button>
             )}
             {/* Approval hanya setelah verifikasi Finance Specialist (server menolak selain itu, termasuk approver = verifikator). */}
-            {(isManager || isDirector || isSuper) && data.statusBA === "Ready to Invoice" && Boolean(data.verifiedBy) && !data.invoiceNoLinked && (
+            {canApproveBA && data.statusBA === "Ready to Invoice" && Boolean(data.verifiedBy) && !data.invoiceNoLinked && (
               <button
                 className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-[3px] shadow-xs flex items-center gap-1.5 transition cursor-pointer"
                 onClick={() => handleApproveBA(data.id)}
@@ -55,7 +55,7 @@ export const DetailModalActions: React.FC<DetailModalActionsProps> = ({
 
         {type === "invoice" && (
           <>
-            {(isManager || isSuper) && data.status === "Verified" && (
+            {canApproveInvoice && data.status === "Verified" && (
               <button
                 className="px-4 py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs flex items-center gap-1.5 transition cursor-pointer"
                 onClick={() => handleApproveInvoice(data.id)}
