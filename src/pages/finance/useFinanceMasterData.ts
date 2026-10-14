@@ -319,7 +319,7 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
       if (isUSD) {
         if (match.rateUSD) return match.rateUSD;
         if (match.baseRateUSD) return match.baseRateUSD;
-        if (match.rateIDR) return Number((match.rateIDR / currentKurs).toFixed(4));
+        if (match.rateIDR && currentKurs > 0) return Number((match.rateIDR / currentKurs).toFixed(4));
       } else {
         if (match.rateIDR) return match.rateIDR;
         if (match.baseRateIDR) return match.baseRateIDR;

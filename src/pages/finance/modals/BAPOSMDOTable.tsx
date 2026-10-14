@@ -35,9 +35,9 @@ export function BAPOSMDOTable({
     if (usdRate === 0 && getSowMasterRate) {
       usdRate = getSowMasterRate("POS", it.material, 0, true);
     }
-    // Tarif USD hanya dari Master Variable SOW (0 = belum diatur di master).
-    const currentMRate = Number(mRate || formData?.posData?.mRate || 0);
-    if (usdRate > 0) {
+    // Sama dengan BE RecalculateBA: USD x kurs periode bila keduanya ada, selain itu tarif IDR baris.
+    const currentMRate = Number(mRate || formData?.posData?.actualMRateXn || 0);
+    if (usdRate > 0 && currentMRate > 0) {
       return Number((usdRate * currentMRate).toFixed(3));
     }
     return Number(it.rate || 0);
@@ -246,6 +246,7 @@ export function BAPOSMDOTable({
                     } else {
                       updated[targetIdx].isCustom = false;
                       updated[targetIdx].material = sow.name;
+                      updated[targetIdx].rateUSD = sow.rateUSD || 0;
                       updated[targetIdx].unit = sow.unit || updated[targetIdx].unit;
                       updated[targetIdx].rate = sow.defaultRate || updated[targetIdx].rate;
                       if (sow.isDistanceVar) {
