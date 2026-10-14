@@ -344,9 +344,9 @@ export function CustomerView({ c }: { c: any }) {
                         <th className="p-2.5 text-right">Tarif Baseline (Rp)</th>
                         {isCoalModel && (
                           <>
-                            <th className="p-2.5 text-right">Tier 1 (R3 ≤ $45)</th>
-                            <th className="p-2.5 text-right">Tier 2 ($45-$70)</th>
-                            <th className="p-2.5 text-right">Tier 3 (R3 &gt; $70)</th>
+                            <th className="p-2.5 text-right">Tier 1 (R3 ≤ $50)</th>
+                            <th className="p-2.5 text-right">Tier 2 ($50-$75)</th>
+                            <th className="p-2.5 text-right">Tier 3 (R3 &gt; $75)</th>
                           </>
                         )}
                         <th className="p-2.5 text-center">Status</th>
@@ -429,7 +429,7 @@ export function CustomerView({ c }: { c: any }) {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {(["Tier 1", "Tier 2", "Tier 3"] as const).map((tier, i) => {
                         const on = activeTier === tier;
-                        const range = ["R3 ≤ $45", "$45-$70", "R3 > $70"][i];
+                        const range = ["R3 ≤ $50", "$50-$75", "R3 > $75"][i];
                         return (
                           <div key={tier} className={`p-3 rounded-[4px] border ${on ? "bg-emerald-100 border-emerald-400 font-bold" : "bg-white border-slate-200"}`}>
                             <span className={`text-[10px] uppercase block ${on ? "text-emerald-800 font-bold" : "text-slate-500"}`}>

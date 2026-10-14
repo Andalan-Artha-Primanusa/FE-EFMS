@@ -231,7 +231,7 @@ export function AccountSettingsPage({
 
     <section className="permission-section account-section-page">
       <h4><UserRound size={16} /> Edit Profil</h4>
-      <form onSubmit={submitProfile} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2 text-sm">
+      <form data-enter-submit onSubmit={submitProfile} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2 text-sm">
         <label className="block">
           <span className="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap</span>
           <input
@@ -319,7 +319,7 @@ export function AccountSettingsPage({
 
     <section className="permission-section account-section-page">
       <h4><KeyRound size={16} /> Ganti Password</h4>
-      <form onSubmit={submitPassword} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2 text-sm">
+      <form data-enter-submit onSubmit={submitPassword} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2 text-sm">
         <input
           type="password"
           required
@@ -389,7 +389,7 @@ export function AccountSettingsPage({
               <p className="text-slate-600 text-xs">
                 Untuk menonaktifkan 2FA, masukkan kode OTP saat ini <b>atau</b> salah satu backup code Anda.
               </p>
-              <form onSubmit={submitDisable} className="space-y-3">
+              <form data-enter-submit onSubmit={submitDisable} className="space-y-3">
                 <label className="block">
                   <span className="block text-xs font-bold text-slate-700 mb-1">Kode OTP / Backup Code</span>
                   <input
@@ -420,7 +420,7 @@ export function AccountSettingsPage({
                 <span className="block text-[11px] text-slate-400 font-bold mb-1">Secret Key</span>
                 <code className="text-xs font-mono text-slate-800 break-all">{setup.secret}</code>
               </div>
-              <form onSubmit={submitEnable} className="space-y-3">
+              <form data-enter-submit onSubmit={submitEnable} className="space-y-3">
                 <label className="block">
                   <span className="block text-xs font-bold text-slate-700 mb-1">Kode Verifikasi</span>
                   <input

@@ -321,9 +321,9 @@ export function VariableSOWFormPage() {
                   <tr className="bg-slate-900 text-white font-black uppercase text-[11px]">
                     <th className="p-3 pl-4 border-r border-slate-800">ITEM PEKERJAAN (SOW)</th>
                     <th className="p-3 border-r border-slate-800 text-center w-20">SATUAN</th>
-                    <th className="p-3 border-r border-slate-800 text-right bg-emerald-950 text-emerald-300 w-32">TIER 1 (R3 &le; $45)</th>
-                    <th className="p-3 border-r border-slate-800 text-right bg-blue-950 text-blue-300 w-32">TIER 2 ($45 - $70)</th>
-                    <th className="p-3 border-r border-slate-800 text-right bg-amber-950 text-amber-300 w-32">TIER 3 (R3 &gt; $70)</th>
+                    <th className="p-3 border-r border-slate-800 text-right bg-emerald-950 text-emerald-300 w-32">TIER 1 (R3 &le; $50)</th>
+                    <th className="p-3 border-r border-slate-800 text-right bg-blue-950 text-blue-300 w-32">TIER 2 ($50 - $75)</th>
+                    <th className="p-3 border-r border-slate-800 text-right bg-amber-950 text-amber-300 w-32">TIER 3 (R3 &gt; $75)</th>
                     <th className="p-3 border-r border-slate-800 text-center w-24">SPLIT %</th>
                     <th className="p-3 border-r border-slate-800 text-center w-28">BASE DIST</th>
                     <th className="p-3 pr-4 text-center w-28">STATUS</th>

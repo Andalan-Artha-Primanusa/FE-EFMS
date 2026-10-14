@@ -123,7 +123,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
           <img src={feastLogo} alt="FEAST - Financial Enterprise Andalan System" />
         </div>
         {!twoFactor ? (
-        <form onSubmit={submit} className="login-form">
+        <form data-enter-submit onSubmit={submit} className="login-form">
           <label>Email<input value={email} onChange={(e) => setEmail(e.target.value)} type="text" placeholder="name@company.com" /></label>
           <label>
             Password
@@ -159,7 +159,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
           </button>
         </form>
         ) : (
-        <form onSubmit={submitOtp} className="login-form">
+        <form data-enter-submit onSubmit={submitOtp} className="login-form">
           <div className="flex items-center justify-center gap-2 text-[#a57c50]">
             <ShieldCheck size={20} />
             <span className="font-bold text-sm text-slate-800">Verifikasi Dua Langkah</span>
@@ -235,7 +235,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
               <div className="p-3 rounded-[3px] bg-rose-50 border border-rose-200 text-rose-900 text-xs font-semibold">{forgotError}</div>
             )}
 
-            <form onSubmit={submitForgot} className="space-y-3">
+            <form data-enter-submit onSubmit={submitForgot} className="space-y-3">
               <label className="block">
                 <span className="block text-xs font-bold text-slate-700 mb-1">Email Terdaftar</span>
                 <input
