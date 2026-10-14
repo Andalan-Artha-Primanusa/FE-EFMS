@@ -405,11 +405,11 @@ export function CoalIndexPage({
               </div>
               <p className="text-[11px] font-medium text-slate-600 mt-0.5">
                 {currentIndex.activeTier === "Tier 3"
-                  ? "R3 > $70 / MT (Tarif Tertinggi)"
+                  ? "R3 > $75 / MT (Tarif Tertinggi)"
                   : currentIndex.activeTier === "Tier 2"
-                  ? "$45 < R3 ≤ $70 / MT (Tarif Menengah)"
+                  ? "$50 < R3 ≤ $75 / MT (Tarif Menengah)"
                   : currentIndex.activeTier === "Tier 1"
-                  ? "R3 ≤ $45 / MT (Tarif Dasar)"
+                  ? "R3 ≤ $50 / MT (Tarif Dasar)"
                   : "Data ICI-3 & ICI-4 belum lengkap"}
               </p>
             </div>
@@ -517,7 +517,7 @@ export function CoalIndexPage({
               ? "bg-emerald-50 border-emerald-300 text-emerald-950 font-bold"
               : "bg-slate-50 text-slate-700 border-slate-200"
           }`}>
-            <div className="font-bold text-xs">TIER 1 (R3 ≤ $45){currentIndex?.activeTier === "Tier 1" ? " — AKTIF" : ""}</div>
+            <div className="font-bold text-xs">TIER 1 (R3 ≤ $50){currentIndex?.activeTier === "Tier 1" ? " — AKTIF" : ""}</div>
             <p className="text-[11px] text-slate-500 mt-0.5">Tarif OB 1: {ob1RateLabel("Tier 1")}</p>
           </div>
 
@@ -527,7 +527,7 @@ export function CoalIndexPage({
               ? "bg-cyan-50 border-cyan-300 text-cyan-950 font-bold"
               : "bg-slate-50 text-slate-700 border-slate-200"
           }`}>
-            <div className="font-bold text-xs">TIER 2 ($45 &lt; R3 ≤ $70){currentIndex?.activeTier === "Tier 2" ? " — AKTIF" : ""}</div>
+            <div className="font-bold text-xs">TIER 2 ($50 &lt; R3 ≤ $75){currentIndex?.activeTier === "Tier 2" ? " — AKTIF" : ""}</div>
             <p className="text-[11px] text-slate-500 mt-0.5">Tarif OB 1: {ob1RateLabel("Tier 2")}</p>
           </div>
 
@@ -537,7 +537,7 @@ export function CoalIndexPage({
               ? "bg-amber-50 border-amber-300 text-amber-950 font-bold"
               : "bg-slate-50 text-slate-700 border-slate-200"
           }`}>
-            <div className="font-bold text-xs">TIER 3 (R3 &gt; $70){currentIndex?.activeTier === "Tier 3" ? " — AKTIF" : ""}</div>
+            <div className="font-bold text-xs">TIER 3 (R3 &gt; $75){currentIndex?.activeTier === "Tier 3" ? " — AKTIF" : ""}</div>
             <p className="text-[11px] text-slate-500 mt-0.5">Tarif OB 1: {ob1RateLabel("Tier 3")}</p>
           </div>
         </div>

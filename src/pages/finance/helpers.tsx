@@ -633,8 +633,8 @@ export const parseDecimalNumber = (val: any): number => {
       num = parseFloat(clean.replace(/\./g, ""));
     } else {
       const parts = clean.split(".");
-      if (parts[1].length === 3 && parts[0].length >= 1 && parts[0] !== "0") {
-        // Thousand format (e.g. 1.000, 3.000, 4.246, 245.620)
+      if (parts[1].length === 3 && parts[0].length >= 1 && parts[0].length <= 3 && parts[0] !== "0") {
+        // Thousand format (e.g. 1.000, 3.000, 4.246, 245.620); >3 digit sebelum titik (229501.879) = desimal
         num = parseFloat(clean.replace(/\./g, ""));
       } else {
         // Single dot decimal format (e.g. 1.5, 0.526, 12.8, 896.486 when typed with dot)
@@ -680,62 +680,18 @@ export function VolumeInput({
   placeholder?: string;
   helperText?: string;
 }) {
-  const [localStr, setLocalStr] = React.useState<string>(() => {
-    if (value === 0 || value === "0" || !value) return "";
-    const n = typeof value === "number" ? value : parseDecimalNumber(value);
-    if (isNaN(n) || n === 0) return "";
-    return n.toLocaleString("id-ID", { maximumFractionDigits: 3 });
-  });
-
-  React.useEffect(() => {
-    if (value === 0 || value === "0" || !value) {
-      if (localStr === "" || localStr === "0") return;
-    }
-    const currentNum = parseDecimalNumber(localStr);
-    const propNum = typeof value === "number" ? value : parseDecimalNumber(value);
-    if (currentNum !== propNum && !isNaN(propNum)) {
-      setLocalStr(propNum.toLocaleString("id-ID", { maximumFractionDigits: 3 }));
-    }
-  }, [value]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let clean = e.target.value.replace(/[^0-9.,]/g, "");
-    const commaCount = (clean.match(/,/g) || []).length;
-    if (commaCount > 1) {
-      const firstIdx = clean.indexOf(",");
-      clean = clean.slice(0, firstIdx + 1) + clean.slice(firstIdx + 1).replace(/,/g, "");
-    }
-    if (clean.includes(",")) {
-      const [i, d] = clean.split(",");
-      clean = `${i},${d.slice(0, 3)}`;
-    }
-    setLocalStr(clean);
-    const num = parseDecimalNumber(clean);
-    onChange(num);
-  };
-
-  const handleBlur = () => {
-    const num = parseDecimalNumber(localStr);
-    if (!isNaN(num) && num > 0) {
-      setLocalStr(num.toLocaleString("id-ID", { maximumFractionDigits: 3 }));
-    } else if (isNaN(num) || num === 0) {
-      setLocalStr("");
-    }
-  };
-
   return (
     <div>
       <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
         {label} {required && <span className="text-rose-600">*</span>}
       </label>
       <div className="relative">
-        <input
-          type="text"
+        <FormattedNumberInput
+          maxDecimals={3}
           className="w-full bg-white border border-slate-300 rounded-[3px] p-2.5 pr-14 text-slate-900 font-mono font-bold focus:border-[#A57C50] outline-none text-xs"
           placeholder={placeholder || "0,000"}
-          value={localStr}
-          onChange={handleChange}
-          onBlur={handleBlur}
+          value={value}
+          onChange={onChange}
           required={required}
         />
         {unit && (
@@ -749,6 +705,9 @@ export function VolumeInput({
   );
 }
 
+// Angka ketikan user (numpad): satu titik ATAU satu koma = desimal, seperti Excel. Selain itu (paste "229.501,879" / "1.000.000") pakai parser umum.
+const parseTypedNumber = (s: string): number =>
+  (s.match(/[.,]/g) || []).length === 1 ? parseDecimalNumber(s.replace(".", ",")) : parseDecimalNumber(s);
 // Minimalist Table & Form Number Input dengan Auto Thousand Separator (.) & Desimal (,)
 export function FormattedNumberInput({
   value,
@@ -759,6 +718,7 @@ export function FormattedNumberInput({
   className = "",
   onFocus,
   onBlur,
+  required,
 }: {
   value: number | string | undefined | null;
   onChange: (val: number) => void;
@@ -768,6 +728,7 @@ export function FormattedNumberInput({
   className?: string;
   onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  required?: boolean;
 }) {
   const [localStr, setLocalStr] = React.useState<string>(() => formatDecimalDisplay(value, allowDecimals, maxDecimals));
   const [isFocused, setIsFocused] = React.useState(false);
@@ -778,12 +739,15 @@ export function FormattedNumberInput({
     }
   }, [value, isFocused, allowDecimals, maxDecimals]);
 
+  // Field tanpa desimal (maxDecimals 0) tetap membaca titik sebagai ribuan.
+  const parseInput = maxDecimals > 0 ? parseTypedNumber : parseDecimalNumber;
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value;
     if (allowDecimals) {
       let clean = raw.replace(/[^0-9.,-]/g, "");
       setLocalStr(clean);
-      onChange(parseDecimalNumber(clean));
+      onChange(parseInput(clean));
     } else {
       let clean = raw.replace(/[^0-9.,-]/g, "");
       setLocalStr(clean);
@@ -803,7 +767,7 @@ export function FormattedNumberInput({
       onBlur?.(e);
       return;
     }
-    const parsed = parseDecimalNumber(localStr);
+    const parsed = parseInput(localStr);
     onChange(parsed);
     setLocalStr(formatDecimalDisplay(parsed, allowDecimals, maxDecimals));
     onBlur?.(e);
@@ -815,6 +779,7 @@ export function FormattedNumberInput({
       className={className || "w-full bg-white border border-slate-300 rounded-[3px] p-2 text-slate-900 font-mono font-bold focus:border-[#A57C50] outline-none text-xs"}
       value={isFocused ? localStr : formatDecimalDisplay(value, allowDecimals, maxDecimals)}
       placeholder={placeholder}
+      required={required}
       onFocus={(e) => {
         setIsFocused(true);
         if (!allowDecimals) {

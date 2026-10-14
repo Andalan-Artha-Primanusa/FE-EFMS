@@ -298,6 +298,7 @@ export function BATrackerModal({ c }: { c: any }) {
               {isInlineEditingBA && (
                 <button
                   type="submit"
+                  title="Ctrl + S"
                   disabled={isSaving}
                   className="primary px-6 py-2 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] disabled:bg-slate-400 text-white font-black shadow-md transition text-xs flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
                 >
