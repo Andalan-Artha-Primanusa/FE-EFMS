@@ -64,6 +64,9 @@ export function rfTemplateFor(code?: string): any | undefined {
     .sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime())[0];
 }
 
+/** Xn / Xo; 1 bila salah satu belum ada. */
+export const forexRatio = (xn: number, xo: number): number => (xn > 0 && xo > 0 ? xn / xo : 1);
+
 /** Indeks RF dari bobot & basis master RF (sama dengan computeRFIndex di BE). 0 = data belum cukup. */
 export function computeRFIndex(m: any, fn: number, ln = 0, xn = 0): number {
   if (!m) return 0;
@@ -85,9 +88,12 @@ export function computeRFIndex(m: any, fn: number, ln = 0, xn = 0): number {
         d = (m.weightFuelA * fn) / m.baseFuelFo;
       }
     }
-    // Labor = rasio Rupiah murni UMK (PRD §3.2), tanpa Xn/Xo.
-    if (m.baseLaborLo > 0 && ln > 0) l = (m.weightLaborB * ln) / m.baseLaborLo;
+    // Labor sesuai kontrak POS: L = b * (Ln * Xn) / (Lo * Xo).
+    if (m.baseLaborLo > 0 && ln > 0) l = (m.weightLaborB * ln * forexRatio(xn, m.baseForexXo)) / m.baseLaborLo;
     idx = d + l + Number(m.weightFixedC || 0);
+    // 3-faktor dipakai presisi penuh (sama dengan Excel), tampilan saja yang 3 desimal.
+    if (!m.allowFall && idx > 0 && idx < 1) idx = 1;
+    return idx;
   }
   if (!m.allowFall && idx > 0 && idx < 1) idx = 1;
   return Math.round(idx * 1000) / 1000;

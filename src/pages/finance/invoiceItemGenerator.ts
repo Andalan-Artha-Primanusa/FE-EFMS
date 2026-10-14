@@ -129,11 +129,6 @@ export function buildInvoiceItemsFromBA(
         const desc = `Raise & Fall (Indeks RF ${rf.toFixed(3)})`;
         posItems.push({ id: "pos_rf_auto", section: "D", code: "RF", category: "Raise & Fall", description: desc, sowDescription: desc, unit: "Lot", volume: 1, unitRateIDR: rfAmt, amount: rfAmt, amountIDR: rfAmt, isDeduction: rfAmt < 0 });
       }
-      // DP Fuel (biaya solar aktual) dipotong di invoice OP bila BA tidak memuat item potongan.
-      const fuelCost = Number(ba?.posData?.actualFuelCost || 0);
-      if (!isMDOCat && fuelCost > 0 && !posItems.some((p) => p.isDeduction)) {
-        posItems.push({ id: "pos_dp_fuel_auto", section: "E", code: "E1", category: "DP Fuel", description: "DP Fuel & Transport (Pengurang Solar)", sowDescription: "DP Fuel & Transport (Pengurang Solar)", unit: "Lot", volume: 1, unitRateIDR: fuelCost, amount: -fuelCost, amountIDR: -fuelCost, isDeduction: true });
-      }
       return posItems;
     }
   }

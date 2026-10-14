@@ -27,7 +27,7 @@ import { Panel } from "../components/Panel";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { api } from "../lib/api";
 import { MonthPickerInput, matchPeriod, parsePeriodToYYYYMM } from "./finance/helpers";
-import { computeRFIndex, kursForPeriod } from "./finance/masterRegistry";
+import { computeRFIndex, forexRatio, kursForPeriod } from "./finance/masterRegistry";
 
 const currentPeriodLabel = () => new Date().toLocaleString("id-ID", { month: "long", year: "numeric" });
 
@@ -297,7 +297,7 @@ export function MasterRaiseFallPage({
   const bggBaseFo = Number(rfForm.baseFuelFo) || 0;
   const calcBGGRF = computeRFIndex({ ...rfForm, formulaScheme: "SINGLE_FACTOR_FUEL" }, bggAvgFn);
 
-  // 3-Faktor: D = (a * Fn * Xn) / Fo ; L = b * (Ln / Lo) ; F = c
+  // 3-Faktor: D = (a * Fn * Xn) / Fo ; L = b * (Ln * Xn) / (Lo * Xo) ; F = c
   const posBaseFo = Number(rfForm.baseFuelFo) || 0;
   const posWeightA = Number(rfForm.weightFuelA) || 0;
   const posWeightB = Number(rfForm.weightLaborB) || 0;
@@ -320,7 +320,7 @@ export function MasterRaiseFallPage({
   const posAvgPriceIDR = posTotalQty > 0 ? (posTotalCost / posTotalQty) : 0;
   const posMrateXn = Number(rfForm.actualMRateXn || avgMRateCalc || 0);
   const posFnFromRefills = (posAvgPriceIDR > 0 && posMrateXn > 0)
-    ? Number((posAvgPriceIDR / posMrateXn).toFixed(4))
+    ? posAvgPriceIDR / posMrateXn
     : 0;
 
   const effectivePosFn = posFnFromRefills > 0 ? posFnFromRefills : Number(rfForm.actualFuelFn || 0);
@@ -329,7 +329,7 @@ export function MasterRaiseFallPage({
   const calcFuelD = posBaseFo > 0
     ? (posWeightA * effectivePosFn * (effectivePosFn < 100 ? posMrateXn : 1)) / posBaseFo
     : 0;
-  const calcLaborL = posBaseLo > 0 ? (posWeightB * posLn) / posBaseLo : 0;
+  const calcLaborL = posBaseLo > 0 ? (posWeightB * posLn * forexRatio(posMrateXn, posBaseXo)) / posBaseLo : 0;
   const calcFixedF = posWeightC;
   // Total memakai computeRFIndex (rumus yang sama dengan backend).
   const calcTotalRF = isBGGStyle ? calcBGGRF : computeRFIndex(rfForm, effectivePosFn, posLn, posMrateXn);
@@ -356,7 +356,7 @@ export function MasterRaiseFallPage({
       });
       const avgIDR = totQ > 0 ? (totC / totQ) : 0;
       const xn = Number(prev.actualMRateXn || avgMRateCalc || 0);
-      const fn = (avgIDR > 0 && xn > 0) ? Number((avgIDR / xn).toFixed(4)) : Number(prev.actualFuelFn || 0);
+      const fn = (avgIDR > 0 && xn > 0) ? avgIDR / xn : Number(prev.actualFuelFn || 0);
 
       return {
         ...prev,
@@ -404,7 +404,7 @@ export function MasterRaiseFallPage({
       });
       const avgIDR = totQ > 0 ? (totC / totQ) : 0;
       const xn = Number(prev.actualMRateXn || avgMRateCalc || 0);
-      const fn = (avgIDR > 0 && xn > 0) ? Number((avgIDR / xn).toFixed(4)) : Number(prev.actualFuelFn || 0);
+      const fn = (avgIDR > 0 && xn > 0) ? avgIDR / xn : Number(prev.actualFuelFn || 0);
 
       return {
         ...prev,

@@ -289,12 +289,6 @@ export function BAAddRowDropdown({
         break;
 
       case "POS_DP_FUEL":
-        const posCurRefill = Number(
-          formData?.posData?.fuelPeriods?.[curPeriod]?.actualFuelCost ||
-          formData?.posData?.actualFuelCost ||
-          formData?.posData?.posTotalCost ||
-          0
-        );
         setBaOperatingItems((prev) => [
           ...prev,
           {
@@ -309,10 +303,11 @@ export function BAAddRowDropdown({
             unit: "Lot",
             initialVolume: 1,
             adjustedVolume: 1,
-            rate: posCurRefill,
+            // Nominal final DP Fuel diinput manual (insidental), bukan dari refill survey.
+            rate: 0,
             isDeduction: true,
-            subtotalInitial: posCurRefill,
-            subtotalAdjusted: posCurRefill,
+            subtotalInitial: 0,
+            subtotalAdjusted: 0,
           },
         ]);
         break;
