@@ -3,6 +3,7 @@ import { api, getFinanceTemplates } from "../../lib/api";
 import { matchPeriod } from "./helpers";
 import { isOBMaterial, isDistanceItem } from "./ba_calculations";
 import { setMasterData, rfMasterFor, kursForPeriod, customerKind, baseDistanceFor } from "./masterRegistry";
+import { getSBSTarifByDistance } from "./distance_tiers";
 
 // Master data finance dari BE. RF & kurs mengikuti customer + periode dokumen (BA / Invoice) yang sedang dibuka.
 // Baris Master Variable SOW BE -> bentuk katalog FE (tarif USD dikonversi dengan kurs periode saat dipakai).
@@ -491,6 +492,12 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
     return (items || []).map((it) => {
       const mat = it.material || it.name || it.description || "";
       if (!mat || it.isCustom) return it;
+      // OB SBS tanpa tarif: ambil dari rentang Tarif Jarak Angkut (aturan sama dengan BE).
+      const dist = Number(it.distanceM || it.distance || it.distanceWeightAvg || 0);
+      if (customerKind(cust) === "SBS" && !it.isDeduction && !Number(it.rate) && dist > 0) {
+        const r = getSBSTarifByDistance(dist).rate;
+        if (r > 0) return { ...it, rate: r };
+      }
       const isUSD = Boolean(it.isUSD);
       const itemPeriod = it.period || period;
       const tier = cust.toUpperCase() === "BGG" ? getBGGActiveCoalTier(itemPeriod) : undefined;
