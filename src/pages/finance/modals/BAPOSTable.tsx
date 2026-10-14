@@ -154,6 +154,8 @@ export function BAPOSTable({
   const rfRows = useMemo(() => {
     const rows: any[] = [];
     let counter = 1;
+    // Satu baris over/underhaul hanya dipasangkan ke satu baris produksi (cegah RF dobel).
+    const usedDist = new Set<string>();
 
     // Production items RF
     prodItems.forEach((it) => {
@@ -182,6 +184,7 @@ export function BAPOSTable({
       const itArea = (it.area || "").trim().toLowerCase();
 
       const matchedDist = distItems.find((d) => {
+        if (usedDist.has(d.id)) return false;
         const dArea = (d.area || "").trim().toLowerCase();
         if (itArea && dArea && itArea !== dArea) {
           return false;
@@ -204,6 +207,7 @@ export function BAPOSTable({
       });
 
       if (matchedDist) {
+        usedDist.add(matchedDist.id);
         const dVol = getBAEffectiveVolume(matchedDist, allBAItems, false);
         const actualDist = Number(matchedDist.distanceWeightAvg ?? matchedDist.distance ?? 1000);
         const deltaDist = actualDist - 1000;
@@ -408,6 +412,10 @@ export function BAPOSTable({
                       updated[targetIdx].unit = sow.unit || updated[targetIdx].unit;
                       const dynamicRate = getSowMasterRate ? getSowMasterRate("POS", sow.name, sow.defaultRate || 0, false) : (sow.defaultRate || updated[targetIdx].rate);
                       updated[targetIdx].rate = dynamicRate > 0 ? dynamicRate : (sow.defaultRate || updated[targetIdx].rate);
+                      if (!sow.isDistanceVar) {
+                        updated[targetIdx].isDistanceVar = false;
+                        if (updated[targetIdx].category === "Over Distance") updated[targetIdx].category = "Operating & Mining";
+                      }
                       if (sow.isDistanceVar) {
                         updated[targetIdx].isDistanceVar = true;
                         updated[targetIdx].category = "Over Distance";
@@ -617,8 +625,8 @@ export function BAPOSTable({
                 {formatIDR(subtotalD)}
               </td>
             </tr>
-            {rfRows.map((item) => (
-              <tr key={item.id} className="hover:bg-slate-50/80 transition bg-slate-50/30">
+            {rfRows.map((item, i) => (
+              <tr key={`${item.id}_${i}`} className="hover:bg-slate-50/80 transition bg-slate-50/30">
                 {isInlineEditingBA && <td className="p-2 text-center text-slate-300 font-mono text-[10px]">{item.code}</td>}
                 <td className="p-2 font-bold text-slate-800 align-top">{item.area || "-"}</td>
                 <td className="p-2 font-medium text-slate-900 align-top">
