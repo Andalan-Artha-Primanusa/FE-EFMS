@@ -10,7 +10,7 @@ interface DetailPaymentTrackerProps {
   partialPaymentForm: any;
   setPartialPaymentForm: (form: any) => void;
   handleSavePartialPayment: (e: React.FormEvent) => void;
-  handleVerifyPartialPayment: (id: number) => void;
+  handleVerifyPartialPayment?: (id: number) => void;
 }
 
 export const DetailPaymentTracker: React.FC<DetailPaymentTrackerProps> = ({
@@ -177,7 +177,7 @@ export const DetailPaymentTracker: React.FC<DetailPaymentTrackerProps> = ({
                     <span>Verifikator: <strong className="text-[#A57C50] font-bold">{p.verifiedBy}</strong></span>
                   )}
                 </div>
-                {!isVerified && (
+                {!isVerified && handleVerifyPartialPayment && (
                   <button
                     onClick={() => handleVerifyPartialPayment(p.id)}
                     className="w-full mt-2 py-1.5 text-xs bg-[#A57C50] hover:bg-[#8e6941] text-white font-extrabold rounded-[3px] flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer"

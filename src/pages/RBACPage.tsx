@@ -178,7 +178,6 @@ const ALL_SYSTEM_PERMISSIONS: Array<{ module: string; action: string; descriptio
   { module: "invoice", action: "delete", description: "Menghapus draft invoice" },
   { module: "invoice", action: "verify", description: "Verifikasi draft invoice oleh SPV / Specialist" },
   { module: "invoice", action: "approve_tier1", description: "Approval Tier 1 invoice oleh FATB Manager" },
-  { module: "invoice", action: "approve_tier2", description: "Approval Tier 2 invoice oleh Direksi" },
   { module: "payment", action: "read", description: "Melihat log dan rekap pembayaran" },
   { module: "payment", action: "write", description: "Mencatat penerimaan pembayaran baru" },
   { module: "payment", action: "delete", description: "Menghapus data pembayaran" },
@@ -1390,14 +1389,6 @@ export function RBACPage({
                 <li className="flex items-center justify-between p-2 rounded bg-white border border-[#E6E1D9]">
                   <span>Approval Tier 1 (FATB Manager)</span>
                   {simulatedRoleAccess.permissions.some((p) => p.module === "invoice" && (p.action === "approve_tier1" || p.action === "*")) || isSuperAdminRole(simulatedRole) ? (
-                    <span className="font-bold text-[#2e7d53]">✓ Diizinkan</span>
-                  ) : (
-                    <span className="font-bold text-[#b3352b]">✕ Terkunci</span>
-                  )}
-                </li>
-                <li className="flex items-center justify-between p-2 rounded bg-white border border-[#E6E1D9]">
-                  <span>Approval Tier 2 (Direktur)</span>
-                  {simulatedRoleAccess.permissions.some((p) => p.module === "invoice" && (p.action === "approve_tier2" || p.action === "*")) || isSuperAdminRole(simulatedRole) ? (
                     <span className="font-bold text-[#2e7d53]">✓ Diizinkan</span>
                   ) : (
                     <span className="font-bold text-[#b3352b]">✕ Terkunci</span>

@@ -6,7 +6,7 @@ interface BADetailSheetProps {
   data: any;
   invoiceRows: any[];
   exportBADocumentPDF: (item: any) => void;
-  createInvoiceFromBA: (item: any) => void;
+  createInvoiceFromBA?: (item: any) => void;
   setDetailViewItem: (item: any) => void;
 }
 
@@ -58,8 +58,8 @@ export const BADetailSheet: React.FC<BADetailSheetProps> = ({
           </div>
           <button
             type="button"
-            onClick={() => createInvoiceFromBA(data)}
-            className="px-3 py-1.5 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs flex items-center gap-1.5 transition cursor-pointer shrink-0"
+            onClick={() => createInvoiceFromBA?.(data)}
+            className={`px-3 py-1.5 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs flex items-center gap-1.5 transition cursor-pointer shrink-0 ${createInvoiceFromBA ? "" : "hidden"}`}
           >
             <Zap size={13} className="text-white" />
             <span>+ Terbitkan Invoice</span>

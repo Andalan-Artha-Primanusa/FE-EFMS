@@ -10,12 +10,12 @@ interface BATrackerFinancialRecapProps {
   setFormData: (data: any) => void;
   editItem: any;
   isInlineEditingBA: boolean;
-  isFinanceSpecialist: boolean;
+  canVerifyBA: boolean;
   user: any;
   invoiceRows: any[];
   setModalType: (type: string) => void;
   setDetailViewItem: (item: any) => void;
-  createInvoiceFromBA: (ba: any, cat?: string) => void;
+  createInvoiceFromBA?: (ba: any, cat?: string) => void;
   setActiveBAStep: (step: number) => void;
   baAuditLogs: any[];
   auditTab: "flow" | "activity";
@@ -30,7 +30,7 @@ export function BATrackerFinancialRecap({
   setFormData,
   editItem,
   isInlineEditingBA,
-  isFinanceSpecialist,
+  canVerifyBA,
   user,
   invoiceRows = [],
   setModalType,
@@ -130,7 +130,7 @@ export function BATrackerFinancialRecap({
                 <span className="text-xs text-slate-500 font-medium block">
                   Verifikasi draft Berita Acara ini untuk memvalidasi angka rekonsiliasi dan menerbitkan status penagihan.
                 </span>
-                {isFinanceSpecialist && !isInlineEditingBA && editItem && (
+                {canVerifyBA && !isInlineEditingBA && editItem && (
                   <button
                     type="button"
                     onClick={async () => {
@@ -196,7 +196,7 @@ export function BATrackerFinancialRecap({
             <CheckCircle2 size={16} className="text-[#A57C50] shrink-0" />
             <span className="font-black text-[#1A1612]">BA Disetujui Manager (Ready to Invoice)</span>
           </div>
-          {isPOS ? (
+          {!createInvoiceFromBA ? null : isPOS ? (
             <div className="flex items-center gap-2">
               {!step3InvStatus.createdMiningInv && (
                 <button

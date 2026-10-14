@@ -11,7 +11,7 @@ const remainingValue = (l: any) => pendingAmount(l.remainingVolume || 0, l.ob1Ra
 export function PendingVolumeModal({ c }: { c: any }) {
   const {
     pendingVolumeLedgers, showPendingVolumeDrawer, setShowPendingVolumeDrawer, openCreateModal,
-    openEditModal, handleDelete
+    openEditModal, handleDelete, can = () => false
   } = c as Record<string, any>;
 
   const ledgers: any[] = Array.isArray(pendingVolumeLedgers) ? pendingVolumeLedgers : [];
@@ -146,7 +146,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
                   setShowPendingVolumeDrawer(false);
                   openCreateModal("pending_volume");
                 }}
-                className="px-3 py-1.5 rounded-lg bg-[#A57C50] hover:bg-[#8C6740] text-white font-bold text-xs flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                className={`px-3 py-1.5 rounded-lg bg-[#A57C50] hover:bg-[#8C6740] text-white font-bold text-xs flex items-center gap-1.5 transition shadow-2xs cursor-pointer ${can("ba_tracker", "write") ? "" : "hidden"}`}
               >
                 <Plus size={13} /> Catat Pending Volume Baru
               </button>
@@ -236,7 +236,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
                                   setShowPendingVolumeDrawer(false);
                                   if (typeof openEditModal === "function") openEditModal("pending_volume", item);
                                 }}
-                                className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-md text-[11px] transition cursor-pointer"
+                                className={`p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-md text-[11px] transition cursor-pointer ${can("ba_tracker", "write") ? "" : "hidden"}`}
                                 title="Edit Catatan Pending Volume"
                               >
                                 <Edit2 size={13} />
@@ -247,7 +247,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
                                 onClick={() => {
                                   if (typeof handleDelete === "function") handleDelete("pending_volume", item.id);
                                 }}
-                                className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-md text-[11px] transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-rose-50"
+                                className={`p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-md text-[11px] transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-rose-50 ${can("ba_tracker", "delete") ? "" : "hidden"}`}
                                 title={item.absorbedVolume > 0 ? "Tidak dapat dihapus: sebagian volume sudah ditagih. Hapus invoice draft yang menyerapnya terlebih dahulu." : "Hapus Catatan Pending Volume"}
                               >
                                 <Trash2 size={13} />

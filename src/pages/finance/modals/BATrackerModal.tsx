@@ -38,7 +38,8 @@ export function BATrackerModal({ c }: { c: any }) {
     latestKursBI = 0,
     user,
     invoiceRows = [],
-    isFinanceSpecialist,
+    canVerifyBA,
+    can = () => false,
     setDetailViewItem,
     createInvoiceFromBA,
     handleFileUpload,
@@ -240,12 +241,12 @@ export function BATrackerModal({ c }: { c: any }) {
                     setFormData={setFormData}
                     editItem={editItem}
                     isInlineEditingBA={isInlineEditingBA}
-                    isFinanceSpecialist={isFinanceSpecialist}
+                    canVerifyBA={canVerifyBA}
                     user={user}
                     invoiceRows={invoiceRows}
                     setModalType={setModalType}
                     setDetailViewItem={setDetailViewItem}
-                    createInvoiceFromBA={createInvoiceFromBA}
+                    createInvoiceFromBA={can("invoice", "write") ? createInvoiceFromBA : undefined}
                     setActiveBAStep={setActiveBAStep}
                     baAuditLogs={baAuditLogs}
                     auditTab={auditTab}

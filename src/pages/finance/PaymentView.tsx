@@ -17,7 +17,7 @@ import {
 export function PaymentView({ c }: { c: any }) {
   const {
     invoiceRows: rawInvoiceRows, paymentRows: rawPaymentRows, setDetailViewItem, openEditModal, handleDelete,
-    query, deletingKey
+    query, deletingKey, can = () => false
   } = c as Record<string, any>;
   const paymentRows = Array.isArray(rawPaymentRows) ? rawPaymentRows : [];
   const invoiceRows = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
@@ -88,10 +88,10 @@ export function PaymentView({ c }: { c: any }) {
                             <button className="p-1.5 rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-800 hover:bg-cyan-100 transition cursor-pointer" onClick={() => setDetailViewItem({ type: "payment", data: row })} title="Lihat Detail & Tracking Log">
                               <Eye size={14} />
                             </button>
-                            <button className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition cursor-pointer" onClick={() => openEditModal("payment", row)} title="Edit Payment">
+                            <button className={`p-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition cursor-pointer ${can("payment", "write") ? "" : "hidden"}`} onClick={() => openEditModal("payment", row)} title="Edit Payment">
                               <Edit2 size={14} />
                             </button>
-                            {(() => {
+                            {can("payment", "delete") && (() => {
                               const isDeleting = deletingKey === `payment-${row.id}`;
                               return (
                                 <button
