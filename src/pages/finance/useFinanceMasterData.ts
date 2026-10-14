@@ -6,6 +6,7 @@ import { setMasterData, rfMasterFor, kursForPeriod, customerKind } from "./maste
 
 // Master data finance dari BE. RF & kurs mengikuti customer + periode dokumen (BA / Invoice) yang sedang dibuka.
 // Baris Master Variable SOW BE -> bentuk katalog FE (tarif USD dikonversi dengan kurs periode saat dipakai).
+// Item Inactive tidak ikut kalkulasi BA/Invoice (sama dengan BE sowFor/obSplitSOWs).
 const mapSowRow = (d: any) => ({
   id: d.id,
   code: d.itemName ? d.itemName.toUpperCase().replace(/[^A-Z0-9]/g, "_") : `SOW_${d.id}`,
@@ -72,7 +73,7 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
     api<any[]>("/api/master-data/variable-sow")
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
-          setDynamicSowOptions(data.map(mapSowRow));
+          setDynamicSowOptions(data.filter((d) => d.status !== "Inactive").map(mapSowRow));
         }
       })
       .catch(() => {});
@@ -87,7 +88,8 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
   }, []);
 
   // Registry master dipakai helper hitung (ba_calculations, tarif jarak, nama customer).
-  useEffect(() => {
+  // Diisi saat render (bukan useEffect) agar view yang membaca registry di render yang sama tidak tertinggal satu langkah.
+  useMemo(() => {
     setMasterData({ customers: customerRows || [], raiseFall: raiseFallMasters, exchangeRates, minWages: minWageMasters, bankAccounts, sows: dynamicSowOptions });
   }, [customerRows, raiseFallMasters, exchangeRates, minWageMasters, bankAccounts, dynamicSowOptions]);
 
@@ -96,7 +98,6 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
 
   // Master Raise & Fall customer untuk periode dokumen.
   useEffect(() => {
-    setMasterData({ customers: customerRows || [], raiseFall: raiseFallMasters });
     const matched = rfMasterFor(customerCode, workPeriod) || null;
     setRaiseFallMaster(matched);
     setMRate(latestKursBI || matched?.actualMRateXn || 0);
@@ -608,7 +609,7 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
     if (Array.isArray(rfData)) setRaiseFallMasters(rfData);
     if (Array.isArray(fxData)) setExchangeRates(fxData);
     if (Array.isArray(bankData)) setBankAccounts(bankData);
-    if (Array.isArray(sowData)) setDynamicSowOptions(sowData.map(mapSowRow));
+    if (Array.isArray(sowData)) setDynamicSowOptions(sowData.filter((d) => d.status !== "Inactive").map(mapSowRow));
   }, []);
 
   return {

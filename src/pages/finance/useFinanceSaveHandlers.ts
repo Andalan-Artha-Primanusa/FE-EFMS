@@ -1,6 +1,6 @@
 import React from "react";
 import { api, saveSBSPenalty, deleteSBSPenalty, SBSPenaltyItem } from "../../lib/api";
-import { getBAEffectiveVolume, getBAItemSubtotal, calculateBACommercialBreakdown, customerKind } from "./ba_calculations";
+import { getBAEffectiveVolume, getBAItemSubtotal, calculateBACommercialBreakdown, customerKind, bggOBBillableFactor } from "./ba_calculations";
 
 interface UseFinanceSaveHandlersProps {
   isSaving: boolean;
@@ -194,8 +194,8 @@ export function useFinanceSaveHandlers({
         const adjSum = allItems.reduce((acc, item) => acc + Number(item.subtotalAdjusted || 0), 0);
         const hasAdjusted = allItems.some((it) => !it.isDeduction && it.category !== "DP Fuel" && Number(it.adjustedVolume || 0) > 0);
         const activeFuelPeriods = formData.bggData?.fuelPeriods || formData.posData?.fuelPeriods || formData.ptroData?.fuelPeriods || formData.sbsData?.fuelPeriods;
-        const breakdownInit = calculateBACommercialBreakdown(formData.customerCode, allItems, rfIndexCalculated, isCustomerDBK, false, activeFuelPeriods);
-        const breakdownAdj = calculateBACommercialBreakdown(formData.customerCode, allItems, rfIndexCalculated, isCustomerDBK, true, activeFuelPeriods);
+        const breakdownInit = calculateBACommercialBreakdown(formData.customerCode, allItems, rfIndexCalculated, isCustomerDBK, false, activeFuelPeriods, bggOBBillableFactor(formData.customerCode, formData));
+        const breakdownAdj = calculateBACommercialBreakdown(formData.customerCode, allItems, rfIndexCalculated, isCustomerDBK, true, activeFuelPeriods, bggOBBillableFactor(formData.customerCode, formData));
         const finalInitialWorkAmount = breakdownInit.totalGross > 0 ? breakdownInit.totalGross : initSum;
         const finalAdjustedWorkAmount = breakdownAdj.totalGross > 0 ? breakdownAdj.totalGross : adjSum;
         const finalWorkAmount = (hasAdjusted && finalAdjustedWorkAmount > 0) ? finalAdjustedWorkAmount : (finalInitialWorkAmount > 0 ? finalInitialWorkAmount : Number(formData.workAmount || 0));

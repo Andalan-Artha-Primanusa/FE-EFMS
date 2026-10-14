@@ -168,11 +168,29 @@ export function getBAItemSubtotal(item: any, volume: number, isCustomerDBK: bool
   return Math.round(volume * r);
 }
 
+/**
+ * Porsi OB BGG yang bisa ditagih menurut kuota Stripping Ratio Master Customer (sama dengan BE RecalculateBA).
+ * 1 = tanpa batas; kelebihannya dicatat ke Pending Volume Ledger saat BA ditagih.
+ */
+export function bggOBBillableFactor(customerCode: string, form?: any): number {
+  if (customerKind(customerCode) !== "BGG") return 1;
+  const sr = contractParams(customerCode).maxStrippingRatio;
+  const coal = Number(form?.bggCoalVolumeTon ?? form?.bggData?.coalVolumeTon ?? 0);
+  const nett = Number(form?.bggNettOB ?? form?.bggData?.nettOBVolume ?? 0);
+  return sr > 0 && coal > 0 && nett > coal * sr ? (coal * sr) / nett : 1;
+}
+
 export interface BACommercialBreakdown {
   basePokok: number;
   obAmount: number;
+  /** Bagian obAmount untuk material nikel POS (akun 4107 / 4108 / 4109). */
+  limoniteAmount: number;
+  saproliteAmount: number;
+  topSoilAmount: number;
   coalAmount: number;
   overdistanceGross: number;
+  /** Bagian overdistanceGross untuk coal (akun 4106); sisanya OB (4105). */
+  overdistanceCoalGross: number;
   mdoGross: number;
   rfRateFactor: number;
   rfAmount: number;
@@ -226,7 +244,8 @@ export function calculateBACommercialBreakdown(
   rfIndexCalculated: number = 1.0,
   isCustomerDBK: boolean = false,
   isSurvey?: boolean,
-  fuelPeriods?: Record<string, any>
+  fuelPeriods?: Record<string, any>,
+  obFactor: number = 1
 ): BACommercialBreakdown {
   const kind = customerKind(customerCode);
   const isBGG = kind === "BGG";
@@ -238,16 +257,23 @@ export function calculateBACommercialBreakdown(
   const effectiveIsSurvey = isSurvey !== undefined ? isSurvey : hasAdjustedOperatingVolume;
 
   let obAmount = 0;
+  let limoniteAmount = 0;
+  let saproliteAmount = 0;
+  let topSoilAmount = 0;
   let coalAmount = 0;
   let overdistanceGross = 0;
+  let overdistanceCoalGross = 0;
   let mdoGross = 0;
   let dpFuelDeduction = 0;
   let sbsPenalties = 0;
 
   for (const it of allItems || []) {
-    const vol = getBAEffectiveVolume(it, allItems, effectiveIsSurvey);
-    const subtotal = getBAItemSubtotal(it, vol, isCustomerDBK, customerCode);
     const mLow = (it.material || it.sowDescription || "").toLowerCase();
+    const isCoalMat = mLow.includes("coal") || mLow.includes("batubara");
+    // BGG: OB (termasuk over distance OB) dibatasi kuota Stripping Ratio.
+    const volFactor = isBGG && !isCoalMat && isOBMaterial(mLow) ? obFactor : 1;
+    const vol = getBAEffectiveVolume(it, allItems, effectiveIsSurvey) * volFactor;
+    const subtotal = getBAItemSubtotal(it, vol, isCustomerDBK, customerCode);
     const cat = it.category || "";
 
     if (isSBS) {
@@ -265,14 +291,18 @@ export function calculateBACommercialBreakdown(
       dpFuelDeduction += Math.abs(subtotal);
     } else if (isDistanceItem(it)) {
       overdistanceGross += subtotal; // Note: for POS underhaul, this can be negative
+      if (isCoalMat) overdistanceCoalGross += subtotal;
     } else if (cat === "MDO" || cat === "Support" || cat === "Equipment Rental" || cat === "Penunjang" || cat === "Land Clearing" || mLow.includes("clearing")) {
       mdoGross += subtotal;
     } else if (isOBMaterial(mLow)) {
       obAmount += subtotal;
-    } else if (mLow.includes("coal") || mLow.includes("batubara")) {
+    } else if (isCoalMat) {
       coalAmount += subtotal;
     } else {
       obAmount += subtotal;
+      if (mLow.includes("limonite")) limoniteAmount += subtotal;
+      else if (mLow.includes("saprolite")) saproliteAmount += subtotal;
+      else if (mLow.includes("top soil") || mLow.includes("topsoil")) topSoilAmount += subtotal;
     }
   }
 
@@ -282,7 +312,7 @@ export function calculateBACommercialBreakdown(
   let odDeduction = 0;
 
   if (isBGG) {
-    const bggComputed = getBGGComputedInvoiceLines(allItems, effectiveRF, effectiveIsSurvey, fuelPeriods);
+    const bggComputed = getBGGComputedInvoiceLines(allItems, effectiveRF, effectiveIsSurvey, fuelPeriods, obFactor);
     rfAmount = bggComputed.subtotalD;
     odDeduction = Math.abs(bggComputed.subtotalE);
   } else if (isPOS) {
@@ -326,8 +356,12 @@ export function calculateBACommercialBreakdown(
   return {
     basePokok,
     obAmount,
+    limoniteAmount,
+    saproliteAmount,
+    topSoilAmount,
     coalAmount,
     overdistanceGross,
+    overdistanceCoalGross,
     mdoGross,
     rfRateFactor: effectiveRF,
     rfAmount,
@@ -366,15 +400,21 @@ export function generateBAGLJournalPreview(
     lines.push({ accountNo, accountName, debit: amount > 0 ? amount : 0, credit: amount < 0 ? -amount : 0, note });
   };
 
-  post("1103.101", `Piutang Usaha Belum Ditagih (${customerCode || "Customer"})`, breakdown.netAR, "Pengakuan piutang belum tertagih atas Berita Acara");
-  post("1108.002", "Uang Muka PPh Pasal 23 (2%)", breakdown.pph23Amount, "Pajak penghasilan dipotong customer");
-  post("4199.000", "Potongan Kontrak & Biaya Pengurang (OD 25% / Fuel)", breakdown.totalDeductions, "Potongan kontrak operasional & penalti");
-  post("4101.000", "Pendapatan Jasa Overburden Removal", -breakdown.obAmount, "Pendapatan operasi pengupasan tanah penutup");
-  post("4102.000", "Pendapatan Jasa Coal Mining / Winning", -breakdown.coalAmount, "Pendapatan operasi penambangan batubara");
-  post("4103.000", "Pendapatan Jasa Overdistance Hauling", -breakdown.overdistanceGross, "Pendapatan jarak angkut lebih (overdistance)");
-  post("4109.000", "Pendapatan Jasa Penunjang & MDO", -breakdown.mdoGross, "Pendapatan jasa rental alat & penunjang tambang");
-  post("4120.000", "Pendapatan Eskalasi Nilai Kontrak (Raise & Fall)", -breakdown.rfAmount, `RF kontrak (${(breakdown.rfRateFactor || 1).toFixed(3)}x)`);
-  post("2102.100", "PPN Keluaran Belum Difakturkan (11%)", -breakdown.ppnAmount, "Kewajiban PPN 11% atas pengakuan BA");
+  // Akun & nama sama dengan jurnal akrual BE (buildUnifiedJournalLines / appendRevenueCreditLines).
+  const nickel = breakdown.limoniteAmount + breakdown.saproliteAmount + breakdown.topSoilAmount;
+  post("1103.101", `Piutang Usaha (PT ${customerCode || "Customer"})`, breakdown.netAR, "Piutang atas Berita Acara");
+  post("1108.002", "PPh 23 Dibayar Dimuka", breakdown.pph23Amount, "Potongan PPh 23 (2%)");
+  post("4199.000", "Potongan Pendapatan / Denda & BBM", breakdown.totalDeductions, "Pengurang Biaya / Denda / Diskon OD");
+  post("4101.000", "Pendapatan Over Burden (OB)", -(breakdown.obAmount - nickel), "Pendapatan OB penambangan");
+  post("4102.000", "Pendapatan Coal Winning", -breakdown.coalAmount, "Pendapatan batubara / coal winning");
+  post("4104.000", "Pendapatan Rental", -breakdown.mdoGross, "Pendapatan rental alat berat penunjang");
+  post("4105.000", "Pendapatan Under/Over Distance OB", -(breakdown.overdistanceGross - breakdown.overdistanceCoalGross), "Pendapatan over distance OB");
+  post("4106.000", "Pendapatan Under/Over Distance CG", -breakdown.overdistanceCoalGross, "Pendapatan over distance batubara");
+  post("4107.000", "Pendapatan Limonite", -breakdown.limoniteAmount, "Pendapatan jasa penambangan limonite");
+  post("4108.000", "Pendapatan Saprolite", -breakdown.saproliteAmount, "Pendapatan jasa penambangan saprolite");
+  post("4109.000", "Pendapatan Top Soil", -breakdown.topSoilAmount, "Pendapatan jasa topsoil");
+  post("4120.000", "Pendapatan Eskalasi / Penyesuaian Harga (Raise & Fall)", -breakdown.rfAmount, `RF kontrak (${(breakdown.rfRateFactor || 1).toFixed(3)}x)`);
+  post("2102.100", "Hutang PPN Keluaran", -breakdown.ppnAmount, "PPN Keluaran atas Berita Acara");
 
   // Tidak ada "plug" selisih pembulatan: bila tidak balance, preview harus menampilkannya apa adanya.
   const totalDebit = lines.reduce((acc, l) => acc + l.debit, 0);
@@ -400,7 +440,8 @@ export function getBGGComputedInvoiceLines(
   allItems: any[],
   rfIndexCalculated: number = 1.0,
   isSurvey: boolean = false,
-  fuelPeriods?: Record<string, any>
+  fuelPeriods?: Record<string, any>,
+  obFactor: number = 1
 ): {
   sectionDItems: BGGComputedLineItem[];
   sectionEItems: BGGComputedLineItem[];
@@ -422,7 +463,8 @@ export function getBGGComputedInvoiceLines(
     const mLow = (item.material || item.sowDescription || "").toLowerCase();
     const isOB = isOBMaterial(mLow);
     const isCoal = mLow.includes("coal") || mLow.includes("batubara");
-    const effVol = getBAEffectiveVolume(item, allItems, isSurvey);
+    // OB dibatasi kuota Stripping Ratio (sama dengan BE).
+    const effVol = getBAEffectiveVolume(item, allItems, isSurvey) * (isOB && !isCoal ? obFactor : 1);
     const r = Number(item.rate || 0);
     const itemPeriod = (item.period || item.notes || "").trim();
     const itemRF = Number(getBGGRFIndexForPeriod(itemPeriod, effectiveRF, fuelPeriods).toFixed(3));
@@ -611,8 +653,11 @@ export function calculateTripleFactorRF(
 ): { posD: number; posL: number; posF: number; rfIndex: number } {
   const m = rfMasterFor(customerCode, period) || rfTemplateFor(customerCode);
   if (!m) return { posD: 0, posL: 0, posF: 0, rfIndex: 0 };
-  const posD = (actualFuelFn > 0 && actualMRateXn > 0 && m.baseFuelFo > 0) ? (m.weightFuelA * actualFuelFn * actualMRateXn) / m.baseFuelFo : 0;
-  const posL = (actualLaborLn > 0 && actualMRateXn > 0 && m.baseLaborLo > 0 && m.baseForexXo > 0) ? (m.weightLaborB * actualLaborLn * actualMRateXn) / (m.baseLaborLo * m.baseForexXo) : 0;
+  // Komponen D sama dengan computeRFIndex: solar USD (< 100) dikonversi kurs, basis Fo USD ikut dikali Xo.
+  const fuelUSD = actualMRateXn > 0 && actualFuelFn < 100;
+  const baseFo = fuelUSD && m.baseFuelFo < 100 && m.baseForexXo > 0 ? m.baseFuelFo * m.baseForexXo : m.baseFuelFo;
+  const posD = (actualFuelFn > 0 && m.baseFuelFo > 0) ? (m.weightFuelA * actualFuelFn * (fuelUSD ? actualMRateXn : 1)) / baseFo : 0;
+  const posL = (actualLaborLn > 0 && m.baseLaborLo > 0) ? (m.weightLaborB * actualLaborLn) / m.baseLaborLo : 0;
   const posF = Number(m.weightFixedC || 0);
   const rfIndex = (posD > 0 || posL > 0) ? computeRFIndex(m, actualFuelFn, actualLaborLn, actualMRateXn) : 0;
   return { posD, posL, posF, rfIndex };

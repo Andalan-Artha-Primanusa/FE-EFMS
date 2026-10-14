@@ -23,7 +23,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   const resolvedView = titleFromSlug(requestedSlug);
   const activeView = location.pathname.startsWith("/transaction/") 
     ? "Transaction Form"
-    : location.pathname.startsWith("/variable-sow/new") || location.pathname.startsWith("/variable-sow/edit")
+    : location.pathname.startsWith("/variable-sow/")
     ? "Variable SOW Form"
     : location.pathname === "/account-settings"
     ? ACCOUNT_SETTINGS_VIEW

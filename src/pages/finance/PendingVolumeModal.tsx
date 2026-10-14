@@ -12,6 +12,7 @@ import {
   generateInvoiceNumber, getBAInvoiceStatus, renderBAStatusBadge,
   getBAStatusForExport, renderInvoiceStatusBadge, parsePeriodToMonthIndex,
   RupiahInput, FormattedNumberInput, generateAuditTimeline, getCustomerOfficialName } from "./helpers";
+import { masterRegistry, contractParams } from "./masterRegistry";
 
 export function PendingVolumeModal({ c }: { c: any }) {
   const {
@@ -115,7 +116,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
                     </span>
                   </h3>
                   <p className="text-[11px] text-amber-100/70 font-medium">
-                    Monitoring kuota rasio kontrak SOW (Maks. 3:1 OB/Coal) & alokasi memo volume penagihan
+                    Monitoring kuota rasio kontrak SOW (Stripping Ratio OB/Coal per customer) & alokasi memo volume penagihan
                   </p>
                 </div>
               </div>
@@ -190,7 +191,7 @@ export function PendingVolumeModal({ c }: { c: any }) {
                     Aturan Rasio Kontrak SOW (Stripping Ratio Rule & Alokasi Manual):
                   </div>
                   <p className="text-slate-700 leading-relaxed text-[11px]">
-                    Kapasitas penagihan langsung OB dibatasi maksimal <strong>3.0 BCM per 1 Ton Coal (3 : 1)</strong> untuk kontrak eligible (PT BGG). Volume survei OB yang melebihi kuota 3:1 dicatat sebagai saldo pending dengan tarif periode asalnya (OB1 75% & OB2 25%). <strong>Alokasi volume pending ke invoice dilakukan secara manual oleh tim Finance Site</strong> saat kuota periode tagihan mencukupi.
+                    Kapasitas penagihan langsung OB dibatasi kuota Stripping Ratio kontrak: <strong>{masterRegistry.customers.filter((cu: any) => contractParams(cu.code).maxStrippingRatio > 0).map((cu: any) => `${cu.code} ${contractParams(cu.code).maxStrippingRatio} : 1`).join(", ") || "belum ada customer dengan kuota SR"}</strong>. Volume survei OB yang melebihi kuota dicatat sebagai saldo pending dengan tarif periode asalnya (sesuai split OB di Master Variable SOW). <strong>Alokasi volume pending ke invoice dilakukan secara manual oleh tim Finance Site</strong> saat kuota periode tagihan mencukupi.
                   </p>
                 </div>
               </div>

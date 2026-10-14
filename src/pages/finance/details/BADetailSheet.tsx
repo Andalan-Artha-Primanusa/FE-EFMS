@@ -1,6 +1,6 @@
 import React from "react";
 import { Archive, ExternalLink, CheckCircle2, Zap, FileText, Upload, CheckCircle } from "lucide-react";
-import { formatIDR, renderBAStatusBadge, getBAInvoiceStatus, resolveDocumentUrl } from "../helpers";
+import { formatIDR, renderBAStatusBadge, getBAInvoiceStatus, resolveDocumentUrl, isBAApproved } from "../helpers";
 
 interface BADetailSheetProps {
   data: any;
@@ -48,12 +48,12 @@ export const BADetailSheet: React.FC<BADetailSheetProps> = ({
             <span>Lihat Invoice</span>
           </button>
         </div>
-      ) : (data.statusBA === "Ready to Invoice" || Boolean(data.verifiedBy)) ? (
+      ) : isBAApproved(data) ? (
         <div className="bg-[#A57C50]/5 border border-[#A57C50]/20 rounded-[4px] p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-2.5">
             <CheckCircle2 size={16} className="text-[#A57C50] shrink-0" />
             <span className="text-xs font-black text-[#1A1612]">
-              BA Terverifikasi — Siap Diterbitkan Invoice
+              BA Disetujui Manager — Siap Diterbitkan Invoice
             </span>
           </div>
           <button

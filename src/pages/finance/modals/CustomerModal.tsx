@@ -1,6 +1,7 @@
 import React from "react";
 import { RupiahInput } from "../helpers";
 import { masterRegistry } from "../masterRegistry";
+import { SOW_MODEL_LABELS } from "../../VariableSOWPage";
 
 interface CustomerModalProps {
   formData: any;
@@ -188,6 +189,14 @@ export function CustomerModal({ formData, setFormData }: CustomerModalProps) {
               <option value="SINGLE_FACTOR_FUEL">Single Factor (Fuel)</option>
               <option value="TRIPLE_FACTOR_DLF">Triple Factor (Fuel, Labor, Fixed)</option>
               <option value="KURS_TRANSAKSI_USD">Kurs Transaksi USD</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Model Tarif Variable SOW</label>
+            <select className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.sowModel || ""}
+              onChange={(e) => setFormData({ ...formData, sowModel: e.target.value })}>
+              <option value="">Default per kode customer</option>
+              {Object.entries(SOW_MODEL_LABELS).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
             </select>
           </div>
           <div>

@@ -26,7 +26,7 @@ import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { api } from "../lib/api";
-import { MonthPickerInput, matchPeriod } from "./finance/helpers";
+import { MonthPickerInput, matchPeriod, parsePeriodToYYYYMM } from "./finance/helpers";
 import { computeRFIndex, kursForPeriod } from "./finance/masterRegistry";
 
 const currentPeriodLabel = () => new Date().toLocaleString("id-ID", { month: "long", year: "numeric" });
@@ -240,10 +240,10 @@ export function MasterRaiseFallPage({
   }, []);
 
   // Calculated current active RF Index
-  const filteredRfRows = rfRows.filter((r) => {
-    if (selectedCustomer !== "ALL" && r.customerCode !== selectedCustomer) return false;
-    return true;
-  });
+  // Periode terbaru di atas.
+  const filteredRfRows = rfRows
+    .filter((r) => selectedCustomer === "ALL" || r.customerCode === selectedCustomer)
+    .sort((a, b) => parsePeriodToYYYYMM(b.period).localeCompare(parsePeriodToYYYYMM(a.period)));
 
   const activeRf = filteredRfRows[0] || rfRows.find((r) => r.customerCode === selectedCustomer) || rfRows[0] || {
     period: "-",
@@ -263,6 +263,8 @@ export function MasterRaiseFallPage({
     rfIndexResult: 0
   };
 
+  const activeIsSingle = (activeRf.formulaScheme || customerOf(activeRf.customerCode)?.formulaScheme) === "SINGLE_FACTOR_FUEL";
+
   // M-Rate periode RF dari Master Kurs BI
   const avgMRateCalc = kursForPeriod(rfForm.period, mrateRows);
 
@@ -275,7 +277,12 @@ export function MasterRaiseFallPage({
   const mrateAvg = kursForPeriod(activeMratePeriod, mrateRows);
   const pct = (v: any) => `${(Number(v || 0) * 100).toFixed(1)}%`;
   // Parameter kontrak POS (bobot & indeks dasar) dari Master Raise & Fall.
-  const posRf: any = rfRows.find((r) => r.customerCode === "POS") || {};
+  // Parameter terbaru tiap customer (urutan updatedAt), sama dengan template RF di backend.
+  const latestRf = (code: string): any =>
+    [...rfRows].filter((r) => r.customerCode === code && r.status !== "Archived")
+      .sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime())[0] || {};
+  const posRf = latestRf("POS");
+  const bggRf = latestRf("BGG");
 
   // Real-time formula calculations (bobot & basis dari form = Master Raise & Fall)
   const isBGGStyle = rfForm.formulaScheme === "SINGLE_FACTOR_FUEL";
@@ -290,8 +297,7 @@ export function MasterRaiseFallPage({
   const bggBaseFo = Number(rfForm.baseFuelFo) || 0;
   const calcBGGRF = computeRFIndex({ ...rfForm, formulaScheme: "SINGLE_FACTOR_FUEL" }, bggAvgFn);
 
-  // 3-Faktor: D = (a * Fn * Xn) / Fo ; L = (b * Ln * Xn) / (Lo * Xo) ; F = c
-  const isPOSCalc = !isBGGStyle;
+  // 3-Faktor: D = (a * Fn * Xn) / Fo ; L = b * (Ln / Lo) ; F = c
   const posBaseFo = Number(rfForm.baseFuelFo) || 0;
   const posWeightA = Number(rfForm.weightFuelA) || 0;
   const posWeightB = Number(rfForm.weightLaborB) || 0;
@@ -319,18 +325,14 @@ export function MasterRaiseFallPage({
 
   const effectivePosFn = posFnFromRefills > 0 ? posFnFromRefills : Number(rfForm.actualFuelFn || 0);
 
+  const posLn = Number(rfForm.actualLaborLn || 0);
   const calcFuelD = posBaseFo > 0
-    ? (posWeightA * (posAvgPriceIDR > 0 ? posAvgPriceIDR : (effectivePosFn * (effectivePosFn < 100 ? posMrateXn : 1)))) / posBaseFo
+    ? (posWeightA * effectivePosFn * (effectivePosFn < 100 ? posMrateXn : 1)) / posBaseFo
     : 0;
-
-  const loXo = posBaseLo * posBaseXo;
-  const calcLaborL = loXo > 0
-    ? (posWeightB * Number(rfForm.actualLaborLn || 0) * posMrateXn) / loXo
-    : 0;
-
+  const calcLaborL = posBaseLo > 0 ? (posWeightB * posLn) / posBaseLo : 0;
   const calcFixedF = posWeightC;
-  const rawPosRF = calcFuelD + calcLaborL + calcFixedF;
-  const calcTotalRF = isBGGStyle ? calcBGGRF : (!rfForm.allowFall && rawPosRF > 0 && rawPosRF < 1 ? 1 : rawPosRF);
+  // Total memakai computeRFIndex (rumus yang sama dengan backend).
+  const calcTotalRF = isBGGStyle ? calcBGGRF : computeRFIndex(rfForm, effectivePosFn, posLn, posMrateXn);
 
   const handlePOSRefillChange = (index: number, field: "date" | "qty" | "unitPrice", val: any) => {
     setRfForm((prev: any) => {
@@ -756,7 +758,7 @@ export function MasterRaiseFallPage({
               {activeRf.rfIndexResult ? Number(activeRf.rfIndexResult).toFixed(3) : "-"}
             </div>
             <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
-              <span>Periode: <strong>{activeRf.period || "-"}</strong></span>
+              <span>Periode: <strong>{activeRf.period || "-"}</strong>{activeRf.customerCode ? ` · ${activeRf.customerCode}` : ""}</span>
               <span className="text-slate-600 font-bold">{activeRf.status || "-"}</span>
             </div>
           </div>
@@ -781,7 +783,7 @@ export function MasterRaiseFallPage({
               <Percent size={14} className="text-slate-600" />
             </div>
             <div className="text-lg font-bold text-slate-900 tabular-nums">
-              Rp {Number(activeRf.baseLaborLo || 0).toLocaleString("id-ID")}
+              {activeIsSingle ? <span className="text-sm text-slate-400">Tidak dipakai (1-Faktor BBM)</span> : `Rp ${Number(activeRf.baseLaborLo || 0).toLocaleString("id-ID")}`}
             </div>
             <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
               <span>Bobot (b): {pct(activeRf.weightLaborB)}</span>
@@ -795,7 +797,9 @@ export function MasterRaiseFallPage({
               <TrendingUp size={14} className="text-[#A57C50]" />
             </div>
             <div className="text-lg font-bold text-slate-900 tabular-nums">
-              Rp {kursForPeriod(activeRf.period, mrateRows).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
+              {activeIsSingle
+                ? <span className="text-sm text-slate-400">Tidak dipakai (1-Faktor BBM)</span>
+                : `Rp ${Number(activeRf.actualMRateXn || kursForPeriod(activeRf.period, mrateRows)).toLocaleString("id-ID", { minimumFractionDigits: 2 })}`}
             </div>
             <div className="text-[11px] text-slate-500 flex justify-between pt-1 border-t border-slate-100">
               <span>Base Forex (Xo): Rp {Number(activeRf.baseForexXo || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</span>
@@ -863,16 +867,7 @@ export function MasterRaiseFallPage({
               <tbody className="divide-y divide-slate-100 font-medium text-slate-900 bg-white">
                 {filteredRfRows.map((r) => {
                   const isSingle = r.formulaScheme === "SINGLE_FACTOR_FUEL";
-                  let d = 0, l = 0, f = 0, totalRf = 0;
-
-                  if (isSingle) {
-                    totalRf = r.rfIndexResult || computeRFIndex(r, r.actualFuelFn) || 1;
-                  } else {
-                    d = r.baseFuelFo > 0 ? (r.weightFuelA * r.actualFuelFn * (r.actualFuelFn < 100 ? r.actualMRateXn : 1)) / r.baseFuelFo : 0;
-                    l = r.baseLaborLo > 0 ? (r.weightLaborB * r.actualLaborLn) / r.baseLaborLo : 0;
-                    f = r.weightFixedC || 0;
-                    totalRf = r.rfIndexResult || (d + l + f);
-                  }
+                  const totalRf = Number(r.rfIndexResult || computeRFIndex(r, r.actualFuelFn, r.actualLaborLn, r.actualMRateXn));
 
                   return (
                     <tr key={r.id} className="hover:bg-slate-50/80 border-b border-slate-100">
@@ -905,27 +900,12 @@ export function MasterRaiseFallPage({
                       <td className="p-2.5 text-right tabular-nums font-bold border-r border-slate-100">
                         {r.actualFuelFn > 100 ? `Rp ${r.actualFuelFn?.toLocaleString("id-ID")}` : `USD ${r.actualFuelFn?.toFixed(3)}`}
                       </td>
-                      {/* LABOR (Ln IDR) - DYNAMIC MASTER DATA LOOKUP */}
+                      {/* Labor & M-Rate hanya dipakai skema 3-faktor (1-faktor BBM tanpa upah & kurs). */}
                       <td className="p-2.5 text-right tabular-nums font-bold border-r border-slate-100">
-                        {(() => {
-                          const siteUmk = umkRows.find(
-                            (u) => u.site === r.projectSite
-                          );
-                          const laborVal = (r.actualLaborLn && r.actualLaborLn > 0)
-                            ? r.actualLaborLn
-                            : (siteUmk?.amountIdr || 0);
-                          return `Rp ${Number(laborVal).toLocaleString("id-ID")}`;
-                        })()}
+                        {isSingle ? <span className="text-slate-400">—</span> : `Rp ${Number(r.actualLaborLn || umkFor(r.customerCode)?.amountIdr || 0).toLocaleString("id-ID")}`}
                       </td>
-
-                      {/* M-RATE (Xn IDR) - DYNAMIC MASTER DATA LOOKUP */}
                       <td className="p-2.5 text-right tabular-nums font-bold border-r border-slate-100">
-                        {(() => {
-                          const mRateVal = (r.actualMRateXn && r.actualMRateXn > 0)
-                            ? r.actualMRateXn
-                            : kursForPeriod(r.period, mrateRows);
-                          return `Rp ${Number(mRateVal).toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`;
-                        })()}
+                        {isSingle ? <span className="text-slate-400">—</span> : `Rp ${Number(r.actualMRateXn || kursForPeriod(r.period, mrateRows)).toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`}
                       </td>
                       <td className="p-2.5 text-right tabular-nums font-bold text-sm text-slate-950 border-r border-slate-100 underline">
                         {totalRf.toFixed(3)}
@@ -968,11 +948,11 @@ export function MasterRaiseFallPage({
                   <Flame size={15} /> SKEMA BGG: 1-FAKTOR FUEL (ESKALASI BBM MURNI)
                 </div>
                 <div className="p-2.5 bg-slate-800/90 rounded-[3px] border border-slate-700 text-slate-200 text-xs">
-                  <code>Index = 0,60 + 0,40 × (Fn / Fo)</code>
+                  <code>Index = {Number(bggRf.weightFixedC || 0).toLocaleString("id-ID")} + {Number(bggRf.weightFuelA || 0).toLocaleString("id-ID")} × (Fn / Fo)</code>
                 </div>
                 <ul className="text-[11px] text-slate-300 space-y-1 font-sans">
                   <li>• <strong>Tanpa Komponen Upah/Labor</strong> & tanpa faktor kurs forex.</li>
-                  <li>• <strong>Fo (Baseline Fuel):</strong> Rp 9.000 / Liter (Konvensi Kontrak BGG).</li>
+                  <li>• <strong>Fo (Baseline Fuel):</strong> Rp {Number(bggRf.baseFuelFo || 0).toLocaleString("id-ID")} / Liter (Master RF BGG).</li>
                   <li>• <strong>Fn (Aktual Fuel):</strong> Harga solar industri aktual periode berjalan.</li>
                 </ul>
               </div>
@@ -985,12 +965,12 @@ export function MasterRaiseFallPage({
                 <div className="p-2.5 bg-slate-800/90 rounded-[3px] border border-slate-700 text-slate-200 text-xs">
                   <code>Index = D + L + F</code>
                   <div className="text-[10px] text-teal-300 mt-1">
-                    D = [a × Fn × Xn] / Fo | L = b × (Ln / Lo) (Rasio IDR Murni!) | F = c
+                    D = [a × Fn × Xn] / Fo | L = b × (Ln / Lo) | F = c
                   </div>
                 </div>
                 <ul className="text-[11px] text-slate-300 space-y-1 font-sans">
-                  <li>• <strong>Bobot:</strong> Fuel (a) 34%, Labor (b) 25%, Fixed (c) 41%.</li>
-                  <li>• <strong>Ln (Upah Aktual):</strong> Auto-fill dari Referensi UMK Site Morowali.</li>
+                  <li>• <strong>Bobot:</strong> Fuel (a) {pct(posRf.weightFuelA)}, Labor (b) {pct(posRf.weightLaborB)}, Fixed (c) {pct(posRf.weightFixedC)}.</li>
+                  <li>• <strong>Ln (Upah Aktual):</strong> Auto-fill dari Referensi UMK site customer.</li>
                   <li>• <strong>Labor Tanpa Forex:</strong> Menggunakan rasio murni Rupiah UMK (Ln / Lo).</li>
                 </ul>
               </div>
@@ -1592,9 +1572,9 @@ export function MasterRaiseFallPage({
                     {isBGGStyle ? (
                       <div className="space-y-1 text-slate-700">
                         <div className="flex justify-between items-center">
-                          <span>Formula: 0,60 + 0,40 × (Fn / Fo):</span>
+                          <span>Formula: c + a × (Fn / Fo):</span>
                           <strong className="text-amber-950 tabular-nums font-bold">
-                            0,60 + 0,40 × ({bggAvgFn.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / 9.000)
+                            {Number(rfForm.weightFixedC || 0).toLocaleString("id-ID")} + {Number(rfForm.weightFuelA || 0).toLocaleString("id-ID")} × ({bggAvgFn.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / {bggBaseFo.toLocaleString("id-ID")})
                           </strong>
                         </div>
                       </div>
@@ -1605,7 +1585,7 @@ export function MasterRaiseFallPage({
                           <strong className="text-amber-900 tabular-nums font-bold">{calcFuelD.toFixed(3)}</strong>
                         </div>
                         <div className="flex justify-between text-slate-700">
-                          <span>L = ({((posWeightB || 0.25) * 100).toFixed(0)}% × {Number(rfForm.actualLaborLn).toLocaleString("id-ID")} × {posMrateXn.toFixed(2)}) / (Lo × Xo):</span>
+                          <span>L = {(posWeightB * 100).toFixed(0)}% × ({posLn.toLocaleString("id-ID")} / {posBaseLo.toLocaleString("id-ID")}):</span>
                           <strong className="text-teal-800 tabular-nums font-bold">{calcLaborL.toFixed(3)}</strong>
                         </div>
                         <div className="flex justify-between text-slate-700">

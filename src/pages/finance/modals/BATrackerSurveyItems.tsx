@@ -4,7 +4,7 @@ import { formatIDR, FormattedNumberInput, matchPeriod } from "../helpers";
 import { BAOperatingTable } from "./BAOperatingTable";
 import { BAMDOTable } from "./BAMDOTable";
 import { BADeductionTable } from "./BADeductionTable";
-import { calculateBACommercialBreakdown, resolveHOMasterLaborAndCurrency, calculateTripleFactorRF } from "../ba_calculations";
+import { calculateBACommercialBreakdown, resolveHOMasterLaborAndCurrency, calculateTripleFactorRF, bggOBBillableFactor } from "../ba_calculations";
 import { computeRFIndex, rfMasterFor, rfTemplateFor, ptroContractRates } from "../masterRegistry";
 
 interface BATrackerSurveyItemsProps {
@@ -264,7 +264,7 @@ export function BATrackerSurveyItems({
     }
 
     if (!rf) {
-      const { rfIndex } = calculateTripleFactorRF(fn, ln, xn);
+      const { rfIndex } = calculateTripleFactorRF(fn, ln, xn, formData.customerCode, period);
       rf = rfIndex;
     }
 
@@ -355,7 +355,7 @@ export function BATrackerSurveyItems({
   const posFn = Number(activePeriodPOS.actualFuelFn ?? 0);
   const posLn = Number(activePeriodPOS.actualLaborLn || hoPOSResolved.laborLn);
   const posXn = Number(activePeriodPOS.actualMRateXn || hoPOSResolved.currencyXn);
-  const { posD, posL, posF, rfIndex: computedPosRf } = calculateTripleFactorRF(posFn, posLn, posXn);
+  const { posD, posL, posF, rfIndex: computedPosRf } = calculateTripleFactorRF(posFn, posLn, posXn, formData.customerCode, activeFuelPeriod);
 
   const posRefills: any[] = Array.isArray(activePeriodPOS.fuelRefills) ? activePeriodPOS.fuelRefills : [];
   let posTotalLiters = 0;
@@ -489,7 +489,7 @@ export function BATrackerSurveyItems({
       const ln = field === "actualLaborLn" ? val : Number(curP.actualLaborLn ?? curPOS.actualLaborLn ?? hoResolved.laborLn);
       const xn = field === "actualMRateXn" ? val : Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? hoResolved.currencyXn);
       
-      const { rfIndex: newRf } = calculateTripleFactorRF(fn, ln, xn);
+      const { rfIndex: newRf } = calculateTripleFactorRF(fn, ln, xn, formData.customerCode, activeFuelPeriod);
       
       curP.actualFuelFn = fn;
       curP.actualLaborLn = ln;
@@ -557,7 +557,7 @@ export function BATrackerSurveyItems({
       const xn = Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? hoResolved.currencyXn);
       const newFn = (avgPriceIDR > 0 && xn > 0) ? Number((avgPriceIDR / xn).toFixed(6)) : Number(curP.actualFuelFn || 0);
 
-      const { rfIndex: newRf } = calculateTripleFactorRF(newFn, ln, xn);
+      const { rfIndex: newRf } = calculateTripleFactorRF(newFn, ln, xn, formData.customerCode, activeFuelPeriod);
 
       curP.fuelRefills = prevRefills;
       curP.actualFuelFn = newFn;
@@ -683,7 +683,7 @@ export function BATrackerSurveyItems({
       const xn = Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? hoResolved.currencyXn);
       const newFn = (avgPriceIDR > 0 && xn > 0) ? Number((avgPriceIDR / xn).toFixed(6)) : Number(curP.actualFuelFn || 0);
 
-      const { rfIndex: newRf } = calculateTripleFactorRF(newFn, ln, xn);
+      const { rfIndex: newRf } = calculateTripleFactorRF(newFn, ln, xn, formData.customerCode, activeFuelPeriod);
 
       curP.fuelRefills = prevRefills;
       curP.actualFuelFn = newFn;
@@ -869,7 +869,8 @@ export function BATrackerSurveyItems({
     effectiveRF,
     isCustomerDBK,
     false,
-    isBGG ? bggData.fuelPeriods : isPOS ? posData.fuelPeriods : isPTRO ? ptroData.fuelPeriods : sbsData.fuelPeriods
+    isBGG ? bggData.fuelPeriods : isPOS ? posData.fuelPeriods : isPTRO ? ptroData.fuelPeriods : sbsData.fuelPeriods,
+    bggOBBillableFactor(formData.customerCode, formData)
   );
 
   return (
@@ -1191,10 +1192,10 @@ export function BATrackerSurveyItems({
             </span>
             <div className="flex flex-wrap items-center gap-1.5 self-start sm:self-auto text-[10px] font-bold">
               <span className="bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-[3px] border border-amber-300/60">
-                Formula: D + L + F (a=0.34, b=0.25, c=0.41)
+                Formula: D + L + F (a={Number(bggRfMaster?.weightFuelA || 0)}, b={Number(bggRfMaster?.weightLaborB || 0)}, c={Number(bggRfMaster?.weightFixedC || 0)})
               </span>
               <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-[3px] border border-amber-200">
-                Fo: Rp 10.699,97 | Lo: Rp 3.594.536 | Xo: Rp 15.388,75
+                Fo: Rp {Number(bggRfMaster?.baseFuelFo || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} | Lo: Rp {Number(bggRfMaster?.baseLaborLo || 0).toLocaleString("id-ID")} | Xo: Rp {Number(bggRfMaster?.baseForexXo || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}
               </span>
             </div>
           </div>

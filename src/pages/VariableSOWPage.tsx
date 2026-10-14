@@ -26,6 +26,7 @@ import { Panel } from "../components/Panel";
 import { api } from "../lib/api";
 import { customerKind, kursForPeriod } from "./finance/masterRegistry";
 import { useNavigate, useLocation } from "react-router-dom";
+import { routes } from "../router/routes";
 
 const formatIDR = (val: number) => {
   if (!val && val !== 0) return "Rp 0";
@@ -35,21 +36,38 @@ const formatIDR = (val: number) => {
 export const normalizeSOWSiteCode = (code: string): string => customerKind(code);
 
 /** Site & kontrak pemilik Variable SOW = Master Customer (BE). */
-export async function loadSOWCustomerSites(): Promise<{ code: string; name: string; fullName: string; contractNo: string }[]> {
+export async function loadSOWCustomerSites(): Promise<{ code: string; name: string; fullName: string; contractNo: string; sowModel: SOWModel }[]> {
   const rows = await api<any[]>("/api/finance/customers").catch(() => []);
   return (Array.isArray(rows) ? rows : []).map((c) => ({
     code: normalizeSOWSiteCode(c.code),
     name: c.fullName || c.code,
     fullName: `${c.fullName || c.code} (${c.code})`,
     contractNo: c.contractNo || "",
+    sowModel: sowModel(normalizeSOWSiteCode(c.code), c.sowModel),
   }));
 }
 
-/** M-Rate periode terbaru di Master Kurs BI (0 bila belum ada). */
-export const latestPeriodMRate = (rates: any[]): number => {
-  const period = Array.isArray(rates) && rates.length > 0 ? rates[rates.length - 1]?.period : "";
-  return period ? kursForPeriod(period, rates) : 0;
+/** M-Rate periode terbaru (tanggal kurs paling akhir) di Master Kurs BI. */
+export const latestPeriodMRate = (rates: any[]): { period: string; rate: number } => {
+  const list = Array.isArray(rates) ? rates : [];
+  const time = (r: any) => Date.parse(r?.dateStr) || 0;
+  const latest = list.reduce((a, r) => (!a || time(r) >= time(a) ? r : a), null as any);
+  const period = latest?.period || "";
+  return { period, rate: period ? kursForPeriod(period, list) : 0 };
 };
+
+export type SOWModel = "coal" | "idr" | "multi" | "usd";
+export const SOW_MODEL_LABELS: Record<SOWModel, string> = {
+  coal: "Batubara Multi-Tier (Coal Index)",
+  idr: "IDR Tetap (OB, Rental & Denda)",
+  multi: "USD & IDR (Multi-Currency)",
+  usd: "USD (M-Rate BI)",
+};
+
+/** Model tarif customer: pilihan di Master Customer, kosong = default per kode. Menentukan tabel form Variable SOW. */
+export const sowModel = (code: string, model?: string): SOWModel =>
+  model && model in SOW_MODEL_LABELS ? (model as SOWModel)
+    : code === "BGG" ? "coal" : code === "SBS" ? "idr" : code === "PTRO" ? "multi" : "usd";
 
 export function VariableSOWPage({
   viewTitle,
@@ -62,10 +80,11 @@ export function VariableSOWPage({
 }) {
   const [loading, setLoading] = useState(true);
   const [sowRows, setSowRows] = useState<any[]>([]);
-  const [mrateBi, setMrateBi] = useState<number>(0);
+  const [mrate, setMrate] = useState({ period: "", rate: 0 });
   const [contractsList, setContractsList] = useState<any[]>([]);
   const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>("ALL");
   const [companyList, setCompanyList] = useState<any[]>([]);
+  const [orphanCodes, setOrphanCodes] = useState<string[]>([]);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -90,7 +109,7 @@ export function VariableSOWPage({
       const activeSows = Array.isArray(resSow) ? resSow : [];
       setSowRows(activeSows);
 
-      setMrateBi(latestPeriodMRate(resMrate));
+      setMrate(latestPeriodMRate(resMrate));
 
       // Kelompok SOW per customer di Master Customer (hanya data tersimpan; tanpa template tarif).
       const groupedMap: Record<string, any> = {};
@@ -107,14 +126,16 @@ export function VariableSOWPage({
           companyName: site.name,
           companyCode: site.code,
           contractNo: site.contractNo,
-          type: cCode === "BGG" ? "coal" : "generic",
-          badgeColor: "slate",
+          sowModel: site.sowModel,
           desc: "",
           itemCount: finalItems.length,
           items: finalItems
         };
       });
 
+      setOrphanCodes([...new Set(activeSows
+        .map((item) => normalizeSOWSiteCode(item.customerCode || item.customer || ""))
+        .filter((code) => !groupedMap[code]))]);
       setContractsList(Object.values(groupedMap));
       setCompanyList(sites);
     } catch (err: any) {
@@ -128,13 +149,9 @@ export function VariableSOWPage({
     loadData();
   }, []);
 
-  const openCreateGridModal = () => {
-    navigate("/variable-sow/new", { state: { mrateBi } });
-  };
-
-  const openEditGridModal = (contractGroup: any) => {
-    navigate("/variable-sow/edit", { state: { contractGroup, mrateBi } });
-  };
+  const openCreateGridModal = () => navigate(routes.variableSOW.new);
+  const openEditGridModal = (contractGroup: any) => navigate(routes.variableSOW.edit(contractGroup.companyCode));
+  const contractsWithSow = contractsList.filter((c) => c.itemCount > 0);
 
   const filteredContracts = contractsList.filter((c) => {
     if (selectedCompanyFilter !== "ALL" && c.companyCode !== selectedCompanyFilter) return false;
@@ -172,24 +189,27 @@ export function VariableSOWPage({
         <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Kurs Acuan BI (M-Rate)</span>
-            <span className="p-0.5 px-2 bg-emerald-50 rounded text-emerald-700 font-bold text-[10px] border border-emerald-200">Live Sync</span>
+            <span className="p-0.5 px-2 bg-emerald-50 rounded text-emerald-700 font-bold text-[10px] border border-emerald-200">{mrate.period || "Belum ada kurs"}</span>
           </div>
           <div className="text-xl font-black text-slate-900 font-mono tracking-tight pt-0.5">
-            {formatIDR(mrateBi)}
+            {formatIDR(mrate.rate)}
             <span className="text-xs font-sans font-normal text-slate-400 ml-1">/ USD</span>
           </div>
-          <p className="text-[11px] text-slate-500">Acuan konversi tarif USD (PT POS & PT DBK)</p>
+          <p className="text-[11px] text-slate-500">Rata-rata kurs tengah periode terbaru, acuan konversi tarif USD</p>
         </div>
 
         <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Kontrak Aktif</span>
-            <span className="p-0.5 px-2 bg-slate-100 rounded text-slate-700 font-bold text-[10px] border border-slate-200">{contractsList.length} Entitas</span>
+            <span className="p-0.5 px-2 bg-slate-100 rounded text-slate-700 font-bold text-[10px] border border-slate-200">{contractsList.length} Customer</span>
           </div>
           <div className="text-xl font-black text-slate-900 font-mono tracking-tight pt-0.5">
-            {contractsList.length} Site & Klien
+            {contractsWithSow.length} Site & Klien
           </div>
-          <p className="text-[11px] text-slate-500">{companyList.map((c) => c.code).join(", ") || "Terdaftar di database"}</p>
+          <p className="text-[11px] text-slate-500">
+            {contractsWithSow.map((c) => c.companyCode).join(", ") || "Belum ada tarif SOW"}
+            {contractsWithSow.length < contractsList.length && ` · belum ada tarif: ${contractsList.filter((c) => !c.itemCount).map((c) => c.companyCode).join(", ")}`}
+          </p>
         </div>
 
         <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-1">
@@ -198,9 +218,9 @@ export function VariableSOWPage({
             <span className="p-0.5 px-2 bg-cyan-50 rounded text-cyan-800 font-bold text-[10px] border border-cyan-200">Multi-Site</span>
           </div>
           <div className="text-sm font-bold text-slate-900 pt-1">
-            Batubara (Tiering), Nikel (USD) & Rental (IDR)
+            Batubara (Tiering), USD (M-Rate), USD & IDR, IDR
           </div>
-          <p className="text-[11px] text-slate-500">Tersinkronisasi ke BA Tracker & Invoice</p>
+          <p className="text-[11px] text-slate-500">Dipakai kalkulasi BA Tracker & Invoice</p>
         </div>
       </div>
 
@@ -244,6 +264,11 @@ export function VariableSOWPage({
             <p className="text-xs text-slate-500">
               Katalog tarif dasar yang otomatis dipakai saat pembuatan Berita Acara dan Invoice.
             </p>
+            {orphanCodes.length > 0 && (
+              <p className="text-xs text-rose-700 font-bold mt-1">
+                Ada item SOW untuk customer yang tidak terdaftar di Master Customer: {orphanCodes.join(", ") || "(kosong)"}.
+              </p>
+            )}
           </div>
         </div>
 
@@ -275,17 +300,21 @@ export function VariableSOWPage({
                   </td>
                   <td className="p-3 font-mono font-bold text-slate-700 text-xs">{c.contractNo || "-"}</td>
                   <td className="p-3 text-center">
-                    {c.type === "coal" || c.companyCode === "BGG" ? (
+                    {c.sowModel === "coal" ? (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
                         <Flame size={12} className="text-amber-600" /> Batubara (Multi-Tier)
                       </span>
-                    ) : c.companyCode === "SBS" ? (
+                    ) : c.sowModel === "idr" ? (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-900 border border-emerald-200">
                         <CheckCircle2 size={12} className="text-emerald-700" /> IDR (OB, Rental & Denda)
                       </span>
+                    ) : c.sowModel === "multi" ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-cyan-50 text-cyan-900 border border-cyan-200">
+                        <DollarSign size={12} className="text-cyan-700" /> USD & IDR (Multi-Currency)
+                      </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-bold bg-cyan-50 text-cyan-900 border border-cyan-200">
-                        <DollarSign size={12} className="text-cyan-700" /> Nikel (USD Presisi)
+                        <DollarSign size={12} className="text-cyan-700" /> USD (M-Rate BI)
                       </span>
                     )}
                   </td>

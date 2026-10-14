@@ -22,7 +22,6 @@ const FinanceBATrackerPage = lazy(() => import("../pages/FinanceBATrackerPage").
 const FinanceInvoicePage = lazy(() => import("../pages/FinanceInvoicePage").then((m) => ({ default: m.FinanceInvoicePage })));
 const FinancePaymentPage = lazy(() => import("../pages/FinancePaymentPage").then((m) => ({ default: m.FinancePaymentPage })));
 const FinanceCustomerPage = lazy(() => import("../pages/FinanceCustomerPage").then((m) => ({ default: m.FinanceCustomerPage })));
-const SiteSetupPage = lazy(() => import("../pages/SiteSetupPage").then((m) => ({ default: m.SiteSetupPage })));
 const CompanyPage = lazy(() => import("../pages/CompanyPage").then((m) => ({ default: m.CompanyPage })));
 const TreasuryPage = lazy(() => import("../pages/TreasuryPage").then((m) => ({ default: m.TreasuryPage })));
 const BudgetManagementPage = lazy(() => import("../pages/BudgetManagementPage").then((m) => ({ default: m.BudgetManagementPage })));
@@ -41,14 +40,6 @@ export function VariableSOWRoute({ viewTitle = "Variable SOW" }: { viewTitle?: s
   );
 }
 
-export function SiteSetupRoute({ viewTitle = "Setup Parameter Site & Klien" }: { viewTitle?: string }) {
-  const { query, setNotice, user } = useOutletContext<any>();
-  return (
-    <Suspense fallback={<RouteLoading />}>
-      <SiteSetupPage viewTitle={viewTitle} query={query} onNotice={setNotice} user={user} />
-    </Suspense>
-  );
-}
 
 export function DashboardRoute() {
   const { dashboard, transactions, query, refresh, setNotice } = useOutletContext<any>();

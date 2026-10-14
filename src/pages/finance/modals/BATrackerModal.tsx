@@ -7,6 +7,7 @@ import {
   getBAEffectiveVolume,
   getBAItemSubtotal,
   calculateBACommercialBreakdown,
+  bggOBBillableFactor,
 } from "../ba_calculations";
 import { BATrackerHeaderForm } from "./BATrackerHeaderForm";
 import { BATrackerSurveyItems } from "./BATrackerSurveyItems";
@@ -97,8 +98,8 @@ export function BATrackerModal({ c }: { c: any }) {
   );
   const hasAdjusted = allBAItems.some((it) => !it.isDeduction && it.category !== "DP Fuel" && Number(it.adjustedVolume || 0) > 0);
 
-  const breakdownInitial = calculateBACommercialBreakdown(formData.customerCode, allBAItems, effectiveRF, isCustomerDBK, false, activeFuelPeriods);
-  const breakdownAdjusted = calculateBACommercialBreakdown(formData.customerCode, allBAItems, effectiveRF, isCustomerDBK, true, activeFuelPeriods);
+  const breakdownInitial = calculateBACommercialBreakdown(formData.customerCode, allBAItems, effectiveRF, isCustomerDBK, false, activeFuelPeriods, bggOBBillableFactor(formData.customerCode, formData));
+  const breakdownAdjusted = calculateBACommercialBreakdown(formData.customerCode, allBAItems, effectiveRF, isCustomerDBK, true, activeFuelPeriods, bggOBBillableFactor(formData.customerCode, formData));
   const activeBreakdown = (hasAdjusted && breakdownAdjusted.totalGross > 0) ? breakdownAdjusted : breakdownInitial;
 
   const totalClaimInitial = breakdownInitial.totalGross > 0 ? breakdownInitial.totalGross : sumInitial;
