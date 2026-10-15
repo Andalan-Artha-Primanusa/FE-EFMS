@@ -20,6 +20,12 @@ import { baseDistanceFor } from "./masterRegistry";
 
 export { getSBSTarifByDistance, type SBSDistanceTier };
 
+/** Basis jarak PTRO/DBK: item, Master SOW, lalu default kontrak (OB 1.000 m, Coal 3.000 m). */
+export const ptroBaseMtr = (item: any): number => {
+  const desc = item?.description || item?.sowDescription || item?.material || "";
+  return Number(item?.baseMtr) || baseDistanceFor("PTRO", desc) || (/coal|batubara/i.test(desc) ? 3000 : 1000);
+};
+
 export async function fetchServerCalculations(input: any) {
   try {
     const result = await calculateMiningInvoice(input);
@@ -237,7 +243,9 @@ export function createFinanceCalculations(deps: {
         }
       }
       if (unitRate > 0 && vol > 0) {
-        amount = Math.round(vol * unitRate);
+        // Over Distance (Seksi C): tarif per 100 m di atas basis; underhaul tidak ditagih (sama dengan BE).
+        const factor = item.section === "C" ? Math.max(0, mtr - ptroBaseMtr(item)) / 100 : 1;
+        amount = Math.round(vol * factor * unitRate);
       }
       return { unitRate, amount };
     }
