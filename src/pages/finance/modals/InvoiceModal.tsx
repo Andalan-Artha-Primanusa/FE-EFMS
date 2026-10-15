@@ -30,7 +30,6 @@ export function InvoiceModal({ c }: { c: any }) {
     getItemEffectiveOverhaulMtr,
     calculateItemRateAndAmount,
     getCustomerCalculations,
-    addInvLineItem,
     rfIndexCalculated = 0,
     handleSave,
   } = c || {};
@@ -128,7 +127,7 @@ export function InvoiceModal({ c }: { c: any }) {
               getItemEffectiveOverhaulMtr={getItemEffectiveOverhaulMtr}
               calculateItemRateAndAmount={calculateItemRateAndAmount}
               getCustomerCalculations={getCustomerCalculations}
-              onAddInvLineItem={addInvLineItem}
+              setFormData={setFormData}
             />
 
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-1">

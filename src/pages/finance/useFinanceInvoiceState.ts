@@ -38,7 +38,6 @@ export function useFinanceInvoiceState({
   blankSBSItems,
   demoSBSItems,
   masterVariableOptions,
-  latestKursBI,
   mRate,
   onNotice,
   loadData,
@@ -115,31 +114,6 @@ export function useFinanceInvoiceState({
 
   const updateInvItemAmount = (id: string, amt: number) => {
     setInvLineItems(prev => prev.map(item => item.id === id ? { ...item, amount: amt } : item));
-  };
-
-  const addInvLineItem = (section: string = "A") => {
-    const cust = (formData.customerCode || "POS").toUpperCase();
-    const isUSD = cust === "POS" || cust === "PTRO" || cust === "DBK";
-    const isSBS = cust === "SBS";
-    const desc = isSBS
-      ? (section === "B" ? "Alat Berat Tambahan (Jasa Penunjang)" : section === "P" ? "Pengurang Pembayaran Tambahan" : "Area Kerja OB Tambahan")
-      : "Pekerjaan / Item Tambahan";
-    const unit = isSBS
-      ? (section === "B" ? "Hours" : section === "P" ? "Lot" : "BCM")
-      : "Bcm";
-    const newItem = {
-      id: `custom_inv_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      section,
-      description: desc,
-      unit,
-      volume: 0,
-      unitRateUSD: isUSD ? 0 : undefined,
-      unitRateIDR: isUSD ? undefined : 0,
-      kursBI: latestKursBI || mRate || 0,
-      amount: 0,
-      isCustom: true
-    };
-    setInvLineItems(prev => [...prev, newItem]);
   };
 
   const updateInvItemField = (id: string, field: string, val: any) => {
@@ -248,7 +222,7 @@ export function useFinanceInvoiceState({
     addVariableToSection,
     removeInvLineItem, updateInvItemVolume, updateInvItemOverhaul,
     updateInvItemRateIDR, updateInvItemRateUSD, updateInvItemKurs, updateInvItemAmount,
-    addInvLineItem, updateInvItemField, reorderInvLineItems, moveInvRow,
+    updateInvItemField, reorderInvLineItems, moveInvRow,
     handleGenerateInvoiceFromBA, handleVerifyInvoice, handleApproveInvoice,
     handleApproveInvoiceTier1
   };
