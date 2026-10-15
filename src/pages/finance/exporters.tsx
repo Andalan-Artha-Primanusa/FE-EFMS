@@ -3,6 +3,7 @@
 // Setiap fungsi menerima snapshot state (ctx) dari controller.
 // =============================================================
 
+import { invoiceTaxes } from "./ba_calculations";
 import { formatIDR, getBAStatusForExport, getCustomerOfficialName, parsePeriodToMonthIndex } from "./helpers";
 
 export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
@@ -41,10 +42,11 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
 
     if (c.totalGross === 0 && (itemData?.revenueGross > 0 || itemData?.subTotalDPP > 0 || itemData?.totalInvoice > 0)) {
       const gross = Number(itemData.revenueGross || itemData.subTotalDPP || 0);
-      const dpp = Number(itemData.subTotalDPP || Math.round(gross * 11 / 12));
-      const vat = Number(itemData.ppn11 || Math.round(dpp * 0.12));
-      const pph = Number(itemData.pph23 || Math.round(gross * 0.02));
-      const totInv = Number(itemData.totalInvoice || (gross + vat - pph));
+      const tax = invoiceTaxes(gross);
+      const dpp = Number(itemData.subTotalDPP || tax.dpp11_12);
+      const vat = Number(itemData.ppn11 || tax.vat12);
+      const pph = Number(itemData.pph23 || tax.pph23);
+      const totInv = Number(itemData.totalInvoice || tax.total);
       const totPay = Number(itemData.totalReceipt || itemData.outstanding || totInv);
       c = {
         ...c,
@@ -2069,8 +2071,7 @@ export function exportCoretaxEFakturCSVImpl(ctx: any, targetInvoices?: any[] | a
     let ppn = Number(inv.ppn12 || inv.ppn11 || 0);
     if (custCode === "SBS") {
       const gross = Number(inv.revenueGross || inv.subTotalDPP || 0);
-      dpp = Math.round(gross * 11 / 12);
-      ppn = Math.round(dpp * 0.12);
+      ({ dpp11_12: dpp, vat12: ppn } = invoiceTaxes(gross));
     } else if (ppn === 0 && dpp > 0) {
       ppn = Math.round(dpp * 0.12);
     }

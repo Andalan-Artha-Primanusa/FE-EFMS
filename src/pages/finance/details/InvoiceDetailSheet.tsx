@@ -1,5 +1,6 @@
 import React from "react";
 import { formatIDR } from "../helpers";
+import { invoiceTaxes } from "../ba_calculations";
 import { InvoiceDetailTableSBS } from "./InvoiceDetailTableSBS";
 import { InvoiceDetailTableBGG } from "./InvoiceDetailTableBGG";
 import { InvoiceDetailTablePTRO } from "./InvoiceDetailTablePTRO";
@@ -59,10 +60,11 @@ export const InvoiceDetailSheet: React.FC<InvoiceDetailSheetProps> = ({
   // Failsafe: Ensure cCalc displays correct financial totals if activeItems sum is 0
   if (cCalc.totalGross === 0 && (data.revenueGross > 0 || data.subTotalDPP > 0 || data.totalInvoice > 0)) {
     const gross = Number(data.revenueGross || data.subTotalDPP || 0);
-    const dpp = Number(data.subTotalDPP || Math.round(gross * 11 / 12));
-    const vat = Number(data.ppn11 || Math.round(dpp * 0.12));
-    const pph = Number(data.pph23 || Math.round(gross * 0.02));
-    const totInv = Number(data.totalInvoice || (gross + vat - pph));
+    const tax = invoiceTaxes(gross);
+    const dpp = Number(data.subTotalDPP || tax.dpp11_12);
+    const vat = Number(data.ppn11 || tax.vat12);
+    const pph = Number(data.pph23 || tax.pph23);
+    const totInv = Number(data.totalInvoice || tax.total);
     const totPay = Number(data.totalReceipt || data.outstanding || totInv);
     cCalc = {
       ...cCalc,

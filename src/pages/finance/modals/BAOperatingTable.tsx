@@ -359,7 +359,7 @@ export function BAOperatingTable({
           ) : (
             <FormattedNumberInput
               allowDecimals
-              maxDecimals={2}
+              maxDecimals={3}
               className="w-20 sm:w-24 bg-slate-50 border border-slate-300 rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none"
               value={isDistance ? (item.initialVolume ? item.initialVolume : "") : (item.initialVolume === 0 ? "" : (item.initialVolume ?? ""))}
               placeholder={effVol > 0 ? Number(effVol).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0,000"}
@@ -372,13 +372,13 @@ export function BAOperatingTable({
             !isInlineEditingBA ? (
               <span className="pt-1 block font-bold text-slate-800">
                 {Number(item.distanceM ?? item.distance ?? item.distanceWeightAvg ?? 0) > 0
-                  ? `${Number(item.distanceM ?? item.distance ?? item.distanceWeightAvg).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 3 })}m`
+                  ? `${Number(item.distanceM ?? item.distance ?? item.distanceWeightAvg).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 6 })}m`
                   : "0m"}
               </span>
             ) : (
               <FormattedNumberInput
                 allowDecimals={true}
-                maxDecimals={3}
+                maxDecimals={6}
                 className="w-16 sm:w-20 bg-white border border-slate-300 rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none"
                 value={Number(item.distanceM ?? item.distance ?? item.distanceWeightAvg ?? 0) === 0 ? "" : (item.distanceM ?? item.distance ?? item.distanceWeightAvg)}
                 placeholder="0"

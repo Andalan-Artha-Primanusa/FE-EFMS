@@ -137,6 +137,23 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
     : Number(item.initialVolume || 0);
 }
 
+/** Pajak dari DPP presisi penuh (sama dengan Excel & BE invoiceTaxes); hanya hasil akhirnya dibulatkan ke rupiah. */
+export function invoiceTaxes(dpp: number) {
+  const ppn = ((dpp * 11) / 12) * 0.12;
+  const pph = dpp * 0.02;
+  return { dpp11_12: Math.round((dpp * 11) / 12), vat12: Math.round(ppn), pph23: Math.round(pph), total: Math.round(dpp + ppn - pph) };
+}
+
+/**
+ * Excel invoice: POS baris non-jarak & OB BGG = Vol x Rate tanpa ROUND; baris lain ROUND(...,0)
+ * (sama dengan BE excelExactLine).
+ */
+export function excelLineAmount(value: number, customerCode: string | undefined, isDist: boolean, isCoal: boolean = false): number {
+  const kind = customerKind(customerCode);
+  const exact = !isDist && (kind === "POS" || (kind === "BGG" && !isCoal));
+  return exact ? value : Math.round(value);
+}
+
 export function getBAItemSubtotal(item: any, volume: number, isCustomerDBK: boolean = false, customerCode?: string): number {
   const r = Number(item.rate || 0);
   if (
@@ -153,7 +170,8 @@ export function getBAItemSubtotal(item: any, volume: number, isCustomerDBK: bool
   if (isDistanceItem(item)) {
     return Math.round(volume * getDistanceFactor(item, customerCode, isCustomerDBK) * r);
   }
-  return Math.round(volume * r);
+  const mLow = (item.material || item.sowDescription || "").toLowerCase();
+  return excelLineAmount(volume * r, customerCode || item.customerCode, false, mLow.includes("coal") || mLow.includes("batubara"));
 }
 
 /**
@@ -271,6 +289,9 @@ export function calculateBACommercialBreakdown(
   let mdoGross = 0;
   let dpFuelDeduction = 0;
   let sbsPenalties = 0;
+  const effectiveRF = rfIndexCalculated > 0 ? rfIndexCalculated : 1.0;
+  // R&F POS per baris seperti Excel: (RF-1) x subtotal; baris jarak ROUND, lainnya presisi penuh (sama dengan BE).
+  let posRF = 0;
 
   for (const it of allItems || []) {
     const mLow = (it.material || it.sowDescription || "").toLowerCase();
@@ -292,7 +313,13 @@ export function calculateBACommercialBreakdown(
       continue;
     }
 
-    if (cat === "DP Fuel" || it.isDeduction || mLow.includes("dp fuel") || mLow.includes("pengurang solar")) {
+    const isDed = cat === "DP Fuel" || it.isDeduction || mLow.includes("dp fuel") || mLow.includes("pengurang solar");
+    if (isPOS && !isDed && effectiveRF !== 1.0) {
+      posRF += isDistanceItem(it)
+        ? Math.round(vol * getDistanceFactor(it, customerCode, isCustomerDBK) * Number(it.rate || 0) * (effectiveRF - 1.0))
+        : subtotal * (effectiveRF - 1.0);
+    }
+    if (isDed) {
       dpFuelDeduction += Math.abs(subtotal);
     } else if (isDistanceItem(it)) {
       overdistanceGross += subtotal; // Note: for POS underhaul, this can be negative
@@ -312,7 +339,6 @@ export function calculateBACommercialBreakdown(
   }
 
   const basePokok = obAmount + coalAmount;
-  const effectiveRF = rfIndexCalculated > 0 ? rfIndexCalculated : 1.0;
   let rfAmount = 0;
   let odDeduction = 0;
 
@@ -321,9 +347,7 @@ export function calculateBACommercialBreakdown(
     rfAmount = bggComputed.subtotalD;
     odDeduction = Math.abs(bggComputed.subtotalE);
   } else if (isPOS) {
-    if (effectiveRF !== 1.0) {
-      rfAmount = Math.round((effectiveRF - 1.0) * (basePokok + overdistanceGross + mdoGross));
-    }
+    rfAmount = posRF;
   }
 
   // Khusus SBS: Gross = Seksi A + Seksi B (tanpa potongan Section P sebelum pajak).
@@ -333,11 +357,8 @@ export function calculateBACommercialBreakdown(
     ? (basePokok + mdoGross)
     : basePokok + overdistanceGross + mdoGross + rfAmount - totalDeductions;
   const totalDPP = totalGross;
-  const dpp11_12 = Math.round((totalGross * 11) / 12);
-  const vat12 = Math.round(dpp11_12 * 0.12);
+  const { dpp11_12, vat12, pph23: pph23Amount, total: netTotalInvoice } = invoiceTaxes(totalGross);
   const ppnAmount = vat12;
-  const pph23Amount = Math.round(totalGross * 0.02);
-  const netTotalInvoice = totalGross + vat12 - pph23Amount;
   const totalDibayar = isSBS ? netTotalInvoice - sbsPenalties : netTotalInvoice;
   const netAR = totalDibayar;
 
@@ -528,7 +549,7 @@ export function getBGGComputedInvoiceLines(
 
   // Section E: Discount on Overdistance (25%)
   if (hasOD_OB || subtotalOD_OB > 0) {
-    const disc = Math.round(subtotalOD_OB * odDisc);
+    const disc = subtotalOD_OB * odDisc;
     sectionEItems.push({
       id: "disc-od-ob",
       section: "E",
@@ -540,7 +561,7 @@ export function getBGGComputedInvoiceLines(
     });
   }
   if (hasOD_Coal || subtotalOD_Coal > 0) {
-    const disc = Math.round(subtotalOD_Coal * odDisc);
+    const disc = subtotalOD_Coal * odDisc;
     sectionEItems.push({
       id: "disc-od-coal",
       section: "E",
@@ -552,7 +573,7 @@ export function getBGGComputedInvoiceLines(
     });
   }
   if ((hasOD_OB && effectiveRF !== 1.0) || subtotalRF_OD_OB > 0) {
-    const disc = Math.round(subtotalRF_OD_OB * odDisc);
+    const disc = subtotalRF_OD_OB * odDisc;
     sectionEItems.push({
       id: "disc-rf-od-ob",
       section: "E",
@@ -564,7 +585,7 @@ export function getBGGComputedInvoiceLines(
     });
   }
   if ((hasOD_Coal && effectiveRF !== 1.0) || subtotalRF_OD_Coal > 0) {
-    const disc = Math.round(subtotalRF_OD_Coal * odDisc);
+    const disc = subtotalRF_OD_Coal * odDisc;
     sectionEItems.push({
       id: "disc-rf-od-coal",
       section: "E",
@@ -574,14 +595,6 @@ export function getBGGComputedInvoiceLines(
       rate: -disc,
       subtotal: -disc,
     });
-  }
-
-  // BE membulatkan diskon sekali dari total; selisih pembulatan per baris masuk ke baris terakhir.
-  const roundedE = -Math.round((subtotalOD_OB + subtotalOD_Coal + subtotalRF_OD_OB + subtotalRF_OD_Coal) * odDisc);
-  const lastE = sectionEItems[sectionEItems.length - 1];
-  if (lastE) {
-    lastE.subtotal += roundedE - sectionEItems.reduce((acc, it) => acc + it.subtotal, 0);
-    lastE.rate = lastE.subtotal;
   }
 
   const subtotalD = sectionDItems.reduce((acc, it) => acc + it.subtotal, 0);

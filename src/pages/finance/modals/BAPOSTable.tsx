@@ -3,7 +3,7 @@ import { Pickaxe, Trash2, GripVertical, ChevronUp, ChevronDown } from "lucide-re
 import { formatIDR, FormattedNumberInput } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { BAAddRowDropdown } from "./BAAddRowDropdown";
-import { isOBMaterial } from "../ba_calculations";
+import { isOBMaterial, invoiceTaxes } from "../ba_calculations";
 
 interface BAPOSTableProps {
   formData: any;
@@ -132,7 +132,7 @@ export function BAPOSTable({
   const subtotalA = prodItems.reduce((acc, it) => {
     const vol = getBAEffectiveVolume(it, allBAItems, false);
     const r = getDynamicItemBaseIDR(it, false);
-    return acc + Math.round(vol * r);
+    return acc + vol * r;
   }, 0);
 
   const subtotalB = distItems.reduce((acc, it) => {
@@ -147,7 +147,7 @@ export function BAPOSTable({
   const subtotalC = lcItems.reduce((acc, it) => {
     const vol = getBAEffectiveVolume(it, allBAItems, false);
     const r = getDynamicItemBaseIDR(it, false);
-    return acc + Math.round(vol * r);
+    return acc + vol * r;
   }, 0);
 
   // Auto-calculated Section D (Raise & Fall's Factor) rows
@@ -163,7 +163,7 @@ export function BAPOSTable({
       const rawBaseIDR = getDynamicItemBaseIDR(it, false);
       const rawRfRate = rfFactor * rawBaseIDR;
       const rfRate = rawRfRate;
-      const subtotal = Math.round(vol * rfRate);
+      const subtotal = vol * rfRate;
 
       rows.push({
         id: `rf_op_prod_${it.id}`,
@@ -238,7 +238,7 @@ export function BAPOSTable({
       const lcBaseIDR = getDynamicItemBaseIDR(it, false);
       const rawRfRate = rfFactor * lcBaseIDR;
       const rfRate = rawRfRate;
-      const subtotal = Math.round(vol * rfRate);
+      const subtotal = vol * rfRate;
 
       rows.push({
         id: `rf_op_lc_${it.id}`,
@@ -270,10 +270,7 @@ export function BAPOSTable({
   // Kategori 1 Rekapitulasi Pajak
   const totalGrossOpBeforeDP = subtotalA + subtotalB + subtotalC + subtotalD;
   const totalGrossOp = Math.max(0, totalGrossOpBeforeDP - subtotalDP);
-  const dppOp = Math.round((totalGrossOp * 11) / 12);
-  const vatOp = Math.round(dppOp * 0.12);
-  const whtOp = Math.round(totalGrossOp * 0.02);
-  const netTotalInvoiceOp = totalGrossOp + vatOp - whtOp;
+  const { dpp11_12: dppOp, vat12: vatOp, pph23: whtOp, total: netTotalInvoiceOp } = invoiceTaxes(totalGrossOp);
 
   const renderItemRow = (item: any, idx: number) => {
     const isDist = isDistanceItem(item);
@@ -286,7 +283,7 @@ export function BAPOSTable({
       ? -Math.abs(Math.round(effVol * effRate))
       : isDist
       ? Math.round((effVol * effRate * deltaDist) / 1000)
-      : Math.round(effVol * effRate);
+      : effVol * effRate;
 
     return (
       <tr

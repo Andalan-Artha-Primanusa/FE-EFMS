@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Building2, Trash2, Plus } from "lucide-react";
 import { formatIDR, FormattedNumberInput } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
-import { isDistanceItem, getBAEffectiveVolume, getBAItemSubtotal, isOBMaterial } from "../ba_calculations";
+import { isDistanceItem, getBAEffectiveVolume, getBAItemSubtotal, isOBMaterial, invoiceTaxes } from "../ba_calculations";
 
 interface BAPOSMDOTableProps {
   formData: any;
@@ -50,7 +50,7 @@ export function BAPOSMDOTable({
   const subtotalA = prodItems.reduce((acc, it) => {
     const vol = Number(it.initialVolume || 0);
     const r = getDynamicMDOItemBaseIDR(it, false);
-    return acc + Math.round(vol * r);
+    return acc + vol * r;
   }, 0);
 
   const subtotalB = distItems.reduce((acc, it) => {
@@ -74,7 +74,7 @@ export function BAPOSMDOTable({
       const rawBaseIDR = getDynamicMDOItemBaseIDR(it, false);
       const rawRfRate = rfFactor * rawBaseIDR;
       const rfRate = rawRfRate;
-      const subtotal = Math.round(vol * rfRate);
+      const subtotal = vol * rfRate;
 
       rows.push({
         id: `rf_mdo_prod_${it.id}`,
@@ -155,10 +155,7 @@ export function BAPOSMDOTable({
 
   // Kategori 2 Rekapitulasi Pajak
   const totalGrossMDO = subtotalA + subtotalB + subtotalC;
-  const dppMDO = Math.round((totalGrossMDO * 11) / 12);
-  const vatMDO = Math.round(dppMDO * 0.12);
-  const whtMDO = Math.round(totalGrossMDO * 0.02);
-  const netTotalInvoiceMDO = totalGrossMDO + vatMDO - whtMDO;
+  const { dpp11_12: dppMDO, vat12: vatMDO, pph23: whtMDO, total: netTotalInvoiceMDO } = invoiceTaxes(totalGrossMDO);
 
   const renderMDORow = (item: any, idx: number) => {
     const isDist = isDistanceItem(item);
@@ -171,7 +168,7 @@ export function BAPOSMDOTable({
     const dynamicRate = getDynamicMDOItemBaseIDR(item, isDist);
     const rowSubtotal = isDist
       ? Math.round((effVol * dynamicRate * deltaDist) / 1000)
-      : Math.round(effVol * dynamicRate);
+      : effVol * dynamicRate;
 
     return (
       <tr key={item.id || idx} className={`hover:bg-slate-50/80 transition ${isDist ? "bg-amber-50/20" : ""}`}>

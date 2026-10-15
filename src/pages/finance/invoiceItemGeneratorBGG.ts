@@ -42,8 +42,8 @@ export function buildBGGInvoiceItemsFromBA(ba: any, ctx: InvoiceItemGeneratorCon
       totalOB = ob1Vol + ob2Vol;
     } else if (singleOBItem) {
       totalOB = Number(singleOBItem.adjustedVolume ?? singleOBItem.initialVolume ?? 0);
-      ob1Vol = Math.round(totalOB * split1 * 1000) / 1000;
-      ob2Vol = Math.round((totalOB - ob1Vol) * 1000) / 1000;
+      ob1Vol = totalOB * split1;
+      ob2Vol = totalOB - ob1Vol;
       ob1Rate = Number(singleOBItem?.rate || ob1Rate);
     }
 
@@ -63,8 +63,8 @@ export function buildBGGInvoiceItemsFromBA(ba: any, ctx: InvoiceItemGeneratorCon
       unit: "Bcm",
       volume: ob1Vol,
       unitRateIDR: ob1Rate,
-      amount: Math.round(ob1Vol * ob1Rate),
-      amountIDR: Math.round(ob1Vol * ob1Rate),
+      amount: ob1Vol * ob1Rate,
+      amountIDR: ob1Vol * ob1Rate,
       notes: ba.workPeriod || "-"
     });
 
@@ -77,8 +77,8 @@ export function buildBGGInvoiceItemsFromBA(ba: any, ctx: InvoiceItemGeneratorCon
       unit: "Bcm",
       volume: ob2Vol,
       unitRateIDR: ob2Rate,
-      amount: Math.round(ob2Vol * ob2Rate),
-      amountIDR: Math.round(ob2Vol * ob2Rate),
+      amount: ob2Vol * ob2Rate,
+      amountIDR: ob2Vol * ob2Rate,
       notes: ba.workPeriod || "-"
     });
 
@@ -175,16 +175,16 @@ export function buildBGGInvoiceItemsFromBA(ba: any, ctx: InvoiceItemGeneratorCon
     }
 
     if (odOBAmt > 0) {
-      invItems.push({ id: `bgg_inv_e1`, section: "E", subSection: "E.1", description: "E.1 Overdistance for OB Removal", sowDescription: "Overdistance for OB Removal (" + discLabel + ")", unit: "Lot", volume: 0, unitRateIDR: 0, amount: -Math.round(odOBAmt * odDisc), amountIDR: -Math.round(odOBAmt * odDisc), isDeduction: true, notes: "Diskon " + discLabel + " Over Distance OB" });
+      invItems.push({ id: `bgg_inv_e1`, section: "E", subSection: "E.1", description: "E.1 Overdistance for OB Removal", sowDescription: "Overdistance for OB Removal (" + discLabel + ")", unit: "Lot", volume: 0, unitRateIDR: 0, amount: -(odOBAmt * odDisc), amountIDR: -(odOBAmt * odDisc), isDeduction: true, notes: "Diskon " + discLabel + " Over Distance OB" });
     }
     if (odCWAmt > 0) {
-      invItems.push({ id: `bgg_inv_e2`, section: "E", subSection: "E.2", description: "E.2 Overdistance for Coal Winning", sowDescription: "Overdistance for Coal Winning (" + discLabel + ")", unit: "Lot", volume: 0, unitRateIDR: 0, amount: -Math.round(odCWAmt * odDisc), amountIDR: -Math.round(odCWAmt * odDisc), isDeduction: true, notes: "Diskon " + discLabel + " Over Distance Coal" });
+      invItems.push({ id: `bgg_inv_e2`, section: "E", subSection: "E.2", description: "E.2 Overdistance for Coal Winning", sowDescription: "Overdistance for Coal Winning (" + discLabel + ")", unit: "Lot", volume: 0, unitRateIDR: 0, amount: -(odCWAmt * odDisc), amountIDR: -(odCWAmt * odDisc), isDeduction: true, notes: "Diskon " + discLabel + " Over Distance Coal" });
     }
     if (rfOBDistAmt > 0) {
-      invItems.push({ id: `bgg_inv_e3`, section: "E", subSection: "E.3", description: "E.3 Raise & Fall's Overdistance for OB Removal", sowDescription: "R&F Overdistance for OB (" + discLabel + ")", unit: "Lot", volume: 0, unitRateIDR: 0, amount: -Math.round(rfOBDistAmt * odDisc), amountIDR: -Math.round(rfOBDistAmt * odDisc), isDeduction: true, notes: "Diskon " + discLabel + " RF Over Distance OB" });
+      invItems.push({ id: `bgg_inv_e3`, section: "E", subSection: "E.3", description: "E.3 Raise & Fall's Overdistance for OB Removal", sowDescription: "R&F Overdistance for OB (" + discLabel + ")", unit: "Lot", volume: 0, unitRateIDR: 0, amount: -(rfOBDistAmt * odDisc), amountIDR: -(rfOBDistAmt * odDisc), isDeduction: true, notes: "Diskon " + discLabel + " RF Over Distance OB" });
     }
     if (rfCWDistAmt > 0) {
-      invItems.push({ id: `bgg_inv_e4`, section: "E", subSection: "E.4", description: "E.4 Raise & Fall's Overdistance for Coal Winning", sowDescription: "R&F Overdistance for Coal (" + discLabel + ")", unit: "Lot", volume: 0, unitRateIDR: 0, amount: -Math.round(rfCWDistAmt * odDisc), amountIDR: -Math.round(rfCWDistAmt * odDisc), isDeduction: true, notes: "Diskon " + discLabel + " RF Over Distance Coal" });
+      invItems.push({ id: `bgg_inv_e4`, section: "E", subSection: "E.4", description: "E.4 Raise & Fall's Overdistance for Coal Winning", sowDescription: "R&F Overdistance for Coal (" + discLabel + ")", unit: "Lot", volume: 0, unitRateIDR: 0, amount: -(rfCWDistAmt * odDisc), amountIDR: -(rfCWDistAmt * odDisc), isDeduction: true, notes: "Diskon " + discLabel + " RF Over Distance Coal" });
     }
 
     if (dpFuelVal > 0) {

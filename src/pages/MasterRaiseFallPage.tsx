@@ -48,7 +48,7 @@ function IndoDecimalInput({
     const [intPart, decPart] = str.split(".");
     const formattedInt = new Intl.NumberFormat("id-ID").format(Number(intPart) || 0);
     if (decPart !== undefined) {
-      return `${formattedInt},${decPart.slice(0, 3)}`;
+      return `${formattedInt},${decPart.slice(0, 6)}`;
     }
     return formattedInt;
   };
@@ -75,7 +75,7 @@ function IndoDecimalInput({
     }
     if (raw.includes(",")) {
       const [i, d] = raw.split(",");
-      raw = `${i},${d.slice(0, 3)}`;
+      raw = `${i},${d.slice(0, 6)}`;
     }
     setText(raw);
     const num = parseVal(raw);
