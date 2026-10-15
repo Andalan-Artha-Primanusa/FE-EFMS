@@ -6,7 +6,7 @@
 
 import { matchPeriod } from "./helpers";
 
-import { customerKind, customerByCode, contractParams, baseDistanceFor, rfMasterFor, rfTemplateFor, computeRFIndex, forexRatio, minWageFor, kursForPeriod } from "./masterRegistry";
+import { customerKind, customerByCode, contractParams, baseDistanceFor, rfMasterFor, rfTemplateFor, computeRFIndex, forexRatio, minWageFor, kursForPeriod, masterRegistry, obSplitSOWs } from "./masterRegistry";
 
 export { customerKind };
 
@@ -132,9 +132,25 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
       : Number(item.initialVolume || 0);
     if (selfVol > 0) return selfVol;
   }
-  return isSurvey
-    ? (Number(item.adjustedVolume || 0) > 0 ? Number(item.adjustedVolume) : Number(item.initialVolume || 0))
-    : Number(item.initialVolume || 0);
+  const own = (it: any) => isSurvey
+    ? (Number(it.adjustedVolume || 0) > 0 ? Number(it.adjustedVolume) : Number(it.initialVolume || 0))
+    : Number(it.initialVolume || 0);
+  return obSplitVolume(item, allItems || [], own) ?? own(item);
+}
+
+/**
+ * Volume OB split kontrak (mis. 75% / 25%): Excel memakai total OB x porsi split presisi penuh, jadi volume
+ * baris = jumlah pasangan OB (periode & area sama) x porsi Master SOW (sama dengan BE normalizeOBSplit).
+ * null bila bukan item split atau pasangannya tidak lengkap.
+ */
+function obSplitVolume(item: any, allItems: any[], own: (it: any) => number): number | null {
+  const norm = (s?: string) => (s || "").trim().toLowerCase();
+  const sow = masterRegistry.sows.find((s: any) => norm(s.itemName || s.name) === norm(item.material) && Number(s.splitPercentage) > 0 && Number(s.splitPercentage) < 100);
+  if (!sow) return null;
+  const names = obSplitSOWs(sow.customerCode || sow.customer).map((s: any) => norm(s.itemName || s.name));
+  const rows = allItems.filter((p) => names.includes(norm(p.material)) && norm(p.period) === norm(item.period) && norm(p.area) === norm(item.area));
+  if (names.length !== 2 || rows.length !== 2 || norm(rows[0].material) === norm(rows[1].material)) return null;
+  return ((own(rows[0]) + own(rows[1])) * Number(sow.splitPercentage)) / 100;
 }
 
 const isDPFuelRow = (it: any) => {
