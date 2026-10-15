@@ -647,7 +647,7 @@ export function BATrackerView({ c }: { c: any }) {
                                   <div className="flex flex-col gap-0.5">
                                     {row.draftBAPath && (
                                       <a
-                                        href={`/api/finance/files/${row.draftBAPath}`}
+                                        href={resolveDocumentUrl(row.draftBAPath)}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center gap-1 text-cyan-700 hover:text-cyan-900 hover:underline font-bold transition cursor-pointer"
@@ -658,7 +658,7 @@ export function BATrackerView({ c }: { c: any }) {
                                     )}
                                     {row.finalBAPath && (
                                       <a
-                                        href={`/api/finance/files/${row.finalBAPath}`}
+                                        href={resolveDocumentUrl(row.finalBAPath)}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 hover:underline font-bold transition cursor-pointer"

@@ -1,6 +1,56 @@
 import React from "react";
-import { FileText, CheckCircle, ExternalLink, ShieldCheck, History, X, Clock } from "lucide-react";
+import { FileText, CheckCircle, ExternalLink, ShieldCheck, History, X, Clock, Upload } from "lucide-react";
 import { formatIDR, resolveDocumentUrl, renderBAStatusBadge, generateAuditTimeline, isBAApproved } from "../helpers";
+
+const BA_FIELD_LABELS: Record<string, string> = {
+  baNumber: "No. BA", draftBARefNo: "No. Ref Draft", signedBANumber: "No. BA Signed",
+  customerCode: "Customer", workPeriod: "Periode", picAAP: "PIC Site",
+  statusBA: "Status BA", workAmount: "Nilai Klaim", initialWorkAmount: "Nilai Awal (TC)", adjustedWorkAmount: "Nilai Survey",
+  draftBAPath: "Draft BA PDF", finalBAPath: "Final Signed BA PDF",
+  baSubmittedDate: "Tgl Submit", internalRoutingDate: "Tgl Routing", baSentDate: "Tgl Kirim", baSignedDate: "Tgl TTD",
+  verifiedBy: "Diverifikasi oleh", approvedBy: "Disetujui oleh", invoiceNoLinked: "No. Invoice",
+  notes: "Catatan", notesBottleneck: "Catatan Bottleneck",
+};
+const BA_ITEM_LABELS: Record<string, string> = {
+  area: "Area", material: "Material", unit: "Satuan", initialVolume: "Volume TC", adjustedVolume: "Vol Survey", distanceM: "Jarak (m)", rate: "Rate",
+};
+const BA_ACTION_LABELS: Record<string, string> = {
+  save: "Simpan", verify: "Verifikasi", approve: "Approval", update_notes: "Update Catatan", delete: "Hapus", generate_invoice: "Generate Invoice",
+};
+
+const fmtAuditValue = (v: any): string => {
+  if (v === null || v === undefined || v === "") return "-";
+  if (typeof v === "number") return v.toLocaleString("id-ID");
+  if (typeof v === "boolean") return v ? "Ya" : "Tidak";
+  const s = String(v);
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return new Date(s).toLocaleDateString("id-ID");
+  if (s.includes("/uploads/") || s.endsWith(".pdf")) return s.split("/").pop() || s;
+  return s;
+};
+
+// Ringkas perubahan antar snapshot BA menjadi baris "Field: lama → baru".
+const diffBASnapshots = (before: any, after: any): string[] => {
+  if (!after) return [];
+  if (!before) return after.statusBA ? [`Status BA: ${after.statusBA}`] : [];
+  const lines: string[] = [];
+  for (const [k, label] of Object.entries(BA_FIELD_LABELS)) {
+    const b = fmtAuditValue(before[k]), a = fmtAuditValue(after[k]);
+    if (b !== a) lines.push(`${label}: ${b} → ${a}`);
+  }
+  const itemName = (it: any) => `${it.material || "Item"}${it.area ? ` (${it.area})` : ""}`;
+  const beforeItems = new Map<string, any>((before.items || []).map((it: any, i: number) => [String(it.id || i), it]));
+  (after.items || []).forEach((it: any, i: number) => {
+    const prev = beforeItems.get(String(it.id || i));
+    beforeItems.delete(String(it.id || i));
+    if (!prev) return lines.push(`+ Tambah item ${itemName(it)}`);
+    for (const [k, label] of Object.entries(BA_ITEM_LABELS)) {
+      const b = fmtAuditValue(prev[k]), a = fmtAuditValue(it[k]);
+      if (b !== a) lines.push(`${itemName(it)} · ${label}: ${b} → ${a}`);
+    }
+  });
+  beforeItems.forEach((it) => lines.push(`− Hapus item ${itemName(it)}`));
+  return lines;
+};
 
 interface BATrackerSidebarProps {
   formData: any;
@@ -12,6 +62,8 @@ interface BATrackerSidebarProps {
   auditTab: "flow" | "activity";
   setAuditTab: (tab: "flow" | "activity") => void;
   baAuditLogs: any[];
+  isInlineEditingBA?: boolean;
+  handleFileUpload?: (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => void;
 }
 
 export function BATrackerSidebar({
@@ -24,7 +76,30 @@ export function BATrackerSidebar({
   auditTab,
   setAuditTab,
   baAuditLogs,
+  isInlineEditingBA,
+  handleFileUpload,
 }: BATrackerSidebarProps) {
+  const canUpload = !!isInlineEditingBA && !!handleFileUpload;
+  const pdfInput = (field: string) => (
+    <input type="file" accept="application/pdf" className="hidden" onChange={(e) => { handleFileUpload?.(e, field); e.target.value = ""; }} />
+  );
+  const replaceButton = (field: string) => canUpload && (
+    <label className="text-[10px] px-2 py-1 rounded-[3px] border border-slate-600 hover:bg-slate-800 text-slate-200 font-bold inline-flex items-center gap-1 transition cursor-pointer">
+      <Upload size={11} /> Ganti
+      {pdfInput(field)}
+    </label>
+  );
+  const emptyDropzone = (field: string, idleText: string) => canUpload ? (
+    <label className="block p-3 text-center text-xs text-slate-300 bg-slate-900/50 hover:bg-slate-900 hover:text-white rounded-[3px] border border-dashed border-slate-600 hover:border-[#A57C50] transition cursor-pointer">
+      <Upload size={16} className="mx-auto mb-1 text-[#A57C50]" />
+      Klik untuk upload PDF
+      {pdfInput(field)}
+    </label>
+  ) : (
+    <div className="p-3 text-center text-xs text-slate-400 bg-slate-900/50 rounded-[3px] border border-dashed border-slate-800">
+      {idleText}
+    </div>
+  );
   const effectiveClaim = sumAdjusted > 0 ? sumAdjusted : (sumInitial > 0 ? sumInitial : (Number(formData.workAmount) || 0));
   const effectiveNet = netTotalInvoice && netTotalInvoice > 0
     ? netTotalInvoice
@@ -86,14 +161,17 @@ export function BATrackerSidebar({
               <FileText size={13} className="text-[#A57C50]" /> Draft BA PDF (Internal Routing)
             </span>
             {formData.draftBAPath ? (
-              <a
-                href={resolveDocumentUrl(formData.draftBAPath)}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[10px] px-2.5 py-1 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold inline-flex items-center gap-1 transition shadow-xs"
-              >
-                <ExternalLink size={11} /> Buka Tab Baru
-              </a>
+              <div className="flex items-center gap-1.5">
+                {replaceButton("draftBAPath")}
+                <a
+                  href={resolveDocumentUrl(formData.draftBAPath)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[10px] px-2.5 py-1 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold inline-flex items-center gap-1 transition shadow-xs"
+                >
+                  <ExternalLink size={11} /> Buka Tab Baru
+                </a>
+              </div>
             ) : (
               <span className="text-[10px] text-slate-400 italic">Belum Diunggah</span>
             )}
@@ -114,11 +192,7 @@ export function BATrackerSidebar({
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="p-3 text-center text-xs text-slate-400 bg-slate-900/50 rounded-[3px] border border-dashed border-slate-800">
-              Draft BA PDF belum diunggah.
-            </div>
-          )}
+          ) : emptyDropzone("draftBAPath", "Draft BA PDF belum diunggah.")}
         </div>
 
         {/* Final Signed BA Card */}
@@ -128,14 +202,17 @@ export function BATrackerSidebar({
               <CheckCircle size={13} className="text-emerald-400" /> Final Signed BA PDF (TTD Resmi)
             </span>
             {formData.finalBAPath ? (
-              <a
-                href={resolveDocumentUrl(formData.finalBAPath)}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[10px] px-2.5 py-1 rounded-[3px] bg-emerald-700 hover:bg-emerald-600 text-white font-bold inline-flex items-center gap-1 transition shadow-xs"
-              >
-                <ExternalLink size={11} /> Buka Tab Baru
-              </a>
+              <div className="flex items-center gap-1.5">
+                {replaceButton("finalBAPath")}
+                <a
+                  href={resolveDocumentUrl(formData.finalBAPath)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[10px] px-2.5 py-1 rounded-[3px] bg-emerald-700 hover:bg-emerald-600 text-white font-bold inline-flex items-center gap-1 transition shadow-xs"
+                >
+                  <ExternalLink size={11} /> Buka Tab Baru
+                </a>
+              </div>
             ) : (
               <span className="text-[10px] text-slate-400 italic">Belum Diunggah</span>
             )}
@@ -156,11 +233,7 @@ export function BATrackerSidebar({
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="p-3 text-center text-xs text-slate-400 bg-slate-900/50 rounded-[3px] border border-dashed border-slate-800">
-              Final Signed BA PDF dapat diunggah pada Step 3.
-            </div>
-          )}
+          ) : emptyDropzone("finalBAPath", "Final Signed BA PDF belum diunggah.")}
         </div>
       </div>
 
@@ -267,20 +340,38 @@ export function BATrackerSidebar({
         {auditTab === "activity" && (
           <div className="space-y-2 max-h-64 overflow-y-auto pr-1 text-xs">
             {baAuditLogs.length > 0 ? (
-              baAuditLogs.map((log: any, lIdx: number) => (
-                <div key={log.id || lIdx} className="p-2.5 bg-white border border-slate-200 rounded-xl space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900 text-[11px]">{log.user || "System"}</span>
-                    <span className="text-[10px] font-mono text-slate-500">{log.createdAt ? new Date(log.createdAt).toLocaleString("id-ID") : "-"}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-cyan-50 text-cyan-800 border border-cyan-200">
-                      {log.action || "Activity"}
-                    </span>
-                    <span className="text-[11px] text-slate-700">{log.referenceType ? `${log.referenceType} #${log.referenceId}` : (log.module || "BA Update")}</span>
-                  </div>
-                </div>
-              ))
+              baAuditLogs.map((log: any, lIdx: number) => {
+                const changes = diffBASnapshots(log.before, log.after);
+                const actionLabel = log.action === "save" && !log.before ? "Buat BA" : (BA_ACTION_LABELS[log.action] || log.action || "Activity");
+                return (
+                  <details key={log.id || lIdx} className="group p-2.5 bg-white border border-slate-200 rounded-xl">
+                    <summary className="list-none cursor-pointer space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-slate-900 text-[11px] truncate">{log.user || "System"}</span>
+                        <span className="text-[10px] font-mono text-slate-500 shrink-0">{log.createdAt ? new Date(log.createdAt).toLocaleString("id-ID") : "-"}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-1.5">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-cyan-50 text-cyan-800 border border-cyan-200">
+                          {actionLabel}
+                        </span>
+                        <span className="text-[10px] text-slate-500 group-open:text-[#A57C50]">
+                          {changes.length > 0 ? `${changes.length} perubahan ▾` : "Lihat detail ▾"}
+                        </span>
+                      </div>
+                    </summary>
+                    <div className="mt-2 pt-2 border-t border-slate-100 space-y-1">
+                      {changes.length > 0 ? (
+                        <ul className="space-y-0.5 text-[10.5px] text-slate-700">
+                          {changes.map((line, i) => <li key={i} className="break-words">• {line}</li>)}
+                        </ul>
+                      ) : (
+                        <p className="text-[10.5px] text-slate-500 italic">Tidak ada perubahan data yang tercatat.</p>
+                      )}
+                      {log.ipAddress && <p className="text-[9.5px] font-mono text-slate-400">IP: {log.ipAddress}</p>}
+                    </div>
+                  </details>
+                );
+              })
             ) : (
               generateAuditTimeline("ba", formData).map((step: any) => (
                 <div key={step.step} className="p-2.5 bg-white border border-slate-200 rounded-xl space-y-1">

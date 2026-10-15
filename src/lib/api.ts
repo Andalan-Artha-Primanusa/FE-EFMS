@@ -49,6 +49,8 @@ export type AuditLog = {
   ipAddress: string;
   device: string;
   createdAt: string;
+  before?: any;
+  after?: any;
 };
 
 export type Permission = {
@@ -180,6 +182,17 @@ export async function uploadDocumentFile(file: File, module = "Finance", categor
   form.append("module", module);
   form.append("category", category);
   return api<{ fileName: string; storedName: string; url: string; sizeBytes: number }>("/api/documents", {
+    method: "POST",
+    body: form
+  });
+}
+
+export async function uploadBADocument(file: File, category: string) {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("module", "Berita Acara");
+  form.append("category", category);
+  return api<{ fileName: string; storedName: string; url: string; sizeBytes: number }>("/api/finance/ba-trackers/documents", {
     method: "POST",
     body: form
   });
@@ -369,6 +382,10 @@ export function getAuditLogs(params?: { module?: string; referenceType?: string;
   if (params?.referenceId) query.append("referenceId", params.referenceId);
   const qStr = query.toString();
   return api<AuditLog[]>(`/api/audit-logs${qStr ? `?${qStr}` : ""}`);
+}
+
+export function getBAAuditLogs(id: string | number) {
+  return api<AuditLog[]>(`/api/finance/ba-trackers/${id}/audit-logs`);
 }
 
 export function getFinanceTemplates() {

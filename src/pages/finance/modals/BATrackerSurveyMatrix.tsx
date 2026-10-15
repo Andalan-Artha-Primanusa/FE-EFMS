@@ -1,6 +1,6 @@
 import React from "react";
-import { Calculator, Upload, ExternalLink, ArrowRight } from "lucide-react";
-import { formatIDR, formatThousand, FormattedNumberInput, resolveDocumentUrl } from "../helpers";
+import { Calculator, ArrowRight } from "lucide-react";
+import { formatIDR, formatThousand, FormattedNumberInput } from "../helpers";
 
 interface BATrackerSurveyMatrixProps {
   allBAItems: any[];
@@ -21,7 +21,6 @@ interface BATrackerSurveyMatrixProps {
   deltaAmount: number;
   totalClaimInitial?: number;
   totalClaimAdjusted?: number;
-  handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => void;
   setActiveBAStep: (step: number) => void;
 }
 
@@ -44,7 +43,6 @@ export function BATrackerSurveyMatrix({
   deltaAmount,
   totalClaimInitial,
   totalClaimAdjusted,
-  handleFileUpload,
   setActiveBAStep,
 }: BATrackerSurveyMatrixProps) {
   return (
@@ -231,33 +229,6 @@ export function BATrackerSurveyMatrix({
           </div>
         );
       })()}
-
-      {/* Upload Draft BA PDF */}
-      {isInlineEditingBA && (
-        <div className="p-3 bg-slate-50 border border-slate-200 rounded-[4px] space-y-2">
-          <div className="flex justify-between items-center">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-              <Upload size={14} className="text-[#A57C50]" /> Upload Berkas Draft BA Joint Survey (PDF)
-            </label>
-            {formData.draftBAPath && (
-              <a
-                href={resolveDocumentUrl(formData.draftBAPath)}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[11px] text-[#A57C50] hover:text-[#8e6941] font-bold inline-flex items-center gap-1 underline"
-              >
-                <ExternalLink size={11} /> Buka Draft PDF
-              </a>
-            )}
-          </div>
-          <input
-            type="file"
-            accept="application/pdf"
-            className="text-xs text-slate-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-[3px] file:border-0 file:text-xs file:font-bold file:bg-[#A57C50] file:text-white hover:file:bg-[#8e6941] cursor-pointer"
-            onChange={(e) => handleFileUpload(e, "draftBAPath")}
-          />
-        </div>
-      )}
 
       {/* Navigation Buttons */}
       <div className="flex justify-between items-center pt-2">

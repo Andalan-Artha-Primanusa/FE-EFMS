@@ -173,6 +173,7 @@ const ALL_SYSTEM_PERMISSIONS: Array<{ module: string; action: string; descriptio
   { module: "ba_tracker", action: "delete", description: "Menghapus draft Berita Acara" },
   { module: "ba_tracker", action: "verify", description: "Verifikasi Berita Acara oleh SPV / Specialist" },
   { module: "ba_tracker", action: "approve", description: "Approve Berita Acara oleh Manager" },
+  { module: "ba_tracker", action: "upload", description: "Upload PDF Draft & Final Signed BA (Finance Site / Admin Finance)" },
   { module: "invoice", action: "read", description: "Melihat data invoice penagihan AR" },
   { module: "invoice", action: "write", description: "Membuat draft invoice penagihan" },
   { module: "invoice", action: "delete", description: "Menghapus draft invoice" },
