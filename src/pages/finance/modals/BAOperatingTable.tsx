@@ -404,7 +404,8 @@ export function BAOperatingTable({
               ? Number(item.rate || 0) * getDistanceFactor(item, formData.customerCode, isCustomerDBK)
               : Number(item.rate || 0);
 
-            if (!isInlineEditingBA) {
+            // Baris jarak: tampilkan tarif efektif Rupiah (tarif SOW x selisih jarak) seperti Excel; input hanya bila tarif belum ada.
+            if (!isInlineEditingBA || (isDistance && Number(item.rate || 0) !== 0)) {
               return (
                 <span className="pt-1 block font-mono font-bold">
                   {isDistance && effDistanceRate !== 0
@@ -424,11 +425,6 @@ export function BAOperatingTable({
                   placeholder="0"
                   onChange={(val) => updateItem(item.id, { rate: val })}
                 />
-                {isDistance && effDistanceRate !== 0 && (
-                  <span className="text-[10px] text-[#A57C50] font-mono font-bold block text-right leading-tight">
-                    Eff: {formatIDR(effDistanceRate)}
-                  </span>
-                )}
               </div>
             );
           })()}
