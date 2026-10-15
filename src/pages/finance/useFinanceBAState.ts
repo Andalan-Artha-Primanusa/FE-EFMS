@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { api, verifyBATracker, approveBATracker, generateJournalFromBA } from "../../lib/api";
 import { formatDateInput } from "./helpers";
 import { customerKind, baseDistanceFor } from "./masterRegistry";
+import { dropEmptyDPFuel } from "./ba_calculations";
 
 interface UseFinanceBAStateProps {
   setEditItem: (item: any) => void;
@@ -192,24 +193,8 @@ export function useFinanceBAState({
       return i;
     });
 
-    // Deduplicate DP Fuel items if duplicates exist from previous saves
-    let filteredItems = normalizedItems;
-    if (isCustomerBGG) {
-      let foundActiveDPFuel = false;
-      const activeDPItem = normalizedItems.find((it: any) => isDPFuel(it) && (Number(it.rate || 0) > 0 || Math.abs(Number(it.subtotalInitial || 0)) > 0));
-      filteredItems = normalizedItems.filter((it: any) => {
-        if (!isDPFuel(it)) return true;
-        if (activeDPItem) {
-          if (it.id === activeDPItem.id) return true;
-          return false; // Skip redundant duplicates
-        }
-        if (!foundActiveDPFuel) {
-          foundActiveDPFuel = true;
-          return true;
-        }
-        return false;
-      });
-    }
+    // DP Fuel bisa 4-6 kali per bulan: semua baris bernominal dipertahankan, baris kosong sisa simpanan lama dibuang.
+    const filteredItems = isCustomerBGG ? dropEmptyDPFuel(normalizedItems) : normalizedItems;
 
     const ops = filteredItems.filter((i: any) => !isMDO(i) && !isPenaltyOrDed(i));
     const mdo = filteredItems.filter((i: any) => isMDO(i) && !isPenaltyOrDed(i));

@@ -1,6 +1,6 @@
 import React from "react";
 import { api, saveSBSPenalty, deleteSBSPenalty, SBSPenaltyItem } from "../../lib/api";
-import { getBAEffectiveVolume, getBAItemSubtotal, calculateBACommercialBreakdown, customerKind, bggOBBillableFactor } from "./ba_calculations";
+import { getBAEffectiveVolume, getBAItemSubtotal, calculateBACommercialBreakdown, customerKind, bggOBBillableFactor, dropEmptyDPFuel } from "./ba_calculations";
 
 interface UseFinanceSaveHandlersProps {
   isSaving: boolean;
@@ -156,18 +156,8 @@ export function useFinanceSaveHandlers({
             return true;
           });
 
-          // Deduplicate DP Fuel items
-          const isDP = (it: any) => {
-            const c = (it.category || "").toLowerCase();
-            const m = (it.material || "").toLowerCase();
-            const sec = (it.section || "").toUpperCase();
-            return sec === "F" || c === "dp fuel" || m.includes("dp fuel") || m.includes("pengurang solar");
-          };
-          const dpItems = rawList.filter(isDP);
-          if (dpItems.length > 1) {
-            const activeDP = dpItems.find((it: any) => Number(it.rate || 0) > 0 || Math.abs(Number(it.subtotalInitial || 0)) > 0) || dpItems[0];
-            rawList = rawList.filter((it: any) => !isDP(it) || it.id === activeDP.id);
-          }
+          // DP Fuel bisa 4-6 kali per bulan: semua baris bernominal disimpan; baris kosong dibuang bila ada yang bernominal.
+          rawList = dropEmptyDPFuel(rawList);
         }
         const allRawItems = rawList;
         const allItems = allRawItems.map((it) => {
