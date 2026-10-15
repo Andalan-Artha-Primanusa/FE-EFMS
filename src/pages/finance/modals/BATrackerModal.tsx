@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, Edit2, CheckCircle2, Loader2 } from "lucide-react";
 import { renderBAStatusBadge } from "../helpers";
-import { getAuditLogs } from "../../../lib/api";
+import { getBAAuditLogs } from "../../../lib/api";
 import {
   isDistanceItem,
   getBAEffectiveVolume,
@@ -77,12 +77,8 @@ export function BATrackerModal({ c }: { c: any }) {
   useEffect(() => {
     const targetId = String(formData?.id || editItem?.id || "");
     if (!targetId) return;
-    getAuditLogs({ referenceType: "ba_tracker", referenceId: targetId })
-      .then((logs) => {
-        if (Array.isArray(logs) && logs.length > 0) {
-          setBaAuditLogs(logs);
-        }
-      })
+    getBAAuditLogs(targetId)
+      .then((logs) => setBaAuditLogs(Array.isArray(logs) ? logs : []))
       .catch(() => {});
   }, [formData?.id, editItem?.id]);
 
@@ -230,7 +226,6 @@ export function BATrackerModal({ c }: { c: any }) {
                     deltaAmount={deltaAmount}
                     totalClaimInitial={totalClaimInitial}
                     totalClaimAdjusted={totalClaimAdjusted}
-                    handleFileUpload={handleFileUpload}
                     setActiveBAStep={setActiveBAStep}
                   />
                 )}
@@ -269,6 +264,8 @@ export function BATrackerModal({ c }: { c: any }) {
                 auditTab={auditTab}
                 setAuditTab={setAuditTab}
                 baAuditLogs={baAuditLogs}
+                isInlineEditingBA={isInlineEditingBA}
+                handleFileUpload={can("ba_tracker", "upload") ? handleFileUpload : undefined}
               />
             </div>
           </div>

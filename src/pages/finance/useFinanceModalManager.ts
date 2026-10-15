@@ -1,4 +1,4 @@
-import { uploadDocumentFile, previewInvoiceFromBA } from "../../lib/api";
+import { uploadBADocument, previewInvoiceFromBA } from "../../lib/api";
 import { generateInvoiceNumber, formatDateInput, matchPeriod, isBAApproved } from "./helpers";
 import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF } from "./ba_calculations";
 import { customerKind, rfMasterFor, computeRFIndex, obSplitSOWs, ptroContractRates, baItemsFromSOW } from "./masterRegistry";
@@ -375,10 +375,10 @@ export function useFinanceModalManager({
     if (file) {
       onNotice(`Mengunggah berkas PDF "${file.name}" ke server...`);
       try {
-        const res = await uploadDocumentFile(file, "Berita Acara", fieldName === "draftBAPath" ? "Draft BA" : "Final Signed BA");
+        const res = await uploadBADocument(file, fieldName === "draftBAPath" ? "Draft BA" : "Final Signed BA");
         const permanentUrl = res.url || `/uploads/${res.storedName}`;
         setFormData((prev: any) => ({ ...prev, [fieldName]: permanentUrl, [`${fieldName}Name`]: file.name }));
-        onNotice(`Berkas PDF "${file.name}" berhasil disimpan.`);
+        onNotice(`Berkas PDF "${file.name}" tersimpan di server. Klik "Simpan Perubahan" agar tertaut ke BA.`);
       } catch (err: any) { onNotice(`Gagal mengunggah PDF: ${err?.message || "Kesalahan server"}`); }
     }
   };
