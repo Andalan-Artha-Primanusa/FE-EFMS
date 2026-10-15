@@ -137,6 +137,24 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
     : Number(item.initialVolume || 0);
 }
 
+const isDPFuelRow = (it: any) => {
+  const c = (it.category || "").toLowerCase();
+  const m = (it.material || "").toLowerCase();
+  return (it.section || "").toUpperCase() === "F" || c === "dp fuel" || m.includes("dp fuel") || m.includes("pengurang solar") || m.includes("potongan solar");
+};
+const dpFuelAmount = (it: any) => Math.abs(Number(it.rate || 0)) || Math.abs(Number(it.subtotalInitial || 0)) || Math.abs(Number(it.subtotalAdjusted || 0));
+
+/**
+ * DP Fuel bisa beberapa kali per bulan: semua baris bernominal dipertahankan. Baris kosong (placeholder
+ * sisa simpanan lama) dibuang bila ada yang bernominal; bila semua kosong disisakan satu.
+ */
+export function dropEmptyDPFuel<T>(items: T[]): T[] {
+  const dp = items.filter(isDPFuelRow);
+  const filled = dp.filter(dpFuelAmount);
+  const keep = new Set(filled.length > 0 ? filled : dp.slice(0, 1));
+  return items.filter((it) => !isDPFuelRow(it) || keep.has(it));
+}
+
 /** Pajak dari DPP presisi penuh (sama dengan Excel & BE invoiceTaxes); hanya hasil akhirnya dibulatkan ke rupiah. */
 export function invoiceTaxes(dpp: number) {
   const ppn = ((dpp * 11) / 12) * 0.12;
