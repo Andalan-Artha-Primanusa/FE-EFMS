@@ -91,7 +91,7 @@ export function useFinanceController({
     selectedVarD, setSelectedVarD, selectedVarE, setSelectedVarE, selectedVarF, setSelectedVarF,
     selectedVarP, setSelectedVarP, addVariableToSection,
     removeInvLineItem, updateInvItemVolume, updateInvItemOverhaul, updateInvItemRateIDR,
-    updateInvItemRateUSD, updateInvItemKurs, updateInvItemAmount, addInvLineItem,
+    updateInvItemRateUSD, updateInvItemKurs, updateInvItemAmount,
     updateInvItemField, reorderInvLineItems, moveInvRow, handleGenerateInvoiceFromBA,
     handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1
   } = invoiceState;
@@ -165,7 +165,7 @@ export function useFinanceController({
   const exportCtx = {
     baRows, buildInvoiceItemsFromBA: buildInvItems, calculateItemRateAndAmount, customerContractMap,
     formData, getCustomerCalculations: getAuthoritativeCustomerCalculations, getItemEffectiveOverhaulMtr, getItemEffectiveVolume, invLineItems,
-    invoiceRows, invPeriodFilter, onNotice, periodFilter, query, rfIndexCalculated,
+    invoiceRows, invPeriodFilter, onNotice, periodFilter, query, rfIndexCalculated, sbsPenalties, pendingVolumeLedgers,
     subtotalA, subtotalB, subtotalC, subtotalD, subtotalE, subtotalF
   };
   const {
@@ -266,7 +266,7 @@ export function useFinanceController({
     setPosInvoiceCategory, invLineItems, setInvLineItems, selectedVarA, setSelectedVarA, selectedVarB,
     setSelectedVarB, selectedVarC, setSelectedVarC, selectedVarD, setSelectedVarD, selectedVarE,
     setSelectedVarE, selectedVarF, setSelectedVarF, selectedVarP, setSelectedVarP, addVariableToSection,
-    customerContractMap, handleCompanySelect, removeInvLineItem, addInvLineItem, updateInvItemField,
+    customerContractMap, handleCompanySelect, removeInvLineItem, updateInvItemField,
     reorderInvLineItems, moveInvRow, updateInvItemVolume, updateInvItemOverhaul, updateInvItemRateIDR,
     updateInvItemRateUSD, updateInvItemKurs, updateInvItemAmount, getItemEffectiveVolume,
     getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations: getAuthoritativeCustomerCalculations,

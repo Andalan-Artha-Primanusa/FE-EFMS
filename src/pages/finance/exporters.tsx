@@ -4,7 +4,8 @@
 // =============================================================
 
 import { invoiceTaxes } from "./ba_calculations";
-import { formatIDR, getBAStatusForExport, getCustomerOfficialName, parsePeriodToMonthIndex } from "./helpers";
+import { pendingAmount } from "./modals/PendingVolumeRecordModal";
+import { formatIDR, getBAInvoiceStatus, getBAStatusForExport, getCustomerOfficialName, parsePeriodToMonthIndex } from "./helpers";
 
 export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1510,23 +1511,25 @@ export function exportBAOnlyExcelImpl(ctx: any) {
 
 export function exportBAOnlyPDFImpl(ctx: any) {
   const {
-    baRows: rawBaRows, invoiceRows: rawInvoiceRows, periodFilter = "All", query = ""
+    baRows: rawBaRows, invoiceRows: rawInvoiceRows, pendingVolumeLedgers: rawLedgers, periodFilter = "All", query = ""
   } = ctx || {};
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
+  const ledgers: any[] = Array.isArray(rawLedgers) ? rawLedgers : [];
   const printWin = window.open("", "_blank", "width=1280,height=900");
   if (!printWin) return;
 
-  const now = new Date();
-  const formattedDate = now.toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
-  const printedAt = now.toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
-  const logoUrl = `${window.location.origin}/andalan-logo.png`;
-  const periodLabel = periodFilter === "All" ? "Semua Periode" : periodFilter;
-  const docNo = `RPT-BAI/${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
   const esc = (v: any) => String(v ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch] as string));
-  const fmtDate = (d: any) => (d && !isNaN(new Date(d).getTime()) ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "—");
+  const fmtNum = (n: number) => Math.round(n || 0) ? Math.round(n).toLocaleString("id-ID") : "-";
+  const periodDate = (p: string) => {
+    const idx = parsePeriodToMonthIndex(p || "");
+    return idx % 100 ? new Date(Math.floor(idx / 100), (idx % 100) - 1, 1) : null;
+  };
+  const fmtPeriod = (p: string) => periodDate(p)?.toLocaleDateString("en-GB", { month: "short", year: "2-digit" }).replace(" ", "-") || p || "-";
+  // Nominal laporan = nilai invoice (DPP + PPN 12% x 11/12 − PPh 23)
+  const withTax = (gross: number) => invoiceTaxes(Number(gross || 0)).total;
 
-  // Export includes only active BA rows for the selected periodFilter (BA On Progress & BA Ready to Invoice, excluding ARSIP)
+  // BA aktif (belum arsip/terbit invoice) sesuai filter periode
   const targetRows = baRows
     .filter((r) => JSON.stringify(r).toLowerCase().includes(query.toLowerCase()))
     .filter((r) => periodFilter === "All" || r.workPeriod === periodFilter)
@@ -1534,185 +1537,115 @@ export function exportBAOnlyPDFImpl(ctx: any) {
     .filter(({ st }) => !st.label.startsWith("ARSIP"));
 
   const groupedCust = Array.from(new Set(targetRows.map(({ ba }) => ba.customerCode || "OTHER")));
-  const totalBAMoney = targetRows.reduce((s, { ba }) => s + (ba.workAmount || 0), 0);
-  const readyRows = targetRows.filter(({ st }) => st.label === "READY TO INVOICE");
-  const readyMoney = readyRows.reduce((s, { ba }) => s + (ba.workAmount || 0), 0);
-
-  let rowNo = 0;
   const bodyHTML = groupedCust.map((custCode) => {
     const custRows = targetRows.filter(({ ba }) => (ba.customerCode || "OTHER") === custCode);
-    const custSubtotal = custRows.reduce((s, { ba }) => s + (ba.workAmount || 0), 0);
-    return `
-      <tr class="grp">
-        <td colspan="7"><span class="grp-code">${esc(custCode)}</span>${esc(getCustomerOfficialName(custCode))}<span class="grp-count">${custRows.length} dokumen BA</span></td>
-        <td class="num">${formatIDR(custSubtotal)}</td>
-        <td colspan="2"></td>
-      </tr>
-      ${custRows.map(({ ba, st }) => {
-        rowNo += 1;
-        const notes = [ba.notesBottleneck, ba.notes].filter(Boolean).join(" — ") || "—";
-        const tone = st.label === "READY TO INVOICE" ? "ok" : st.label.includes("APPROVAL") || st.label.includes("1/2") ? "warn" : "neutral";
-        return `
-          <tr>
-            <td class="c muted">${rowNo}</td>
-            <td><div class="strong">${esc(ba.baNumber || "—")}</div><div class="sub">${esc(ba.dataSource || "Joint Survey")}</div></td>
-            <td>${esc(ba.picAAP || "—")}</td>
-            <td>${esc(ba.workPeriod || "—")}</td>
-            <td class="c">${ba.items?.length || "—"}</td>
-            <td class="c">${fmtDate(ba.baSubmittedDate)}</td>
-            <td class="c">${fmtDate(ba.baSignedDate)}${ba.leadTimeDays ? `<div class="sub">${ba.leadTimeDays} hari</div>` : ""}</td>
-            <td class="num strong">${formatIDR(ba.workAmount || 0)}</td>
-            <td class="c"><span class="pill ${tone}">${esc(st.label)}</span>${ba.statusBA ? `<div class="sub">${esc(ba.statusBA)}</div>` : ""}${st.subtext ? `<div class="sub">${esc(st.subtext)}</div>` : ""}</td>
-            <td class="notes">${esc(notes)}</td>
-          </tr>`;
-      }).join("")}`;
+    const subtotal = custRows.reduce((s, { ba }) => s + withTax(ba.workAmount), 0);
+    return custRows.map(({ ba, st }, i) => {
+      const notes = [ba.notesBottleneck, ba.notes].filter(Boolean).join("\n").split("\n").map((l: string) => l.trim()).filter(Boolean);
+      const statusLabel = st.label === "READY TO INVOICE" ? "BA Ready To Invoice" : (ba.statusBA || "Draft");
+      return `
+        <tr>
+          ${i === 0 ? `<td rowspan="${custRows.length + 1}" class="proj">${esc(custCode)}</td>` : ""}
+          <td class="c">${fmtPeriod(ba.workPeriod)}</td>
+          <td class="r">${fmtNum(withTax(ba.workAmount))}</td>
+          <td class="c">${esc(statusLabel)}</td>
+          <td>${notes.map((l: string) => `- ${esc(l.replace(/^-\s*/, ""))}`).join("<br/>")}</td>
+          <td>${st.label === "READY TO INVOICE" ? "Final" : "Draft"}</td>
+        </tr>`;
+    }).join("") + `
+        <tr class="b">
+          <td>Total ${esc(custCode)}</td>
+          <td class="r">${fmtNum(subtotal)}</td>
+          <td></td><td></td><td></td>
+        </tr>`;
   }).join("");
+
+  // Ringkasan periode: periode terpilih, atau periode terbaru bila "Semua Periode"
+  const summaryIdx = periodFilter !== "All"
+    ? parsePeriodToMonthIndex(periodFilter)
+    : Math.max(0, ...targetRows.map(({ ba }) => parsePeriodToMonthIndex(ba.workPeriod || "")).filter((i) => i % 100));
+  const monthName = summaryIdx ? new Date(Math.floor(summaryIdx / 100), (summaryIdx % 100) - 1, 1).toLocaleDateString("en-US", { month: "long" }) : "";
+  const totalInvoice = targetRows
+    .filter(({ ba }) => parsePeriodToMonthIndex(ba.workPeriod || "") === summaryIdx)
+    .reduce((s, { ba }) => s + withTax(ba.workAmount), 0);
+  const pendingVolume = withTax(ledgers
+    .filter((l) => l.remainingVolume > 0 && parsePeriodToMonthIndex(l.workPeriod || l.sourcePeriod || "") === summaryIdx)
+    .reduce((s, l) => s + pendingAmount(l.remainingVolume || 0, l.ob1Rate || 0, l.ob2Rate || 0, l.customerCode), 0));
 
   const htmlContent = `<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="utf-8" />
-  <title>BA Monitoring Report - ${esc(periodLabel)}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <title>Berita Acara Invoice (BAI) Monitoring</title>
   <style>
-    /* Lembar A4 landscape yang sama persis di layar dan di kertas: lebar isi = 297mm - 2 x 12mm */
     @page { size: A4 landscape; margin: 10mm 12mm; }
-    :root { --ink: #1A1612; --muted: #6B6055; --line: #E6E1D9; --canvas: #FAF8F4; --gold: #A57C50; --gold-dark: #6E5033; --cream: #FBF6F0; --green: #2E7D53; --amber: #C98A12; }
-    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    html, body { margin: 0; padding: 0; }
-    body { font-family: 'Plus Jakarta Sans', 'Segoe UI', Arial, sans-serif; color: var(--ink); font-size: 8.5pt; line-height: 1.35; background: #E9E5DF; font-variant-numeric: tabular-nums; }
-    .toolbar { position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 16px; background: var(--ink); color: #fff; font-size: 9pt; }
-    .toolbar button { background: var(--gold); color: #fff; border: 0; border-radius: 6px; padding: 8px 18px; font: inherit; font-weight: 700; cursor: pointer; }
-    .toolbar button:hover { background: var(--gold-dark); }
-    .sheet { width: 297mm; min-height: 210mm; margin: 16px auto; padding: 10mm 12mm; background: #fff; box-shadow: 0 2px 12px rgba(26,22,18,.18); }
-
-    .kop { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 2px solid var(--gold); }
-    .kop img { height: 34px; }
-    .kop .co { text-align: right; font-size: 7.5pt; color: var(--muted); }
-    .kop .co strong { display: block; color: var(--ink); font-size: 9pt; letter-spacing: .3px; }
-    .title { display: flex; justify-content: space-between; align-items: flex-end; margin: 12px 0 10px; }
-    .title h1 { margin: 0; font-size: 14pt; font-weight: 800; letter-spacing: .2px; }
-    .title .sub-title { color: var(--muted); font-size: 8.5pt; margin-top: 2px; }
-    .meta { border-collapse: collapse; font-size: 7.5pt; }
-    .meta td { padding: 1px 0 1px 10px; }
-    .meta td:first-child { color: var(--muted); }
-    .meta td:last-child { font-weight: 700; text-align: right; }
-
-    .kpi { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: 4px; margin-bottom: 12px; }
-    .kpi div { padding: 7px 10px; border-left: 1px solid var(--line); }
-    .kpi div:first-child { border-left: 0; }
-    .kpi span { display: block; color: var(--muted); font-size: 6.8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
-    .kpi b { font-size: 11pt; font-weight: 800; }
-    .kpi .hl { background: var(--cream); }
-
-    table.data { width: 100%; border-collapse: collapse; }
-    .data thead { display: table-header-group; }
-    .data tr { break-inside: avoid; page-break-inside: avoid; }
-    .data th { background: var(--ink); color: #fff; font-size: 6.8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; padding: 6px; text-align: left; }
-    .data td { padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
-    .data .grp td { background: var(--cream); border-top: 1px solid var(--gold); border-bottom: 1px solid #E7D3BC; font-weight: 700; padding: 5px 6px; }
-    .grp-code { display: inline-block; background: var(--gold); color: #fff; border-radius: 3px; padding: 0 5px; margin-right: 6px; font-size: 7pt; }
-    .grp-count { color: var(--muted); font-weight: 500; margin-left: 8px; font-size: 7.5pt; }
-    .data tfoot td { background: var(--ink); color: #fff; font-weight: 800; padding: 7px 6px; font-size: 9pt; }
-    .c { text-align: center; } .num { text-align: right; white-space: nowrap; }
-    .data th.c { text-align: center; } .data th.num { text-align: right; }
-    .strong { font-weight: 700; } .muted { color: var(--muted); }
-    .sub { color: var(--muted); font-size: 6.8pt; margin-top: 1px; }
-    .notes { font-size: 7.5pt; color: #3A322A; }
-    .pill { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 6.5pt; font-weight: 800; letter-spacing: .3px; border: 1px solid; white-space: nowrap; }
-    .pill.ok { color: var(--green); border-color: var(--green); background: #EAF4EE; }
-    .pill.warn { color: #8A5D0A; border-color: var(--amber); background: #FBF3E2; }
-    .pill.neutral { color: var(--gold-dark); border-color: var(--gold); background: var(--cream); }
-    .empty { text-align: center; color: var(--muted); padding: 18px; }
-
-    .closing { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-top: 14px; break-inside: avoid; page-break-inside: avoid; }
-    .closing .remark { font-size: 7.5pt; color: var(--muted); max-width: 45%; }
-    .sign { display: grid; grid-template-columns: repeat(2, 52mm); gap: 10mm; text-align: center; font-size: 8pt; }
-    .sign .role { color: var(--muted); }
-    .sign .space { height: 18mm; }
-    .sign .name { font-weight: 800; border-top: 1px solid var(--ink); padding-top: 3px; }
-    .foot { display: flex; justify-content: space-between; margin-top: 12px; padding-top: 5px; border-top: 1px solid var(--line); color: var(--muted); font-size: 6.8pt; }
-
-    @media print {
-      body { background: #fff; }
-      .toolbar { display: none; }
-      .sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
-    }
+    * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { margin: 0; padding: 8px; font-size: 10px; color: #000; }
+    .head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+    .head h1 { font-size: 16px; margin: 0; }
+    .head p { margin: 4px 0 0; font-size: 9px; font-weight: bold; }
+    .logo { height: 48px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #C99A2E; color: #000; font-weight: bold; padding: 3px 5px; border: 1px solid #000; }
+    td { border: 1px solid #000; padding: 3px 5px; vertical-align: middle; }
+    .r { text-align: right; font-variant-numeric: tabular-nums; }
+    .c { text-align: center; }
+    .b td { font-weight: bold; }
+    .proj { font-size: 15px; font-weight: bold; text-align: center; }
+    .summary { margin-top: 18px; }
+    .summary td { border: 2px solid #000; font-weight: bold; }
+    .notes { margin-top: 24px; }
+    .notes i { display: block; margin-top: 2px; }
+    .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
+    @media print { .btn-print { display: none; } }
   </style>
 </head>
 <body>
-  <div class="toolbar">
-    <span>Pratinjau sesuai cetak — A4 Landscape. Pada dialog print pilih <b>Save as PDF</b>, matikan <b>Headers and footers</b>.</span>
-    <button onclick="window.print()">Cetak / Simpan PDF</button>
+  <button class="btn-print" onclick="window.print()">Cetak / Simpan PDF BAI Monitoring (A4 Landscape)</button>
+  <div class="head">
+    <div>
+      <h1>Berita Acara Invoice (BAI) Monitoring</h1>
+      <p>as of : &nbsp;&nbsp;&nbsp;&nbsp; ${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</p>
+    </div>
+    <img src="${window.location.origin}/andalan-logo.png" alt="ANDALAN" class="logo" />
   </div>
-  <div class="sheet">
-    <div class="kop">
-      <img src="${logoUrl}" alt="ANDALAN" />
-      <div class="co"><strong>PT ANDALAN ARTHA PRIMANUSA</strong>Finance, Accounting, Tax &amp; Budgeting Division</div>
-    </div>
 
-    <div class="title">
-      <div>
-        <h1>Laporan Monitoring Berita Acara (BA)</h1>
-        <div class="sub-title">Berita Acara Invoice (BAI) — status siklus dokumen BA aktif sebelum penerbitan invoice</div>
-      </div>
-      <table class="meta">
-        <tr><td>No. Dokumen</td><td>${docNo}</td></tr>
-        <tr><td>Periode</td><td>${esc(periodLabel)}</td></tr>
-        <tr><td>Per Tanggal</td><td>${formattedDate}</td></tr>
-      </table>
-    </div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:9%">Project</th>
+        <th style="width:12%">Periode Pekerjaan</th>
+        <th style="width:14%">Nominal</th>
+        <th style="width:20%">Status BA/Invoicing</th>
+        <th style="width:35%">Keterangan</th>
+        <th style="width:10%">Status Nominal</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${bodyHTML || `<tr><td colspan="6" class="c">Tidak ada Berita Acara aktif untuk periode ini.</td></tr>`}
+    </tbody>
+  </table>
 
-    <div class="kpi">
-      <div><span>Jumlah BA Aktif</span><b>${targetRows.length}</b> dokumen</div>
-      <div><span>Siap Invoice</span><b>${formatIDR(readyMoney)}</b> · ${readyRows.length} BA</div>
-      <div><span>BA On Progress</span><b>${formatIDR(totalBAMoney - readyMoney)}</b> · ${targetRows.length - readyRows.length} BA</div>
-      <div class="hl"><span>Total Nilai Klaim</span><b>${formatIDR(totalBAMoney)}</b></div>
-    </div>
+  <table class="summary" style="width:90%">
+    <thead>
+      <tr>
+        <th style="width:23%">Total Invoice ${monthName}</th>
+        <th style="width:17%">Nominal</th>
+        <th style="width:24%">Pending Volume ${monthName}</th>
+        <th style="width:36%">Est Total ${monthName}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="c">All Site</td>
+        <td class="r">${fmtNum(totalInvoice)}</td>
+        <td class="r">${fmtNum(pendingVolume)}</td>
+        <td class="r">${fmtNum(totalInvoice + pendingVolume)}</td>
+      </tr>
+    </tbody>
+  </table>
 
-    <table class="data">
-      <thead>
-        <tr>
-          <th class="c" style="width:4%">No</th>
-          <th style="width:16%">No. BA / Sumber</th>
-          <th style="width:9%">PIC</th>
-          <th style="width:9%">Periode</th>
-          <th class="c" style="width:5%">Item</th>
-          <th class="c" style="width:8%">Diajukan</th>
-          <th class="c" style="width:8%">TTD Klien</th>
-          <th class="num" style="width:12%">Nilai Klaim (IDR)</th>
-          <th class="c" style="width:12%">Status</th>
-          <th style="width:17%">Catatan / Bottleneck</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${bodyHTML || `<tr><td colspan="10" class="empty">Tidak ada Berita Acara aktif untuk periode ini.</td></tr>`}
-      </tbody>
-      <tfoot>
-        <tr>
-          <td colspan="7">TOTAL NILAI KLAIM BA — ${esc(periodLabel.toUpperCase())}</td>
-          <td class="num">${formatIDR(totalBAMoney)}</td>
-          <td colspan="2"></td>
-        </tr>
-      </tfoot>
-    </table>
-
-    <div class="closing">
-      <div class="remark">
-        Laporan ini mencakup BA berstatus aktif (draft, verifikasi, revisi, dan siap invoice); BA yang telah diarsipkan/terbit invoice tidak disertakan. Nilai klaim merupakan nilai bruto sebelum PPN dan PPh 23.
-      </div>
-      <div class="sign">
-        <div><div class="role">Diverifikasi oleh,</div><div class="space"></div><div class="name">Lambang Hermawan</div><div class="role">Finance Supervisor</div></div>
-        <div><div class="role">Disetujui oleh,</div><div class="space"></div><div class="name">M Axel Valentino</div><div class="role">FATB Manager</div></div>
-      </div>
-    </div>
-
-    <div class="foot">
-      <span>${docNo} · Dokumen internal PT Andalan Artha Primanusa</span>
-      <span>Dicetak dari FEAST pada ${printedAt}</span>
-    </div>
-  </div>
+  <div class="notes">Notes :<i>Nilai Nominal sudah termasuk pajak</i></div>
 </body>
 </html>`;
 
@@ -1841,173 +1774,188 @@ export function exportAROnlyExcelImpl(ctx: any) {
 }
 
 export function exportAROnlyPDFImpl(ctx: any) {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { 
-    invoiceRows: rawInvoiceRows, invPeriodFilter = "All", query = ""
-  } = ctx || {};
+  const { invoiceRows: rawInvoiceRows, baRows: rawBaRows, sbsPenalties: rawPenalties, invPeriodFilter = "All", query = "" } = ctx || {};
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
+  const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
+  const penalties: any[] = Array.isArray(rawPenalties) ? rawPenalties : [];
   const printWin = window.open("", "_blank", "width=1200,height=900");
   if (!printWin) return;
 
-  const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
-  const logoUrl = `${window.location.origin}/andalan-logo.png`;
+  const today = new Date();
+  const fmtDate = (d: any) => d && !isNaN(new Date(d).getTime()) ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }).replace(/ /g, "-") : "";
+  const fmtNum = (n: number) => Math.round(n || 0) ? Math.round(n).toLocaleString("id-ID") : "-";
+  const fmtPeriod = (p: string) => {
+    const idx = parsePeriodToMonthIndex(p || "");
+    const m = idx % 100;
+    return m ? new Date(Math.floor(idx / 100), m - 1, 1).toLocaleDateString("en-GB", { month: "short", year: "2-digit" }).replace(" ", "-") : (p || "-");
+  };
   const targetPeriodIndex = parsePeriodToMonthIndex(invPeriodFilter);
-  const targetInvoices = invoiceRows.filter((r) => {
-      const matchQ = JSON.stringify(r).toLowerCase().includes(query.toLowerCase());
-      if (!matchQ) return false;
-      if (invPeriodFilter !== "All") {
-        const rowPeriodIndex = parsePeriodToMonthIndex(r.workPeriod || "");
-        if (rowPeriodIndex > targetPeriodIndex) return false;
-      }
-      const outstandingAmount = r.outstanding ?? ((r.totalInvoice || 0) - (r.totalPaid || 0));
-      if (outstandingAmount <= 0 || r.status === "Paid") return false;
-      return true;
+  const inPeriod = (p: string) => invPeriodFilter === "All" || parsePeriodToMonthIndex(p || "") <= targetPeriodIndex;
+  const outstandingOf = (r: any) => r.outstanding ?? ((r.totalInvoice || 0) - (r.totalPaid || 0));
+
+  const targetInvoices = invoiceRows.filter((r) =>
+    JSON.stringify(r).toLowerCase().includes(query.toLowerCase()) && inPeriod(r.workPeriod) && outstandingOf(r) > 0 && r.status !== "Paid"
+  );
+  const groupedCust = Array.from(new Set(targetInvoices.map((r) => r.customerCode || "OTHER")));
+
+  let arRows = "";
+  const grand = { out: 0, ded: 0, nett: 0 };
+  groupedCust.forEach((custCode) => {
+    const rows = targetInvoices.filter((r) => (r.customerCode || "OTHER") === custCode);
+    const sub = { out: 0, ded: 0, nett: 0 };
+    arRows += `<tr class="cust"><td colspan="11">${custCode}</td></tr>`;
+    rows.forEach((r, i) => {
+      const out = outstandingOf(r);
+      const ded = Number(r.otherDeduction || 0);
+      sub.out += out; sub.ded += ded; sub.nett += out - ded;
+      const overdue = r.dueDate && new Date(r.dueDate) < today;
+      arRows += `
+        <tr>
+          <td class="c">${i + 1}</td>
+          <td>${fmtPeriod(r.workPeriod)}</td>
+          <td>${r.invoiceNo || ""}</td>
+          <td>${r.jobType || r.notes || "OB & CG"}</td>
+          <td class="r">${fmtNum(r.totalInvoice)}</td>
+          <td class="c">${fmtDate(r.invoiceDate)}</td>
+          <td class="c">${fmtDate(r.invoiceIssuedDate)}</td>
+          <td class="c ${overdue ? "due-late" : "due-ok"}">${fmtDate(r.dueDate)}</td>
+          <td class="r">${fmtNum(out)}</td>
+          <td class="r">${fmtNum(ded)}</td>
+          <td class="r">${fmtNum(out - ded)}</td>
+        </tr>`;
     });
-    const groupedCust = Array.from(new Set(targetInvoices.map((r) => r.customerCode || "OTHER")));
+    grand.out += sub.out; grand.ded += sub.ded; grand.nett += sub.nett;
+    arRows += `
+      <tr class="subtotal">
+        <td colspan="8" class="c">Total AR ${custCode}</td>
+        <td class="r">${fmtNum(sub.out)}</td>
+        <td class="r">${fmtNum(sub.ded)}</td>
+        <td class="r">${fmtNum(sub.nett)}</td>
+      </tr>
+      <tr class="gap"><td colspan="11"></td></tr>`;
+  });
 
-    let totalARAndalan = 0;
-    let pdfRowsAR = "";
+  // Subject To Invoice: BA yang belum (sepenuhnya) ter-invoice — sama dengan tab "Subject To Invoice"
+  const sti = { out: 0, ded: 0, nett: 0 };
+  const stiRows = baRows
+    .map((ba) => ({ ba, st: getBAInvoiceStatus(ba, invoiceRows) }))
+    .filter(({ ba, st }) => inPeriod(ba.workPeriod) && !st.isFullyInvoiced)
+    .map(({ ba, st }) => {
+      const cust = (ba.customerCode || "POS").toUpperCase();
+      const amount = cust === "POS" && st.isPartiallyInvoiced ? Math.round(Number(ba.workAmount || 0) / 2) : Number(ba.workAmount || 0);
+      // Deduction SBS = penalti Section P yang belum dipotong pada periode yang sama
+      const ded = cust === "SBS"
+        ? penalties
+            .filter((p) => p.status !== "Deducted" && parsePeriodToMonthIndex(p.workPeriod || "") === parsePeriodToMonthIndex(ba.workPeriod || ""))
+            .reduce((s, p) => s + Number(p.outstandingAmount ?? (Number(p.claimAmount || 0) - Number(p.deductedAmount || 0))), 0)
+        : 0;
+      sti.out += amount; sti.ded += ded; sti.nett += amount - ded;
+      return `
+        <tr>
+          <td class="c b">${cust}</td>
+          <td>${fmtPeriod(ba.workPeriod)}</td>
+          <td></td>
+          <td>${ba.activityGroup || ba.jobType || "OB & CG"}</td>
+          <td class="r">${fmtNum(amount)}</td>
+          <td></td>
+          <td></td>
+          <td class="due-ok"></td>
+          <td class="r">${fmtNum(amount)}</td>
+          <td class="r">${fmtNum(ded)}</td>
+          <td class="r">${fmtNum(amount - ded)}</td>
+        </tr>`;
+    }).join("");
 
-    groupedCust.forEach((custCode) => {
-      const clientRows = targetInvoices.filter((r) => (r.customerCode || "OTHER") === custCode);
-      const clientTotalAR = clientRows.reduce((sum, r) => sum + (r.outstanding ?? ((r.totalInvoice || 0) - (r.totalPaid || 0))), 0);
-      const clientTotalAmount = clientRows.reduce((sum, r) => sum + (r.totalInvoice || 0), 0);
-      totalARAndalan += clientTotalAR;
+  const headRow = (outLabel: string) => `
+    <tr>
+      <th style="width:4%">Project</th>
+      <th style="width:7%">Inv. Progress</th>
+      <th style="width:14%">No. Invoice</th>
+      <th style="width:12%">Remarks</th>
+      <th style="width:9%">Amount</th>
+      <th style="width:6%">Invoice Date</th>
+      <th style="width:7%">Invoice Submission</th>
+      <th style="width:6%">Due Date</th>
+      <th style="width:12%">${outLabel}</th>
+      <th style="width:11%">Deduction Backcharge</th>
+      <th style="width:12%">Nett</th>
+    </tr>`;
 
-      pdfRowsAR += `
-        <tr class="client-banner">
-          <td colspan="9">CLIENT / SITE: <strong>${custCode}</strong> (${clientRows.length} Invoice Outstanding)</td>
-        </tr>
-      `;
-
-      clientRows.forEach((row) => {
-        const invDate = row.invoiceDate ? new Date(row.invoiceDate).toLocaleDateString("id-ID") : "-";
-        const invIssued = row.invoiceIssuedDate ? new Date(row.invoiceIssuedDate).toLocaleDateString("id-ID") : "-";
-        const dueDate = row.dueDate ? new Date(row.dueDate).toLocaleDateString("id-ID") : "-";
-        pdfRowsAR += `
-          <tr>
-            <td><strong>${row.customerCode}</strong></td>
-            <td>${row.workPeriod || "-"}</td>
-            <td class="font-mono" style="font-weight: 700; color: #0e7490;">${row.invoiceNo}</td>
-            <td>${row.jobType || row.notes || "OB & CG"}</td>
-            <td class="text-right font-mono">${formatIDR(row.totalInvoice)}</td>
-            <td class="text-center">${invDate}</td>
-            <td class="text-center">${invIssued}</td>
-            <td class="text-center">${dueDate}</td>
-            <td class="text-right font-mono" style="font-weight: 800; color: #b91c1c;">${formatIDR(row.outstanding)}</td>
-          </tr>
-        `;
-      });
-
-      pdfRowsAR += `
-        <tr class="subtotal-row">
-          <td colspan="4" class="text-right uppercase">Total AR ${custCode}:</td>
-          <td class="text-right font-mono">${formatIDR(clientTotalAmount)}</td>
-          <td colspan="3"></td>
-          <td class="text-right font-mono" style="font-weight: 900; color: #0f172a;">${formatIDR(clientTotalAR)}</td>
-        </tr>
-      `;
-    });
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>AR OUTSTANDING MONITORING REPORT - ANDALAN</title>
-        <style>
-          @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..900;1,300..900&display=swap');
-          @page { size: A4 landscape; margin: 8mm 10mm; }
-          * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; }
-          body { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important; color: #0f172a; margin: 0; padding: 8px; font-size: 9.5px; line-height: 1.25; }
-          .header-box { display: table; width: 100%; margin-bottom: 12px; border-bottom: 2.5px solid #0f172a; padding-bottom: 6px; }
-          .header-cell { display: table-cell; vertical-align: middle; }
-          .logo-img { height: 42px; width: auto; }
-          .title-area { text-align: right; }
-          .title-area h1 { font-size: 15px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 1px; color: #0f172a; }
-          .title-area p { font-size: 10px; margin: 2px 0 0 0; color: #475569; font-weight: 700; }
-
-          table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 9px; page-break-inside: avoid; border: 1.5px solid #0f172a; }
-          th { background: #0f172a; color: #ffffff; padding: 7px 8px; font-size: 9px; font-weight: 800; text-transform: uppercase; border: 1.5px solid #0f172a; text-align: center; }
-          td { border: 1.2px solid #334155; padding: 6px 7px; color: #0f172a; }
-
-          .client-banner { background: #e2e8f0; font-weight: 800; color: #0f172a; border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a; }
-          .client-banner td { border: 1.5px solid #0f172a; }
-          .subtotal-row { background: #f8fafc; font-weight: 800; border-top: 1.5px solid #0f172a; border-bottom: 1.5px solid #0f172a; }
-          .grand-total { background: #0f172a; color: #ffffff; font-weight: 900; font-size: 11px; border-top: 2px solid #0f172a; }
-          .grand-total td { padding: 8px; border: 1.5px solid #0f172a; }
-
-          .text-right { text-align: right; }
-          .text-center { text-align: center; }
-          .font-mono, td, th, span, div, p, strong { font-family: 'Plus Jakarta Sans', sans-serif !important; font-variant-numeric: tabular-nums; }
-
-          .sig-table { width: 100%; border-collapse: collapse; margin-top: 20px; page-break-inside: avoid; border: 1.5px solid #0f172a; }
-          .sig-table th { background: #f1f5f9; color: #0f172a; border: 1.5px solid #0f172a; padding: 7px; font-size: 10px; font-weight: 800; }
-          .sig-table td { border: 1.5px solid #0f172a; padding: 8px; text-align: center; height: 2.2cm; min-height: 2.2cm; vertical-align: bottom; font-weight: 800; font-size: 10px; }
-
-          .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
-          .btn-print:hover { background: #8e6941; }
-          @media print { .btn-print { display: none; } }
-        </style>
-      </head>
-      <body>
-        <button class="btn-print" onclick="window.print()">Cetak Laporan PDF Official AR Outstanding (A4 Landscape)</button>
-
-        <div class="header-box">
-          <div class="header-cell" style="width: 40%;">
-            <img src="${logoUrl}" alt="ANDALAN Logo" class="logo-img" />
-          </div>
-          <div class="header-cell title-area" style="width: 60%;">
-            <h1>AR OUTSTANDING MONITORING REPORT</h1>
-            <p>PT ANDALAN ARTHA PRIMANUSA — Periode Cut-Off: ${invPeriodFilter === "All" ? "Semua Periode" : `s/d ${invPeriodFilter}`} (Khusus Outstanding) — As of Date: ${formattedDate}</p>
-          </div>
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>AR Outstanding - ANDALAN</title>
+      <style>
+        @page { size: A4 landscape; margin: 8mm 10mm; }
+        * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        body { margin: 0; padding: 8px; font-size: 9px; color: #000; }
+        .head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .head h1 { font-size: 15px; margin: 0; }
+        .head p { margin: 2px 0 0; font-size: 9px; font-weight: bold; }
+        .logo { height: 42px; }
+        table { width: 100%; border-collapse: collapse; font-size: 9px; }
+        th { background: #C99A2E; color: #000; font-weight: bold; padding: 3px 4px; border: 1px solid #000; }
+        td { border: 1px solid #000; padding: 2px 4px; white-space: nowrap; }
+        .r { text-align: right; font-variant-numeric: tabular-nums; }
+        .c { text-align: center; }
+        .b { font-weight: bold; }
+        .cust td { font-size: 13px; font-weight: bold; border: none; padding-top: 6px; }
+        .subtotal td { background: #DDEBF7; font-weight: bold; }
+        .gap td { border: none; height: 8px; }
+        .due-ok { background: #C6EFCE; }
+        .due-late { background: #FF7C80; }
+        .grand td { background: #C99A2E; font-weight: bold; font-size: 12px; padding: 5px 4px; }
+        .sti-total td { background: #FFFF00; font-weight: bold; }
+        .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
+        @media print { .btn-print { display: none; } }
+      </style>
+    </head>
+    <body>
+      <button class="btn-print" onclick="window.print()">Cetak / Simpan PDF AR Outstanding (A4 Landscape)</button>
+      <div class="head">
+        <div>
+          <h1>AR Outstanding</h1>
+          <p>as of : ${today.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</p>
         </div>
+        <img src="${window.location.origin}/andalan-logo.png" alt="ANDALAN" class="logo" />
+      </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th width="10%">Project</th>
-              <th width="8%">Periode</th>
-              <th width="18%">No. Invoice</th>
-              <th width="18%">Activity / Remarks</th>
-              <th width="12%">Amount (Gross)</th>
-              <th width="8%">Inv Date</th>
-              <th width="8%">Submitted</th>
-              <th width="8%">Due Date</th>
-              <th width="10%">Outstanding (AR)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${pdfRowsAR}
-            <tr class="grand-total">
-              <td colspan="8" class="text-right">GRAND TOTAL AR OUTSTANDING ANDALAN:</td>
-              <td class="text-right font-mono" style="color: #38bdf8;">${formatIDR(totalARAndalan)}</td>
-            </tr>
-          </tbody>
-        </table>
+      <table>
+        <thead>${headRow("Outstanding Receivable")}</thead>
+        <tbody>
+          ${arRows}
+          <tr class="grand">
+            <td colspan="8" class="c">Total AR Andalan</td>
+            <td class="r">${fmtNum(grand.out)}</td>
+            <td class="r">${fmtNum(grand.ded)}</td>
+            <td class="r">${fmtNum(grand.nett)}</td>
+          </tr>
+        </tbody>
+      </table>
 
-        <table class="sig-table">
-          <thead>
-            <tr>
-              <th width="33%">DISIAPKAN OLEH</th>
-              <th width="33%">DISETUJUI OLEH</th>
-              <th width="34%">DIKETAHUI OLEH</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><u>Lambang Hermawan</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance Supervisor</span></td>
-              <td><u>M Axel Valentino</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">FATB Manager</span></td>
-              <td><u>Direktur</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Board of Directors</span></td>
-            </tr>
-          </tbody>
-        </table>
-      </body>
-      </html>
-    `;
+      <table style="margin-top: 24px; page-break-inside: avoid;">
+        <thead>
+          <tr><th colspan="11">Subject To Invoice</th></tr>
+          ${headRow("Outstanding")}
+        </thead>
+        <tbody>
+          ${stiRows || `<tr><td colspan="11" class="c">Tidak ada BA pending penagihan.</td></tr>`}
+          <tr class="sti-total">
+            <td colspan="8" class="c">Total Subject To Invoice</td>
+            <td class="r">${fmtNum(sti.out)}</td>
+            <td class="r">${fmtNum(sti.ded)}</td>
+            <td class="r">${fmtNum(sti.nett)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </body>
+    </html>
+  `;
 
-    printWin.document.open();
-    printWin.document.write(htmlContent);
-    printWin.document.close();
+  printWin.document.open();
+  printWin.document.write(htmlContent);
+  printWin.document.close();
 }
 
 // =============================================================================
