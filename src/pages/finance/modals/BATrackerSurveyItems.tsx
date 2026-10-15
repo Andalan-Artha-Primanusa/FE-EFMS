@@ -440,7 +440,7 @@ export function BATrackerSurveyItems({
             if (it.isUSD || (it.rateUSD && it.rateUSD > 0)) {
               const rUSD = Number(it.rateUSD || 0);
               if (rUSD > 0) {
-                const newIDRRate = Math.round(rUSD * newKurs);
+                const newIDRRate = rUSD * newKurs;
                 const effVol = getBAEffectiveVolume(it, prev, false);
                 return {
                   ...it,
@@ -460,14 +460,14 @@ export function BATrackerSurveyItems({
             if (it.isUSD || (it.rateUSD && it.rateUSD > 0)) {
               const rUSD = Number(it.rateUSD || 0);
               if (rUSD > 0) {
-                const newIDRRate = Math.round(rUSD * newKurs);
+                const newIDRRate = rUSD * newKurs;
                 const initVol = Number(it.initialVolume || 0);
                 const adjVol = Number(it.adjustedVolume || 0);
                 return {
                   ...it,
                   rate: newIDRRate,
-                  subtotalInitial: Math.round(initVol * newIDRRate),
-                  subtotalAdjusted: Math.round(adjVol * newIDRRate),
+                  subtotalInitial: initVol * newIDRRate,
+                  subtotalAdjusted: adjVol * newIDRRate,
                 };
               }
             }

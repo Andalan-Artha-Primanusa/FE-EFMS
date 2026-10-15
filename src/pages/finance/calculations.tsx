@@ -1,4 +1,4 @@
-import { isOBMaterial } from "./ba_calculations";
+import { isOBMaterial, invoiceTaxes } from "./ba_calculations";
 // =============================================================
 // CONTROL RUMUS FINANCE (BACKEND SSOT BRIDGE)
 // Business Logic / Service Layer: 100 – 300 lines.
@@ -166,7 +166,8 @@ export function createFinanceCalculations(deps: {
         if (unitRate === 0) {
           unitRate = getSowMasterRate("BGG", item.description || item.sowDescription || "", 0);
         }
-        amount = Math.round(vol * unitRate);
+        // Excel BGG: OB (Seksi A) tanpa ROUND, coal (Seksi B) ROUND.
+        amount = item.section === "A" ? vol * unitRate : Math.round(vol * unitRate);
         return { unitRate, amount };
       }
       if (item.section === "C") {
@@ -264,7 +265,7 @@ export function createFinanceCalculations(deps: {
           const baseUSD = item.baseRateUSD || getSowMasterRate("POS", desc, 0, true);
           unitRate = baseUSD * rfDelta * mRate;
         }
-        amount = Math.round(vol * unitRate);
+        amount = vol * unitRate;
         return { unitRate, amount };
       }
       if (unitRate === 0) {
@@ -279,8 +280,15 @@ export function createFinanceCalculations(deps: {
           }
         }
       }
+      if (item.section === "B") {
+        // Over/underhaul: selisih jarak / 1.000 m lalu ROUND (sama dengan BE RecalculateInvoiceFinancials).
+        const base = Number(item.baseMtr || baseDistanceFor(cust, desc) || 1000);
+        if (unitRate > 0 && vol > 0 && mtr > 0 && mtr !== base) amount = Math.round(vol * ((mtr - base) / 1000) * unitRate);
+        return { unitRate, amount };
+      }
+      // Excel POS: baris non-jarak = Vol x Rate tanpa ROUND.
       if (unitRate > 0 && vol > 0) {
-        amount = Math.round(vol * unitRate);
+        amount = vol * unitRate;
       }
       return { unitRate, amount };
     }
@@ -341,10 +349,7 @@ export function createFinanceCalculations(deps: {
       .reduce((sum, i) => sum + calculateItemRateAndAmount(i, cust, list).amount, 0);
 
     const totalGross = subA + subB + subC + subD + subE + subF;
-    const dpp11_12 = Math.round((totalGross * 11) / 12);
-    const vat12 = Math.round(dpp11_12 * 0.12);
-    const pph23 = Math.round(totalGross * 0.02);
-    const totalInvoice = totalGross + vat12 - pph23;
+    const { dpp11_12, vat12, pph23, total: totalInvoice } = invoiceTaxes(totalGross);
     const totalDibayar = totalInvoice - Math.abs(subP);
 
     return {

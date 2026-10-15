@@ -1,5 +1,6 @@
 import React from "react";
 import { formatIDR } from "../helpers";
+import { invoiceTaxes } from "../ba_calculations";
 
 interface InvoiceTaxSummaryProps {
   currentCust: string;
@@ -14,9 +15,10 @@ interface InvoiceTaxSummaryProps {
 
 export function InvoiceTaxSummary({ currentCust, cCalc }: InvoiceTaxSummaryProps) {
   const colSpanLeft = currentCust === "PTRO" || currentCust === "DBK" ? 4 : 3;
-  const dpp = cCalc.dpp11_12 ?? Math.round((cCalc.totalGross * 11) / 12);
-  const vat = cCalc.vat12 ?? Math.round(dpp * 0.12);
-  const pph = cCalc.pph23 ?? Math.round(cCalc.totalGross * 0.02);
+  const tax = invoiceTaxes(cCalc.totalGross);
+  const dpp = cCalc.dpp11_12 ?? tax.dpp11_12;
+  const vat = cCalc.vat12 ?? tax.vat12;
+  const pph = cCalc.pph23 ?? tax.pph23;
 
   return (
     <tfoot className="border-t-2 border-[#1A1612] bg-slate-50 font-bold text-xs">

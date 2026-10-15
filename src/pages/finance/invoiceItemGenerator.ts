@@ -82,6 +82,9 @@ export function buildInvoiceItemsFromBA(
 
       const posItems: any[] = [];
       let gross = 0;
+      // R&F per baris seperti Excel (sama dengan BE): (RF-1) x subtotal; baris jarak ROUND, lainnya presisi penuh.
+      const rf = Number(ba?.posData?.posRfIndex || 1);
+      let rfAmt = 0;
       itemsToUse.forEach((bi: any, idx: number) => {
         const mat = (bi.material || bi.description || "").toLowerCase();
         const cat = (bi.category || "").toLowerCase();
@@ -96,12 +99,14 @@ export function buildInvoiceItemsFromBA(
         if (isDist && (vol <= 0 || !overhaulMtr || overhaulMtr === baseMtr || rate <= 0)) {
           return;
         }
+        const raw = isDist ? vol * ((overhaulMtr - baseMtr) / 1000) * rate : vol * rate;
         const amt = isDed
-          ? -Math.abs(Number(bi.subtotalAdjusted || bi.subtotalInitial || Math.round(vol * rate)))
-          : isDist
-            ? Math.round(vol * ((overhaulMtr - baseMtr) / 1000) * rate)
-            : Math.round(vol * rate);
-        if (!isDed) gross += amt;
+          ? -Math.abs(Number(bi.subtotalAdjusted || bi.subtotalInitial || Math.round(raw)))
+          : isDist ? Math.round(raw) : raw;
+        if (!isDed) {
+          gross += amt;
+          rfAmt += isDist ? Math.round(raw * (rf - 1)) : raw * (rf - 1);
+        }
 
         posItems.push({
           id: bi.id || `pos_inv_${idx}`,
@@ -122,10 +127,7 @@ export function buildInvoiceItemsFromBA(
         });
       });
 
-      // Raise & Fall: indeks RF BA dikalikan ke pendapatan kotor (sama dengan generator BE).
-      const rf = Number(ba?.posData?.posRfIndex || 1);
       if (rf > 0 && rf !== 1 && gross > 0) {
-        const rfAmt = Math.round(gross * rf) - gross;
         const desc = `Raise & Fall (Indeks RF ${rf.toFixed(3)})`;
         posItems.push({ id: "pos_rf_auto", section: "D", code: "RF", category: "Raise & Fall", description: desc, sowDescription: desc, unit: "Lot", volume: 1, unitRateIDR: rfAmt, amount: rfAmt, amountIDR: rfAmt, isDeduction: rfAmt < 0 });
       }

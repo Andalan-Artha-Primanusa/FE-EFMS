@@ -1,5 +1,6 @@
 import React from "react";
 import { FileText, CheckCircle, ExternalLink, ShieldCheck, History, X, Clock, Upload } from "lucide-react";
+import { invoiceTaxes } from "../ba_calculations";
 import { formatIDR, resolveDocumentUrl, renderBAStatusBadge, generateAuditTimeline, isBAApproved } from "../helpers";
 
 const BA_FIELD_LABELS: Record<string, string> = {
@@ -104,7 +105,7 @@ export function BATrackerSidebar({
   const effectiveNet = netTotalInvoice && netTotalInvoice > 0
     ? netTotalInvoice
     : effectiveClaim > 0
-      ? Math.round(effectiveClaim + Math.round((effectiveClaim * 11 / 12) * 0.12) - Math.round(effectiveClaim * 0.02))
+      ? invoiceTaxes(effectiveClaim).total
       : 0;
 
   return (
