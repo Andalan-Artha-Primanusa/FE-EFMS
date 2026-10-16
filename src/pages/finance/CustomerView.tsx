@@ -1,15 +1,14 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2, Pickaxe, Layers, Calculator, Zap, TrendingUp, Scale,
   Eye, Edit2, Trash2, Plus, Sliders, ExternalLink, Loader2, AlertTriangle
 } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
-import { api } from "../../lib/api";
 import { formatIDR, parsePeriodToYYYYMM } from "./helpers";
 import { routes } from "../../router/routes";
 import {
-  masterRegistry, customerKind, obSplitSOWs, contractParams, rfTemplateFor, bankAccountForCustomer,
+  masterRegistry, customerKind, obSplitSOWs, contractParams, bankAccountForCustomer, RF_SCHEME_LABELS,
   baseDistanceFor, coalTierForR3, isCoalIndexFinal, sowTierRate
 } from "./masterRegistry";
 import { calculateBACommercialBreakdown, isDistanceItem, isOBMaterial } from "./ba_calculations";
@@ -28,13 +27,6 @@ interface SOWItem {
   status: string;
 }
 
-// Label sama dengan pilihan "Skema Raise & Fall" di Master Customer.
-const RF_SCHEME_LABELS: Record<string, string> = {
-  SINGLE_FACTOR_FUEL: "Raise & Fall 1-Faktor BBM",
-  TRIPLE_FACTOR_DLF: "Raise & Fall 3-Faktor (D+L+F)",
-  KURS_TRANSAKSI_USD: "Kurs Transaksi USD",
-};
-
 const tagClass = "text-[10px] font-bold px-2 py-0.5 rounded-[3px] border flex items-center gap-1";
 const sameKind = (s: any, kind: string) => customerKind(s.customerCode || s.customer) === kind;
 
@@ -42,7 +34,7 @@ const sameKind = (s: any, kind: string) => customerKind(s.customerCode || s.cust
 function clientTags(c: any) {
   const kind = customerKind(c.code);
   const model = sowModel(kind, c.sowModel);
-  const sr = Number(c.maxStrippingRatio || 0);
+  const sr = contractParams(c.code).maxStrippingRatio;
   const baseDist = baseDistanceFor(c.code, "OB");
   const tags: { label: string; cls: string; icon?: any }[] = [
     { label: SOW_MODEL_LABELS[model], cls: model === "coal" ? "bg-emerald-50 text-emerald-800 border-emerald-200" : "bg-blue-50 text-blue-800 border-blue-200", icon: model === "coal" ? TrendingUp : undefined },
@@ -57,10 +49,11 @@ function clientTags(c: any) {
 export function CustomerView({ c }: { c: any }) {
   const {
     customerRows, setDetailViewItem, openCreateModal, openEditModal, handleDelete,
-    query = "", deletingKey, coalIndexMaster, can = () => false
+    query = "", deletingKey, coalIndexMaster, sowCatalog, can = () => false
   } = c as Record<string, any>;
   const safeCustomerRows: any[] = Array.isArray(customerRows) ? customerRows : [];
-  const filteredRows = safeCustomerRows.filter((r) => JSON.stringify(r).toLowerCase().includes(String(query).toLowerCase()));
+  // Cari di nilai field saja (bukan nama key JSON).
+  const filteredRows = safeCustomerRows.filter((r) => Object.values(r).join(" ").toLowerCase().includes(String(query).toLowerCase()));
 
   // Active top-level view: "cards" (Direktori Klien) or "setup" (Parameter, SOW & Formula)
   const [viewMode, setViewMode] = useState<"cards" | "setup">("cards");
@@ -69,12 +62,7 @@ export function CustomerView({ c }: { c: any }) {
   const navigate = useNavigate();
 
   // Katalog SOW lengkap (termasuk Inactive) untuk tabel; kalkulasi memakai registry (Active saja).
-  const [sowList, setSowList] = useState<SOWItem[]>([]);
-  useEffect(() => {
-    api<SOWItem[]>("/api/master-data/variable-sow")
-      .then((rows) => { if (Array.isArray(rows)) setSowList(rows); })
-      .catch(() => {});
-  }, []);
+  const sowList: SOWItem[] = Array.isArray(sowCatalog) ? sowCatalog : [];
 
   // Simulation Playground State
   const [simCoalVolume, setSimCoalVolume] = useState<number>(20000);
@@ -94,7 +82,11 @@ export function CustomerView({ c }: { c: any }) {
   const isCoalModel = model === "coal";
   const params = contractParams(selected);
   const scheme = record?.formulaScheme || "";
-  const rf = rfTemplateFor(selected);
+  // Master RF acuan = periode terbaru customer (bukan record yang terakhir diedit).
+  const rf = masterRegistry.raiseFall
+    .filter((r) => sameKind(r, kind) && r.status !== "Archived")
+    .sort((a, b) => parsePeriodToYYYYMM(b.period).localeCompare(parsePeriodToYYYYMM(a.period)))[0];
+  const hasEscalation = scheme === "SINGLE_FACTOR_FUEL" || scheme === "TRIPLE_FACTOR_DLF";
   const bank = bankAccountForCustomer(selected);
   const activeClientSOW = sowList.filter((it) => sameKind(it, kind));
   const registrySows = masterRegistry.sows.filter((s) => sameKind(s, kind));
@@ -470,7 +462,7 @@ export function CustomerView({ c }: { c: any }) {
                   <h4 className="font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
                     <Calculator size={15} className="text-[#A57C50]" /> Formula Eskalasi: {RF_SCHEME_LABELS[scheme] || "Tanpa eskalasi"}
                   </h4>
-                  {scheme === "SINGLE_FACTOR_FUEL" || scheme === "TRIPLE_FACTOR_DLF" ? (
+                  {hasEscalation ? (
                     rf ? (
                       <>
                         <div className="p-2 bg-white border border-slate-200 rounded-[3px] font-mono text-[11px] text-slate-800">
@@ -508,7 +500,7 @@ export function CustomerView({ c }: { c: any }) {
                         <span className="text-slate-500">{s.itemName} (basis {Number(s.baseDistanceMeters).toLocaleString("id-ID")} m):</span>
                         <strong className="tabular-nums">
                           {Number(s.rateIDR) > 0 ? formatIDR(s.rateIDR) : `USD ${Number(s.rateUSD || 0).toLocaleString("id-ID", { maximumFractionDigits: 3 })}`} / {s.unit || "-"}
-                          {" "}({record?.overhaulRateUnit === "PER_1000M" ? "per 1.000 m" : "per 100 m"})
+                          {" "}({record?.overhaulRateUnit === "PER_100M" ? "per 100 m" : "per 1.000 m"})
                         </strong>
                       </div>
                     ))}
@@ -544,7 +536,7 @@ export function CustomerView({ c }: { c: any }) {
               const maxQuotaOB = maxSR > 0 ? coalVol * maxSR : obVol;
               const billableOB = Math.min(obVol, maxQuotaOB);
               const excessOB = obVol - billableOB;
-              const rfIndex = scheme !== "KURS_TRANSAKSI_USD" && Number(rf?.rfIndexResult) > 0 ? Number(rf.rfIndexResult) : 1;
+              const rfIndex = hasEscalation && Number(rf?.rfIndexResult) > 0 ? Number(rf.rfIndexResult) : 1;
 
               const items = [
                 ...(productSow ? [{ id: "sim-product", material: productSow.itemName, unit: productSow.unit, initialVolume: coalVol, rate: rateOf(productSow) }] : []),

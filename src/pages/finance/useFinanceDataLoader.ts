@@ -29,18 +29,20 @@ export function useFinanceDataLoader({ viewTitle, user, onNotice }: UseFinanceDa
 
   async function loadData(showLoading = false) {
     if (showLoading) setLoading(true);
+    // Client Setup hanya membutuhkan Master Customer; dokumen transaksi tidak dimuat.
+    const txn = <T,>(load: () => Promise<T[]>) => (viewTitle === "Client Setup" ? Promise.resolve([] as T[]) : load().catch(() => [] as T[]));
     try {
       const [dashRes, baRes, invRes, payRes, custRes, pVolRes, sbsPenRes, jrnRes] = await Promise.all([
         (viewTitle === "Finance & AR Dashboard" || viewTitle === "Finance AR Dashboard" || viewTitle.includes("AR Dashboard"))
           ? api<any>(scopedEndpoint("/api/finance/dashboard", user || ({ role: userRole } as any))).catch(() => null)
           : Promise.resolve(null),
-        api<any[]>("/api/finance/ba-trackers").catch(() => []),
-        api<any[]>("/api/finance/invoices").catch(() => []),
-        api<any[]>("/api/finance/payments").catch(() => []),
+        txn(() => api<any[]>("/api/finance/ba-trackers")),
+        txn(() => api<any[]>("/api/finance/invoices")),
+        txn(() => api<any[]>("/api/finance/payments")),
         api<any[]>("/api/finance/customers").catch(() => []),
-        api<any[]>("/api/finance/pending-volumes").catch(() => []),
-        getSBSPenalties().catch(() => []),
-        api<any[]>("/api/finance/journals").catch(() => [])
+        txn(() => api<any[]>("/api/finance/pending-volumes")),
+        txn(getSBSPenalties),
+        txn(() => api<any[]>("/api/finance/journals"))
       ]);
 
       if (dashRes) {
@@ -78,11 +80,6 @@ export function useFinanceDataLoader({ viewTitle, user, onNotice }: UseFinanceDa
 
   useEffect(() => {
     loadData(true);
-    if (customerRows.length === 0) {
-      api<any[]>("/api/finance/customers").then(res => {
-        if (Array.isArray(res)) setCustomerRows(res);
-      }).catch(() => {});
-    }
   }, [viewTitle]);
 
   return {

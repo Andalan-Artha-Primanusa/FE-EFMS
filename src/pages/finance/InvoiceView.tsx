@@ -398,7 +398,7 @@ export function InvoiceView({ c }: { c: any }) {
                 {/* Table Sajian Terkelompok Per Client */}
                 <Panel title={invCardTab === "AR_ANDALAN" ? "Tabel Outstandings AR — Total AR Andalan (Per Klien)" : invCardTab === "PENALTY_UNCUT" ? "Tabel Progress Penalti Belum Terpotong — Eksklusif PT SBS (Section P)" : "Tabel Subject To Invoice — BA Ready To Invoice (Per Klien)"}>
                   <div className="table-wrapper overflow-x-auto rounded-lg border border-slate-200 shadow-2xs">
-                    <table className="data-table w-full min-w-[1350px] text-xs text-left border-collapse">
+                    <table className="data-table w-full min-w-[1250px] text-xs text-left border-collapse">
                       <thead>
                         <tr className="bg-slate-100/90 text-slate-700 font-extrabold text-[11px] uppercase tracking-wider border-b border-slate-200">
                           <th className="p-2.5 whitespace-nowrap min-w-[130px]">Project</th>
@@ -409,9 +409,9 @@ export function InvoiceView({ c }: { c: any }) {
                           <th className="p-2.5 whitespace-nowrap min-w-[110px]">Invoice Date</th>
                           <th className="p-2.5 whitespace-nowrap min-w-[130px]">Invoice Submission</th>
                           <th className="p-2.5 whitespace-nowrap min-w-[110px]">Due Date</th>
-                          <th className="p-2.5 text-right font-bold whitespace-nowrap min-w-[140px]">Outstanding</th>
+                          {invCardTab !== "AR_ANDALAN" && <th className="p-2.5 text-right font-bold whitespace-nowrap min-w-[140px]">Outstanding</th>}
                           <th className="p-2.5 text-center whitespace-nowrap min-w-[160px]">Status</th>
-                          {invCardTab === "AR_ANDALAN" && <th className="p-2.5 text-center whitespace-nowrap min-w-[170px] sticky right-0 z-20 bg-slate-100 text-slate-700 border-l border-slate-200 font-sans">AKSI</th>}
+                          {invCardTab !== "SUBJECT_TO_INVOICE" && <th className="p-2.5 text-center whitespace-nowrap min-w-[170px] sticky right-0 z-20 bg-slate-100 text-slate-700 border-l border-slate-200 font-sans">AKSI</th>}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200 bg-white text-slate-900 font-medium font-sans">
@@ -454,7 +454,7 @@ export function InvoiceView({ c }: { c: any }) {
                           if (groupedCust.length === 0) {
                             return (
                               <tr>
-                                <td colSpan={11} className="p-6 text-center text-slate-500 font-bold font-sans">
+                                <td colSpan={10} className="p-6 text-center text-slate-500 font-bold font-sans">
                                   Tidak ada data invoice penagihan yang sesuai.
                                 </td>
                               </tr>
@@ -463,10 +463,6 @@ export function InvoiceView({ c }: { c: any }) {
 
                           return groupedCust.map((custCode) => {
                             const clientRows = filteredInv.filter((r) => (r.customerCode || "OTHER") === custCode);
-                            const clientTotalAR = clientRows.reduce((sum, r) => {
-                              const out = r.outstanding !== undefined ? Number(r.outstanding) : ((Number(r.totalInvoice) || 0) - (Number(r.totalPaid) || 0));
-                              return sum + (isNaN(out) ? 0 : out);
-                            }, 0);
                             const clientTotalAmount = clientRows.reduce((sum, r) => {
                               const amt = Number(r.totalInvoice || 0);
                               return sum + (isNaN(amt) ? 0 : amt);
@@ -476,7 +472,7 @@ export function InvoiceView({ c }: { c: any }) {
                               <Fragment key={custCode}>
                                 {/* Client Group Header Banner */}
                                 <tr className="bg-slate-50/90 font-extrabold text-xs border-t border-b border-slate-200 font-sans">
-                                  <td colSpan={11} className="p-2.5 px-3 bg-slate-100/60 uppercase tracking-wider relative font-sans">
+                                  <td colSpan={10} className="p-2.5 px-3 bg-slate-100/60 uppercase tracking-wider relative font-sans">
                                     <div className="flex items-center gap-2">
                                       <span className="w-2 h-2 rounded-full bg-cyan-700 inline-block"></span>
                                       <span className="font-extrabold text-slate-900 text-xs">CLIENT / SITE: {custCode}</span>
@@ -495,7 +491,7 @@ export function InvoiceView({ c }: { c: any }) {
                                           <div className="text-[10px] text-slate-500 font-medium">{getCustomerOfficialName(row.customerCode)}</div>
                                         </td>
                                         <td className="p-2.5 text-slate-700 font-medium">{row.workPeriod || "-"}</td>
-                                        <td className="p-2.5 font-mono font-bold text-cyan-800">
+                                        <td className="p-2.5 font-mono font-bold text-cyan-800 whitespace-nowrap">
                                           <div>{row.invoiceNo}</div>
                                           {row.relatedInvoiceNo && (
                                             <div className="text-[10px] text-indigo-700 font-sans font-bold flex items-center gap-1 mt-0.5">
@@ -505,11 +501,10 @@ export function InvoiceView({ c }: { c: any }) {
                                           )}
                                         </td>
                                         <td className="p-2.5 text-slate-700 font-medium">{row.jobType || row.notes || "OB & CG"}</td>
-                                        <td className="p-2.5 text-right font-mono text-slate-900">{formatIDR(row.totalInvoice)}</td>
-                                        <td className="p-2.5 text-slate-700">{row.invoiceDate ? new Date(row.invoiceDate).toLocaleDateString("id-ID") : "-"}</td>
-                                        <td className="p-2.5 text-slate-700">{row.invoiceIssuedDate ? new Date(row.invoiceIssuedDate).toLocaleDateString("id-ID") : "-"}</td>
-                                        <td className="p-2.5 text-slate-700">{row.dueDate ? new Date(row.dueDate).toLocaleDateString("id-ID") : "-"}</td>
-                                        <td className="p-2.5 text-right font-mono font-bold text-rose-700">{formatIDR(row.outstanding)}</td>
+                                        <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">{formatIDR(row.totalInvoice)}</td>
+                                        <td className="p-2.5 text-slate-700 whitespace-nowrap">{row.invoiceDate ? new Date(row.invoiceDate).toLocaleDateString("id-ID") : "-"}</td>
+                                        <td className="p-2.5 text-slate-700 whitespace-nowrap">{row.invoiceIssuedDate ? new Date(row.invoiceIssuedDate).toLocaleDateString("id-ID") : "-"}</td>
+                                        <td className="p-2.5 text-slate-700 whitespace-nowrap">{row.dueDate ? new Date(row.dueDate).toLocaleDateString("id-ID") : "-"}</td>
                                         <td className="p-2.5 text-center">
                                           {renderInvoiceStatusBadge(row.status)}
                                           {(() => {
@@ -591,10 +586,9 @@ export function InvoiceView({ c }: { c: any }) {
                                 {/* Client Group Subtotal Row */}
                                 <tr className="bg-slate-50 font-bold text-slate-800 border-b border-slate-200 font-sans">
                                   <td colSpan={4} className="p-2.5 text-right uppercase tracking-wider text-xs font-extrabold text-slate-700 font-sans">TOTAL AR {custCode}:</td>
-                                  <td className="p-2.5 text-right font-mono text-xs sm:text-sm font-black text-slate-900 font-sans">{formatIDR(clientTotalAmount)}</td>
-                                  <td colSpan={3}></td>
-                                  <td className="p-2.5 text-right font-mono text-xs sm:text-sm font-black text-rose-700 font-sans">{formatIDR(clientTotalAR)}</td>
-                                  <td colSpan={2} className="sticky right-0 bg-slate-50 border-l border-slate-200 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.04)]"></td>
+                                  <td className="p-2.5 text-right font-mono text-xs sm:text-sm font-black text-rose-700 whitespace-nowrap">{formatIDR(clientTotalAmount)}</td>
+                                  <td colSpan={4}></td>
+                                  <td className="sticky right-0 bg-slate-50 border-l border-slate-200 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.04)]"></td>
                                 </tr>
                               </Fragment>
                             );
@@ -612,7 +606,7 @@ export function InvoiceView({ c }: { c: any }) {
                           if (groupedCust.length === 0) {
                             return (
                               <tr>
-                                <td colSpan={10} className="p-8 text-center text-slate-500 font-medium italic bg-slate-50/50 font-sans">
+                                <td colSpan={11} className="p-8 text-center text-slate-500 font-medium italic bg-slate-50/50 font-sans">
                                   Tidak ada klaim progress penalti / Section P belum dipotong pada kontrak PT SBS untuk periode ini.
                                 </td>
                               </tr>
@@ -626,7 +620,7 @@ export function InvoiceView({ c }: { c: any }) {
                             return (
                               <Fragment key={custCode}>
                                 <tr className="bg-slate-50/90 font-extrabold text-xs border-t border-b border-slate-200 font-sans">
-                                  <td colSpan={10} className="p-2.5 px-3 bg-slate-100/60 uppercase tracking-wider font-sans">
+                                  <td colSpan={11} className="p-2.5 px-3 bg-slate-100/60 uppercase tracking-wider font-sans">
                                     <div className="flex items-center gap-2">
                                       <span className="w-2 h-2 rounded-full bg-amber-600 inline-block"></span>
                                       <span className="font-extrabold text-slate-900 text-xs">CLIENT / SITE: {custCode}</span>
@@ -767,14 +761,14 @@ export function InvoiceView({ c }: { c: any }) {
                           <td colSpan={4} className="p-3 text-right uppercase tracking-wider text-xs font-black text-slate-800 font-sans">
                             {invCardTab === "AR_ANDALAN" ? "TOTAL AR ANDALAN" : invCardTab === "PENALTY_UNCUT" ? "TOTAL PROGRESS PINALTY" : "TOTAL SUBJECT TO INVOICE"}:
                           </td>
-                          <td className="p-3 text-right font-mono text-xs sm:text-sm font-black text-slate-900 font-sans">
+                          <td className={`p-3 text-right font-mono font-black whitespace-nowrap ${invCardTab === "AR_ANDALAN" ? "text-sm sm:text-base text-rose-800" : "text-xs sm:text-sm text-slate-900"}`}>
                             {invCardTab === "AR_ANDALAN" ? formatIDR(totalARAndalan) : invCardTab === "PENALTY_UNCUT" ? formatIDR(totalPenaltyUncut) : formatIDR(totalSubjectToInvoice)}
                           </td>
-                          <td colSpan={3}></td>
-                          <td className="p-3 text-right font-mono text-sm sm:text-base font-black text-rose-800 font-sans">
-                            {invCardTab === "AR_ANDALAN" ? formatIDR(totalARAndalan) : invCardTab === "PENALTY_UNCUT" ? formatIDR(totalPenaltyUncut) : formatIDR(totalSubjectToInvoice)}
-                          </td>
-                          <td colSpan={invCardTab === "SUBJECT_TO_INVOICE" ? 1 : 2} className="sticky right-0 bg-slate-50 border-l border-slate-200 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.04)]"></td>
+                          <td colSpan={invCardTab === "AR_ANDALAN" ? 4 : 3}></td>
+                          {invCardTab !== "AR_ANDALAN" && <td className="p-3 text-right font-mono text-sm sm:text-base font-black text-rose-800 whitespace-nowrap">
+                            {invCardTab === "PENALTY_UNCUT" ? formatIDR(totalPenaltyUncut) : formatIDR(totalSubjectToInvoice)}
+                          </td>}
+                          <td colSpan={invCardTab === "PENALTY_UNCUT" ? 2 : 1} className="sticky right-0 bg-slate-50 border-l border-slate-200 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.04)]"></td>
                         </tr>
                       </tfoot>
                     </table>

@@ -648,7 +648,8 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           .footer-box { border: 1.5px solid #0f172a; display: table; width: 100%; box-sizing: border-box; page-break-inside: avoid; }
           .footer-cell { display: table-cell; width: 50%; padding: 6px 10px; vertical-align: top; font-size: 9.5px; }
           .footer-left { border-right: 1.5px solid #0f172a; }
-          .sig-space { height: 42px; border-bottom: 1.2px dashed #64748b; margin: 4px 0; }
+          .footer-date { width: 50%; margin-left: 50%; text-align: center; font-size: 9.5px; font-weight: bold; padding: 6px 0 4px; page-break-after: avoid; }
+          .sig-space { height: 100px; margin: 2px 0; }
           .btn-print { background: #A57C50; color: white; border: none; padding: 7px 16px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
           .btn-print:hover { background: #8e6941; }
           @media print { .btn-print { display: none; } body { padding: 0; } .page-container { min-height: auto; } }
@@ -733,6 +734,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
             ${noteHTML}
           </div>
 
+          <div class="footer-date">Jakarta, ${formattedDate}</div>
           <div class="footer-box">
             <div class="footer-cell footer-left">
               <strong style="text-transform: uppercase;">PLEASE MAKE PAYMENT TO THIS ACCOUNT:</strong><br/><br/>
@@ -744,7 +746,6 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
               </table>
             </div>
             <div class="footer-cell" style="text-align: center;">
-              <div style="text-align: right; font-size: 9px; font-weight: bold; margin-bottom: 4px;">Jakarta, ${formattedDate}</div>
               <strong style="font-size: 9.5px;">SUBMITTED BY,</strong><br/>
               <strong style="font-size: 10px;">PT ANDALAN ARTHA PRIMANUSA</strong>
               <div class="sig-space"></div>

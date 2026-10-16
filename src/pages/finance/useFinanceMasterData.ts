@@ -39,6 +39,8 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
   const [minWageMasters, setMinWageMasters] = useState<any[]>([]);
 
   const [dynamicSowOptions, setDynamicSowOptions] = useState<any[]>([]);
+  // Katalog Variable SOW lengkap (termasuk Inactive) untuk tampilan Client Setup; kalkulasi memakai dynamicSowOptions (Active).
+  const [sowCatalog, setSowCatalog] = useState<any[]>([]);
   const [bankAccountOptions, setBankAccountOptions] = useState<any[]>([]);
   const [coalIndexMaster, setCoalIndexMaster] = useState<any[]>([]);
   const [exchangeRates, setExchangeRates] = useState<any[]>([]);
@@ -74,6 +76,7 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
     api<any[]>("/api/master-data/variable-sow")
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
+          setSowCatalog(data);
           setDynamicSowOptions(data.filter((d) => d.status !== "Inactive").map(mapSowRow));
         }
       })
@@ -620,6 +623,7 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
     if (Array.isArray(rfData)) setRaiseFallMasters(rfData);
     if (Array.isArray(fxData)) setExchangeRates(fxData);
     if (Array.isArray(bankData)) setBankAccounts(bankData);
+    if (Array.isArray(sowData)) setSowCatalog(sowData);
     if (Array.isArray(sowData)) setDynamicSowOptions(sowData.filter((d) => d.status !== "Inactive").map(mapSowRow));
   }, []);
 
@@ -627,7 +631,7 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
     mRate, setMRate, fuelPriceUSD, setFuelPriceUSD, laborPriceIDR, setLaborPriceIDR,
     raiseFallMasters, setRaiseFallMasters, raiseFallMaster, setRaiseFallMaster,
     minWageMasters, setMinWageMasters,
-    dynamicSowOptions, setDynamicSowOptions, bankAccountOptions, setBankAccountOptions,
+    dynamicSowOptions, setDynamicSowOptions, sowCatalog, bankAccountOptions, setBankAccountOptions,
     latestKursBI, coalIndexMaster, setCoalIndexMaster, exchangeRates, bankAccounts,
     financeTemplates, setFinanceTemplates, templatesLoaded, setTemplatesLoaded,
     templateRows, masterBankAccounts, rfIndexCalculated, getBGGActiveCoalTier,
