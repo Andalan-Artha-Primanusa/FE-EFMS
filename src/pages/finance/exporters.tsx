@@ -1541,22 +1541,25 @@ export function exportBAOnlyPDFImpl(ctx: any) {
     const custRows = targetRows.filter(({ ba }) => (ba.customerCode || "OTHER") === custCode);
     const subtotal = custRows.reduce((s, { ba }) => s + withTax(ba.workAmount), 0);
     return custRows.map(({ ba, st }, i) => {
-      const notes = [ba.notesBottleneck, ba.notes].filter(Boolean).join("\n").split("\n").map((l: string) => l.trim()).filter(Boolean);
-      const statusLabel = st.label === "READY TO INVOICE" ? "BA Ready To Invoice" : (ba.statusBA || "Draft");
+      // Keterangan hanya dari catatan manual (modal Catatan BA); diagnosa otomatis tidak dicetak
+      const notes = String(ba.notes || "").split("\n").map((l: string) => l.trim().replace(/^-\s*/, "")).filter(Boolean);
+      const ready = st.label === "READY TO INVOICE"; // sudah di-approve Manager
+      // Final: nilai joint survey sudah diverifikasi Finance Specialist
+      const final = Boolean(ba.verifiedBy) && Number(ba.adjustedWorkAmount || 0) > 0;
       return `
         <tr>
           ${i === 0 ? `<td rowspan="${custRows.length + 1}" class="proj">${esc(custCode)}</td>` : ""}
           <td class="c">${fmtPeriod(ba.workPeriod)}</td>
           <td class="r">${fmtNum(withTax(ba.workAmount))}</td>
-          <td class="c">${esc(statusLabel)}</td>
-          <td>${notes.map((l: string) => `- ${esc(l.replace(/^-\s*/, ""))}`).join("<br/>")}</td>
-          <td>${st.label === "READY TO INVOICE" ? "Final" : "Draft"}</td>
+          <td class="c">${ready ? "BA Ready to Invoice" : "Pending BAI"}</td>
+          <td class="note">${notes.length > 1 ? `<ul>${notes.map((l: string) => `<li>${esc(l)}</li>`).join("")}</ul>` : esc(notes[0] || "")}</td>
+          <td class="c">${final ? "Final" : "Draft"}</td>
         </tr>`;
     }).join("") + `
-        <tr class="b">
+        <tr class="sub">
           <td>Total ${esc(custCode)}</td>
           <td class="r">${fmtNum(subtotal)}</td>
-          <td></td><td></td><td></td>
+          <td colspan="3"></td>
         </tr>`;
   }).join("");
 
@@ -1580,24 +1583,27 @@ export function exportBAOnlyPDFImpl(ctx: any) {
   <style>
     @page { size: A4 landscape; margin: 10mm 12mm; }
     * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    body { margin: 0; padding: 8px; font-size: 10px; color: #000; }
-    .head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+    body { margin: 0; padding: 12px; font-size: 10px; color: #222; }
+    .head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; }
     .head h1 { font-size: 16px; margin: 0; }
-    .head p { margin: 4px 0 0; font-size: 9px; font-weight: bold; }
-    .logo { height: 48px; }
-    table { width: 100%; border-collapse: collapse; }
-    th { background: #C99A2E; color: #000; font-weight: bold; padding: 3px 5px; border: 1px solid #000; }
-    td { border: 1px solid #000; padding: 3px 5px; vertical-align: middle; }
-    .r { text-align: right; font-variant-numeric: tabular-nums; }
+    .head .meta { margin-top: 4px; font-size: 9.5px; }
+    .logo { height: 44px; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    th { background: #A57C50; color: #fff; font-weight: bold; padding: 5px 6px; border: 1px solid #8A6640; }
+    td { border: 1px solid #BFBFBF; padding: 4px 6px; vertical-align: middle; }
+    tr { page-break-inside: avoid; }
+    .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .c { text-align: center; }
-    .b td { font-weight: bold; }
-    .proj { font-size: 15px; font-weight: bold; text-align: center; }
-    .summary { margin-top: 18px; }
-    .summary td { border: 2px solid #000; font-weight: bold; }
-    .notes { margin-top: 24px; }
+    .proj { font-size: 14px; font-weight: bold; text-align: center; }
+    .sub td { background: #F5EFE6; font-weight: bold; }
+    .note ul { margin: 0; padding-left: 13px; }
+    .note li { margin: 1px 0; }
+    .summary { margin-top: 16px; }
+    .summary td { padding: 5px 6px; font-weight: bold; }
+    .notes { margin-top: 18px; font-size: 9px; }
     .notes i { display: block; margin-top: 2px; }
-    .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
-    @media print { .btn-print { display: none; } }
+    .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 12px; font-size: 11px; }
+    @media print { .btn-print { display: none; } body { padding: 0; } }
   </style>
 </head>
 <body>
@@ -1605,7 +1611,7 @@ export function exportBAOnlyPDFImpl(ctx: any) {
   <div class="head">
     <div>
       <h1>Berita Acara Invoice (BAI) Monitoring</h1>
-      <p>as of : &nbsp;&nbsp;&nbsp;&nbsp; ${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</p>
+      <div class="meta">As of <b>${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</b>${periodFilter !== "All" ? ` &nbsp;·&nbsp; Periode <b>${esc(fmtPeriod(periodFilter))}</b>` : ""}</div>
     </div>
     <img src="${window.location.origin}/andalan-logo.png" alt="ANDALAN" class="logo" />
   </div>
@@ -1614,11 +1620,11 @@ export function exportBAOnlyPDFImpl(ctx: any) {
     <thead>
       <tr>
         <th style="width:9%">Project</th>
-        <th style="width:12%">Periode Pekerjaan</th>
-        <th style="width:14%">Nominal</th>
-        <th style="width:20%">Status BA/Invoicing</th>
-        <th style="width:35%">Keterangan</th>
-        <th style="width:10%">Status Nominal</th>
+        <th style="width:10%">Periode Pekerjaan</th>
+        <th style="width:14%">Nominal (Rp)</th>
+        <th style="width:14%">Status BA/Invoicing</th>
+        <th style="width:42%">Keterangan</th>
+        <th style="width:11%">Status Nominal</th>
       </tr>
     </thead>
     <tbody>
@@ -1626,13 +1632,13 @@ export function exportBAOnlyPDFImpl(ctx: any) {
     </tbody>
   </table>
 
-  <table class="summary" style="width:90%">
+  <table class="summary">
     <thead>
       <tr>
-        <th style="width:23%">Total Invoice ${monthName}</th>
-        <th style="width:17%">Nominal</th>
-        <th style="width:24%">Pending Volume ${monthName}</th>
-        <th style="width:36%">Est Total ${monthName}</th>
+        <th style="width:19%">Total Invoice ${monthName}</th>
+        <th style="width:14%">Nominal (Rp)</th>
+        <th style="width:28%">Pending Volume ${monthName} (Rp)</th>
+        <th style="width:39%">Est Total ${monthName} (Rp)</th>
       </tr>
     </thead>
     <tbody>
@@ -1645,7 +1651,7 @@ export function exportBAOnlyPDFImpl(ctx: any) {
     </tbody>
   </table>
 
-  <div class="notes">Notes :<i>Nilai Nominal sudah termasuk pajak</i></div>
+  <div class="notes">Notes :<i>Nilai Nominal sudah termasuk pajak. Status Nominal Final = nilai BA Joint Survey sudah diverifikasi Finance Specialist.</i></div>
 </body>
 </html>`;
 
@@ -1808,17 +1814,16 @@ export function exportAROnlyPDFImpl(ctx: any) {
       const out = outstandingOf(r);
       const ded = Number(r.otherDeduction || 0);
       sub.out += out; sub.ded += ded; sub.nett += out - ded;
-      const overdue = r.dueDate && new Date(r.dueDate) < today;
       arRows += `
         <tr>
           <td class="c">${i + 1}</td>
-          <td>${fmtPeriod(r.workPeriod)}</td>
+          <td class="c">${fmtPeriod(r.workPeriod)}</td>
           <td>${r.invoiceNo || ""}</td>
           <td>${r.jobType || r.notes || "OB & CG"}</td>
           <td class="r">${fmtNum(r.totalInvoice)}</td>
           <td class="c">${fmtDate(r.invoiceDate)}</td>
           <td class="c">${fmtDate(r.invoiceIssuedDate)}</td>
-          <td class="c ${overdue ? "due-late" : "due-ok"}">${fmtDate(r.dueDate)}</td>
+          <td class="c ${r.dueDate ? (new Date(r.dueDate) < today ? "due-late" : "due-ok") : ""}">${fmtDate(r.dueDate)}</td>
           <td class="r">${fmtNum(out)}</td>
           <td class="r">${fmtNum(ded)}</td>
           <td class="r">${fmtNum(out - ded)}</td>
@@ -1827,12 +1832,11 @@ export function exportAROnlyPDFImpl(ctx: any) {
     grand.out += sub.out; grand.ded += sub.ded; grand.nett += sub.nett;
     arRows += `
       <tr class="subtotal">
-        <td colspan="8" class="c">Total AR ${custCode}</td>
+        <td colspan="8">Total AR ${custCode}</td>
         <td class="r">${fmtNum(sub.out)}</td>
         <td class="r">${fmtNum(sub.ded)}</td>
         <td class="r">${fmtNum(sub.nett)}</td>
-      </tr>
-      <tr class="gap"><td colspan="11"></td></tr>`;
+      </tr>`;
   });
 
   // Subject To Invoice: BA yang belum (sepenuhnya) ter-invoice — sama dengan tab "Subject To Invoice"
@@ -1853,13 +1857,13 @@ export function exportAROnlyPDFImpl(ctx: any) {
       return `
         <tr>
           <td class="c b">${cust}</td>
-          <td>${fmtPeriod(ba.workPeriod)}</td>
+          <td class="c">${fmtPeriod(ba.workPeriod)}</td>
           <td></td>
           <td>${ba.activityGroup || ba.jobType || "OB & CG"}</td>
           <td class="r">${fmtNum(amount)}</td>
           <td></td>
           <td></td>
-          <td class="due-ok"></td>
+          <td></td>
           <td class="r">${fmtNum(amount)}</td>
           <td class="r">${fmtNum(ded)}</td>
           <td class="r">${fmtNum(amount - ded)}</td>
@@ -1868,17 +1872,17 @@ export function exportAROnlyPDFImpl(ctx: any) {
 
   const headRow = (outLabel: string) => `
     <tr>
-      <th style="width:4%">Project</th>
-      <th style="width:7%">Inv. Progress</th>
+      <th style="width:5%">Project</th>
+      <th style="width:6%">Inv. Progress</th>
       <th style="width:14%">No. Invoice</th>
-      <th style="width:12%">Remarks</th>
-      <th style="width:9%">Amount</th>
+      <th style="width:15%">Remarks</th>
+      <th style="width:9%">Amount (Rp)</th>
       <th style="width:6%">Invoice Date</th>
       <th style="width:7%">Invoice Submission</th>
       <th style="width:6%">Due Date</th>
-      <th style="width:12%">${outLabel}</th>
-      <th style="width:11%">Deduction Backcharge</th>
-      <th style="width:12%">Nett</th>
+      <th style="width:11%">${outLabel} (Rp)</th>
+      <th style="width:10%">Deduction Backcharge (Rp)</th>
+      <th style="width:11%">Nett (Rp)</th>
     </tr>`;
 
   const htmlContent = `
@@ -1889,26 +1893,25 @@ export function exportAROnlyPDFImpl(ctx: any) {
       <style>
         @page { size: A4 landscape; margin: 8mm 10mm; }
         * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        body { margin: 0; padding: 8px; font-size: 9px; color: #000; }
-        .head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-        .head h1 { font-size: 15px; margin: 0; }
-        .head p { margin: 2px 0 0; font-size: 9px; font-weight: bold; }
-        .logo { height: 42px; }
-        table { width: 100%; border-collapse: collapse; font-size: 9px; }
-        th { background: #C99A2E; color: #000; font-weight: bold; padding: 3px 4px; border: 1px solid #000; }
-        td { border: 1px solid #000; padding: 2px 4px; white-space: nowrap; }
-        .r { text-align: right; font-variant-numeric: tabular-nums; }
-        .c { text-align: center; }
+        body { margin: 0; padding: 12px; font-size: 9px; color: #222; }
+        .head { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px; }
+        .head h1 { font-size: 16px; margin: 0; }
+        .head p { margin: 4px 0 0; font-size: 9.5px; }
+        .logo { height: 44px; }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 9px; }
+        th { background: #A57C50; color: #fff; font-weight: bold; padding: 5px 4px; border: 1px solid #8A6640; }
+        td { border: 1px solid #BFBFBF; padding: 4px; vertical-align: middle; }
+        tr { page-break-inside: avoid; }
+        .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .c { text-align: center; white-space: nowrap; }
         .b { font-weight: bold; }
-        .cust td { font-size: 13px; font-weight: bold; border: none; padding-top: 6px; }
-        .subtotal td { background: #DDEBF7; font-weight: bold; }
-        .gap td { border: none; height: 8px; }
-        .due-ok { background: #C6EFCE; }
-        .due-late { background: #FF7C80; }
-        .grand td { background: #C99A2E; font-weight: bold; font-size: 12px; padding: 5px 4px; }
-        .sti-total td { background: #FFFF00; font-weight: bold; }
-        .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; }
-        @media print { .btn-print { display: none; } }
+        .cust td { font-size: 11px; font-weight: bold; padding: 5px 4px; }
+        .subtotal td, .grand td, .sti-total td { background: #F5EFE6; font-weight: bold; }
+        .grand td { font-size: 10.5px; padding: 6px 4px; }
+        .due-ok { background: #C6EFCE; color: #000; }
+        .due-late { background: #FFC7CE; color: #000; }
+        .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 12px; font-size: 11px; }
+        @media print { .btn-print { display: none; } body { padding: 0; } }
       </style>
     </head>
     <body>
@@ -1916,7 +1919,7 @@ export function exportAROnlyPDFImpl(ctx: any) {
       <div class="head">
         <div>
           <h1>AR Outstanding</h1>
-          <p>as of : ${today.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</p>
+          <p>As of <b>${today.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</b></p>
         </div>
         <img src="${window.location.origin}/andalan-logo.png" alt="ANDALAN" class="logo" />
       </div>
@@ -1926,7 +1929,7 @@ export function exportAROnlyPDFImpl(ctx: any) {
         <tbody>
           ${arRows}
           <tr class="grand">
-            <td colspan="8" class="c">Total AR Andalan</td>
+            <td colspan="8">Total AR Andalan</td>
             <td class="r">${fmtNum(grand.out)}</td>
             <td class="r">${fmtNum(grand.ded)}</td>
             <td class="r">${fmtNum(grand.nett)}</td>
@@ -1934,15 +1937,15 @@ export function exportAROnlyPDFImpl(ctx: any) {
         </tbody>
       </table>
 
-      <table style="margin-top: 24px; page-break-inside: avoid;">
+      <table style="margin-top: 18px; page-break-inside: avoid;">
         <thead>
-          <tr><th colspan="11">Subject To Invoice</th></tr>
+          <tr><th colspan="11" style="text-align:left">Subject To Invoice</th></tr>
           ${headRow("Outstanding")}
         </thead>
         <tbody>
           ${stiRows || `<tr><td colspan="11" class="c">Tidak ada BA pending penagihan.</td></tr>`}
           <tr class="sti-total">
-            <td colspan="8" class="c">Total Subject To Invoice</td>
+            <td colspan="8">Total Subject To Invoice</td>
             <td class="r">${fmtNum(sti.out)}</td>
             <td class="r">${fmtNum(sti.ded)}</td>
             <td class="r">${fmtNum(sti.nett)}</td>
