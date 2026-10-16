@@ -592,7 +592,7 @@ export function BAOperatingTable({
                   <tr>
                     {isInlineEditingBA && <td className="p-2 text-center text-slate-300">-</td>}
                     <td colSpan={isInlineEditingBA ? 8 : 7} className="p-2.5 text-center text-slate-400 italic">
-                      Potongan 25% Overdistance otomatis terkalkulasi saat item Over Distance diinput
+                      Potongan Overdistance (jadwal diskon Master Customer) otomatis terkalkulasi saat item Over Distance diinput
                     </td>
                   </tr>
                 )}

@@ -1,6 +1,6 @@
 import { InvoiceItemGeneratorContext } from "./invoiceItemGenerator";
 import { isOBMaterial } from "./ba_calculations";
-import { customerByCode, contractParams, obSplitSOWs, sowFor, baseDistanceFor } from "./masterRegistry";
+import { customerByCode, odDiscountPctFor, obSplitSOWs, sowFor, baseDistanceFor } from "./masterRegistry";
 
 export function buildBGGInvoiceItemsFromBA(ba: any, ctx: InvoiceItemGeneratorContext): any[] {
   const { rfIndexCalculated = 1.0, demoBGGItems = [], blankBGGItems = [] } = ctx;
@@ -24,8 +24,9 @@ export function buildBGGInvoiceItemsFromBA(ba: any, ctx: InvoiceItemGeneratorCon
     const split1 = Number(ob1SOW?.splitPercentage || 0) / 100;
     const obBase = baseDistanceFor(cust, "Over Distance For OB Removal");
     const coalBase = baseDistanceFor(cust, "Over Distance For Coal Winning");
-    const odDisc = contractParams(cust).odDiscountPct / 100;
-    const discLabel = `Disc ${contractParams(cust).odDiscountPct}%`;
+    const odPct = odDiscountPctFor(cust, ba.workPeriod);
+    const odDisc = odPct / 100;
+    const discLabel = `Disc ${odPct}%`;
     const pit = ba.bggData?.locationPit || customerByCode(cust)?.projectSite || "";
 
     let ob1Vol = 0;

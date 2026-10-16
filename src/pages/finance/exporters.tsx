@@ -192,7 +192,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         }).join("")}
 
         <tr class="sec-hdr" style="background: #fee2e2;">
-          <td colspan="4">E. DISCOUNT ON OVERDISTANCE (Deduction 25%)</td>
+          <td colspan="4">E. DISCOUNT ON OVERDISTANCE</td>
           <td class="text-right font-mono font-black">(${Math.abs(c.subtotalE).toLocaleString("id-ID")})</td>
         </tr>
         ${secEItems.map((i: any) => {

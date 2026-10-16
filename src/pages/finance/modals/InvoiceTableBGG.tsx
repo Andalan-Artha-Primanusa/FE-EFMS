@@ -220,7 +220,7 @@ export function InvoiceTableBGG({
       {/* Section E: Discount Over Distance */}
       <tr className="bg-rose-50 font-extrabold text-rose-900 border-t-2 border-rose-300">
         <td className="p-2 text-center text-rose-400">#</td>
-        <td colSpan={3} className="p-2 underline font-extrabold">E. DISCOUNT ON OVERDISTANCE (Deduction 25%)</td>
+        <td colSpan={3} className="p-2 underline font-extrabold">E. DISCOUNT ON OVERDISTANCE</td>
         <td className="p-2 text-right font-mono text-rose-900 font-extrabold">({formatIDR(Math.abs(cCalc.subtotalE))})</td>
       </tr>
       {invLineItems.filter((i) => i.section === "E").map((item) => (
