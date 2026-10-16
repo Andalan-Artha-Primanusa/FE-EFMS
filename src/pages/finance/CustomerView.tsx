@@ -454,7 +454,7 @@ export function CustomerView({ c }: { c: any }) {
                   </h4>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
                     <div><span className="text-slate-500 font-bold block">Kuota Stripping Ratio</span><strong>{params.maxStrippingRatio > 0 ? `Maks. ${params.maxStrippingRatio} : 1` : "Tidak berlaku"}</strong></div>
-                    <div><span className="text-slate-500 font-bold block">Diskon Overdistance</span><strong>{params.odDiscountPct > 0 ? `${params.odDiscountPct}%` : "Tidak berlaku"}</strong></div>
+                    <div><span className="text-slate-500 font-bold block">Diskon Overdistance</span><strong>{params.odDiscountPct > 0 ? `${params.odDiscountPct}%` : "Tidak berlaku"}{(record?.overDistanceDiscountSchedule || []).map((s: any) => ` → ${s.pct}% mulai ${s.fromPeriod}`).join("")}</strong></div>
                     <div><span className="text-slate-500 font-bold block">Toleransi Joint Survey</span><strong>{params.surveyTolerancePct > 0 ? `${params.surveyTolerancePct}%` : "Tidak berlaku"}</strong></div>
                     <div><span className="text-slate-500 font-bold block">Termin Pembayaran</span><strong>{record?.terminDays ?? "-"} Hari</strong></div>
                   </div>

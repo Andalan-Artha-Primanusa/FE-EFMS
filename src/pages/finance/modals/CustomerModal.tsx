@@ -1,5 +1,5 @@
 import React from "react";
-import { RupiahInput } from "../helpers";
+import { RupiahInput, formatMonthInput, formatMonthLabel } from "../helpers";
 import { masterRegistry } from "../masterRegistry";
 import { SOW_MODEL_LABELS } from "../../VariableSOWPage";
 
@@ -211,7 +211,7 @@ export function CustomerModal({ formData, setFormData }: CustomerModalProps) {
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Diskon Overdistance (%)</label>
             <input type="number" step="any" className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.overDistanceDiscountPct ?? ""}
               onChange={(e) => setFormData({ ...formData, overDistanceDiscountPct: Number(e.target.value) })} />
-            <span className="text-[10px] text-slate-500">0 = tidak ada diskon</span>
+            <span className="text-[10px] text-slate-500">0 = tidak ada diskon; berlaku untuk periode sebelum jadwal diskon di bawah</span>
           </div>
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Kuota Stripping Ratio (OB : Coal)</label>
@@ -224,6 +224,25 @@ export function CustomerModal({ formData, setFormData }: CustomerModalProps) {
             <input type="number" step="any" className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.surveyTolerancePct ?? ""}
               onChange={(e) => setFormData({ ...formData, surveyTolerancePct: Number(e.target.value) })} />
             <span className="text-[10px] text-slate-500">Batas selisih volume AAP vs customer</span>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Jadwal Diskon Overdistance (per Periode Asal Volume)</label>
+            {(formData.overDistanceDiscountSchedule || []).map((s: any, i: number) => {
+              const setStep = (patch: any) => setFormData({ ...formData, overDistanceDiscountSchedule: formData.overDistanceDiscountSchedule.map((x: any, j: number) => (j === i ? { ...x, ...patch } : x)) });
+              return (
+                <div key={i} className="flex gap-2 mb-2">
+                  <input type="month" required className="flex-1 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formatMonthInput(s.fromPeriod || "")}
+                    onChange={(e) => setStep({ fromPeriod: formatMonthLabel(e.target.value) })} />
+                  <input type="number" step="any" required placeholder="Diskon %" className="w-32 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={s.pct ?? ""}
+                    onChange={(e) => setStep({ pct: Number(e.target.value) })} />
+                  <button type="button" className="px-3 text-xs font-bold text-rose-700 border border-rose-200 rounded-lg hover:bg-rose-50"
+                    onClick={() => setFormData({ ...formData, overDistanceDiscountSchedule: formData.overDistanceDiscountSchedule.filter((_: any, j: number) => j !== i) })}>Hapus</button>
+                </div>
+              );
+            })}
+            <button type="button" className="text-xs font-bold text-cyan-800 hover:underline"
+              onClick={() => setFormData({ ...formData, overDistanceDiscountSchedule: [...(formData.overDistanceDiscountSchedule || []), { fromPeriod: "", pct: 0 }] })}>+ Tambah periode diskon</button>
+            <span className="block text-[10px] text-slate-500">Mulai periode tersebut berlaku % diskon ini. Pending volume tetap memakai % diskon periode asalnya (mis. pending Jan-Mar 50% walau ditagih di April).</span>
           </div>
         </div>
       </div>

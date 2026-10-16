@@ -6,7 +6,7 @@
 
 import { matchPeriod } from "./helpers";
 
-import { customerKind, customerByCode, contractParams, baseDistanceFor, rfMasterFor, rfTemplateFor, computeRFIndex, forexRatio, minWageFor, kursForPeriod, masterRegistry, obSplitSOWs } from "./masterRegistry";
+import { customerKind, customerByCode, contractParams, baseDistanceFor, rfMasterFor, rfTemplateFor, computeRFIndex, forexRatio, minWageFor, kursForPeriod, masterRegistry, obSplitSOWs, odDiscountPctFor } from "./masterRegistry";
 
 export { customerKind };
 
@@ -492,14 +492,19 @@ export function getBGGComputedInvoiceLines(
   subtotalE: number;
 } {
   const effectiveRF = rfIndexCalculated > 0 ? Number(rfIndexCalculated.toFixed(3)) : 1.0;
-  const odDisc = contractParams("BGG").odDiscountPct / 100;
   const sectionDItems: BGGComputedLineItem[] = [];
   const sectionEItems: BGGComputedLineItem[] = [];
 
-  let subtotalOD_OB = 0;
-  let subtotalOD_Coal = 0;
-  let subtotalRF_OD_OB = 0;
-  let subtotalRF_OD_Coal = 0;
+  // Section E per jenis & % diskon periode asal baris (pending volume memakai % periode asalnya, sama dengan BE).
+  const discGroups = new Map<string, { kind: string; pct: number; disc: number; periods: Set<string> }>();
+  const addDisc = (kind: string, period: string, amount: number) => {
+    const pct = odDiscountPctFor("BGG", period);
+    const key = `${kind}|${pct}`;
+    const g = discGroups.get(key) || { kind, pct, disc: 0, periods: new Set<string>() };
+    g.disc += amount * pct / 100;
+    if (period) g.periods.add(period);
+    discGroups.set(key, g);
+  };
 
   for (const item of allItems || []) {
     const isDist = isDistanceItem(item);
@@ -525,20 +530,16 @@ export function getBGGComputedInvoiceLines(
       const diffMtr = baseDist > 0 ? Math.max(0, dist - baseDist) : 0;
       const grossSub = getBAItemSubtotal(item, effVol, false, "BGG");
 
-      if (isOB) {
-        subtotalOD_OB += grossSub;
-      } else if (isCoal) {
-        subtotalOD_Coal += grossSub;
-      }
-
       // Section D for Over Distance using item-level RF Index
       const escalatedRate = (r * rfDelta) * (diffMtr / 100);
       const escalatedSub = Math.round(effVol * escalatedRate);
 
       if (isOB) {
-        subtotalRF_OD_OB += escalatedSub;
+        addDisc("od-ob", itemPeriod, grossSub);
+        addDisc("rf-od-ob", itemPeriod, escalatedSub);
       } else if (isCoal) {
-        subtotalRF_OD_Coal += escalatedSub;
+        addDisc("od-coal", itemPeriod, grossSub);
+        addDisc("rf-od-coal", itemPeriod, escalatedSub);
       }
 
       sectionDItems.push({
@@ -581,54 +582,27 @@ export function getBGGComputedInvoiceLines(
     return isDistanceItem(it) && (m.includes("coal") || m.includes("batubara"));
   });
 
-  // Section E: Discount on Overdistance (25%)
-  if (hasOD_OB || subtotalOD_OB > 0) {
-    const disc = subtotalOD_OB * odDisc;
-    sectionEItems.push({
-      id: "disc-od-ob",
-      section: "E",
-      description: "Discount Overdistance for OB Removal",
-      unit: "Lot",
-      volume: 1,
-      rate: -disc,
-      subtotal: -disc,
-    });
-  }
-  if (hasOD_Coal || subtotalOD_Coal > 0) {
-    const disc = subtotalOD_Coal * odDisc;
-    sectionEItems.push({
-      id: "disc-od-coal",
-      section: "E",
-      description: "Discount Overdistance for Coal Winning",
-      unit: "Lot",
-      volume: 1,
-      rate: -disc,
-      subtotal: -disc,
-    });
-  }
-  if ((hasOD_OB && effectiveRF !== 1.0) || subtotalRF_OD_OB > 0) {
-    const disc = subtotalRF_OD_OB * odDisc;
-    sectionEItems.push({
-      id: "disc-rf-od-ob",
-      section: "E",
-      description: "Discount Raise & Fall's Overdistance for OB Removal",
-      unit: "Lot",
-      volume: 1,
-      rate: -disc,
-      subtotal: -disc,
-    });
-  }
-  if ((hasOD_Coal && effectiveRF !== 1.0) || subtotalRF_OD_Coal > 0) {
-    const disc = subtotalRF_OD_Coal * odDisc;
-    sectionEItems.push({
-      id: "disc-rf-od-coal",
-      section: "E",
-      description: "Discount Raise & Fall's Overdistance for Coal Winning",
-      unit: "Lot",
-      volume: 1,
-      rate: -disc,
-      subtotal: -disc,
-    });
+  // Section E: Discount on Overdistance (% jadwal diskon Master Customer); baris dipisah bila % periode asal berbeda.
+  const discKinds: [string, string, boolean][] = [
+    ["od-ob", "Discount Overdistance for OB Removal", hasOD_OB],
+    ["od-coal", "Discount Overdistance for Coal Winning", hasOD_Coal],
+    ["rf-od-ob", "Discount Raise & Fall's Overdistance for OB Removal", hasOD_OB && effectiveRF !== 1.0],
+    ["rf-od-coal", "Discount Raise & Fall's Overdistance for Coal Winning", hasOD_Coal && effectiveRF !== 1.0],
+  ];
+  for (const [kind, description, show] of discKinds) {
+    const groups = [...discGroups.values()].filter((g) => g.kind === kind && (show || g.disc > 0));
+    for (const g of groups) {
+      const periods = groups.length > 1 ? `: ${[...g.periods].join(", ")}` : "";
+      sectionEItems.push({
+        id: `disc-${kind}-${g.pct}`,
+        section: "E",
+        description: `${description} (Disc ${g.pct}%${periods})`,
+        unit: "Lot",
+        volume: 1,
+        rate: -g.disc,
+        subtotal: -g.disc,
+      });
+    }
   }
 
   const subtotalD = sectionDItems.reduce((acc, it) => acc + it.subtotal, 0);

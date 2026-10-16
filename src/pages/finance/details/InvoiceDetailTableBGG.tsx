@@ -130,7 +130,7 @@ export const InvoiceDetailTableBGG: React.FC<InvoiceDetailTableBGGProps> = ({
 
       {/* Seksi E: Discount */}
       <tr className="bg-rose-50/70 font-extrabold text-rose-900 border-t border-b border-rose-200">
-        <td colSpan={4} className="p-2 underline">E. DISCOUNT ON OVERDISTANCE (Deduction 25%)</td>
+        <td colSpan={4} className="p-2 underline">E. DISCOUNT ON OVERDISTANCE</td>
         <td className="p-2 text-right font-mono font-black text-rose-900">({formatIDR(Math.abs(cCalc.subtotalE))})</td>
       </tr>
       {activeItems.filter((i: any) => i.section === "E").map((i: any) => {

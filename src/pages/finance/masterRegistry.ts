@@ -4,7 +4,7 @@
 // parameter kontrak, tarif, RF per periode, kurs per periode & UMK dari sini, bukan konstanta.
 // =============================================================
 
-import { matchPeriod } from "./helpers";
+import { matchPeriod, parsePeriodToMonthIndex } from "./helpers";
 
 export const masterRegistry = {
   customers: [] as any[],
@@ -42,6 +42,22 @@ export function contractParams(code?: string) {
     maxStrippingRatio: Number(c.maxStrippingRatio || 0),
     surveyTolerancePct: Number(c.surveyTolerancePct || 0),
   };
+}
+
+/** Diskon OD (%) untuk volume periode asal `period` dari jadwal diskon Master Customer (sama dengan BE odDiscountPctFor). */
+export function odDiscountPctFor(code?: string, period?: string): number {
+  const c = customerByCode(code) || {};
+  const k = period ? parsePeriodToMonthIndex(period) : 0;
+  let pct = Number(c.overDistanceDiscountPct || 0);
+  let best = 0;
+  for (const s of c.overDistanceDiscountSchedule || []) {
+    const sk = s.fromPeriod ? parsePeriodToMonthIndex(s.fromPeriod) : 0;
+    if (sk > 0 && sk <= k && sk >= best) {
+      pct = Number(s.pct || 0);
+      best = sk;
+    }
+  }
+  return pct;
 }
 
 export function bankAccountForCustomer(code?: string): any | undefined {
