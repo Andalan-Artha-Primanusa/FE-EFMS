@@ -1,6 +1,6 @@
 import React from "react";
 import { RupiahInput, formatMonthInput, formatMonthLabel } from "../helpers";
-import { masterRegistry } from "../masterRegistry";
+import { masterRegistry, RF_SCHEME_LABELS, hasJointSurveyQuota } from "../masterRegistry";
 import { SOW_MODEL_LABELS } from "../../VariableSOWPage";
 
 interface CustomerModalProps {
@@ -27,7 +27,7 @@ export function CustomerModal({ formData, setFormData }: CustomerModalProps) {
               className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold uppercase focus:border-cyan-700 focus:bg-white outline-none"
               placeholder="BGG"
               value={formData.code || ""}
-              onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
               required
             />
           </div>
@@ -37,6 +37,7 @@ export function CustomerModal({ formData, setFormData }: CustomerModalProps) {
             </label>
             <input
               type="number"
+              min={1}
               className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-bold focus:border-cyan-700 focus:bg-white outline-none"
               value={formData.terminDays ?? ""}
               onChange={(e) =>
@@ -186,9 +187,7 @@ export function CustomerModal({ formData, setFormData }: CustomerModalProps) {
             <select className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.formulaScheme || ""}
               onChange={(e) => setFormData({ ...formData, formulaScheme: e.target.value })}>
               <option value="">— Tanpa eskalasi —</option>
-              <option value="SINGLE_FACTOR_FUEL">Single Factor (Fuel)</option>
-              <option value="TRIPLE_FACTOR_DLF">Triple Factor (Fuel, Labor, Fixed)</option>
-              <option value="KURS_TRANSAKSI_USD">Kurs Transaksi USD</option>
+              {Object.entries(RF_SCHEME_LABELS).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
             </select>
           </div>
           <div>
@@ -209,22 +208,35 @@ export function CustomerModal({ formData, setFormData }: CustomerModalProps) {
           </div>
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Diskon Overdistance (%)</label>
-            <input type="number" step="any" className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.overDistanceDiscountPct ?? ""}
+            <input type="number" step="any" min={0} max={100} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.overDistanceDiscountPct ?? ""}
               onChange={(e) => setFormData({ ...formData, overDistanceDiscountPct: Number(e.target.value) })} />
             <span className="text-[10px] text-slate-500">0 = tidak ada diskon; berlaku untuk periode sebelum jadwal diskon di bawah</span>
           </div>
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Kuota Stripping Ratio (OB : Coal)</label>
-            <input type="number" step="any" className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.maxStrippingRatio ?? ""}
-              onChange={(e) => setFormData({ ...formData, maxStrippingRatio: Number(e.target.value) })} />
-            <span className="text-[10px] text-slate-500">0 = tanpa kuota; kelebihan OB menjadi pending volume</span>
-          </div>
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Toleransi Joint Survey (%)</label>
-            <input type="number" step="any" className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.surveyTolerancePct ?? ""}
-              onChange={(e) => setFormData({ ...formData, surveyTolerancePct: Number(e.target.value) })} />
-            <span className="text-[10px] text-slate-500">Batas selisih volume AAP vs customer</span>
-          </div>
+          {hasJointSurveyQuota(formData.code) ? (
+            <>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Kuota Stripping Ratio (OB : Coal)</label>
+                <input type="number" step="any" min={0} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.maxStrippingRatio ?? ""}
+                  onChange={(e) => setFormData({ ...formData, maxStrippingRatio: Number(e.target.value) })} />
+                <span className="text-[10px] text-slate-500">0 = tanpa kuota; kelebihan OB menjadi pending volume</span>
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Toleransi Joint Survey (%)</label>
+                <input type="number" step="any" min={0} max={100} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.surveyTolerancePct ?? ""}
+                  onChange={(e) => setFormData({ ...formData, surveyTolerancePct: Number(e.target.value) })} />
+                <span className="text-[10px] text-slate-500">Batas selisih volume AAP vs customer</span>
+              </div>
+            </>
+          ) : (
+            <div className="sm:col-span-2 text-[10px] text-slate-500">
+              Kuota Stripping Ratio & Toleransi Joint Survey hanya berlaku pada BA joint survey BGG.
+            </div>
+          )}
+          <label className="sm:col-span-2 flex items-center gap-2 text-xs font-bold text-slate-700">
+            <input type="checkbox" checked={Boolean(formData.pendingVolumeEligible)}
+              onChange={(e) => setFormData({ ...formData, pendingVolumeEligible: e.target.checked })} />
+            Boleh dicatat manual di Pending Volume Ledger
+          </label>
           <div className="sm:col-span-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Jadwal Diskon Overdistance (per Periode Asal Volume)</label>
             {(formData.overDistanceDiscountSchedule || []).map((s: any, i: number) => {
@@ -233,7 +245,7 @@ export function CustomerModal({ formData, setFormData }: CustomerModalProps) {
                 <div key={i} className="flex gap-2 mb-2">
                   <input type="month" required className="flex-1 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formatMonthInput(s.fromPeriod || "")}
                     onChange={(e) => setStep({ fromPeriod: formatMonthLabel(e.target.value) })} />
-                  <input type="number" step="any" required placeholder="Diskon %" className="w-32 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={s.pct ?? ""}
+                  <input type="number" step="any" min={0} max={100} required placeholder="Diskon %" className="w-32 bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={s.pct ?? ""}
                     onChange={(e) => setStep({ pct: Number(e.target.value) })} />
                   <button type="button" className="px-3 text-xs font-bold text-rose-700 border border-rose-200 rounded-lg hover:bg-rose-50"
                     onClick={() => setFormData({ ...formData, overDistanceDiscountSchedule: formData.overDistanceDiscountSchedule.filter((_: any, j: number) => j !== i) })}>Hapus</button>

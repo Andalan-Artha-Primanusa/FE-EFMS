@@ -34,13 +34,24 @@ export function customerByCode(code?: string): any | undefined {
   return masterRegistry.customers.find((c) => sameCustomer(c.code, code));
 }
 
+/** Label "Skema Raise & Fall" Master Customer (form & kartu Client Setup). */
+export const RF_SCHEME_LABELS: Record<string, string> = {
+  SINGLE_FACTOR_FUEL: "Raise & Fall 1-Faktor BBM",
+  TRIPLE_FACTOR_DLF: "Raise & Fall 3-Faktor (D+L+F)",
+  KURS_TRANSAKSI_USD: "Kurs Transaksi USD",
+};
+
+/** Kuota SR & toleransi joint survey hanya dihitung pada BA joint survey BGG (sama dengan BE). */
+export const hasJointSurveyQuota = (code?: string) => customerKind(code) === "BGG";
+
 /** Parameter kontrak dari Master Customer (0 = klausul tidak berlaku). */
 export function contractParams(code?: string) {
   const c = customerByCode(code) || {};
+  const bgg = hasJointSurveyQuota(code);
   return {
     odDiscountPct: Number(c.overDistanceDiscountPct || 0),
-    maxStrippingRatio: Number(c.maxStrippingRatio || 0),
-    surveyTolerancePct: Number(c.surveyTolerancePct || 0),
+    maxStrippingRatio: bgg ? Number(c.maxStrippingRatio || 0) : 0,
+    surveyTolerancePct: bgg ? Number(c.surveyTolerancePct || 0) : 0,
   };
 }
 

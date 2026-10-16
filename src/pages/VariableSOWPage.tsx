@@ -67,7 +67,7 @@ export const SOW_MODEL_LABELS: Record<SOWModel, string> = {
 /** Model tarif customer: pilihan di Master Customer, kosong = default per kode. Menentukan tabel form Variable SOW. */
 export const sowModel = (code: string, model?: string): SOWModel =>
   model && model in SOW_MODEL_LABELS ? (model as SOWModel)
-    : code === "BGG" ? "coal" : code === "SBS" ? "idr" : code === "PTRO" ? "multi" : "usd";
+    : code === "BGG" ? "coal" : code === "PTRO" ? "multi" : code === "POS" ? "usd" : "idr";
 
 export function VariableSOWPage({
   viewTitle,

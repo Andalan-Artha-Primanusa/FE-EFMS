@@ -54,7 +54,7 @@ export function useFinanceController({
   const {
     mRate, setMRate, fuelPriceUSD, setFuelPriceUSD, laborPriceIDR, setLaborPriceIDR,
     dynamicSowOptions, setDynamicSowOptions, bankAccountOptions, setBankAccountOptions,
-    latestKursBI, coalIndexMaster, getBGGActiveCoalTier, getSowMasterRate,
+    latestKursBI, coalIndexMaster, sowCatalog, getBGGActiveCoalTier, getSowMasterRate,
     financeTemplates, setFinanceTemplates, templatesLoaded, setTemplatesLoaded, templateRows, masterBankAccounts,
     rfIndexCalculated, defaultMasterVariableOptions, masterVariableOptions, activeSOWCatalog,
     customerContractMap, applyRateLookup, blankPOSItems, demoPOSItems, blankBGGItems, demoBGGItems,
@@ -319,7 +319,7 @@ export function useFinanceController({
     applyRateLookup, blankPOSItems, demoPOSItems, blankBGGItems, demoBGGItems, blankPTROItems,
     blankDBKItems, demoPTROItems, demoDBKItems, blankSBSItems, demoSBSItems, defaultPOSBAOperatingItems,
     defaultPOSBAMDOItems, defaultBGGBAItems, defaultPTROBAItems, defaultDBKBAItems, defaultSBSBAOperatingItems,
-    defaultSBSBAMDOItems, defaultSBSBADeductionItems, latestKursBI, coalIndexMaster, getBGGActiveCoalTier,
+    defaultSBSBAMDOItems, defaultSBSBADeductionItems, latestKursBI, coalIndexMaster, sowCatalog, getBGGActiveCoalTier,
     baOperatingItems, setBaOperatingItems, baMDOItems, setBaMDOItems, baDeductionItems, setBaDeductionItems,
     reorderBAItems, moveBAItem, activeBAStep, setActiveBAStep, showAddRowDropdown, setShowAddRowDropdown, posInvoiceCategory,
     setPosInvoiceCategory, invLineItems, setInvLineItems, selectedVarA, setSelectedVarA, selectedVarB,

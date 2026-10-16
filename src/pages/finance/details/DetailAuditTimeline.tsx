@@ -1,17 +1,54 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { History, User } from "lucide-react";
 import { generateAuditTimeline } from "../helpers";
+import { api } from "../../../lib/api";
 
 interface DetailAuditTimelineProps {
   type: string;
   data: any;
 }
 
+// Riwayat dari log audit server (snapshot before/after), bukan timeline turunan field dokumen.
+const AUDIT_ENDPOINTS: Record<string, string> = { customer: "customers", payment: "payments" };
+const ACTION_LABELS: Record<string, string> = { save: "Disimpan", delete: "Dihapus", verify: "Diverifikasi" };
+
+/** Field yang berubah antara snapshot before & after (mis. "terminDays: 30 → 45"). */
+function changedFields(before: any, after: any): string {
+  if (!before || !after) return "";
+  return Object.keys(after)
+    .filter((k) => !/At$/.test(k) && JSON.stringify(before[k]) !== JSON.stringify(after[k]))
+    .map((k) => `${k}: ${JSON.stringify(before[k] ?? "-")} → ${JSON.stringify(after[k])}`)
+    .join("; ");
+}
+
 export const DetailAuditTimeline: React.FC<DetailAuditTimelineProps> = ({
   type,
   data
 }) => {
-  const timelineLogs = generateAuditTimeline(type, data);
+  const endpoint = AUDIT_ENDPOINTS[type];
+  const [serverLogs, setServerLogs] = useState<any[] | null>(null);
+
+  useEffect(() => {
+    if (!endpoint || !data?.id) return;
+    setServerLogs(null);
+    api<any[]>(`/api/finance/${endpoint}/${data.id}/audit-logs`)
+      .then((rows) => setServerLogs(Array.isArray(rows) ? rows : []))
+      .catch(() => setServerLogs([]));
+  }, [endpoint, data?.id]);
+
+  const timelineLogs = endpoint
+    ? (serverLogs || [])
+        .slice()
+        .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
+        .map((l) => ({
+          title: l.action === "save" ? (l.before ? "Data Diperbarui" : "Data Dibuat") : ACTION_LABELS[l.action] || l.action,
+          user: l.user,
+          role: l.module,
+          time: l.createdAt ? new Date(l.createdAt).toLocaleString("id-ID") : "-",
+          status: l.action === "delete" ? "rejected" : "completed",
+          desc: changedFields(l.before, l.after) || (l.before ? "Tidak ada perubahan field." : `IP ${l.ipAddress || "-"}`),
+        }))
+    : generateAuditTimeline(type, data);
 
   return (
     <div className="space-y-4">
@@ -21,6 +58,12 @@ export const DetailAuditTimeline: React.FC<DetailAuditTimelineProps> = ({
         </h4>
         <span className="text-[11px] text-slate-400 font-bold">Jejak Aktivitas User</span>
       </div>
+
+      {endpoint && (serverLogs === null || timelineLogs.length === 0) && (
+        <p className="text-[11px] text-slate-500 italic">
+          {serverLogs === null ? "Memuat log audit..." : "Belum ada log audit tercatat untuk data ini."}
+        </p>
+      )}
 
       {/* Vertical Stepper Timeline */}
       <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
@@ -48,7 +91,7 @@ export const DetailAuditTimeline: React.FC<DetailAuditTimelineProps> = ({
                   <span className="font-bold text-slate-900">{log.user}</span>
                   <span className="text-[10px] px-2 py-0.5 rounded-[3px] bg-slate-100 border border-slate-200 text-slate-700 font-bold">{log.role}</span>
                 </div>
-                <p className="text-[11px] text-slate-600 pt-0.5 font-medium leading-relaxed">{log.desc}</p>
+                <p className="text-[11px] text-slate-600 pt-0.5 font-medium leading-relaxed break-words">{log.desc}</p>
               </div>
             </div>
           );
