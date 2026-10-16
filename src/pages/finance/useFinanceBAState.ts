@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { api, verifyBATracker, approveBATracker, generateJournalFromBA } from "../../lib/api";
-import { formatDateInput } from "./helpers";
+import { formatDateInput, draftKey } from "./helpers";
 import { customerKind, baseDistanceFor } from "./masterRegistry";
 import { dropEmptyDPFuel } from "./ba_calculations";
 
@@ -291,6 +291,7 @@ export function useFinanceBAState({
           setBaRows((prev) => [saved || { id: Date.now(), ...baPayload }, ...prev]);
         }
       }
+      localStorage.removeItem(draftKey("ba", baPayload.id));
       onNotice(isSubmit ? "Berita Acara BGG berhasil diajukan ke HO untuk verifikasi." : "Draft Berita Acara BGG berhasil disimpan.");
       await loadData();
     } catch (err: any) {

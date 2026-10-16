@@ -49,6 +49,10 @@ export const getCustomerOfficialName = (code: string | undefined | null): string
   return customerByCode(c)?.fullName || c;
 };
 
+// Kunci localStorage draf input modal (per user + jenis modal + id data yang diedit).
+const draftUser = () => { try { return JSON.parse(localStorage.getItem("financeerp.user") || "{}")?.id ?? "anon"; } catch { return "anon"; } };
+export const draftKey = (type: string, id?: any) => `efms:draft:${draftUser()}:${type}:${id ?? "new"}`;
+
 export const formatDateInput = (dateStr: any) => {
   if (!dateStr) return "";
   const d = new Date(dateStr);

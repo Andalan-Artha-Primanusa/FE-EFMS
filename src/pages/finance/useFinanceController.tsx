@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { draftKey } from "./helpers";
 import { Clock } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { SBSPenaltyItem, User as UserType } from "../../lib/api";
@@ -202,7 +203,65 @@ export function useFinanceController({
     deletingKey, setDeletingKey, actionLoadingKey, setActionLoadingKey
   });
 
-  const openSBSPenaltyModal = (item?: SBSPenaltyItem) => { setSbsPenaltyEditItem(item || null); setSbsPenaltyModalOpen(true); };
+  // Draf input modal di localStorage: ditulis selama modal terbuka & ada perubahan, ditawarkan kembali saat
+  // modal yang sama dibuka lagi (ketutup tak sengaja / refresh), dihapus setelah berhasil disimpan.
+  // Modal yang masih terbuka saat refresh dibuka ulang otomatis lewat penanda draftOpenKey.
+  const DRAFT_TTL = 7 * 24 * 3600 * 1000;
+  const draftOpenKey = draftKey("open");
+  const draftId = modalType === "none" ? null : draftKey(modalType, editItem?.id);
+  const draftBaseline = useRef("");
+  const draftReopenDone = useRef(false);
+  const draftAutoReopened = useRef(false);
+  useEffect(() => {
+    if (draftId) localStorage.setItem(draftOpenKey, JSON.stringify({ type: modalType, id: editItem?.id ?? null, view: viewTitle }));
+    else if (draftReopenDone.current) localStorage.removeItem(draftOpenKey);
+  }, [draftId]);
+  useEffect(() => {
+    if (loading || draftReopenDone.current) return;
+    draftReopenDone.current = true;
+    Object.keys(localStorage).filter(k => k.startsWith("efms:draft:")).forEach(k => {
+      try { if (Date.now() - JSON.parse(localStorage.getItem(k) || "{}").savedAt > DRAFT_TTL) localStorage.removeItem(k); } catch { localStorage.removeItem(k); }
+    });
+    let open: any = null;
+    try { open = JSON.parse(localStorage.getItem(draftOpenKey) || "null"); } catch { /* penanda rusak diabaikan */ }
+    if (!open || open.view !== viewTitle || !localStorage.getItem(draftKey(open.type, open.id))) return;
+    const rows: Record<string, any[]> = { ba: baRows, invoice: invoiceRows, payment: paymentRows, customer: customerRows, pending_volume: pendingVolumeLedgers };
+    const item = open.id == null ? null : rows[open.type]?.find((r: any) => r.id === open.id);
+    if (open.id != null && !item) return;
+    draftAutoReopened.current = true;
+    if (item) openEditModal(open.type, item); else openCreateModal(open.type);
+  }, [loading]);
+  useEffect(() => {
+    draftBaseline.current = "";
+    const auto = draftAutoReopened.current;
+    draftAutoReopened.current = false;
+    if (!draftId) return;
+    let draft: any = null;
+    try { draft = JSON.parse(localStorage.getItem(draftId) || "null"); } catch { /* draf rusak diabaikan */ }
+    if (!draft?.data || Date.now() - draft.savedAt > DRAFT_TTL) return;
+    if (!window.confirm(`Ada draf input yang belum tersimpan (${new Date(draft.savedAt).toLocaleString("id-ID")}). Lanjutkan draf tersebut?\n\nPilih "Cancel" untuk membuang draf.`)) {
+      localStorage.removeItem(draftId);
+      if (auto) setModalType("none");
+      return;
+    }
+    const d = draft.data;
+    setFormData(d.formData); setInvLineItems(d.invLineItems);
+    setBaOperatingItems(d.baOperatingItems); setBaMDOItems(d.baMDOItems); setBaDeductionItems(d.baDeductionItems);
+    setActiveBAStep(d.activeBAStep);
+    onNotice("Draf input sebelumnya berhasil dipulihkan.");
+  }, [draftId]);
+  useEffect(() => {
+    if (!draftId) return;
+    const timer = setTimeout(() => {
+      const snap = JSON.stringify({ formData, invLineItems, baOperatingItems, baMDOItems, baDeductionItems, activeBAStep });
+      if (!draftBaseline.current) { draftBaseline.current = snap; return; }
+      if (snap === draftBaseline.current) return;
+      try { localStorage.setItem(draftId, `{"savedAt":${Date.now()},"data":${snap}}`); } catch { /* storage penuh/diblokir */ }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [draftId, formData, invLineItems, baOperatingItems, baMDOItems, baDeductionItems, activeBAStep]);
+
+  const openSBSPenaltyModal =(item?: SBSPenaltyItem) => { setSbsPenaltyEditItem(item || null); setSbsPenaltyModalOpen(true); };
   const closeSBSPenaltyModal = () => { setSbsPenaltyEditItem(null); setSbsPenaltyModalOpen(false); };
 
   if (loading) {

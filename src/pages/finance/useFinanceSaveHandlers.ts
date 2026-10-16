@@ -1,5 +1,6 @@
 import React from "react";
 import { api, saveSBSPenalty, deleteSBSPenalty, SBSPenaltyItem } from "../../lib/api";
+import { draftKey } from "./helpers";
 import { getBAEffectiveVolume, getBAItemSubtotal, calculateBACommercialBreakdown, customerKind, bggOBBillableFactor, dropEmptyDPFuel } from "./ba_calculations";
 
 interface UseFinanceSaveHandlersProps {
@@ -299,6 +300,7 @@ export function useFinanceSaveHandlers({
       // Tautan BA <-> invoice (status Arsip) disinkronkan server saat invoice disimpan; loadData() di bawah memuat hasilnya.
 
       const savedModalType = modalType;
+      localStorage.removeItem(draftKey(modalType, editItem?.id));
       setModalType("none");
       setEditItem(null);
       await loadData();
