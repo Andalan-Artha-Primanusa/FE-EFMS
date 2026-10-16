@@ -460,7 +460,7 @@ export function VariableSOWFormPage() {
                           className="w-full text-center font-mono font-bold text-slate-600 bg-transparent px-1 py-1 outline-none border border-transparent focus:border-cyan-500 rounded"
                           value={item.unit}
                           onChange={(e) => handleFieldChange(idx, "unit", e.target.value)}
-                          placeholder="BCM / Hours / Lot"
+                          placeholder="BCM / Hours / Month / Lot"
                         />
                       </td>
                       <td className="p-2 border-r border-slate-200 text-right font-mono font-bold">

@@ -70,9 +70,8 @@ export function BADeductionTable({
               <th className="p-2 text-center w-10">No</th>
               <th className="p-2 min-w-[240px]">Pengurang Pembayaran</th>
               <th className="p-2 min-w-[140px]">Keterangan</th>
-              <th className="p-2 text-center w-24">Claimed Unit</th>
-              <th className="p-2 text-right w-36">Unit Rate (IDR)</th>
-              <th className="p-2 text-right w-36">Amount (IDR)</th>
+              <th className="p-2 text-right w-48">Nominal (IDR)</th>
+              <th className="p-2 text-right w-44">Amount (IDR)</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -156,9 +155,6 @@ export function BADeductionTable({
                     />
                   )}
                 </td>
-                <td className="p-2 text-center text-slate-700 font-bold">
-                  {item.unit || "Hours"}
-                </td>
                 <td className="p-2 text-right font-mono">
                   {!isInlineEditingBA ? (
                     <span className="font-extrabold text-rose-700">({formatIDR(Math.abs(item.rate || 0))})</span>
@@ -166,9 +162,9 @@ export function BADeductionTable({
                     <FormattedNumberInput
                       allowDecimals
                       maxDecimals={0}
-                      className="w-28 sm:w-32 bg-white border border-rose-300 focus:border-rose-500 rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs text-rose-700 outline-none"
+                      className="w-full min-w-[160px] bg-white border border-rose-300 focus:border-rose-500 rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs text-rose-700 outline-none"
                       value={item.rate === 0 ? "" : Math.abs(item.rate ?? 0)}
-                      placeholder="00.00"
+                      placeholder="0"
                       onChange={(r) => {
                         const updated = [...(baDeductionItems || [])];
                         const absVal = Math.abs(r);
@@ -189,7 +185,7 @@ export function BADeductionTable({
             ))}
             {(!baDeductionItems || baDeductionItems.length === 0) && (
               <tr>
-                <td colSpan={isInlineEditingBA ? 7 : 6} className="p-4 text-center text-slate-400 bg-slate-50 italic">
+                <td colSpan={isInlineEditingBA ? 6 : 5} className="p-4 text-center text-slate-400 bg-slate-50 italic">
                   Tidak ada pengurang pembayaran / denda.
                 </td>
               </tr>
@@ -199,7 +195,7 @@ export function BADeductionTable({
             <tfoot>
               <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
                 {isInlineEditingBA && <td className="p-2 text-center text-slate-400">#</td>}
-                <td colSpan={5} className="p-2 uppercase font-extrabold tracking-wider">
+                <td colSpan={4} className="p-2 uppercase font-extrabold tracking-wider">
                   Total Pengurang Pembayaran
                 </td>
                 <td className="p-2 text-right font-mono font-extrabold text-rose-700">

@@ -230,8 +230,8 @@ export function BAMDOTable({
                         setBaMDOItems(updated);
                       }}
                     >
-                      {["USD/BCM", "USD/1KM", "USD/m2", "Hours", "Ha", "BCM", "Ton", "Lot", "Unit", "Trip", "m2", "M3", "M'"]
-                        .concat(item.unit && !["USD/BCM", "USD/1KM", "USD/m2", "Hours", "Ha", "BCM", "Ton", "Lot", "Unit", "Trip", "m2", "M3", "M'"].includes(item.unit) ? [item.unit] : [])
+                      {["USD/BCM", "USD/1KM", "USD/m2", "Hours", "Month", "Ha", "BCM", "Ton", "Lot", "Unit", "Trip", "m2", "M3", "M'"]
+                        .concat(item.unit && !["USD/BCM", "USD/1KM", "USD/m2", "Hours", "Month", "Ha", "BCM", "Ton", "Lot", "Unit", "Trip", "m2", "M3", "M'"].includes(item.unit) ? [item.unit] : [])
                         .map((u) => (
                           <option key={u} value={u}>
                             {u}
