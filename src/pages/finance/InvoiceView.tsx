@@ -21,7 +21,7 @@ export function InvoiceView({ c }: { c: any }) {
     invStatusFilter, setInvStatusFilter, invCardTab, setInvCardTab, invPeriodFilter,
     setInvPeriodFilter, showExportARDropdown, setShowExportARDropdown, showInputARDropdown, setShowInputARDropdown,
     setDetailViewItem, templateRows: rawTemplateRows, exportAROnlyExcel, exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV, openCreateModal,
-    openEditModal, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleDelete,
+    openEditModal, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleSetInvoiceSubmissionDate, handleDelete,
     sbsPenalties: rawSbsPenalties, sbsPenaltyModalOpen, sbsPenaltyEditItem, handleSaveSBSPenalty, handleDeleteSBSPenalty, openSBSPenaltyModal, closeSBSPenaltyModal,
     query = "", accountingJournals: rawAccountingJournals, deletingKey, actionLoadingKey
   } = (c || {}) as Record<string, any>;
@@ -503,7 +503,16 @@ export function InvoiceView({ c }: { c: any }) {
                                         <td className="p-2.5 text-slate-700 font-medium">{row.jobType || row.notes || "OB & CG"}</td>
                                         <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">{formatIDR(row.totalInvoice)}</td>
                                         <td className="p-2.5 text-slate-700 whitespace-nowrap">{row.invoiceDate ? new Date(row.invoiceDate).toLocaleDateString("id-ID") : "-"}</td>
-                                        <td className="p-2.5 text-slate-700 whitespace-nowrap">{row.invoiceIssuedDate ? new Date(row.invoiceIssuedDate).toLocaleDateString("id-ID") : "-"}</td>
+                                        <td className="p-2.5 text-slate-700 whitespace-nowrap">
+                                          {can("invoice", "write") ? (
+                                            <input
+                                              type="date"
+                                              className="border border-slate-200 rounded px-1.5 py-0.5 text-xs bg-white"
+                                              value={row.invoiceSubmissionDate ? String(row.invoiceSubmissionDate).slice(0, 10) : ""}
+                                              onChange={(e) => handleSetInvoiceSubmissionDate(row.id, e.target.value)}
+                                            />
+                                          ) : (row.invoiceSubmissionDate ? new Date(row.invoiceSubmissionDate).toLocaleDateString("id-ID") : "-")}
+                                        </td>
                                         <td className="p-2.5 text-slate-700 whitespace-nowrap">{row.dueDate ? new Date(row.dueDate).toLocaleDateString("id-ID") : "-"}</td>
                                         <td className="p-2.5 text-center">
                                           {renderInvoiceStatusBadge(row.status)}

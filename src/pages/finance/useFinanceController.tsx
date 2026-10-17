@@ -94,7 +94,7 @@ export function useFinanceController({
     removeInvLineItem, updateInvItemVolume, updateInvItemOverhaul, updateInvItemRateIDR,
     updateInvItemRateUSD, updateInvItemKurs, updateInvItemAmount,
     updateInvItemField, reorderInvLineItems, moveInvRow, handleGenerateInvoiceFromBA,
-    handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1
+    handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleSetInvoiceSubmissionDate
   } = invoiceState;
 
   // Invoice calculations via calculations.tsx
@@ -337,7 +337,7 @@ export function useFinanceController({
     handleSavePartialPayment, handleVerifyPartialPayment, buildInvoiceItemsFromBA: buildInvItems,
     handleBASelect, createInvoiceFromBA, openBAModal, openCreateModal, openEditModal, handleFileUpload,
     handleSave, handleVerifyBA, handleApproveBA, handleAccrueBA, handleSaveBGGBA,
-    handleGenerateInvoiceFromBA, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1,
+    handleGenerateInvoiceFromBA, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleSetInvoiceSubmissionDate,
     handleDelete, volPreview, ratePreview, grossPreview, solarPreview,
     subtotalDPPPreview, ppn11Preview, pph23Preview, totalNetInvoicePreview, totalAgingMatrix, viewTitle,
     query, onNotice, user, accountingJournals, deletingKey, setDeletingKey, actionLoadingKey, setActionLoadingKey,

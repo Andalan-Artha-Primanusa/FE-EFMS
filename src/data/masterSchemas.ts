@@ -52,7 +52,7 @@ export const masterSchemas: Record<string, MasterSchema> = {
       { key: "phone", label: "Phone" },
       { key: "address", label: "Address" }
     ],
-    tableColumns: ["code", "name", "bankName", "accountNumber", "accountName", "email", "defaultTop", "taxId", "status"]
+    tableColumns: ["code", "name", "bankName", "accountNumber", "accountName", "pendingBank", "email", "defaultTop", "taxId", "status"]
   },
   customer: {
     title: "Customer",

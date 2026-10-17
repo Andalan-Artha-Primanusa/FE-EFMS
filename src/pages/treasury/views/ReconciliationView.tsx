@@ -25,8 +25,22 @@ export function ReconciliationView({ c }: Props) {
     setShowImportKopraCsvModal,
     handleAutoMatch,
     handleExportRekapAAP,
+    handleManualMatch,
+    plans,
+    canApprove,
+    isMaker,
     refreshAll,
   } = c;
+
+  // Manual match candidates: same source bank, exact amount, voucher still open, maker excluded (SoD).
+  const candidatesFor = (tx: (typeof bankTransactions)[number]) =>
+    plans.filter(
+      (p) =>
+        (p.status === "approved" || p.status === "exported") &&
+        p.companyBankId === tx.companyBankId &&
+        Number(p.totalAmount) === Number(tx.amount) &&
+        !isMaker(p)
+    );
 
   const [selectedBankId, setSelectedBankId] = useState<number>(1);
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -149,7 +163,7 @@ export function ReconciliationView({ c }: Props) {
             onClick={() => handleAutoMatch(selectedBankId)}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded shadow-sm transition"
           >
-            <Zap className="w-3.5 h-3.5" /> Jalankan Auto-Match Regex
+            <Zap className="w-3.5 h-3.5" /> Jalankan Auto-Match (No. Voucher + Nominal)
           </button>
 
           <button
@@ -222,6 +236,26 @@ export function ReconciliationView({ c }: Props) {
                             Total Plan: {formatCurrency(Number(tx.matchedPlan.totalAmount))}
                           </div>
                         </div>
+                      ) : !tx.isReconciled && tx.txType === "DB" && canApprove && candidatesFor(tx).length > 0 ? (
+                        <select
+                          defaultValue=""
+                          onChange={(e) => {
+                            const planId = Number(e.target.value);
+                            const plan = plans.find((p) => p.id === planId);
+                            e.target.value = "";
+                            const note = plan && window.prompt(`Match manual mutasi ini ke voucher ${plan.voucherNo}. Catatan/bukti (wajib):`)?.trim();
+                            if (plan && note) handleManualMatch(tx.id, plan.id, note);
+                          }}
+                          className="text-[11px] border border-amber-300 rounded px-1.5 py-1 bg-amber-50 text-amber-900"
+                          title="Nominal & rekening sama, tetapi referensi voucher tidak terbaca: perlu konfirmasi manual"
+                        >
+                          <option value="">Perlu Review: pilih voucher…</option>
+                          {candidatesFor(tx).map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.voucherNo} ({p.items?.[0]?.vendor?.name || "-"})
+                            </option>
+                          ))}
+                        </select>
                       ) : (
                         <span className="text-slate-400 italic text-[11px]">- Belum ada -</span>
                       )}

@@ -1008,7 +1008,7 @@ export function exportARBAIMonitoringExcelImpl(ctx: any) {
 
       clientRows.forEach((row) => {
         const invDate = row.invoiceDate ? new Date(row.invoiceDate).toLocaleDateString("id-ID") : "-";
-        const invIssued = row.invoiceIssuedDate ? new Date(row.invoiceIssuedDate).toLocaleDateString("id-ID") : "-";
+        const invIssued = row.invoiceSubmissionDate ? new Date(row.invoiceSubmissionDate).toLocaleDateString("id-ID") : "-";
         const dueDate = row.dueDate ? new Date(row.dueDate).toLocaleDateString("id-ID") : "-";
         excelRowsAR += `
           <tr>
@@ -1205,7 +1205,7 @@ export function exportARBAIMonitoringPDFImpl(ctx: any) {
 
       clientRows.forEach((row) => {
         const invDate = row.invoiceDate ? new Date(row.invoiceDate).toLocaleDateString("id-ID") : "-";
-        const invIssued = row.invoiceIssuedDate ? new Date(row.invoiceIssuedDate).toLocaleDateString("id-ID") : "-";
+        const invIssued = row.invoiceSubmissionDate ? new Date(row.invoiceSubmissionDate).toLocaleDateString("id-ID") : "-";
         const dueDate = row.dueDate ? new Date(row.dueDate).toLocaleDateString("id-ID") : "-";
         pdfRowsAR += `
           <tr>
@@ -1699,7 +1699,7 @@ export function exportAROnlyExcelImpl(ctx: any) {
 
       clientRows.forEach((row) => {
         const invDate = row.invoiceDate ? new Date(row.invoiceDate).toLocaleDateString("id-ID") : "-";
-        const invIssued = row.invoiceIssuedDate ? new Date(row.invoiceIssuedDate).toLocaleDateString("id-ID") : "-";
+        const invIssued = row.invoiceSubmissionDate ? new Date(row.invoiceSubmissionDate).toLocaleDateString("id-ID") : "-";
         const dueDate = row.dueDate ? new Date(row.dueDate).toLocaleDateString("id-ID") : "-";
         excelRowsAR += `
           <tr>
@@ -1823,7 +1823,7 @@ export function exportAROnlyPDFImpl(ctx: any) {
           <td>${r.jobType || r.notes || "OB & CG"}</td>
           <td class="r">${fmtNum(r.totalInvoice)}</td>
           <td class="c">${fmtDate(r.invoiceDate)}</td>
-          <td class="c">${fmtDate(r.invoiceIssuedDate)}</td>
+          <td class="c">${fmtDate(r.invoiceSubmissionDate)}</td>
           <td class="c ${r.dueDate ? (new Date(r.dueDate) < today ? "due-late" : "due-ok") : ""}">${fmtDate(r.dueDate)}</td>
           <td class="r">${fmtNum(out)}</td>
           <td class="r">${fmtNum(ded)}</td>

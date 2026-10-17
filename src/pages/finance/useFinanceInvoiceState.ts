@@ -209,6 +209,15 @@ export function useFinanceInvoiceState({
 
   const handleApproveInvoiceTier1 = async (id: number) => handleApproveInvoice(id);
 
+  const handleSetInvoiceSubmissionDate = async (id: number, date: string) => {
+    try {
+      const updated: any = await api(`/api/finance/invoices/${id}/submission-date`, { method: "PUT", body: JSON.stringify({ date }) });
+      if (setInvoiceRows) setInvoiceRows((prev) => prev.map((i) => i.id === id ? { ...i, ...(updated || {}) } : i));
+    } catch (err: any) {
+      onNotice(err?.message || "Gagal menyimpan tanggal Invoice Submission");
+    }
+  };
+
   return {
     posInvoiceCategory, setPosInvoiceCategory,
     invLineItems, setInvLineItems,
@@ -224,6 +233,6 @@ export function useFinanceInvoiceState({
     updateInvItemRateIDR, updateInvItemRateUSD, updateInvItemKurs, updateInvItemAmount,
     updateInvItemField, reorderInvLineItems, moveInvRow,
     handleGenerateInvoiceFromBA, handleVerifyInvoice, handleApproveInvoice,
-    handleApproveInvoiceTier1
+    handleApproveInvoiceTier1, handleSetInvoiceSubmissionDate
   };
 }

@@ -9,6 +9,14 @@ export interface TreasuryVendor {
   npwp?: string;
   defaultTop: number;
   site?: string;
+  accurateVendorNo?: string | null;
+  // Bank change waiting for a second user to verify (maker-checker). Export is blocked meanwhile.
+  pendingBankName?: string;
+  pendingAccountNumber?: string;
+  pendingAccountName?: string;
+  bankChangeRequestedBy?: number;
+  bankVerifiedBy?: number;
+  bankVerifiedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -46,6 +54,12 @@ export interface TreasuryInvoice {
   voucherNo?: string;
   voucherDate?: string;
   lastPaymentDate?: string;
+  accurateId?: number | null;
+  accurateSyncedAt?: string | null;
+  accurateDeleted?: boolean;
+  vendorBillNo?: string;
+  isDownPayment?: boolean;
+  possibleDuplicate?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -56,6 +70,7 @@ export interface TreasuryCompanyBank {
   accountNumber: string;
   accountName: string;
   currency: string;
+  accurateBankNo?: string;
 }
 
 export interface PaymentPlanItem {
@@ -68,6 +83,7 @@ export interface PaymentPlanItem {
   amountPaid: string;
   isFullPayment: boolean;
   remarks?: string;
+  accuratePaymentNo?: string | null;
   createdAt: string;
 }
 
@@ -82,7 +98,7 @@ export interface PaymentPlan {
   companyBank?: TreasuryCompanyBank;
   category: "AP" | "TUNAI_PO" | "TUNAI_NON_PO" | "LEASING" | "SOLAR" | "PETTY_CASH";
   totalAmount: string;
-  status: "draft" | "printed_for_signature" | "approved" | "rejected" | "exported" | "reconciled";
+  status: "draft" | "printed_for_signature" | "approved" | "rejected" | "exported" | "reconciled" | "posted" | "void";
   justification?: string;
   makerName?: string;
   plannerName?: string;
@@ -90,6 +106,14 @@ export interface PaymentPlan {
   approvalDate?: string;
   exportedAt?: string;
   reconciledAt?: string;
+  makerUserId?: number;
+  approverUserId?: number;
+  exportedBy?: number;
+  postedAt?: string | null;
+  kopraFileSha256?: string;
+  kopraExportedCount?: number;
+  needsReview?: boolean;
+  reviewNote?: string;
   items?: PaymentPlanItem[];
   createdAt: string;
   updatedAt: string;
@@ -125,4 +149,34 @@ export interface AgingSummary {
   criticalCount: number;
   solarCount: number;
   leasingCount: number;
+}
+
+export interface TreasuryPurchaseOrder {
+  id: number;
+  accurateId: number;
+  poNo: string;
+  vendorId: number;
+  site: string;
+  totalAmount: string;
+  status: string;
+  syncedAt: string;
+}
+
+export interface SyncResult {
+  inserted: number;
+  updated: number;
+  unchanged: number;
+  paid: number;
+  deleted: number;
+  flaggedPlans: number;
+  purchaseOrders: number;
+  startedAt: string;
+  endedAt: string;
+}
+
+export interface AccurateSyncState {
+  running: boolean;
+  startedAt?: string | null;
+  last?: SyncResult | null;
+  lastError?: string;
 }
