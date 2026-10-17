@@ -352,6 +352,7 @@ export interface Invoice {
   otherDeduction: number;
   totalReceipt: number;
   invoiceDate: string;
+  invoiceSubmissionDate?: string | null;
   terminDays: number;
   dueDate: string;
   totalPaid: number;

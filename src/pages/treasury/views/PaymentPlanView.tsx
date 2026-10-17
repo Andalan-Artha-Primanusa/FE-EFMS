@@ -31,9 +31,21 @@ export function PaymentPlanView({ c }: Props) {
     handleApprovePlan,
     handleRejectPlan,
     handleExportKopra,
+    handleVoidPlan,
+    handleReviewPlan,
+    handlePostToAccurate,
+    canWrite,
+    canApprove,
+    isMaker,
     setSelectedVendorForSlip,
     refreshAll,
   } = c;
+
+  // Mandatory free-text for checker actions; cancelling or leaving it empty aborts.
+  const askReason = (label: string, then: (text: string) => void) => {
+    const text = window.prompt(label)?.trim();
+    if (text) then(text);
+  };
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -163,6 +175,18 @@ export function PaymentPlanView({ c }: Props) {
             Reconciled
           </span>
         );
+      case "posted":
+        return (
+          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-teal-100 text-teal-800 border border-teal-200">
+            Posted Accurate
+          </span>
+        );
+      case "void":
+        return (
+          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-stone-200 text-stone-700 border border-stone-300 line-through">
+            Void
+          </span>
+        );
       case "rejected":
         return (
           <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200">
@@ -215,7 +239,9 @@ export function PaymentPlanView({ c }: Props) {
             <option value="approved">Approved</option>
             <option value="exported">Exported Kopra</option>
             <option value="reconciled">Reconciled</option>
+            <option value="posted">Posted Accurate</option>
             <option value="rejected">Rejected</option>
+            <option value="void">Void</option>
           </select>
 
           <select
@@ -342,7 +368,17 @@ export function PaymentPlanView({ c }: Props) {
                           {formatCurrency(Number(plan.totalAmount || 0))}
                         </td>
 
-                        <td className="p-2.5 text-center">{getStatusBadge(plan.status)}</td>
+                        <td className="p-2.5 text-center">
+                          {getStatusBadge(plan.status)}
+                          {plan.needsReview && (
+                            <div
+                              className="mt-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200"
+                              title={plan.reviewNote}
+                            >
+                              Perlu Review
+                            </div>
+                          )}
+                        </td>
 
                         <td className="p-2.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
@@ -364,34 +400,86 @@ export function PaymentPlanView({ c }: Props) {
                               <Eye className="w-3.5 h-3.5" />
                             </button>
 
-                            {/* Approval Actions */}
-                            {plan.status === "draft" && (
-                              <>
-                                <button
-                                  onClick={() => handleApprovePlan(plan.id)}
-                                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 transition"
-                                  title="Approve Pengajuan"
-                                >
-                                  <CheckCircle2 className="w-3 h-3" /> Approve
-                                </button>
-                                <button
-                                  onClick={() => setShowRejectModal(plan.id)}
-                                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded hover:bg-rose-100 transition"
-                                  title="Tolak Pengajuan"
-                                >
-                                  <XCircle className="w-3 h-3" /> Reject
-                                </button>
-                              </>
+                            {/* Review (checker other than the maker clears a needs_review flag) */}
+                            {plan.needsReview && canApprove && !isMaker(plan) && (
+                              <button
+                                onClick={() => askReason("Catatan review (wajib):", (note) => handleReviewPlan(plan.id, note))}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 transition"
+                                title={plan.reviewNote}
+                              >
+                                <Eye className="w-3 h-3" /> Review
+                              </button>
+                            )}
+
+                            {/* Approval Actions: approver must not be the maker (segregation of duties) */}
+                            {(plan.status === "draft" || plan.status === "printed_for_signature") && canApprove && !isMaker(plan) && (
+                              <button
+                                onClick={() => handleApprovePlan(plan.id)}
+                                disabled={plan.needsReview}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 disabled:opacity-50 transition"
+                                title="Approve Pengajuan"
+                              >
+                                <CheckCircle2 className="w-3 h-3" /> Approve
+                              </button>
+                            )}
+                            {(plan.status === "draft" || plan.status === "printed_for_signature" || plan.status === "approved") && canApprove && (
+                              <button
+                                onClick={() => setShowRejectModal(plan.id)}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded hover:bg-rose-100 transition"
+                                title="Tolak Pengajuan"
+                              >
+                                <XCircle className="w-3 h-3" /> Reject
+                              </button>
                             )}
 
                             {/* Export Kopra */}
-                            {(plan.status === "approved" || plan.status === "exported") && (
+                            {(plan.status === "approved" || plan.status === "exported") && canWrite && (
                               <button
                                 onClick={() => handleExportKopra(plan.id)}
-                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition"
-                                title="Download Format Kopra Mandiri"
+                                disabled={plan.needsReview}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 disabled:opacity-50 transition"
+                                title={
+                                  plan.kopraExportedCount
+                                    ? `Sudah diekspor ${plan.kopraExportedCount}x. SHA-256 terakhir: ${plan.kopraFileSha256}`
+                                    : "Download Format Kopra Mandiri"
+                                }
                               >
                                 <FileSpreadsheet className="w-3 h-3" /> Kopra .xlsx
+                                {!!plan.kopraExportedCount && plan.kopraExportedCount > 1 && (
+                                  <span className="text-[9px] text-rose-600">({plan.kopraExportedCount}x)</span>
+                                )}
+                              </button>
+                            )}
+
+                            {/* Void: bank did NOT execute an exported transfer */}
+                            {plan.status === "exported" && canApprove && !isMaker(plan) && (
+                              <button
+                                onClick={() =>
+                                  askReason(
+                                    "Alasan void (wajib, mis. konfirmasi bank transfer tidak dieksekusi). Tagihan akan dapat dibayar kembali:",
+                                    (reason) => handleVoidPlan(plan.id, reason)
+                                  )
+                                }
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-stone-700 bg-stone-50 border border-stone-300 rounded hover:bg-stone-100 transition"
+                                title="Batalkan voucher yang sudah diekspor"
+                              >
+                                <XCircle className="w-3 h-3" /> Void
+                              </button>
+                            )}
+
+                            {/* Write-back to Accurate after bank reconciliation */}
+                            {plan.status === "reconciled" && canApprove && !isMaker(plan) && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Buat Pembayaran Pembelian di Accurate untuk voucher ${plan.voucherNo}?`)) {
+                                    handlePostToAccurate(plan.id);
+                                  }
+                                }}
+                                disabled={plan.needsReview}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded hover:bg-teal-100 disabled:opacity-50 transition"
+                                title="Posting pelunasan ke Accurate Online"
+                              >
+                                <Landmark className="w-3 h-3" /> Posting ke Accurate
                               </button>
                             )}
                           </div>
@@ -453,6 +541,17 @@ export function PaymentPlanView({ c }: Props) {
                                         </td>
                                         <td className="p-1.5 font-mono text-stone-600">
                                           {inv?.invoiceNo || `INV-${it.id}`}
+                                          {inv?.isDownPayment && (
+                                            <span className="ml-1 px-1 rounded bg-sky-100 text-sky-800 text-[9px] font-bold">DP</span>
+                                          )}
+                                          {inv?.possibleDuplicate && (
+                                            <span className="ml-1 px-1 rounded bg-rose-100 text-rose-700 text-[9px] font-bold" title="Vendor + PO + nominal sama dengan invoice lain">
+                                              Duplikat?
+                                            </span>
+                                          )}
+                                          {it.accuratePaymentNo && (
+                                            <div className="text-[9px] text-teal-700">Accurate: {it.accuratePaymentNo}</div>
+                                          )}
                                         </td>
                                         <td className="p-1.5 text-stone-700">
                                           {inv?.itemDescription || it.remarks || "-"}

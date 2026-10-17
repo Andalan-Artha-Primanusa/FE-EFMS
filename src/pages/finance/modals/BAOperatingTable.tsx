@@ -419,7 +419,7 @@ export function BAOperatingTable({
               <div className="space-y-1">
                 <FormattedNumberInput
                   allowDecimals
-                  maxDecimals={0}
+                  maxDecimals={4}
                   className={`w-20 sm:w-24 border rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none ${item.isCustom && (!item.rate || item.rate === 0) ? "bg-amber-50 border-amber-400 text-amber-900" : "bg-slate-50 border-slate-300"}`}
                   value={item.rate === 0 ? "" : (item.rate ?? "")}
                   placeholder="0"

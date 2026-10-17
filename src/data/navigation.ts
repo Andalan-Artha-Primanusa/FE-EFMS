@@ -24,6 +24,12 @@ export const menu = [
   { group: "Governance", icon: ShieldCheck, items: ["Approval Center", "Notification Center", "Audit Trail", "RBAC Management", "Role and Permission", "System Settings"] }
 ];
 
+// The general ledger lives in Accurate Online (used fully by the accounting team). FEAST's own ledger
+// screens are hidden for every role, super admin included, so nobody books a second set of books here.
+export const ledgerInAccurateItems = new Set(
+  menu.filter((g) => g.group === "Accounting" || g.group === "Period Closing").flatMap((g) => g.items)
+);
+
 export type ViewConfig = {
   title: string;
   endpoint: string;

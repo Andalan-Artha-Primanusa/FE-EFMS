@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from "react";
-import { menuPermissionMap } from "../data/navigation";
+import { ledgerInAccurateItems, menuPermissionMap } from "../data/navigation";
 import { DEFAULT_COMPANIES, getCompanies, type Company, type Permission, type RoleAccess, type TCode, type User } from "./api";
 
 // Harus sama dengan app.IsSuperAdminRole di backend (exact match, bukan substring).
@@ -117,6 +117,8 @@ export function authorized(
 }
 
 export function canAccessMenu(item: string, role: string, permissions: Permission[], tcodes?: TCode[], user?: User) {
+  // Hidden from the sidebar and blocked by URL (ProtectedRoute uses this too): ledger work happens in Accurate.
+  if (ledgerInAccurateItems.has(item)) return false;
   if (isSuperAdminRole(role)) return true;
 
   if (item === "Tunai PO Tracking") {

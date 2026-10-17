@@ -31,7 +31,12 @@ interface VendorGroup {
   totalUnpaid: number;
   items: TreasuryInvoice[];
   monthAmounts: Record<string, number>;
+  poNo?: string;
+  pendingBank?: boolean;
 }
+
+// Open balance, not the gross invoice total (partial payments and consumed DP are already deducted).
+const outstandingOf = (inv: TreasuryInvoice) => Number(inv.remainingBalance ?? inv.totalAmount ?? 0);
 
 function formatMonthHeader(mKey: string): string {
   if (mKey === "BLANK" || !mKey) return "(blank)";
@@ -55,7 +60,12 @@ export function PivotAgingPlanningView({ c }: Props) {
     setSelectedInvoiceIds,
     setShowCreatePlanModal,
     setActiveTab,
+    purchaseOrders,
   } = c;
+
+  const poByNo = useMemo(() => new Map(purchaseOrders.map((p) => [p.poNo, p])), [purchaseOrders]);
+  // "PO": one row per PO (a PO can carry DP, termin and final invoices); "VENDOR": one row per vendor.
+  const [groupBy, setGroupBy] = useState<"VENDOR" | "PO">("VENDOR");
 
   const [search, setSearch] = useState("");
   const [siteFilter, setSiteFilter] = useState("ALL");
@@ -114,14 +124,17 @@ export function PivotAgingPlanningView({ c }: Props) {
       }
 
       const vName = inv.vendor?.name || "VENDOR LAIN";
-      const key = String(inv.vendorId || vName);
+      const po = (inv.poNo || "").trim() || "TANPA PO";
+      const key = groupBy === "PO" ? `${po}|${inv.vendorId}` : String(inv.vendorId || vName);
 
       let grp = map.get(key);
       if (!grp) {
         grp = {
           key,
           vendorId: inv.vendorId,
-          vendorName: vName,
+          vendorName: groupBy === "PO" ? `${po} — ${vName}` : vName,
+          poNo: groupBy === "PO" ? po : undefined,
+          pendingBank: !!inv.vendor?.pendingAccountNumber,
           sites: [],
           bankName: inv.vendor?.bankName || "",
           accountNumber: inv.vendor?.accountNumber || "",
@@ -137,7 +150,7 @@ export function PivotAgingPlanningView({ c }: Props) {
         grp.sites.push(invSite);
       }
 
-      const amt = Number(inv.totalAmount || inv.remainingBalance || 0);
+      const amt = outstandingOf(inv);
       grp.totalUnpaid += amt;
       grp.items.push(inv);
 
@@ -153,7 +166,7 @@ export function PivotAgingPlanningView({ c }: Props) {
     });
 
     return Array.from(map.values()).sort((a, b) => b.totalUnpaid - a.totalUnpaid);
-  }, [activeInvoices, siteFilter]);
+  }, [activeInvoices, siteFilter, groupBy]);
 
   // Filter vendor groups
   const filteredGroups = useMemo(() => {
@@ -233,7 +246,7 @@ export function PivotAgingPlanningView({ c }: Props) {
   const totalSelectedAmount = useMemo(() => {
     return activeInvoices
       .filter((inv) => selectedInvoiceIds.includes(inv.id))
-      .reduce((sum, inv) => sum + Number(inv.totalAmount || inv.remainingBalance || 0), 0);
+      .reduce((sum, inv) => sum + outstandingOf(inv), 0);
   }, [activeInvoices, selectedInvoiceIds]);
 
   return (
@@ -304,6 +317,19 @@ export function PivotAgingPlanningView({ c }: Props) {
               <option value="ALL">Semua Tagihan</option>
               <option value="UNPLANNED">Belum Di-plan (Draft)</option>
               <option value="PLANNED">Sudah Di-plan</option>
+            </select>
+          </div>
+
+          {/* Grouping */}
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-stone-600 text-[11px]">Kelompokkan:</span>
+            <select
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value as "VENDOR" | "PO")}
+              className="p-1.5 border border-stone-300 rounded-[3px] font-semibold text-stone-800 bg-white text-[11px]"
+            >
+              <option value="VENDOR">Per Vendor</option>
+              <option value="PO">Per No. PO</option>
             </select>
           </div>
 
@@ -423,7 +449,28 @@ export function PivotAgingPlanningView({ c }: Props) {
                           </div>
                           <div className="text-[10px] text-stone-500 font-mono">
                             {grp.bankName || "BANK BELUM ADA"} • {grp.accountNumber || "NO REK KOSONG"} ({grp.accountName || "-"})
+                            {grp.pendingBank && (
+                              <span className="ml-1 px-1 rounded bg-rose-100 text-rose-700 font-sans font-bold" title="Perubahan rekening menunggu verifikasi; export Kopra diblokir">
+                                Rekening pending
+                              </span>
+                            )}
                           </div>
+                          {grp.poNo && (() => {
+                            // Billed = DP invoices + finals minus DP they consume (Accurate totals are gross).
+                            const po = poByNo.get(grp.poNo);
+                            if (!po) return null;
+                            const billed = grp.items.reduce(
+                              (s, i) => s + Number(i.totalAmount || 0) - (i.isDownPayment ? 0 : Number(i.dpAmount || 0)),
+                              0
+                            );
+                            const over = billed - Number(po.totalAmount) > 1;
+                            return (
+                              <div className={`text-[10px] font-sans ${over ? "text-rose-700 font-bold" : "text-stone-500"}`}>
+                                Nilai PO {formatCurrency(Number(po.totalAmount))} • Outstanding ditagih {formatCurrency(billed)} • {po.status}
+                                {over && " • OVERBILLING"}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="p-2.5 text-center">
                           <div className="flex flex-wrap items-center justify-center gap-1">
@@ -500,7 +547,7 @@ export function PivotAgingPlanningView({ c }: Props) {
                           </tr>
                           {grp.items.map((inv, idx) => {
                             const isInvSelected = selectedInvoiceIds.includes(inv.id);
-                            const amt = Number(inv.totalAmount || inv.remainingBalance || 0);
+                            const amt = outstandingOf(inv);
 
                             // Determine which month column this invoice belongs to
                             let invMonthKey = "BLANK";
@@ -540,6 +587,17 @@ export function PivotAgingPlanningView({ c }: Props) {
                                   <span className="font-bold text-blue-900 font-mono">{inv.poNo || "-"}</span>
                                   <span className="mx-1 text-stone-300">|</span>
                                   <span className="font-mono text-stone-500">{inv.invoiceNo}</span>
+                                  {inv.isDownPayment && (
+                                    <span className="ml-1 px-1 rounded bg-sky-100 text-sky-800 font-bold text-[9px]">DP</span>
+                                  )}
+                                  {inv.possibleDuplicate && (
+                                    <span className="ml-1 px-1 rounded bg-rose-100 text-rose-700 font-bold text-[9px]" title="Vendor + PO + nominal sama dengan invoice lain">
+                                      Duplikat?
+                                    </span>
+                                  )}
+                                  {inv.accurateDeleted && (
+                                    <span className="ml-1 px-1 rounded bg-stone-800 text-white font-bold text-[9px]">Dihapus di Accurate</span>
+                                  )}
                                   <span className="ml-1.5 text-stone-600 font-medium truncate">
                                     {inv.itemDescription
                                       ? inv.itemDescription.length > 60

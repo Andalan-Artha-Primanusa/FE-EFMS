@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { api, API_BASE } from "../../lib/api";
+import { authorized } from "../../lib/auth";
+import type { User } from "../../types";
 import type {
   TreasuryInvoice,
   TreasuryVendor,
@@ -7,12 +9,24 @@ import type {
   PaymentPlan,
   BankStatementTransaction,
   AgingSummary,
+  TreasuryPurchaseOrder,
+  AccurateSyncState,
+  SyncResult,
 } from "./types";
 
-export function useTreasuryController(onNotice?: (msg: string) => void) {
+export function useTreasuryController(onNotice?: (msg: string) => void, user?: User) {
   const [activeTab, setActiveTab] = useState<
-    "aging" | "pivot" | "planning" | "plans" | "voucher" | "kopra" | "reconcile" | "rekap"
+    "aging" | "pivot" | "planning" | "plans" | "voucher" | "kopra" | "reconcile" | "rekap" | "vendors"
   >("pivot");
+
+  // UI gating only; the backend enforces the same permissions and segregation of duties.
+  const canWrite = authorized(user, "treasury", "write") || authorized(user, "payment", "write");
+  const canApprove = authorized(user, "treasury", "approve");
+  const isMaker = (plan: PaymentPlan) =>
+    !!user && (plan.makerUserId ? plan.makerUserId === user.id : (plan.makerName || "").trim().toLowerCase() === user.name.trim().toLowerCase());
+
+  const [purchaseOrders, setPurchaseOrders] = useState<TreasuryPurchaseOrder[]>([]);
+  const [syncState, setSyncState] = useState<AccurateSyncState | null>(null);
   
   // Data states
   const [invoices, setInvoices] = useState<TreasuryInvoice[]>([]);
@@ -151,6 +165,25 @@ export function useTreasuryController(onNotice?: (msg: string) => void) {
     }
   }, []);
 
+  const fetchPurchaseOrders = useCallback(async () => {
+    try {
+      const res = await api<{ success: boolean; purchaseOrders: TreasuryPurchaseOrder[] }>("/api/treasury/purchase-orders");
+      setPurchaseOrders(res.purchaseOrders || []);
+    } catch (e: any) {
+      console.error("Failed to load purchase orders", e);
+    }
+  }, []);
+
+  const fetchSyncStatus = useCallback(async () => {
+    try {
+      const res = await api<{ success: boolean; status: AccurateSyncState }>("/api/treasury/accurate/sync-status");
+      setSyncState(res.status);
+      return res.status;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const refreshAll = useCallback(() => {
     fetchInvoices();
     fetchAllUnpaidInvoices();
@@ -160,11 +193,44 @@ export function useTreasuryController(onNotice?: (msg: string) => void) {
     fetchVendors();
     fetchCompanyBanks();
     fetchBankTransactions();
-  }, [fetchInvoices, fetchAllUnpaidInvoices, fetchPaidInvoices, fetchAgingSummary, fetchPlans, fetchVendors, fetchCompanyBanks, fetchBankTransactions]);
+    fetchPurchaseOrders();
+    fetchSyncStatus();
+  }, [fetchInvoices, fetchAllUnpaidInvoices, fetchPaidInvoices, fetchAgingSummary, fetchPlans, fetchVendors, fetchCompanyBanks, fetchBankTransactions, fetchPurchaseOrders, fetchSyncStatus]);
 
   useEffect(() => {
     refreshAll();
   }, [refreshAll]);
+
+  // Poll while a background Accurate sync runs, then reload everything once.
+  useEffect(() => {
+    if (!syncState?.running) return;
+    const t = window.setInterval(async () => {
+      const s = await fetchSyncStatus();
+      if (s && !s.running) {
+        const r: SyncResult | null | undefined = s.last;
+        onNotice?.(
+          s.lastError
+            ? `Sync Accurate gagal: ${s.lastError}. Data FEAST terakhir tetap utuh.`
+            : `Sync Accurate selesai: ${r?.inserted ?? 0} baru, ${r?.updated ?? 0} diperbarui, ${r?.unchanged ?? 0} tetap, ${r?.paid ?? 0} lunas, ${r?.deleted ?? 0} dihapus di Accurate, ${r?.flaggedPlans ?? 0} voucher perlu review.`
+        );
+        refreshAll();
+      }
+    }, 3000);
+    return () => window.clearInterval(t);
+  }, [syncState?.running, fetchSyncStatus, refreshAll, onNotice]);
+
+  const handleSyncAccurate = async () => {
+    try {
+      const res = await api<{ success: boolean; message: string; status: AccurateSyncState }>(
+        "/api/treasury/invoices/sync-accurate",
+        { method: "POST" }
+      );
+      setSyncState(res.status);
+      onNotice?.("Sync Accurate berjalan di latar belakang. Data akan diperbarui otomatis setelah selesai.");
+    } catch (e: any) {
+      onNotice?.(e.message || "Gagal memulai sync Accurate");
+    }
+  };
 
   // Create Plan Action
   const handleCreatePlan = async (data: {
@@ -207,16 +273,47 @@ export function useTreasuryController(onNotice?: (msg: string) => void) {
     }
   };
 
-  // Approve Plan
-  const handleApprovePlan = async (id: number) => {
+  // Approve Plan. Invoices flagged as possible duplicate bills need an explicit confirmation by the approver.
+  const handleApprovePlan = async (id: number, confirmDuplicates = false) => {
     try {
-      await api(`/api/treasury/payment-plans/${id}/approve`, { method: "POST" });
+      await api(`/api/treasury/payment-plans/${id}/approve`, {
+        method: "POST",
+        body: JSON.stringify({ confirmDuplicates }),
+      });
       onNotice?.("Payment plan approved successfully");
       fetchPlans();
     } catch (e: any) {
-      onNotice?.(e.message || "Failed to approve plan");
+      const msg: string = e.message || "Failed to approve plan";
+      if (!confirmDuplicates && msg.includes("tagihan ganda") && window.confirm(`${msg}\n\nSudah diperiksa dan tetap setujui?`)) {
+        return handleApprovePlan(id, true);
+      }
+      onNotice?.(msg);
     }
   };
+
+  const postAction = async (path: string, body: unknown, success: string) => {
+    try {
+      const res = await api<{ success: boolean; message?: string }>(path, { method: "POST", body: JSON.stringify(body) });
+      onNotice?.(res.message || success);
+      refreshAll();
+      return true;
+    } catch (e: any) {
+      onNotice?.(e.message || "Aksi gagal");
+      refreshAll();
+      return false;
+    }
+  };
+
+  const handleVoidPlan = (id: number, reason: string) =>
+    postAction(`/api/treasury/payment-plans/${id}/void`, { reason }, "Voucher di-void");
+  const handleReviewPlan = (id: number, note: string) =>
+    postAction(`/api/treasury/payment-plans/${id}/review`, { note }, "Review tersimpan");
+  const handlePostToAccurate = (id: number) =>
+    postAction(`/api/treasury/payment-plans/${id}/post-accurate`, {}, "Pembayaran diposting ke Accurate");
+  const handleManualMatch = (transactionId: number, planId: number, note: string) =>
+    postAction("/api/treasury/reconciliation/manual-match", { transactionId, planId, note }, "Mutasi dicocokkan");
+  const handleVerifyVendorBank = (id: number, approve: boolean) =>
+    postAction(`/api/treasury/vendors/${id}/verify-bank`, { approve }, "Verifikasi rekening tersimpan");
 
   // Reject Plan
   const handleRejectPlan = async (id: number, reason: string) => {
@@ -244,7 +341,11 @@ export function useTreasuryController(onNotice?: (msg: string) => void) {
         },
       });
 
-      if (!response.ok) throw new Error("Failed to download Kopra file");
+      if (!response.ok) {
+        const err = await response.json().catch(() => null);
+        throw new Error(err?.message || "Failed to download Kopra file");
+      }
+      const warning = response.headers.get("x-treasury-warning");
 
       const blob = await response.blob();
       const disposition = response.headers.get("content-disposition") || "";
@@ -261,10 +362,11 @@ export function useTreasuryController(onNotice?: (msg: string) => void) {
       a.remove();
       window.URL.revokeObjectURL(blobUrl);
 
-      onNotice?.("File Kopra Mandiri downloaded successfully");
+      onNotice?.(warning ? `File Kopra terunduh. Peringatan: ${warning}` : "File Kopra Mandiri downloaded successfully");
       fetchPlans();
     } catch (e: any) {
       onNotice?.(e.message || "Failed to export Kopra file");
+      fetchPlans();
     }
   };
 
@@ -317,14 +419,14 @@ export function useTreasuryController(onNotice?: (msg: string) => void) {
     }
   };
 
-  // Update Vendor Banking Info
+  // Update Vendor Banking Info (bank changes become pending until another user verifies them)
   const handleUpdateVendor = async (id: number, data: Partial<TreasuryVendor>) => {
     try {
-      await api(`/api/treasury/vendors/${id}`, {
+      const res = await api<{ success: boolean; message: string }>(`/api/treasury/vendors/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       });
-      onNotice?.("Vendor banking details updated");
+      onNotice?.(res.message || "Vendor banking details updated");
       fetchVendors();
     } catch (e: any) {
       onNotice?.(e.message || "Failed to update vendor");
@@ -405,6 +507,18 @@ export function useTreasuryController(onNotice?: (msg: string) => void) {
   };
 
   return {
+    user,
+    canWrite,
+    canApprove,
+    isMaker,
+    purchaseOrders,
+    syncState,
+    handleSyncAccurate,
+    handleVoidPlan,
+    handleReviewPlan,
+    handlePostToAccurate,
+    handleManualMatch,
+    handleVerifyVendorBank,
     activeTab,
     setActiveTab,
     invoices,
