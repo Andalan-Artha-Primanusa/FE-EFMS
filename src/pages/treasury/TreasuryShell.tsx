@@ -1,22 +1,9 @@
 import React, { useState } from "react";
-import {
-  ArrowLeftRight,
-  Building2,
-  Calendar,
-  CheckCircle2,
-  Coins,
-  FileSpreadsheet,
-  FileText,
-  Landmark,
-  Layers,
-  RefreshCw,
-  TrendingUp,
-} from "lucide-react";
+import { FileSpreadsheet, Landmark, RefreshCw } from "lucide-react";
 import { useTreasuryController } from "./useTreasuryController";
-import { ApAgingView } from "./views/ApAgingView";
+import type { TreasuryTab } from "../../data/navigation";
 import { PivotAgingPlanningView } from "./views/PivotAgingPlanningView";
 import { WeeklyPlanningExcelView } from "./views/WeeklyPlanningExcelView";
-import { FinanceVoucherView } from "./views/FinanceVoucherView";
 import { PaymentPlanView } from "./views/PaymentPlanView";
 import { KopraExportView } from "./views/KopraExportView";
 import { ReconciliationView } from "./views/ReconciliationView";
@@ -30,31 +17,23 @@ import { PrintableVendorSlipModal } from "./components/PrintableVendorSlipModal"
 
 export function TreasuryShell({
   viewTitle = "Treasury Management",
+  tab,
   onNotice,
   user,
 }: {
   viewTitle?: string;
+  tab: TreasuryTab;
   query?: string;
   onNotice?: (msg: string) => void;
   user?: any;
 }) {
-  const c = useTreasuryController(onNotice, user);
+  const c = useTreasuryController(onNotice, user, tab);
   const {
     activeTab,
     setActiveTab,
     selectedVendorForSlip,
     setSelectedVendorForSlip,
   } = c;
-
-  const tabs = [
-    { id: "pivot", label: "1. Pivot Hutang", icon: Layers },
-    { id: "planning", label: "2. Payment Plan", icon: Calendar },
-    { id: "voucher", label: "3. Payment Voucher", icon: FileText },
-    { id: "kopra", label: "4. Kopra Export", icon: FileSpreadsheet },
-    { id: "reconcile", label: "5. Rekonsiliasi Bank", icon: ArrowLeftRight },
-    { id: "rekap", label: "6. Rekap AAP", icon: CheckCircle2 },
-    { id: "vendors", label: "7. Master Vendor", icon: Building2 },
-  ] as const;
 
   const pendingBanks = c.vendors.filter((v) => v.pendingAccountNumber).length;
   const unmappedBanks = c.companyBanks.filter((b) => !b.accurateBankNo).length;
@@ -63,34 +42,18 @@ export function TreasuryShell({
 
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] max-w-[1600px] mx-auto p-2 gap-2 overflow-hidden">
-      {/* SOP Step Navigation Tabs & Refresh Button */}
+      {/* Toolbar — the SOP steps are sidebar sub-menus of Treasury Management */}
       <div className="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-2 overflow-x-auto shrink-0">
-        <div className="flex items-center gap-1 overflow-x-auto">
-          {tabs.map((t) => {
-            const Icon = t.icon;
-            const isActive = activeTab === t.id;
-
-            return (
-              <button
-                key={t.id}
-                onClick={() => setActiveTab(t.id as any)}
-                className={`inline-flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-lg transition whitespace-nowrap cursor-pointer ${
-                  isActive
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${isActive ? "text-white" : "text-slate-400"}`} />
-                {t.label}
-                {t.id === "vendors" && pendingBanks > 0 && (
-                  <span className="px-1.5 rounded-full bg-rose-500 text-white text-[10px]" title="Perubahan rekening menunggu verifikasi">
-                    {pendingBanks}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        {pendingBanks > 0 ? (
+          <button
+            onClick={() => setActiveTab("vendors")}
+            className="px-3 py-2 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg hover:bg-rose-100 transition cursor-pointer whitespace-nowrap"
+          >
+            {pendingBanks} perubahan rekening vendor menunggu verifikasi
+          </button>
+        ) : (
+          <span />
+        )}
 
         <div className="flex items-center gap-1.5 shrink-0 pr-1">
           <span
@@ -142,19 +105,18 @@ export function TreasuryShell({
         </div>
       </div>
 
-      {/* 3. Main Tab Content — Constrained inside viewport */}
+      {/* Main content — constrained inside viewport */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        {activeTab === "aging" && <ApAgingView c={c} />}
         {activeTab === "pivot" && <PivotAgingPlanningView c={c} />}
         {activeTab === "planning" && <WeeklyPlanningExcelView c={c} />}
-        {(activeTab === "voucher" || activeTab === "plans") && <PaymentPlanView c={c} />}
+        {activeTab === "voucher" && <PaymentPlanView c={c} />}
         {activeTab === "kopra" && <KopraExportView c={c} />}
         {activeTab === "reconcile" && <ReconciliationView c={c} />}
         {activeTab === "rekap" && <RekapAapView c={c} />}
         {activeTab === "vendors" && <MasterVendorView c={c} />}
       </div>
 
-      {/* 4. Global Modals */}
+      {/* Global modals */}
       <CreatePlanModal c={c} />
       <ImportAccurateModal c={c} />
       <ImportKopraCsvModal c={c} />

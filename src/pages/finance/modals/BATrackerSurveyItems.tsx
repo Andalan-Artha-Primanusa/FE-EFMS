@@ -1366,7 +1366,7 @@ export function BATrackerSurveyItems({
                   </td>
                   <td className="p-2 text-right font-mono font-black text-amber-950 text-xs border-r border-amber-200">
                     <div>Rp {posTotalCost.toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                    <span className="text-[9px] text-[#A57C50] font-sans font-bold block">Sinkron ke DP Fuel (Seksi E)</span>
+                    <span className="text-[9px] text-[#A57C50] font-sans font-bold block">Sinkron ke DP Fuel</span>
                   </td>
                   {isInlineEditingBA && <td className="p-2 bg-amber-100/90"></td>}
                 </tr>

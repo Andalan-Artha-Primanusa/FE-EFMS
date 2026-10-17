@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { treasuryTabs, viewPath, type TreasuryTab } from "../../data/navigation";
 import { api, API_BASE } from "../../lib/api";
 import { authorized } from "../../lib/auth";
 import type { User } from "../../types";
@@ -14,10 +16,13 @@ import type {
   SyncResult,
 } from "./types";
 
-export function useTreasuryController(onNotice?: (msg: string) => void, user?: User) {
-  const [activeTab, setActiveTab] = useState<
-    "aging" | "pivot" | "planning" | "plans" | "voucher" | "kopra" | "reconcile" | "rekap" | "vendors"
-  >("pivot");
+export function useTreasuryController(onNotice?: (msg: string) => void, user?: User, activeTab: TreasuryTab = "pivot") {
+  // Each step is its own sidebar sub-menu, so switching steps is navigation.
+  const navigate = useNavigate();
+  const setActiveTab = (tab: TreasuryTab) => {
+    const title = Object.keys(treasuryTabs).find((t) => treasuryTabs[t as keyof typeof treasuryTabs] === tab);
+    if (title) navigate(viewPath(title));
+  };
 
   // UI gating only; the backend enforces the same permissions and segregation of duties.
   const canWrite = authorized(user, "treasury", "write") || authorized(user, "payment", "write");

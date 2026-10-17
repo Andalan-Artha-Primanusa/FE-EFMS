@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { routes } from "./routes";
+import type { TreasuryTab } from "../data/navigation";
 
 function RouteLoading() {
   return (
@@ -171,11 +172,11 @@ export function CompanyRoute() {
   );
 }
 
-export function TreasuryManagementRoute() {
+export function TreasuryManagementRoute({ tab }: { tab: TreasuryTab }) {
   const { query, setNotice, user } = useOutletContext<any>();
   return (
     <Suspense fallback={<RouteLoading />}>
-      <TreasuryPage viewTitle="Treasury Management" query={query} onNotice={setNotice} user={user} />
+      <TreasuryPage viewTitle="Treasury Management" tab={tab} query={query} onNotice={setNotice} user={user} />
     </Suspense>
   );
 }

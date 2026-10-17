@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Building2, Trash2, Plus } from "lucide-react";
 import { formatIDR, FormattedNumberInput } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
-import { isDistanceItem, getBAEffectiveVolume, getBAItemSubtotal, isOBMaterial, invoiceTaxes } from "../ba_calculations";
+import { isDistanceItem, isDistanceParent, isLandClearingItem, getBAEffectiveVolume, getBAItemSubtotal, isOBMaterial, invoiceTaxes } from "../ba_calculations";
 
 interface BAPOSMDOTableProps {
   formData: any;
@@ -43,9 +43,10 @@ export function BAPOSMDOTable({
     return Number(it.rate || 0);
   };
 
-  // Group into Production and Over Distance
-  const prodItems = baMDOItems.filter((it) => !isDistanceItem(it));
+  // Group into Production, Over Distance and Land Clearing
+  const prodItems = baMDOItems.filter((it) => !isDistanceItem(it) && !isLandClearingItem(it));
   const distItems = baMDOItems.filter((it) => isDistanceItem(it));
+  const lcItems = baMDOItems.filter((it) => isLandClearingItem(it));
 
   const subtotalA = prodItems.reduce((acc, it) => {
     const vol = Number(it.initialVolume || 0);
@@ -62,7 +63,9 @@ export function BAPOSMDOTable({
     return acc + Math.round((effVol * r * deltaDist) / 1000);
   }, 0);
 
-  // Auto-calculated Section C (Raise & Fall's Factor) rows for MDO
+  const subtotalC = lcItems.reduce((acc, it) => acc + Number(it.initialVolume || 0) * getDynamicMDOItemBaseIDR(it, false), 0);
+
+  // Auto-calculated Section D (Raise & Fall's Factor) rows for MDO
   const rfRows = useMemo(() => {
     const rows: any[] = [];
     let counter = 1;
@@ -78,7 +81,7 @@ export function BAPOSMDOTable({
 
       rows.push({
         id: `rf_mdo_prod_${it.id}`,
-        code: `C${counter++}.`,
+        code: `D${counter++}.`,
         area: it.area || "Site POS",
         name: it.material,
         unit: it.unit || "Bcm",
@@ -90,36 +93,8 @@ export function BAPOSMDOTable({
         subtotal,
       });
 
-      // Match overhaul item
-      const mLow = (it.material || "").toLowerCase();
-      const itArea = (it.area || "").trim().toLowerCase();
-
-      const matchedDist = distItems.find((d) => {
-        if (usedDist.has(d.id)) return false;
-        const dArea = (d.area || "").trim().toLowerCase();
-        if (itArea && dArea && itArea !== dArea) {
-          return false;
-        }
-
-        const dLow = (d.material || "").toLowerCase();
-        const pLow = (d.parentMaterial || "").toLowerCase();
-
-        if (pLow && pLow === mLow) return true;
-
-        if (mLow.includes("topsoil") || mLow.includes("top soil")) {
-          return dLow.includes("topsoil") || dLow.includes("top soil");
-        }
-        if (mLow.includes("saprolite") || mLow.includes("saprolit")) {
-          return dLow.includes("saprolite") || dLow.includes("saprolit");
-        }
-        if (mLow.includes("uncrushed") || mLow.includes("rock") || mLow.includes("crush") || mLow.includes("boulder")) {
-          return dLow.includes("uncrushed") || dLow.includes("rock") || dLow.includes("crush") || dLow.includes("boulder");
-        }
-        if (mLow.includes("fill") || mLow.includes("cut")) {
-          return dLow.includes("fill") || dLow.includes("cut");
-        }
-        return false;
-      });
+      // Match overhaul item (matcher yang sama dengan sumber volume Seksi B)
+      const matchedDist = distItems.find((d) => !usedDist.has(d.id) && isDistanceParent(d, it));
 
       if (matchedDist) {
         usedDist.add(matchedDist.id);
@@ -134,7 +109,7 @@ export function BAPOSMDOTable({
 
         rows.push({
           id: `rf_mdo_dist_${matchedDist.id}`,
-          code: `C${counter++}.`,
+          code: `D${counter++}.`,
           area: matchedDist.area || it.area || "Site POS",
           name: `Over/Underhaul For ${it.material}`,
           unit: matchedDist.unit || "Bcm",
@@ -148,13 +123,31 @@ export function BAPOSMDOTable({
       }
     });
 
-    return rows;
-  }, [prodItems, distItems, allBAItems, baMDOItems, rfFactor, mRate, formData?.posData?.mRate]);
+    lcItems.forEach((it) => {
+      const vol = Number(it.initialVolume || 0);
+      const rfRate = rfFactor * getDynamicMDOItemBaseIDR(it, false);
+      rows.push({
+        id: `rf_mdo_lc_${it.id}`,
+        code: `D${counter++}.`,
+        area: it.area || "Site POS",
+        name: it.material,
+        unit: it.unit || "Ha",
+        volume: vol,
+        distance: null,
+        deltaDist: null,
+        rawRfRate: rfRate,
+        rfRate,
+        subtotal: vol * rfRate,
+      });
+    });
 
-  const subtotalC = rfRows.reduce((acc, r) => acc + r.subtotal, 0);
+    return rows;
+  }, [prodItems, distItems, lcItems, allBAItems, baMDOItems, rfFactor, mRate, formData?.posData?.mRate]);
+
+  const subtotalD = rfRows.reduce((acc, r) => acc + r.subtotal, 0);
 
   // Kategori 2 Rekapitulasi Pajak
-  const totalGrossMDO = subtotalA + subtotalB + subtotalC;
+  const totalGrossMDO = subtotalA + subtotalB + subtotalC + subtotalD;
   const { dpp11_12: dppMDO, vat12: vatMDO, pph23: whtMDO, total: netTotalInvoiceMDO } = invoiceTaxes(totalGrossMDO);
 
   const renderMDORow = (item: any, idx: number) => {
@@ -371,7 +364,7 @@ export function BAPOSMDOTable({
       <div className="flex items-center justify-between">
         <span className="text-xs font-black uppercase text-[#1A1612] flex items-center gap-1.5">
           <Building2 size={14} className="text-[#A57C50]" />
-          Kategori 2: Mine Development Operation (MDO) (Seksi A s.d. C & Total Invoice)
+          Kategori 2: Mine Development Operation (MDO)
         </span>
         {isInlineEditingBA && (
           <button
@@ -440,14 +433,30 @@ export function BAPOSMDOTable({
             </tr>
             {distItems.map((item, idx) => renderMDORow(item, idx))}
 
-            {/* SEKSI C: RAISE & FALL'S FACTOR (READ-ONLY AUTO COMPUTED) */}
+            {/* SEKSI C: LAND CLEARING / CLEAR & GRUB */}
+            {lcItems.length > 0 && (
+              <>
+                <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
+                  {isInlineEditingBA && <td className="p-2 text-center text-slate-400">#</td>}
+                  <td colSpan={6} className="p-2 uppercase font-extrabold tracking-wider">
+                    C. LAND CLEARING
+                  </td>
+                  <td className="p-2 text-right font-mono text-slate-900 font-extrabold">
+                    {formatIDR(subtotalC)}
+                  </td>
+                </tr>
+                {lcItems.map((item, idx) => renderMDORow(item, idx))}
+              </>
+            )}
+
+            {/* SEKSI D: RAISE & FALL'S FACTOR (READ-ONLY AUTO COMPUTED) */}
             <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
               {isInlineEditingBA && <td className="p-2 text-center text-slate-400">#</td>}
               <td colSpan={6} className="p-2 uppercase font-extrabold tracking-wider">
-                C. RAISE & FALL'S FACTOR (RF: {effectiveRF.toFixed(3)}x)
+                D. RAISE & FALL'S FACTOR (RF: {effectiveRF.toFixed(3)}x)
               </td>
               <td className="p-2 text-right font-mono text-slate-900 font-extrabold">
-                {formatIDR(subtotalC)}
+                {formatIDR(subtotalD)}
               </td>
             </tr>
             {rfRows.map((item, i) => (
@@ -459,7 +468,7 @@ export function BAPOSMDOTable({
                     <span className="font-bold text-slate-900">{item.name}</span>
                     {item.deltaDist !== null && (
                       <span className="text-[10px] text-slate-500 font-mono ml-2">
-                        ({item.deltaDist < 0 ? `(${Math.abs(item.deltaDist)}m)` : `+${item.deltaDist}m`})
+                        {item.deltaDist < 0 ? `(${Math.abs(item.deltaDist)}m)` : `+${item.deltaDist}m`}
                       </span>
                     )}
                   </div>
@@ -496,7 +505,7 @@ export function BAPOSMDOTable({
           <tbody>
             <tr className="border-b border-slate-200 hover:bg-slate-100/60 font-bold">
               <td className="p-2 text-slate-800 uppercase tracking-wider pl-3">
-                TOTAL (SEKSI A + B + C)
+                TOTAL
               </td>
               <td className="p-2 text-right font-extrabold text-slate-950 w-48 sm:w-56 pr-3">
                 {formatIDR(totalGrossMDO)}

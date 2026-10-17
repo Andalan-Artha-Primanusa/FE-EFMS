@@ -442,7 +442,7 @@ export function BAOperatingTable({
         <span className="text-xs font-black uppercase text-[#1A1612] flex items-center gap-1.5">
           <Pickaxe size={14} className="text-[#A57C50]" />
           {isCustomerBGG
-            ? "Rincian Tagihan Berita Acara (Seksi A s.d. F)"
+            ? "Rincian Tagihan Berita Acara"
             : isCustomerSBS
             ? "Kategori 1: Operating & Mining (OB Removal)"
             : "Kategori 1: Operating & Mining"}
