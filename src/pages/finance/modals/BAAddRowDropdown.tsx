@@ -555,7 +555,7 @@ export function BAAddRowDropdown({
                 <div>
                   <div className="font-bold text-slate-900">DP Fuel &amp; Transport (Solar)</div>
                   <div className="text-[10px] text-slate-500 font-normal">
-                    Uang Muka BBM Solar POS (Seksi E, Pengurang)
+                    Uang Muka BBM Solar POS
                   </div>
                 </div>
               </button>

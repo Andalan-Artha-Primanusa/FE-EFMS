@@ -55,8 +55,8 @@ export function AccurateBankMapModal({ c, isOpen, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-[4px] shadow-2xl border border-stone-200 w-full max-w-2xl overflow-hidden">
-        <div className="bg-[#1A1612] text-white p-4 flex items-center justify-between border-b border-amber-900/30">
+      <div className="bg-white rounded-[4px] shadow-2xl border border-stone-200 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="shrink-0 bg-[#1A1612] text-white p-4 flex items-center justify-between border-b border-amber-900/30">
           <div className="flex items-center gap-2">
             <Landmark className="w-5 h-5 text-[#A57C50]" />
             <div>
@@ -71,7 +71,7 @@ export function AccurateBankMapModal({ c, isOpen, onClose }: Props) {
           </button>
         </div>
 
-        <div className="p-4 space-y-3 text-xs">
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 text-xs">
           {loading && (
             <div className="flex items-center gap-2 text-stone-500">
               <Loader2 className="w-4 h-4 animate-spin" /> Memuat akun Kas/Bank dari Accurate…
@@ -81,7 +81,7 @@ export function AccurateBankMapModal({ c, isOpen, onClose }: Props) {
 
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-stone-100 text-stone-600 font-semibold uppercase text-[10px]">
+              <tr className="sticky top-0 z-10 bg-stone-100 text-stone-600 font-semibold uppercase text-[10px]">
                 <th className="p-2">Rekening Sumber (FEAST)</th>
                 <th className="p-2">Akun Kas/Bank Accurate</th>
                 <th className="p-2 w-20"></th>

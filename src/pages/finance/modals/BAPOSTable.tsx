@@ -3,7 +3,7 @@ import { Pickaxe, Trash2, GripVertical, ChevronUp, ChevronDown } from "lucide-re
 import { formatIDR, FormattedNumberInput } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { BAAddRowDropdown } from "./BAAddRowDropdown";
-import { isOBMaterial, invoiceTaxes } from "../ba_calculations";
+import { isDistanceParent, isLandClearingItem, invoiceTaxes } from "../ba_calculations";
 
 interface BAPOSTableProps {
   formData: any;
@@ -108,12 +108,10 @@ export function BAPOSTable({
 
   // Group items by POS Excel AUG OP structure
   const prodItems = baOperatingItems.filter(
-    (it) => !isDistanceItem(it) && !(it.material || "").toLowerCase().includes("clearing") && !isDPFuelItem(it)
+    (it) => !isDistanceItem(it) && !isLandClearingItem(it) && !isDPFuelItem(it)
   );
   const distItems = baOperatingItems.filter((it) => isDistanceItem(it) && !isDPFuelItem(it));
-  const lcItems = baOperatingItems.filter(
-    (it) => !isDistanceItem(it) && (it.material || "").toLowerCase().includes("clearing") && !isDPFuelItem(it)
-  );
+  const lcItems = baOperatingItems.filter((it) => isLandClearingItem(it) && !isDPFuelItem(it));
   const dpFuelItems = baOperatingItems.filter((it) => isDPFuelItem(it));
 
   const getDynamicItemBaseIDR = (it: any, isDistance: boolean = false) => {
@@ -180,31 +178,7 @@ export function BAPOSTable({
       });
 
       // Matching overhaul item for this specific production item (match by area + material)
-      const mLow = (it.material || "").toLowerCase();
-      const itArea = (it.area || "").trim().toLowerCase();
-
-      const matchedDist = distItems.find((d) => {
-        if (usedDist.has(d.id)) return false;
-        const dArea = (d.area || "").trim().toLowerCase();
-        if (itArea && dArea && itArea !== dArea) {
-          return false;
-        }
-
-        const dLow = (d.material || "").toLowerCase();
-        const pLow = (d.parentMaterial || "").toLowerCase();
-
-        if (pLow && pLow === mLow) return true;
-
-        if (isOBMaterial(mLow) || mLow.includes("waste") || mLow.includes("overburden")) {
-          return isOBMaterial(dLow) || dLow.includes("waste") || dLow.includes("overburden");
-        }
-        if (mLow.includes("topsoil") || mLow.includes("top soil")) {
-          return dLow.includes("topsoil") || dLow.includes("top soil");
-        }
-        if (mLow.includes("limonite")) return dLow.includes("limonite");
-        if (mLow.includes("saprolite")) return dLow.includes("saprolite");
-        return false;
-      });
+      const matchedDist = distItems.find((d) => !usedDist.has(d.id) && isDistanceParent(d, it));
 
       if (matchedDist) {
         usedDist.add(matchedDist.id);
@@ -531,7 +505,7 @@ export function BAPOSTable({
       <div className="flex items-center justify-between">
         <span className="text-xs font-black uppercase text-[#1A1612] flex items-center gap-1.5">
           <Pickaxe size={14} className="text-[#A57C50]" />
-          Kategori 1: Operating & Mining (Seksi A s.d. E & Total Invoice)
+          Kategori 1: Operating & Mining
         </span>
         <div className="flex items-center gap-2">
           {isInlineEditingBA && (
@@ -688,7 +662,7 @@ export function BAPOSTable({
           <tbody>
             <tr className="border-b border-slate-200 hover:bg-slate-100/60 font-bold">
               <td className="p-2 text-slate-800 uppercase tracking-wider pl-3">
-                TOTAL GROSS (SEKSI A + B + C + D)
+                TOTAL GROSS
               </td>
               <td className="p-2 text-right font-extrabold text-slate-950 w-48 sm:w-56 pr-3">
                 {formatIDR(totalGrossOpBeforeDP)}
@@ -697,7 +671,7 @@ export function BAPOSTable({
             {subtotalDP > 0 && (
               <tr className="border-b border-slate-200 hover:bg-slate-100/60 font-bold text-rose-700">
                 <td className="p-2 uppercase tracking-wider pl-3 flex items-center justify-between">
-                  <span>POTONGAN DP FUEL &amp; TRANSPORT (SEKSI E)</span>
+                  <span>POTONGAN DP FUEL &amp; TRANSPORT</span>
                 </td>
                 <td className="p-2 text-right font-extrabold text-rose-700 w-48 sm:w-56 pr-3">
                   ({formatIDR(subtotalDP)})
@@ -706,7 +680,7 @@ export function BAPOSTable({
             )}
             <tr className="border-b border-slate-200 hover:bg-slate-100/60 font-bold bg-amber-50/40">
               <td className="p-2 text-slate-900 uppercase tracking-wider pl-3">
-                TOTAL NETTO (SEKSI A + B + C + D - E)
+                TOTAL NETTO
               </td>
               <td className="p-2 text-right font-extrabold text-slate-950 w-48 sm:w-56 pr-3">
                 {formatIDR(totalGrossOp)}

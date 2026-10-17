@@ -27,10 +27,35 @@ export function isDistanceItem(item: any): boolean {
   );
 }
 
+/** Land Clearing / Clear & Grub: seksi tersendiri di BA POS, bukan bagian Production. */
+export const isLandClearingItem = (item: any): boolean =>
+  !isDistanceItem(item) && (item?.category === "Land Clearing" || /clearing|grub/i.test(item?.material || ""));
+
 /** Basis jarak kontrak: dari item BA, lalu Master Variable SOW customer. 0 = belum diatur di master. */
 export function getBaseDistance(item: any, customerCode?: string): number {
   if (Number(item?.distanceBasis) > 0) return Number(item.distanceBasis);
   return baseDistanceFor(customerCode || item?.customerCode || item?.customer, item?.material || item?.description || item?.sowDescription);
+}
+
+/** Apakah baris produksi `p` adalah induk dari baris over/underhaul `dist` (area sama + material sepadan). */
+export function isDistanceParent(dist: any, p: any): boolean {
+  const normArea = (a?: string) => (a || "").replace(/\s+/g, "").toLowerCase();
+  const dArea = normArea(dist.area), pArea = normArea(p.area);
+  if (dArea && pArea && dArea !== pArea) return false;
+  const mLow = (dist.material || "").toLowerCase();
+  const pLow = (p.material || p.name || "").toLowerCase();
+  if (dist.parentMaterial) {
+    const pmLow = dist.parentMaterial.toLowerCase().trim();
+    const pMatLow = pLow.trim();
+    if (pMatLow === pmLow || pMatLow.includes(pmLow) || pmLow.includes(pMatLow)) return true;
+  }
+  if (mLow.includes("top soil") || mLow.includes("topsoil")) return pLow.includes("top soil") || pLow.includes("topsoil");
+  if (mLow.includes("limonite")) return pLow.includes("limonite");
+  if (mLow.includes("saprolite") || mLow.includes("saprolit")) return pLow.includes("saprolite") || pLow.includes("saprolit");
+  if (mLow.includes("uncrushed") || mLow.includes("rock") || mLow.includes("crush") || mLow.includes("boulder")) return pLow.includes("uncrushed") || pLow.includes("rock") || pLow.includes("crush") || pLow.includes("boulder");
+  if (mLow.includes("fill") || mLow.includes("cut")) return pLow.includes("fill") || pLow.includes("cut");
+  if (isOBMaterial(mLow)) return isOBMaterial(pLow);
+  return false;
 }
 
 export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boolean = false): number {
@@ -105,22 +130,7 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
     });
     const searchPool = domainItems.length > 0 ? domainItems : allItems.filter((p) => p.id !== item.id && !isDistanceItem(p));
 
-    const parent = searchPool.find((p) => {
-      if (!sameArea(p)) return false;
-      if (item.parentMaterial) {
-        const pmLow = item.parentMaterial.toLowerCase().trim();
-        const pMatLow = (p.material || p.name || "").toLowerCase().trim();
-        if (pMatLow === pmLow || pMatLow.includes(pmLow) || pmLow.includes(pMatLow)) return true;
-      }
-      const pLow = (p.material || p.name || "").toLowerCase();
-      if (mLow.includes("top soil") || mLow.includes("topsoil")) return pLow.includes("top soil") || pLow.includes("topsoil");
-      if (mLow.includes("limonite")) return pLow.includes("limonite");
-      if (mLow.includes("saprolite") || mLow.includes("saprolit")) return pLow.includes("saprolite") || pLow.includes("saprolit");
-      if (mLow.includes("uncrushed") || mLow.includes("rock") || mLow.includes("crush") || mLow.includes("boulder")) return pLow.includes("uncrushed") || pLow.includes("rock") || pLow.includes("crush") || pLow.includes("boulder");
-      if (mLow.includes("fill") || mLow.includes("cut")) return pLow.includes("fill") || pLow.includes("cut");
-      if (isOBMaterial(mLow)) return isOBMaterial(pLow);
-      return false;
-    });
+    const parent = searchPool.find((p) => isDistanceParent(item, p));
     if (parent) {
       return isSurvey
         ? (Number(parent.adjustedVolume || 0) > 0 ? Number(parent.adjustedVolume) : Number(parent.initialVolume || 0))

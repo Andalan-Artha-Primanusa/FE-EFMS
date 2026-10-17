@@ -8,6 +8,7 @@ import {
   LockKeyhole,
   RefreshCw,
   ShieldCheck,
+  Coins,
   WalletCards
 } from "lucide-react";
 
@@ -16,7 +17,8 @@ export const menu = [
   { group: "Master Data", icon: Building2, items: ["Chart of Accounts", "Company", "Site", "Department", "Cost Center", "Project", "Vendor", "Client Setup", "Employee", "Bank", "Tax", "Currency", "Coal Index", "Variable SOW", "RAISE & FALL"] },
   { group: "Budget Management", icon: WalletCards, items: ["Annual Budget", "Monthly Budget", "Budget Submission", "Budget Approval", "Budget Revision", "Budget Transfer", "Budget versus Actual"] },
   { group: "Transaction Request", icon: ClipboardCheck, items: ["Purchase Request", "Expense Request", "Cash Advance", "Reimbursement", "Payment Request"] },
-  { group: "Finance", icon: Landmark, items: ["Finance & AR Dashboard", "Berita Acara (BA) Tracker", "Invoice Management", "Payment & Receipt Log", "Tunai PO Tracking", "Treasury Management", "FEASTKOP"] },
+  { group: "Finance", icon: Landmark, items: ["Finance & AR Dashboard", "Berita Acara (BA) Tracker", "Invoice Management", "Payment & Receipt Log", "Tunai PO Tracking", "FEASTKOP"] },
+  { group: "Treasury Management", icon: Coins, items: ["Pivot Hutang", "Payment Plan", "Payment Voucher", "Kopra Export", "Rekonsiliasi Bank", "Rekap AAP", "Master Vendor"] },
   { group: "Accounting", icon: FileSpreadsheet, items: ["Journal Entry", "Journal Approval", "Journal Posting", "General Ledger", "Trial Balance", "Closing Period"] },
   { group: "Reconciliation", icon: RefreshCw, items: ["Bank Reconciliation", "Vendor Reconciliation", "Customer Reconciliation", "Tax Reconciliation", "Intercompany Reconciliation"] },
   { group: "Period Closing", icon: LockKeyhole, items: ["Accrual and Adjustment Journal", "Depreciation Posting", "Review Trial Balance", "Financial Review and Approval", "Close Period Lock"] },
@@ -29,6 +31,18 @@ export const menu = [
 export const ledgerInAccurateItems = new Set(
   menu.filter((g) => g.group === "Accounting" || g.group === "Period Closing").flatMap((g) => g.items)
 );
+
+// Treasury sub-menus are steps of one page; access follows the "Treasury Management" grant.
+export const treasuryTabs = {
+  "Pivot Hutang": "pivot",
+  "Payment Plan": "planning",
+  "Payment Voucher": "voucher",
+  "Kopra Export": "kopra",
+  "Rekonsiliasi Bank": "reconcile",
+  "Rekap AAP": "rekap",
+  "Master Vendor": "vendors",
+} as const;
+export type TreasuryTab = (typeof treasuryTabs)[keyof typeof treasuryTabs];
 
 export type ViewConfig = {
   title: string;
@@ -124,6 +138,7 @@ export const viewMap: Record<string, ViewConfig> = {
   "Payment & Receipt Log": { title: "Payment & Receipt Log", endpoint: "/api/finance/payments", importType: "operational_transactions" },
   "Tunai PO Tracking": { title: "Tunai PO Tracking", endpoint: "/api/finance/tunai-po" },
   "Treasury Management": { title: "Treasury Management", endpoint: "/api/treasury/invoices" },
+  ...Object.fromEntries(Object.keys(treasuryTabs).map((t) => [t, { title: t, endpoint: "/api/treasury/invoices" }])),
   "FEASTKOP": { title: "FEASTKOP", endpoint: "/kopra" },
   "Customer & Credit Terms": { title: "Customer & Credit Terms", endpoint: "/api/finance/customers", importType: "master_records" },
   "Purchase to Pay AP": { title: "Purchase to Pay AP", endpoint: "/api/operational-transactions?flow=purchase_to_pay_ap", importType: "operational_transactions" },
@@ -228,6 +243,7 @@ export const menuPermissionMap: Record<string, string[]> = {
   "Project Profitability Report": ["financial_report:read"],
   "Management Reports": ["management_dashboard:read"],
   "Treasury Management": ["treasury:read", "payment:read"],
+  ...Object.fromEntries(Object.keys(treasuryTabs).map((t) => [t, ["treasury:read", "payment:read"]])),
   "FEASTKOP": ["payment:read"],
   "Customer & Credit Terms": ["master_data:read"],
   "Approval Center": ["approval:act"],
