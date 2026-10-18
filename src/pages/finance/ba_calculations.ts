@@ -4,9 +4,9 @@
 // Authoritative calculation helpers for Berita Acara (BA) Tracker
 // =============================================================
 
-import { matchPeriod } from "./helpers";
+import { matchPeriod, parsePeriodToMonthIndex } from "./helpers";
 
-import { customerKind, customerByCode, baseDistanceFor, rfMasterFor, rfTemplateFor, computeRFIndex, forexRatio, minWageFor, kursForPeriod, masterRegistry, obSplitSOWs, odDiscountPctFor } from "./masterRegistry";
+import { customerKind, customerByCode, baseDistanceFor, rfMasterFor, rfTemplateFor, computeRFIndex, forexRatio, minWageFor, kursForPeriod, masterRegistry, obSplitSOWs, odDiscountPctFor, bggTierRate } from "./masterRegistry";
 
 export { customerKind };
 
@@ -61,6 +61,28 @@ export function isDistanceParent(dist: any, p: any): boolean {
   return false;
 }
 
+const materialFamily = (it: any): string => {
+  const m = (it?.material || "").toLowerCase();
+  return m.includes("coal") || m.includes("batubara") ? "coal" : isOBMaterial(m) ? "ob" : "";
+};
+
+/**
+ * Pending volume (Excel "GAB ... DAN PENDING"): baris jarak periode lain yang periodenya tidak punya baris produksi.
+ * Volumenya sudah termasuk di baris produksi sejenis periode `row` (sama dengan BE pendingDistanceRows).
+ */
+export function pendingDistanceRows(row: any, allItems: any[]): any[] {
+  const fam = materialFamily(row);
+  const period = (row?.period || "").trim();
+  if (!fam || !period) return [];
+  const normArea = (a?: string) => (a || "").replace(/\s+/g, "").toLowerCase();
+  const hasProd = (p: string) => allItems.some((it) => !isDistanceItem(it) && materialFamily(it) === fam && (it.period || "").trim() && matchPeriod(it.period, p));
+  return allItems.filter((d) => {
+    const dp = (d.period || "").trim();
+    if (!isDistanceItem(d) || materialFamily(d) !== fam || !dp || matchPeriod(dp, period) || hasProd(dp)) return false;
+    return !normArea(d.area) || !normArea(row.area) || normArea(d.area) === normArea(row.area);
+  });
+}
+
 /** Hapus baris BA; baris produksi ikut menghapus over/underhaul pasangannya yang tidak punya induk lain. */
 export function removeBAItem(items: any[], item: any): any[] {
   const rest = items.filter((it) => it !== item && (item.id == null || it.id !== item.id));
@@ -70,6 +92,9 @@ export function removeBAItem(items: any[], item: any): any[] {
 }
 
 export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boolean = false): number {
+  const own = (it: any) => isSurvey
+    ? (Number(it.adjustedVolume || 0) > 0 ? Number(it.adjustedVolume) : Number(it.initialVolume || 0))
+    : Number(it.initialVolume || 0);
   if (isDistanceItem(item)) {
     if (Number(item.initialVolume || 0) > 0) {
       return isSurvey
@@ -82,6 +107,8 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
     const normArea = (a?: string) => (a || "").replace(/\s+/g, "").toLowerCase();
     const itemArea = normArea(item.area);
     const sameArea = (p: any) => { const pArea = normArea(p.area); return !itemArea || !pArea || itemArea === pArea; };
+    // Volume produksi sudah memuat pending volume periode lain yang ditagih di baris jaraknya sendiri.
+    const pendingVol = pendingDistanceRows(item, allItems).reduce((acc, d) => acc + own(d), 0);
 
     if (isOBMaterial(mLow)) {
       const isMDO = (item.category || "").toLowerCase().includes("mdo") || mLow.includes("mdo");
@@ -100,12 +127,7 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
         return true;
       });
       if (obParents.length > 0) {
-        return obParents.reduce((acc, p) => {
-          const pVol = isSurvey
-            ? (Number(p.adjustedVolume || 0) > 0 ? Number(p.adjustedVolume) : Number(p.initialVolume || 0))
-            : Number(p.initialVolume || 0);
-          return acc + pVol;
-        }, 0);
+        return Math.max(0, obParents.reduce((acc, p) => acc + own(p), 0) - pendingVol);
       }
     }
 
@@ -122,12 +144,7 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
         return true;
       });
       if (coalParents.length > 0) {
-        return coalParents.reduce((acc, p) => {
-          const pVol = isSurvey
-            ? (Number(p.adjustedVolume || 0) > 0 ? Number(p.adjustedVolume) : Number(p.initialVolume || 0))
-            : Number(p.initialVolume || 0);
-          return acc + pVol;
-        }, 0);
+        return Math.max(0, coalParents.reduce((acc, p) => acc + own(p), 0) - pendingVol);
       }
     }
 
@@ -153,9 +170,6 @@ export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boole
       : Number(item.initialVolume || 0);
     if (selfVol > 0) return selfVol;
   }
-  const own = (it: any) => isSurvey
-    ? (Number(it.adjustedVolume || 0) > 0 ? Number(it.adjustedVolume) : Number(it.initialVolume || 0))
-    : Number(it.initialVolume || 0);
   return obSplitVolume(item, allItems || [], own) ?? own(item);
 }
 
@@ -480,15 +494,24 @@ export function generateBAGLJournalPreview(
 export interface BGGComputedLineItem {
   id: string;
   section: "D" | "E";
+  /** Sub-seksi Excel (mis. "D1. OB Removal"); baris berurutan per grup. */
+  group?: string;
   description: string;
-  notes?: string;
   period?: string;
+  rfIndex?: number;
   unit: string;
   volume: number;
   rate: number;
   subtotal: number;
 }
 
+const BGG_D_GROUPS = ["D1. OB Removal", "D2. Over Distance For OB Removal", "D3. Coal Winning", "D4. Over Distance For Coal Winning"];
+
+/**
+ * Seksi D & E BGG seperti Excel invoice (sama dengan BE RecalculateBA):
+ * D1 OB per material lalu periode, D2 OD OB, D3 Coal, D4 OD Coal; tiap baris memakai RF & tarif tier periodenya.
+ * Pending volume yang termasuk di baris produksi dipecah ke periode asalnya.
+ */
 export function getBGGComputedInvoiceLines(
   allItems: any[],
   rfIndexCalculated: number = 1.0,
@@ -500,126 +523,96 @@ export function getBGGComputedInvoiceLines(
   subtotalD: number;
   subtotalE: number;
 } {
+  const items = allItems || [];
   const effectiveRF = rfIndexCalculated > 0 ? Number(rfIndexCalculated.toFixed(3)) : 1.0;
-  const sectionDItems: BGGComputedLineItem[] = [];
-  const sectionEItems: BGGComputedLineItem[] = [];
+  const own = (it: any) => isSurvey
+    ? (Number(it.adjustedVolume || 0) > 0 ? Number(it.adjustedVolume) : Number(it.initialVolume || 0))
+    : Number(it.initialVolume || 0);
+  const rfOf = (period: string) => Number(getBGGRFIndexForPeriod(period, effectiveRF, fuelPeriods).toFixed(3));
+  const materialOrder = (m: string) => items.findIndex((it) => it.material === m);
+  const splitSOWs = obSplitSOWs("BGG");
 
-  // Section E per jenis & % diskon periode asal baris (pending volume memakai % periode asalnya, sama dengan BE).
-  const discGroups = new Map<string, { kind: string; pct: number; disc: number; periods: Set<string> }>();
-  const addDisc = (kind: string, period: string, amount: number) => {
-    const pct = odDiscountPctFor("BGG", period);
-    const key = `${kind}|${pct}`;
-    const g = discGroups.get(key) || { kind, pct, disc: 0, periods: new Set<string>() };
-    g.disc += amount * pct / 100;
-    if (period) g.periods.add(period);
-    discGroups.set(key, g);
+  const lines = new Map<string, BGGComputedLineItem & { order: number[] }>();
+  const addLine = (group: number, material: string, period: string, unit: string, volume: number, rate: number, key: string) => {
+    if (!volume) return;
+    const rf = rfOf(period);
+    const prev = lines.get(key);
+    const vol = (prev?.volume || 0) + volume;
+    const escRate = rate * Number((rf - 1).toFixed(3));
+    lines.set(key, {
+      id: `rf-${key}`, section: "D", group: BGG_D_GROUPS[group], description: material, period: period || undefined, rfIndex: rf,
+      unit, volume: vol, rate: escRate, subtotal: Math.round(vol * escRate),
+      order: [group, materialOrder(material), parsePeriodToMonthIndex(period)],
+    });
   };
 
-  for (const item of allItems || []) {
-    const isDist = isDistanceItem(item);
-    const mLow = (item.material || item.sowDescription || "").toLowerCase();
-    const isOB = isOBMaterial(mLow);
-    const isCoal = mLow.includes("coal") || mLow.includes("batubara");
-    const effVol = getBAEffectiveVolume(item, allItems, isSurvey);
-    const r = Number(item.rate || 0);
-    const itemPeriod = (item.period || item.notes || "").trim();
-    const itemRF = Number(getBGGRFIndexForPeriod(itemPeriod, effectiveRF, fuelPeriods).toFixed(3));
-    // Indeks sudah dibatasi sesuai AllowFall Master RF; delta negatif = Fall.
-    const rfDelta = Number((itemRF - 1.0).toFixed(3));
+  // Section E per jenis & % jadwal diskon Master Customer periode asal (pending volume memakai % periodenya, sama dengan BE).
+  const disc = new Map<string, Map<number, { amt: number; periods: string[] }>>();
+  const addDisc = (code: string, period: string, amount: number) => {
+    const pct = odDiscountPctFor("BGG", period);
+    const byPct = disc.get(code) || new Map();
+    const g = byPct.get(pct) || { amt: 0, periods: [] };
+    g.amt += amount;
+    if (period && !g.periods.includes(period)) g.periods.push(period);
+    disc.set(code, byPct.set(pct, g));
+  };
 
-    if (item.category === "DP Fuel" || item.isDeduction || mLow.includes("dp fuel")) {
+  for (const it of items) {
+    const mLow = (it.material || "").toLowerCase();
+    if (it.category === "DP Fuel" || it.isDeduction || mLow.includes("dp fuel")) continue;
+    const isCoal = materialFamily(it) === "coal";
+    const period = (it.period || "").trim();
+    const r = Number(it.rate || 0);
+    const effVol = getBAEffectiveVolume(it, items, isSurvey);
+    const unit = it.unit || (isCoal ? "Ton" : "Bcm");
+
+    if (isDistanceItem(it)) {
+      addDisc(isCoal ? "E.2" : "E.1", period, getBAItemSubtotal(it, effVol, false, "BGG"));
+      addLine(isCoal ? 3 : 1, it.material, period, unit, effVol, r * getDistanceFactor(it, "BGG"), `od-${it.id || it.material}-${period}`);
       continue;
     }
-
-    if (isDist) {
-      const baseDist = getBaseDistance(item, "BGG");
-      const dist = getItemDistanceM(item, baseDist);
-      const diffMtr = baseDist > 0 ? Math.max(0, dist - baseDist) : 0;
-      const grossSub = getBAItemSubtotal(item, effVol, false, "BGG");
-
-      // Section D for Over Distance using item-level RF Index
-      const escalatedRate = (r * rfDelta) * (diffMtr / 100);
-      const escalatedSub = Math.round(effVol * escalatedRate);
-
-      if (isOB) {
-        addDisc("od-ob", itemPeriod, grossSub);
-        addDisc("rf-od-ob", itemPeriod, escalatedSub);
-      } else if (isCoal) {
-        addDisc("od-coal", itemPeriod, grossSub);
-        addDisc("rf-od-coal", itemPeriod, escalatedSub);
-      }
-
-      sectionDItems.push({
-        id: `rf-${item.id || item.material}-${itemPeriod}`,
-        section: "D",
-        description: `Eskalasi ${item.material || "Over Distance"}`,
-        notes: itemPeriod ? `Periode: ${itemPeriod}` : undefined,
-        period: itemPeriod || undefined,
-        unit: item.unit || "Bcm",
-        volume: effVol,
-        rate: Number(escalatedRate.toFixed(3)),
-        subtotal: escalatedSub,
-      });
-    } else {
-      // Standard OB / Coal items using item-level RF Index
-      const escalatedRate = r * rfDelta;
-      const escalatedSub = Math.round(effVol * escalatedRate);
-
-      sectionDItems.push({
-        id: `rf-${item.id || item.material}-${itemPeriod}`,
-        section: "D",
-        description: `Eskalasi ${item.material || (isOB ? "OB Removal" : "Coal Winning")}`,
-        notes: itemPeriod ? `Periode: ${itemPeriod}` : undefined,
-        period: itemPeriod || undefined,
-        unit: item.unit || (isCoal ? "Ton" : "Bcm"),
-        volume: effVol,
-        rate: Number(escalatedRate.toFixed(3)),
-        subtotal: escalatedSub,
-      });
+    // Pending volume di baris produksi: porsi split OB (75/25) volume baris jarak periode asal, tarif tier periode asal.
+    const sow = splitSOWs.find((s: any) => (s.itemName || s.name || "").trim().toLowerCase() === mLow.trim());
+    const share = sow ? Number(sow.splitPercentage) / 100 : 1;
+    let pendingVol = 0;
+    for (const d of pendingDistanceRows(it, items)) {
+      const pv = own(d) * share;
+      pendingVol += pv;
+      addLine(isCoal ? 2 : 0, it.material, d.period.trim(), unit, pv, bggTierRate(it.material, d.period) || r, `${it.material}-${d.period.trim()}`);
     }
+    addLine(isCoal ? 2 : 0, it.material, period, unit, effVol - pendingVol, r, `${it.material}-${period}`);
   }
 
-  // Check if Over Distance items exist to display Section E structure
-  const hasOD_OB = (allItems || []).some((it) => {
-    const m = (it.material || it.sowDescription || "").toLowerCase();
-    return isDistanceItem(it) && (isOBMaterial(m));
-  });
-  const hasOD_Coal = (allItems || []).some((it) => {
-    const m = (it.material || it.sowDescription || "").toLowerCase();
-    return isDistanceItem(it) && (m.includes("coal") || m.includes("batubara"));
-  });
+  const sectionDItems = [...lines.values()]
+    .sort((a, b) => a.order[0] - b.order[0] || a.order[1] - b.order[1] || a.order[2] - b.order[2])
+    .map(({ order, ...line }) => line);
 
-  // Section E: Discount on Overdistance (% jadwal diskon Master Customer); baris dipisah bila % periode asal berbeda.
-  const discKinds: [string, string, boolean][] = [
-    ["od-ob", "Discount Overdistance for OB Removal", hasOD_OB],
-    ["od-coal", "Discount Overdistance for Coal Winning", hasOD_Coal],
-    ["rf-od-ob", "Discount Raise & Fall's Overdistance for OB Removal", hasOD_OB && effectiveRF !== 1.0],
-    ["rf-od-coal", "Discount Raise & Fall's Overdistance for Coal Winning", hasOD_Coal && effectiveRF !== 1.0],
-  ];
-  for (const [kind, description, show] of discKinds) {
-    const groups = [...discGroups.values()].filter((g) => g.kind === kind && (show || g.disc > 0));
-    for (const g of groups) {
-      const periods = groups.length > 1 ? `: ${[...g.periods].join(", ")}` : "";
-      sectionEItems.push({
-        id: `disc-${kind}-${g.pct}`,
-        section: "E",
-        description: `${description} (Disc ${g.pct}%${periods})`,
-        unit: "Lot",
-        volume: 1,
-        rate: -g.disc,
-        subtotal: -g.disc,
-      });
-    }
+  for (const l of sectionDItems) {
+    if (l.group === BGG_D_GROUPS[1]) addDisc("E.3", l.period || "", l.subtotal);
+    if (l.group === BGG_D_GROUPS[3]) addDisc("E.4", l.period || "", l.subtotal);
   }
-
-  const subtotalD = sectionDItems.reduce((acc, it) => acc + it.subtotal, 0);
-  const subtotalE = sectionEItems.reduce((acc, it) => acc + it.subtotal, 0);
+  const hasOD = (coal: boolean) => items.some((it) => isDistanceItem(it) && (materialFamily(it) === "coal") === coal);
+  const sectionEItems: BGGComputedLineItem[] = ([
+    ["E.1", "Overdistance for OB Removal", hasOD(false)],
+    ["E.2", "Overdistance for Coal Winning", hasOD(true)],
+    ["E.3", "Raise & Fall's Overdistance for OB Removal", hasOD(false)],
+    ["E.4", "Raise & Fall's Overdistance for Coal Winning", hasOD(true)],
+  ] as [string, string, boolean][])
+    .filter(([, , show]) => show)
+    .flatMap(([code, description]) => {
+      const groups = [...(disc.get(code) || new Map([[0, { amt: 0, periods: [] }]])).entries()];
+      return groups.map(([pct, g]) => {
+        const d = (g.amt * pct) / 100;
+        const label = groups.length > 1 ? ` (Disc ${pct}%: ${g.periods.join(", ")})` : "";
+        return { id: `disc-${code}-${pct}`, section: "E" as const, description: `${code} ${description}${label}`, unit: "Lot", volume: 1, rate: -d, subtotal: -d };
+      });
+    });
 
   return {
     sectionDItems,
     sectionEItems,
-    subtotalD,
-    subtotalE,
+    subtotalD: sectionDItems.reduce((acc, it) => acc + it.subtotal, 0),
+    subtotalE: sectionEItems.reduce((acc, it) => acc + it.subtotal, 0),
   };
 }
 

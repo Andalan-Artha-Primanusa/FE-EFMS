@@ -248,6 +248,11 @@ export function sowTierRate(s: any, tier?: string): number {
   return Number(byTier || s.rateIDR || 0);
 }
 
+/** Tarif BGG baris BA: tarif tier Coal Index periode baris dari Master SOW; 0 bila material tidak ada di master (sama dengan BE). */
+export function bggTierRate(material?: string, period?: string): number {
+  return sowTierRate(sowFor("BGG", material), coalTierFor(period));
+}
+
 /** Tarif kontrak PTRO dari Master Variable SOW (OB & coal USD, overhaul OB USD, overhaul coal IDR). */
 export function ptroContractRates(code: string = "PTRO") {
   return {
