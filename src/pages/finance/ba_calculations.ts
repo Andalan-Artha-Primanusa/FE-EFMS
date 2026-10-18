@@ -42,13 +42,16 @@ export function isDistanceParent(dist: any, p: any): boolean {
   const normArea = (a?: string) => (a || "").replace(/\s+/g, "").toLowerCase();
   const dArea = normArea(dist.area), pArea = normArea(p.area);
   if (dArea && pArea && dArea !== pArea) return false;
+  // BGG: over distance dipasangkan per periode (carry-over Feb-26 terpisah dari Jun-26).
+  if (dist.period?.trim() && p.period?.trim() && !matchPeriod(p.period, dist.period)) return false;
   const mLow = (dist.material || "").toLowerCase();
   const pLow = (p.material || p.name || "").toLowerCase();
   if (dist.parentMaterial) {
     const pmLow = dist.parentMaterial.toLowerCase().trim();
     const pMatLow = pLow.trim();
-    if (pMatLow === pmLow || pMatLow.includes(pmLow) || pmLow.includes(pMatLow)) return true;
+    if (pMatLow && (pMatLow === pmLow || pMatLow.includes(pmLow) || pmLow.includes(pMatLow))) return true;
   }
+  if (mLow.includes("coal") || mLow.includes("batubara")) return pLow.includes("coal") || pLow.includes("batubara");
   if (mLow.includes("top soil") || mLow.includes("topsoil")) return pLow.includes("top soil") || pLow.includes("topsoil");
   if (mLow.includes("limonite")) return pLow.includes("limonite");
   if (mLow.includes("saprolite") || mLow.includes("saprolit")) return pLow.includes("saprolite") || pLow.includes("saprolit");
@@ -56,6 +59,14 @@ export function isDistanceParent(dist: any, p: any): boolean {
   if (mLow.includes("fill") || mLow.includes("cut")) return pLow.includes("fill") || pLow.includes("cut");
   if (isOBMaterial(mLow)) return isOBMaterial(pLow);
   return false;
+}
+
+/** Hapus baris BA; baris produksi ikut menghapus over/underhaul pasangannya yang tidak punya induk lain. */
+export function removeBAItem(items: any[], item: any): any[] {
+  const rest = items.filter((it) => it !== item && (item.id == null || it.id !== item.id));
+  const isProd = (it: any) => !isDistanceItem(it) && !isLandClearingItem(it);
+  if (!isProd(item)) return rest;
+  return rest.filter((d) => !(isDistanceItem(d) && isDistanceParent(d, item) && !rest.some((p) => isProd(p) && isDistanceParent(d, p))));
 }
 
 export function getBAEffectiveVolume(item: any, allItems: any[], isSurvey: boolean = false): number {

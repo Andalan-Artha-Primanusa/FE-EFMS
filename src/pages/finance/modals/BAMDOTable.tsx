@@ -2,7 +2,7 @@ import React from "react";
 import { Building2, Plus, Trash2 } from "lucide-react";
 import { formatIDR, FormattedNumberInput } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
-import { isDistanceItem, getBAEffectiveVolume, getBAItemSubtotal, customerKind } from "../ba_calculations";
+import { isDistanceItem, getBAEffectiveVolume, getBAItemSubtotal, customerKind, removeBAItem } from "../ba_calculations";
 import { BAPOSMDOTable } from "./BAPOSMDOTable";
 
 interface BAMDOTableProps {
@@ -127,7 +127,7 @@ export function BAMDOTable({
                   <td className="p-2 text-center">
                     <button
                       type="button"
-                      onClick={() => setBaMDOItems(baMDOItems.filter((_, i) => i !== idx))}
+                      onClick={() => setBaMDOItems(removeBAItem(baMDOItems, item))}
                       className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-100 rounded-[3px] transition cursor-pointer"
                       title="Hapus baris"
                     >

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, Printer, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Truck, Loader2, StickyNote } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Truck, Loader2, StickyNote } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, getFinanceTemplates, User as UserType } from "../../lib/api";
@@ -30,7 +30,7 @@ export function BATrackerView({ c }: { c: any }) {
     baRows: rawBaRows, invoiceRows: rawInvoiceRows, pendingVolumeLedgers: rawPendingVolumeLedgers, setShowPendingVolumeDrawer, baFilter,
     setBaFilter, periodFilter, setPeriodFilter, showExportBADropdown, setShowExportBADropdown,
     showInputBADropdown, setShowInputBADropdown, baRowActionDropdownId, setBaRowActionDropdownId, setDetailViewItem,
-    exportBAOnlyExcel, exportBAOnlyPDF, exportBADocumentPDF, createInvoiceFromBA, openBAModal, openCreateModal,
+    exportBAOnlyExcel, exportBAOnlyPDF, createInvoiceFromBA, openBAModal, openCreateModal,
     handleGenerateInvoiceFromBA, handleDelete, handleVerifyBA, handleApproveBA, query = "", onNotice, handleAccrueBA, accountingJournals: rawAccountingJournals,
     deletingKey, actionLoadingKey, loadData, user, can = () => false
   } = (c || {}) as Record<string, any>;
@@ -519,7 +519,8 @@ export function BATrackerView({ c }: { c: any }) {
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white text-slate-900 font-medium">
                     {groupedCustomers.map((custCode) => {
-                      const custRows = filteredBARows.filter((r) => (r.customerCode || "OTHER") === custCode);
+                      const custRows = filteredBARows.filter((r) => (r.customerCode || "OTHER") === custCode)
+                        .sort((a, b) => parsePeriodToMonthIndex(b.workPeriod || "") - parsePeriodToMonthIndex(a.workPeriod || ""));
                       const custSubtotal = custRows.reduce((sum, r) => sum + (r.workAmount || 0), 0);
 
                       return (
@@ -928,13 +929,6 @@ export function BATrackerView({ c }: { c: any }) {
                                       )
                                     )}
 
-                                    <button
-                                      className="p-1.5 rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 transition cursor-pointer"
-                                      onClick={() => exportBADocumentPDF(row)}
-                                      title="Cetak Dokumen Resmi Berita Acara (PDF)"
-                                    >
-                                      <Printer size={14} />
-                                    </button>
                                     <button
                                       className="p-1.5 rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 transition cursor-pointer"
                                       onClick={() => openBAModal(row, false)}

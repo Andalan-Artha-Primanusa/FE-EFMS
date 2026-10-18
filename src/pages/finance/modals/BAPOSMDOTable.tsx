@@ -1,8 +1,9 @@
 import React, { useMemo } from "react";
-import { Building2, Trash2, Plus } from "lucide-react";
+import { Building2, Trash2 } from "lucide-react";
 import { formatIDR, FormattedNumberInput } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
-import { isDistanceItem, isDistanceParent, isLandClearingItem, getBAEffectiveVolume, getBAItemSubtotal, isOBMaterial, invoiceTaxes } from "../ba_calculations";
+import { BAAddRowDropdown } from "./BAAddRowDropdown";
+import { isDistanceItem, isDistanceParent, isLandClearingItem, removeBAItem, getBAEffectiveVolume, getBAItemSubtotal, isOBMaterial, invoiceTaxes } from "../ba_calculations";
 
 interface BAPOSMDOTableProps {
   formData: any;
@@ -169,7 +170,7 @@ export function BAPOSMDOTable({
           <td className="p-2 text-center">
             <button
               type="button"
-              onClick={() => setBaMDOItems(baMDOItems.filter((it) => it.id !== item.id))}
+              onClick={() => setBaMDOItems(removeBAItem(baMDOItems, item))}
               className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-100 rounded-[3px] transition cursor-pointer"
               title="Hapus baris"
             >
@@ -367,30 +368,17 @@ export function BAPOSMDOTable({
           Kategori 2: Mine Development Operation (MDO)
         </span>
         {isInlineEditingBA && (
-          <button
-            type="button"
-            onClick={() => {
-              const defItem = activeSOWCatalog.find((s) => s.category === "MDO") || activeSOWCatalog[activeSOWCatalog.length - 1];
-              setBaMDOItems([
-                ...baMDOItems,
-                {
-                  id: `mdo_${Date.now()}`,
-                  category: "MDO",
-                  area: "Site POS",
-                  material: defItem?.name || "",
-                  unit: defItem?.unit || "USD/BCM",
-                  initialVolume: 0,
-                  adjustedVolume: 0,
-                  rate: defItem?.defaultRate || 0,
-                  subtotalInitial: 0,
-                  subtotalAdjusted: 0,
-                },
-              ]);
-            }}
-            className="text-xs font-bold text-white bg-[#A57C50] hover:bg-[#8e6941] px-2.5 py-1 rounded-[3px] flex items-center gap-1 transition cursor-pointer shadow-xs"
-          >
-            <Plus size={13} /> Tambah Baris MDO
-          </button>
+          <BAAddRowDropdown
+            formData={formData}
+            baOperatingItems={baMDOItems}
+            setBaOperatingItems={setBaMDOItems}
+            baMDOItems={baMDOItems}
+            setBaMDOItems={setBaMDOItems}
+            mRate={mRate}
+            getSowMasterRate={getSowMasterRate}
+            activeSOWCatalog={activeSOWCatalog}
+            targetSection="mdo"
+          />
         )}
       </div>
 
