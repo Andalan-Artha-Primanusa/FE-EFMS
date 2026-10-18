@@ -1,7 +1,7 @@
 import { uploadBADocument, previewInvoiceFromBA } from "../../lib/api";
 import { generateInvoiceNumber, formatDateInput, matchPeriod, isBAApproved } from "./helpers";
 import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF } from "./ba_calculations";
-import { customerKind, rfMasterFor, computeRFIndex, obSplitSOWs, ptroContractRates, baItemsFromSOW } from "./masterRegistry";
+import { customerKind, rfMasterFor, computeRFIndex, obSplitSOWs, ptroContractRates, baItemsFromSOW, kursForPeriod } from "./masterRegistry";
 
 interface UseFinanceModalManagerProps {
   user: any;
@@ -237,7 +237,7 @@ export function useFinanceModalManager({
         });
         const fn = Number(matched?.actualFuelFn ?? 0);
         const ln = Number(matched?.actualLaborLn || hoResolved.laborLn);
-        const xn = Number(matched?.actualMRateXn || hoResolved.currencyXn);
+        const xn = Number(hoResolved.currencyXn || matched?.actualMRateXn || 0);
         const { rfIndex: rf } = calculateTripleFactorRF(fn, ln, xn, cust, defaultPeriod);
         matchedRfIndex = rf;
         posDataInit = {
@@ -259,7 +259,7 @@ export function useFinanceModalManager({
       let ptroDataInit = initialData.ptroData;
       if (!ptroDataInit && customerKind(cust) === "PTRO") {
         const matched = rfMasterFor(cust, defaultPeriod);
-        const currentM = Number(matched?.actualMRateXn || latestKursBI || mRate || 0);
+        const currentM = Number(kursForPeriod(defaultPeriod) || matched?.actualMRateXn || latestKursBI || mRate || 0);
         const rates = ptroContractRates(cust);
         ptroDataInit = { actualMRate: currentM, ...rates, fuelPeriods: { [defaultPeriod]: { actualMRate: currentM, ...rates } } };
       }
