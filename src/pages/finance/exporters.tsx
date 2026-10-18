@@ -1363,11 +1363,10 @@ export function exportBAOnlyPDFImpl(ctx: any) {
     ? parsePeriodToMonthIndex(periodFilter)
     : Math.max(0, ...targetRows.map(({ ba }) => parsePeriodToMonthIndex(ba.workPeriod || "")).filter((i) => i % 100));
   const monthName = summaryIdx ? new Date(Math.floor(summaryIdx / 100), (summaryIdx % 100) - 1, 1).toLocaleDateString("en-US", { month: "long" }) : "";
-  const totalInvoice = targetRows
-    .filter(({ ba }) => parsePeriodToMonthIndex(ba.workPeriod || "") === summaryIdx)
-    .reduce((s, { ba }) => s + withTax(ba.workAmount), 0);
+  // Outstanding s.d. periode ringkasan: semua BA belum terbit invoice + sisa pending volume
+  const totalInvoice = targetRows.reduce((s, { ba }) => s + withTax(ba.workAmount), 0);
   const pendingVolume = withTax(ledgers
-    .filter((l) => l.remainingVolume > 0 && parsePeriodToMonthIndex(l.workPeriod || l.sourcePeriod || "") === summaryIdx)
+    .filter((l) => l.remainingVolume > 0 && parsePeriodToMonthIndex(l.workPeriod || l.sourcePeriod || "") <= summaryIdx)
     .reduce((s, l) => s + pendingAmount(l.remainingVolume || 0, l.ob1Rate || 0, l.ob2Rate || 0, l.customerCode), 0));
 
   const htmlContent = `<!DOCTYPE html>

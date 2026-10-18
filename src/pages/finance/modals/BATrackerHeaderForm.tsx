@@ -2,7 +2,7 @@ import React from "react";
 import { Layers, Calculator, UserCheck } from "lucide-react";
 import { MonthPickerInput, matchPeriod } from "../helpers";
 import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF, customerKind } from "../ba_calculations";
-import { obSplitSOWs, sowFor, sowTierRate, computeRFIndex, rfTemplateFor, ptroContractRates, baItemsFromSOW } from "../masterRegistry";
+import { obSplitSOWs, sowFor, sowTierRate, computeRFIndex, rfTemplateFor, ptroContractRates, baItemsFromSOW, kursForPeriod } from "../masterRegistry";
 import { isHeadOfficeUser } from "../../../lib/auth";
 
 interface BATrackerHeaderFormProps {
@@ -137,7 +137,7 @@ export function BATrackerHeaderForm({
                     });
                     const fn = Number(matched?.actualFuelFn ?? 0);
                     const ln = Number(matched?.actualLaborLn || hoResolved.laborLn);
-                    const xn = Number(matched?.actualMRateXn || hoResolved.currencyXn);
+                    const xn = Number(hoResolved.currencyXn || matched?.actualMRateXn || 0);
                     const { rfIndex: rf } = calculateTripleFactorRF(fn, ln, xn, code, currentPeriod);
                     setFormData({
                       ...formData,
@@ -158,7 +158,7 @@ export function BATrackerHeaderForm({
                       const rCust = (r.customerCode || "").trim().toUpperCase();
                       return (rCust.includes("PTRO") || rCust.includes("DBK")) && matchPeriod(r.period, currentPeriod);
                     });
-                    const currentM = Number(matched?.actualMRateXn || latestKursBI || 0);
+                    const currentM = Number(kursForPeriod(currentPeriod) || matched?.actualMRateXn || latestKursBI || 0);
                     setFormData({
                       ...formData,
                       customerCode: code,
@@ -310,7 +310,7 @@ export function BATrackerHeaderForm({
                       });
                       const fn = Number(matched?.actualFuelFn ?? newFuelPeriods[val]?.actualFuelFn ?? curPOS.actualFuelFn ?? 0);
                       const ln = Number(matched?.actualLaborLn ?? newFuelPeriods[val]?.actualLaborLn ?? curPOS.actualLaborLn ?? hoResolved.laborLn);
-                      const xn = Number(matched?.actualMRateXn ?? newFuelPeriods[val]?.actualMRateXn ?? curPOS.actualMRateXn ?? hoResolved.currencyXn);
+                      const xn = Number(hoResolved.currencyXn || matched?.actualMRateXn || newFuelPeriods[val]?.actualMRateXn || curPOS.actualMRateXn || 0);
                       const { rfIndex: rf } = calculateTripleFactorRF(fn, ln, xn, formData.customerCode, val);
                       newFuelPeriods[val] = { actualFuelFn: fn, actualLaborLn: ln, actualMRateXn: xn, posRfIndex: rf };
                       return {
@@ -329,7 +329,7 @@ export function BATrackerHeaderForm({
                     } else if (custClean.includes("PTRO") || custClean.includes("DBK")) {
                       const curPTRO = prev.ptroData || {};
                       const newFuelPeriods = { ...(curPTRO.fuelPeriods || {}) };
-                      const currentM = Number(matched?.actualMRateXn || newFuelPeriods[val]?.actualMRate || curPTRO.actualMRate || latestKursBI || 0);
+                      const currentM = Number(kursForPeriod(val) || matched?.actualMRateXn || newFuelPeriods[val]?.actualMRate || curPTRO.actualMRate || 0);
                       newFuelPeriods[val] = {
                         actualMRate: currentM,
                         ...ptroContractRates(custClean),
@@ -419,7 +419,7 @@ export function BATrackerHeaderForm({
                       return { ...it, period: val, rate: r };
                     }));
                   } else if (custClean.includes("PTRO") || custClean.includes("DBK")) {
-                    const currentM = Number(matched?.actualMRateXn || latestKursBI || 0);
+                    const currentM = Number(kursForPeriod(val) || matched?.actualMRateXn || 0);
                     setBaOperatingItems(prev => prev.map(it => {
                       let r = it.rate;
                       if (currentM > 0 && it.isUSD && it.rateUSD > 0) {

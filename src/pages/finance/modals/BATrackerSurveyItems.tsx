@@ -198,6 +198,15 @@ export function BATrackerSurveyItems({
   const posData = formData.posData || {};
   const posFuelPeriods = posData.fuelPeriods || {};
 
+  // Total liter, biaya & harga rata-rata Rp/L. Tanpa catatan pembelian (qty 0), harga rata-rata = rata-rata harga yang diinput.
+  const posRefillSum = (refills: any[] = []) => {
+    const rows = refills.filter((r: any) => Number(r.pricePerLiter) > 0);
+    const l = rows.reduce((a: number, r: any) => a + Number(r.liters || 0), 0);
+    const c = rows.reduce((a: number, r: any) => a + Number(r.liters || 0) * Number(r.pricePerLiter), 0);
+    const avg = l > 0 ? c / l : rows.length ? rows.reduce((a: number, r: any) => a + Number(r.pricePerLiter), 0) / rows.length : 0;
+    return { l, c, avg };
+  };
+
   const getPeriodPOSData = (period: string) => {
     const hoResolved = resolveHOMasterLaborAndCurrency({
       customerCode: formData.customerCode,
@@ -208,66 +217,22 @@ export function BATrackerSurveyItems({
       mRate,
     });
 
-    let fn = 0;
-    let ln = hoResolved.laborLn;
-    let xn = hoResolved.currencyXn;
-    let rf = 0;
-
     const matchedKey = Object.keys(posFuelPeriods).find((k) => matchPeriod(k, period));
     const targetPeriodData = posFuelPeriods[period] || (matchedKey ? posFuelPeriods[matchedKey] : null);
+    const saved = targetPeriodData || (matchPeriod(formData.workPeriod, period) || Object.keys(posFuelPeriods).length === 0 ? posData : {});
+    const rfMatched = (raiseFallMasters || []).find((r: any) => (r.customerCode || "").trim().toUpperCase().includes("POS") && matchPeriod(r.period, period)) || {};
 
-    const defaultRefills: any[] = [];
-    let fuelRefills = defaultRefills;
-    if (targetPeriodData && Array.isArray(targetPeriodData.fuelRefills) && targetPeriodData.fuelRefills.length > 0) {
-      fuelRefills = targetPeriodData.fuelRefills;
-    } else if (Array.isArray(posData.fuelRefills) && posData.fuelRefills.length > 0) {
-      fuelRefills = posData.fuelRefills;
-    }
+    const fuelRefills: any[] =
+      targetPeriodData && Array.isArray(targetPeriodData.fuelRefills) && targetPeriodData.fuelRefills.length > 0
+        ? targetPeriodData.fuelRefills
+        : Array.isArray(posData.fuelRefills) ? posData.fuelRefills : [];
 
-    if (targetPeriodData) {
-      fn = Number(targetPeriodData.actualFuelFn ?? 0);
-      if (Number(targetPeriodData.actualLaborLn ?? 0) > 0) ln = Number(targetPeriodData.actualLaborLn);
-      if (Number(targetPeriodData.actualMRateXn ?? 0) > 0) xn = Number(targetPeriodData.actualMRateXn);
-      if (Number(targetPeriodData.posRfIndex ?? 0) > 0) rf = Number(targetPeriodData.posRfIndex);
-    } else if (matchPeriod(formData.workPeriod, period) || Object.keys(posFuelPeriods).length === 0) {
-      fn = Number(posData.actualFuelFn ?? 0);
-      if (Number(posData.actualLaborLn ?? 0) > 0) ln = Number(posData.actualLaborLn);
-      if (Number(posData.actualMRateXn ?? 0) > 0) xn = Number(posData.actualMRateXn);
-      if (Number(posData.posRfIndex ?? 0) > 0) rf = Number(posData.posRfIndex);
-    }
-
-    let totLiters = 0;
-    let totCost = 0;
-    fuelRefills.forEach((r: any) => {
-      const l = Number(r.liters || 0);
-      const p = Number(r.pricePerLiter || 0);
-      if (l > 0) {
-        totLiters += l;
-        totCost += l * p;
-      }
-    });
-    const avgPriceIDR = totLiters > 0 ? (totCost / totLiters) : 0;
-    if (avgPriceIDR > 0 && xn > 0 && (!fn || fn === 0)) {
-      fn = avgPriceIDR / xn;
-    }
-
-    if (Array.isArray(raiseFallMasters) && raiseFallMasters.length > 0) {
-      const matched = raiseFallMasters.find((r: any) => {
-        const rCust = (r.customerCode || "").trim().toUpperCase();
-        return rCust.includes("POS") && matchPeriod(r.period, period);
-      });
-      if (matched) {
-        if (!fn && Number(matched.actualFuelFn ?? 0) > 0) fn = Number(matched.actualFuelFn);
-        if (Number(matched.actualLaborLn ?? 0) > 0) ln = Number(matched.actualLaborLn);
-        if (Number(matched.actualMRateXn ?? 0) > 0) xn = Number(matched.actualMRateXn);
-        if (Number(matched.rfIndexResult ?? 0) > 0) rf = Number(matched.rfIndexResult);
-      }
-    }
-
-    if (!rf) {
-      const { rfIndex } = calculateTripleFactorRF(fn, ln, xn, formData.customerCode, period);
-      rf = rfIndex;
-    }
+    // Ln & Xn terkunci ke Master HO; nilai tersimpan hanya cadangan bila master kosong.
+    const ln = hoResolved.laborLn || Number(saved.actualLaborLn || rfMatched.actualLaborLn || 0);
+    const xn = hoResolved.currencyXn || Number(saved.actualMRateXn || rfMatched.actualMRateXn || 0);
+    const { avg } = posRefillSum(fuelRefills);
+    const fn = avg > 0 && xn > 0 ? avg / xn : Number(saved.actualFuelFn || rfMatched.actualFuelFn || 0);
+    const rf = calculateTripleFactorRF(fn, ln, xn, formData.customerCode, period).rfIndex;
 
     return {
       actualFuelFn: fn,
@@ -353,28 +318,13 @@ export function BATrackerSurveyItems({
     latestKursBI,
     mRate,
   });
-  const posLn = Number(activePeriodPOS.actualLaborLn || hoPOSResolved.laborLn);
-  const posXn = Number(activePeriodPOS.actualMRateXn || hoPOSResolved.currencyXn);
-  // Fn dihitung ulang dari refill (rata-rata Rp / Xn, presisi penuh) agar tidak memakai nilai tersimpan yang sudah terbulat.
-  const posRefillTot = (Array.isArray(activePeriodPOS.fuelRefills) ? activePeriodPOS.fuelRefills : []).reduce(
-    (acc: { l: number; c: number }, r: any) => (Number(r.liters) > 0 ? { l: acc.l + Number(r.liters), c: acc.c + Number(r.liters) * Number(r.pricePerLiter || 0) } : acc),
-    { l: 0, c: 0 }
-  );
-  const posFn = posRefillTot.l > 0 && posXn > 0 ? posRefillTot.c / posRefillTot.l / posXn : Number(activePeriodPOS.actualFuelFn ?? 0);
+  const posLn = activePeriodPOS.actualLaborLn;
+  const posXn = activePeriodPOS.actualMRateXn;
+  const posFn = activePeriodPOS.actualFuelFn;
   const { posD, posL, posF, rfIndex: computedPosRf } = calculateTripleFactorRF(posFn, posLn, posXn, formData.customerCode, activeFuelPeriod);
 
-  const posRefills: any[] = Array.isArray(activePeriodPOS.fuelRefills) ? activePeriodPOS.fuelRefills : [];
-  let posTotalLiters = 0;
-  let posTotalCost = 0;
-  posRefills.forEach((r: any) => {
-    const l = Number(r.liters || 0);
-    const p = Number(r.pricePerLiter || 0);
-    if (l > 0) {
-      posTotalLiters += l;
-      posTotalCost += l * p;
-    }
-  });
-  const posAvgPriceIDR = posTotalLiters > 0 ? (posTotalCost / posTotalLiters) : 0;
+  const posRefills: any[] = activePeriodPOS.fuelRefills;
+  const { l: posTotalLiters, c: posTotalCost, avg: posAvgPriceIDR } = posRefillSum(posRefills);
 
   // PTRO Kurs M-Rate
   const ptroKurs = Number(activePeriodPTRO.actualMRate || latestKursBI || mRate || 0);
@@ -492,8 +442,8 @@ export function BATrackerSurveyItems({
       });
 
       const fn = field === "actualFuelFn" ? val : Number(curP.actualFuelFn ?? curPOS.actualFuelFn ?? 0);
-      const ln = field === "actualLaborLn" ? val : Number(curP.actualLaborLn ?? curPOS.actualLaborLn ?? hoResolved.laborLn);
-      const xn = field === "actualMRateXn" ? val : Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? hoResolved.currencyXn);
+      const ln = field === "actualLaborLn" ? val : hoResolved.laborLn || Number(curP.actualLaborLn ?? curPOS.actualLaborLn ?? 0);
+      const xn = field === "actualMRateXn" ? val : hoResolved.currencyXn || Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? 0);
       
       const { rfIndex: newRf } = calculateTripleFactorRF(fn, ln, xn, formData.customerCode, activeFuelPeriod);
       
@@ -538,17 +488,7 @@ export function BATrackerSurveyItems({
         [field]: (field === "label" || field === "date") ? value : Math.max(0, Number(value || 0)),
       };
 
-      let totL = 0;
-      let totC = 0;
-      prevRefills.forEach((r: any) => {
-        const l = Number(r.liters || 0);
-        const p = Number(r.pricePerLiter || 0);
-        if (l > 0) {
-          totL += l;
-          totC += l * p;
-        }
-      });
-      const avgPriceIDR = totL > 0 ? totC / totL : 0;
+      const { c: totC, avg: avgPriceIDR } = posRefillSum(prevRefills);
 
       const hoResolved = resolveHOMasterLaborAndCurrency({
         customerCode: prev.customerCode,
@@ -559,8 +499,8 @@ export function BATrackerSurveyItems({
         mRate,
       });
 
-      const ln = Number(curP.actualLaborLn ?? curPOS.actualLaborLn ?? hoResolved.laborLn);
-      const xn = Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? hoResolved.currencyXn);
+      const ln = hoResolved.laborLn || Number(curP.actualLaborLn ?? curPOS.actualLaborLn ?? 0);
+      const xn = hoResolved.currencyXn || Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? 0);
       const newFn = (avgPriceIDR > 0 && xn > 0) ? avgPriceIDR / xn : Number(curP.actualFuelFn || 0);
 
       const { rfIndex: newRf } = calculateTripleFactorRF(newFn, ln, xn, formData.customerCode, activeFuelPeriod);
@@ -664,17 +604,7 @@ export function BATrackerSurveyItems({
       if (prevRefills.length <= 1) return prev;
       prevRefills.splice(index, 1);
 
-      let totL = 0;
-      let totC = 0;
-      prevRefills.forEach((r: any) => {
-        const l = Number(r.liters || 0);
-        const p = Number(r.pricePerLiter || 0);
-        if (l > 0) {
-          totL += l;
-          totC += l * p;
-        }
-      });
-      const avgPriceIDR = totL > 0 ? totC / totL : 0;
+      const { c: totC, avg: avgPriceIDR } = posRefillSum(prevRefills);
 
       const hoResolved = resolveHOMasterLaborAndCurrency({
         customerCode: prev.customerCode,
@@ -685,8 +615,8 @@ export function BATrackerSurveyItems({
         mRate,
       });
 
-      const ln = Number(curP.actualLaborLn ?? curPOS.actualLaborLn ?? hoResolved.laborLn);
-      const xn = Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? hoResolved.currencyXn);
+      const ln = hoResolved.laborLn || Number(curP.actualLaborLn ?? curPOS.actualLaborLn ?? 0);
+      const xn = hoResolved.currencyXn || Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? 0);
       const newFn = (avgPriceIDR > 0 && xn > 0) ? avgPriceIDR / xn : Number(curP.actualFuelFn || 0);
 
       const { rfIndex: newRf } = calculateTripleFactorRF(newFn, ln, xn, formData.customerCode, activeFuelPeriod);
