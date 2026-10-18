@@ -170,7 +170,7 @@ export function useFinanceController({
     subtotalA, subtotalB, subtotalC, subtotalD, subtotalE, subtotalF
   };
   const {
-    exportPaymentDetailPDF, exportBADocumentPDF, exportARBAIMonitoringExcel, exportARBAIMonitoringPDF,
+    exportPaymentDetailPDF, exportARBAIMonitoringExcel, exportARBAIMonitoringPDF,
     exportBAOnlyExcel, exportBAOnlyPDF, exportAROnlyExcel, exportAROnlyPDF,
     exportCoretaxEFakturCSV, exportEBupotPPh23CSV
   } = createFinanceExporters(exportCtx);
@@ -331,7 +331,7 @@ export function useFinanceController({
     getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations: getAuthoritativeCustomerCalculations,
     getSBSTarifByDistance, calcs, subtotalA, subtotalB, subtotalC, subtotalD,
     subtotalE, subtotalF, subtotalP, totalGrossCalc, dpp11_12Calc, vat12Calc, pph23Calc,
-    netTotalInvoiceCalc, totalDibayarCalc, exportPaymentDetailPDF, exportBADocumentPDF,
+    netTotalInvoiceCalc, totalDibayarCalc, exportPaymentDetailPDF,
     exportARBAIMonitoringExcel, exportARBAIMonitoringPDF, exportBAOnlyExcel, exportBAOnlyPDF,
     exportAROnlyExcel, exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV, loadData, reloadMasterData,
     handleSavePartialPayment, handleVerifyPartialPayment, buildInvoiceItemsFromBA: buildInvItems,

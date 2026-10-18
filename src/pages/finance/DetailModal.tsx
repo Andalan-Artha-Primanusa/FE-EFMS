@@ -13,7 +13,7 @@ export function DetailModal({ c }: { c: any }) {
     detailViewItem, setDetailViewItem, showAddPartialPayment, setShowAddPartialPayment, partialPaymentForm,
     setPartialPaymentForm, rfIndexCalculated, invLineItems, formData, buildInvoiceItemsFromBA, customerContractMap, getItemEffectiveVolume,
     getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations,
-    exportPaymentDetailPDF, exportBADocumentPDF,
+    exportPaymentDetailPDF,
     handleSavePartialPayment, handleVerifyPartialPayment, createInvoiceFromBA, handleVerifyBA, handleApproveBA,
     handleApproveInvoice, openEditModal, can = () => false
   } = (c || {}) as Record<string, any>;
@@ -92,14 +92,6 @@ export function DetailModal({ c }: { c: any }) {
                     <FileText size={13} /> Cetak / Simpan PDF
                   </button>
                 )}
-                {type === "ba" && (
-                  <button
-                    onClick={() => exportBADocumentPDF(data)}
-                    className="px-3 py-1.5 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs transition flex items-center gap-1 shadow-xs cursor-pointer"
-                  >
-                    <FileText size={13} /> Cetak Dokumen BA (PDF)
-                  </button>
-                )}
               </div>
 
               {/* Sheets */}
@@ -107,7 +99,6 @@ export function DetailModal({ c }: { c: any }) {
                 <BADetailSheet
                   data={data}
                   invoiceRows={invoiceRows}
-                  exportBADocumentPDF={exportBADocumentPDF}
                   createInvoiceFromBA={can("invoice", "write") ? createInvoiceFromBA : undefined}
                   setDetailViewItem={setDetailViewItem}
                 />

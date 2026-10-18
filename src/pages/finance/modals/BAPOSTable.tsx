@@ -3,7 +3,7 @@ import { Pickaxe, Trash2, GripVertical, ChevronUp, ChevronDown } from "lucide-re
 import { formatIDR, FormattedNumberInput } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { BAAddRowDropdown } from "./BAAddRowDropdown";
-import { isDistanceParent, isLandClearingItem, invoiceTaxes } from "../ba_calculations";
+import { isDistanceParent, isLandClearingItem, removeBAItem, invoiceTaxes } from "../ba_calculations";
 
 interface BAPOSTableProps {
   formData: any;
@@ -308,7 +308,7 @@ export function BAPOSTable({
               </button>
               <button
                 type="button"
-                onClick={() => setBaOperatingItems(baOperatingItems.filter((it) => it.id !== item.id))}
+                onClick={() => setBaOperatingItems(removeBAItem(baOperatingItems, item))}
                 className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-100 rounded-[3px] transition cursor-pointer ml-0.5"
                 title="Hapus baris"
               >

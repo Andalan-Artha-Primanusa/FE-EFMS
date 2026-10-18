@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Pickaxe, Trash2, GripVertical, ChevronUp, ChevronDown, Plus } from "lucide-react";
 import { formatIDR, FormattedNumberInput, MonthPickerInput } from "../helpers";
 import { getSBSTarifByDistance } from "../calculations";
-import { getBGGComputedInvoiceLines, getDistanceFactor, isOBMaterial, bggOBBillableFactor, customerKind } from "../ba_calculations";
+import { getBGGComputedInvoiceLines, getDistanceFactor, isOBMaterial, bggOBBillableFactor, customerKind, removeBAItem } from "../ba_calculations";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { BAAddRowDropdown } from "./BAAddRowDropdown";
 import { BAPOSTable } from "./BAPOSTable";
@@ -227,7 +227,7 @@ export function BAOperatingTable({
               </button>
               <button
                 type="button"
-                onClick={() => setBaOperatingItems(baOperatingItems.filter((it) => it.id !== item.id))}
+                onClick={() => setBaOperatingItems(removeBAItem(baOperatingItems, item))}
                 className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-100 rounded-[3px] transition cursor-pointer ml-0.5"
                 title="Hapus baris"
               >

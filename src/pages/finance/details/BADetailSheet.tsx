@@ -5,7 +5,6 @@ import { formatIDR, renderBAStatusBadge, getBAInvoiceStatus, resolveDocumentUrl,
 interface BADetailSheetProps {
   data: any;
   invoiceRows: any[];
-  exportBADocumentPDF: (item: any) => void;
   createInvoiceFromBA?: (item: any) => void;
   setDetailViewItem: (item: any) => void;
 }

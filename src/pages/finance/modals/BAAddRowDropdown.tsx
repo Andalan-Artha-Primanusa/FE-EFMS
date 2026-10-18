@@ -13,6 +13,7 @@ import {
   Truck,
   MapPin,
 } from "lucide-react";
+import { isDistanceItem, isDistanceParent, isLandClearingItem } from "../ba_calculations";
 
 interface BAAddRowDropdownProps {
   formData: any;
@@ -72,9 +73,7 @@ export function BAAddRowDropdown({
     return !c || c === rawCust || ((rawCust === "POS" || rawCust === "IBP" || rawCust === "BBA") && (!c || c === "POS"));
   });
 
-  const handleAddDynamicSOW = (sow: any) => {
-    setShowDropdown(false);
-    const ts = Date.now();
+  const buildSowItem = (sow: any, id: string) => {
     const nameLow = (sow.name || sow.itemName || "").toLowerCase();
     const isDist = Boolean(sow.isDistanceVar) || (sow.category || "").toLowerCase().includes("distance") || nameLow.includes("distance") || nameLow.includes("overhaul") || nameLow.includes("underhaul");
     const isClearing = nameLow.includes("clearing") || nameLow.includes("clear & grub") || nameLow.includes("land clearing");
@@ -91,10 +90,10 @@ export function BAAddRowDropdown({
     }
 
     const newItem = {
-      id: `sow_dyn_${ts}`,
+      id,
       section: isDist ? "B" : isClearing ? "C" : (isCoal ? "B" : "A"),
       category: isDist ? "Over Distance" : isClearing ? "Land Clearing" : (rawCust === "SBS" && nameLow.includes("penunjang")) ? "Penunjang" : "Operating & Mining",
-      area: isCustomerBGG ? "Pit KKL" : (isCustomerPTRO ? "Pit Sapan" : (isCustomerSBS ? "Pit E" : (rawCust === "POS" ? "WM1" : "-"))),
+      area: targetSection === "mdo" ? "Site POS" : isCustomerBGG ? "Pit KKL" : (isCustomerPTRO ? "Pit Sapan" : (isCustomerSBS ? "Pit E" : (rawCust === "POS" ? "WM1" : "-"))),
       material: sow.name || sow.itemName,
       period: curPeriod,
       notes: "",
@@ -112,13 +111,40 @@ export function BAAddRowDropdown({
       subtotalInitial: 0,
       subtotalAdjusted: 0,
     };
+    return { newItem, isMDO, isPenunjang };
+  };
+
+  const handleAddDynamicSOW = (sow: any) => {
+    setShowDropdown(false);
+    const ts = Date.now();
+    const { newItem, isMDO, isPenunjang } = buildSowItem(sow, `sow_dyn_${ts}`);
+    const toMDO = (targetSection === "mdo" || isMDO) && setBaMDOItems;
+
+    // Baris produksi otomatis membawa over/underhaul pasangannya dari Master SOW.
+    // SBS tidak punya baris overhaul: jarak hanya menentukan tarif di baris produksinya sendiri.
+    const withCompanion = (prev: any[], item: any) => {
+      if (isCustomerSBS || isDistanceItem(item) || isLandClearingItem(item) || item.isDeduction || prev.some((d) => isDistanceItem(d) && isDistanceParent(d, item))) return [...prev, item];
+      // Nama overhaul bisa sama di beberapa kategori (Over Distance vs MDO vs Rehabilitation):
+      // utamakan kategori Master SOW yang sama, lalu awalan nama yang sama ("Topsoil Reclaim/Haul/Spread - ...").
+      const prefix = (n: string) => (n || "").split(" - ")[0].trim().toLowerCase();
+      const score = (s: any) => (s.category === sow.category ? 2 : 0) + (prefix(s.name || s.itemName) === prefix(item.material) ? 1 : 0);
+      const distSow = siteSowItems
+        .filter((s) => {
+          const name = s.name || s.itemName;
+          return isDistanceItem({ ...s, material: name }) && isDistanceParent({ material: name, parentMaterial: s.parentMaterial }, item);
+        })
+        .sort((a, b) => score(b) - score(a))[0];
+      if (!distSow) return [...prev, item];
+      const dist = { ...buildSowItem(distSow, `sow_dyn_${ts}_od`).newItem, isDistanceVar: true, area: item.area, period: item.period, parentMaterial: item.material };
+      return [...prev, item, toMDO ? { ...dist, category: "MDO" } : dist];
+    };
 
     if (targetSection === "deduction" && setBaDeductionItems) {
       setBaDeductionItems((prev) => [...prev, { ...newItem, initialVolume: 1, adjustedVolume: 1 }]);
-    } else if ((targetSection === "mdo" || isMDO) && setBaMDOItems) {
-      setBaMDOItems((prev) => [...prev, { ...newItem, category: isPenunjang ? "Penunjang" : "MDO" }]);
+    } else if (toMDO) {
+      setBaMDOItems((prev) => withCompanion(prev, { ...newItem, category: isPenunjang ? "Penunjang" : "MDO" }));
     } else {
-      setBaOperatingItems((prev) => [...prev, newItem]);
+      setBaOperatingItems((prev) => withCompanion(prev, newItem));
     }
   };
 
@@ -338,6 +364,13 @@ export function BAAddRowDropdown({
       // ================= CUSTOM VARIABLE =================
       case "CUSTOM_SOW":
       default:
+        if (targetSection === "mdo" && setBaMDOItems) {
+          setBaMDOItems((prev) => [
+            ...prev,
+            { id: `mdo_${ts}`, category: "MDO", area: "Site POS", material: "", period: curPeriod, unit: "BCM", initialVolume: 0, adjustedVolume: 0, rate: 0, subtotalInitial: 0, subtotalAdjusted: 0 },
+          ]);
+          break;
+        }
         setBaOperatingItems((prev) => [
           ...prev,
           {
@@ -526,7 +559,7 @@ export function BAAddRowDropdown({
           )}
 
           {/* ================= POS & DEFAULT DROPDOWN OPTIONS ================= */}
-          {!isCustomerBGG && !isCustomerSBS && !isCustomerPTRO && (
+          {!isCustomerBGG && !isCustomerSBS && !isCustomerPTRO && targetSection !== "mdo" && (
             <div className="py-1">
               <button
                 type="button"
