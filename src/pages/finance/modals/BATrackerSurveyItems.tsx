@@ -231,7 +231,11 @@ export function BATrackerSurveyItems({
     const ln = hoResolved.laborLn || Number(saved.actualLaborLn || rfMatched.actualLaborLn || 0);
     const xn = hoResolved.currencyXn || Number(saved.actualMRateXn || rfMatched.actualMRateXn || 0);
     const { avg } = posRefillSum(fuelRefills);
-    const fn = avg > 0 && xn > 0 ? avg / xn : Number(saved.actualFuelFn || rfMatched.actualFuelFn || 0);
+    // Tanpa baris pengisian: Fn tersimpan (USD, dihitung dengan Xn-nya sendiri) diskalakan ke Xn terkini agar harga Rupiah tetap.
+    const src = Number(saved.actualFuelFn) > 0 ? saved : rfMatched;
+    const srcFn = Number(src.actualFuelFn || 0);
+    const srcXn = Number(src.actualMRateXn || 0);
+    const fn = avg > 0 && xn > 0 ? avg / xn : srcFn > 0 && srcFn < 100 && srcXn > 0 && xn > 0 ? (srcFn * srcXn) / xn : srcFn;
     const rf = calculateTripleFactorRF(fn, ln, xn, formData.customerCode, period).rfIndex;
 
     return {
@@ -441,7 +445,8 @@ export function BATrackerSurveyItems({
         mRate,
       });
 
-      const fn = field === "actualFuelFn" ? val : Number(curP.actualFuelFn ?? curPOS.actualFuelFn ?? 0);
+      // Fn dari resolver periode (sudah konsisten dengan Xn terkini), bukan Fn tersimpan yang mungkin dihitung dengan kurs lama.
+      const fn = field === "actualFuelFn" ? val : getPeriodPOSData(activeFuelPeriod).actualFuelFn;
       const ln = field === "actualLaborLn" ? val : hoResolved.laborLn || Number(curP.actualLaborLn ?? curPOS.actualLaborLn ?? 0);
       const xn = field === "actualMRateXn" ? val : hoResolved.currencyXn || Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? 0);
       
@@ -501,7 +506,7 @@ export function BATrackerSurveyItems({
 
       const ln = hoResolved.laborLn || Number(curP.actualLaborLn ?? curPOS.actualLaborLn ?? 0);
       const xn = hoResolved.currencyXn || Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? 0);
-      const newFn = (avgPriceIDR > 0 && xn > 0) ? avgPriceIDR / xn : Number(curP.actualFuelFn || 0);
+      const newFn = (avgPriceIDR > 0 && xn > 0) ? avgPriceIDR / xn : getPeriodPOSData(activeFuelPeriod).actualFuelFn;
 
       const { rfIndex: newRf } = calculateTripleFactorRF(newFn, ln, xn, formData.customerCode, activeFuelPeriod);
 
@@ -617,7 +622,7 @@ export function BATrackerSurveyItems({
 
       const ln = hoResolved.laborLn || Number(curP.actualLaborLn ?? curPOS.actualLaborLn ?? 0);
       const xn = hoResolved.currencyXn || Number(curP.actualMRateXn ?? curPOS.actualMRateXn ?? 0);
-      const newFn = (avgPriceIDR > 0 && xn > 0) ? avgPriceIDR / xn : Number(curP.actualFuelFn || 0);
+      const newFn = (avgPriceIDR > 0 && xn > 0) ? avgPriceIDR / xn : getPeriodPOSData(activeFuelPeriod).actualFuelFn;
 
       const { rfIndex: newRf } = calculateTripleFactorRF(newFn, ln, xn, formData.customerCode, activeFuelPeriod);
 
