@@ -541,7 +541,6 @@ export function BAOperatingTable({
                     <td className="p-2 font-bold text-slate-800 align-top">Pit KKL</td>
                     <td className="p-2 font-medium text-slate-900 align-top">
                       <span className="font-bold text-slate-900">{item.description}</span>
-                      {item.rfIndex !== undefined && <span className="ml-2 text-[10px] text-slate-500">RF {item.rfIndex.toLocaleString("id-ID", { minimumFractionDigits: 3 })}</span>}
                     </td>
                     <td className="p-2 text-center align-top font-mono text-slate-600 font-bold">{item.period || formData.workPeriod || ""}</td>
                     <td className="p-2 text-center align-top font-mono text-slate-600 font-bold">{item.unit}</td>
@@ -558,14 +557,6 @@ export function BAOperatingTable({
                   </tr>
                   </React.Fragment>
                 ))}
-                {computedLines.sectionDItems.length === 0 && (
-                  <tr>
-                    {isInlineEditingBA && <td className="p-2 text-center text-slate-300">-</td>}
-                    <td colSpan={isInlineEditingBA ? 8 : 7} className="p-2.5 text-center text-slate-400 italic">
-                      Eskalasi Raise & Fall mengikuti baris Seksi A–C
-                    </td>
-                  </tr>
-                )}
 
                 {/* SEKSI E: DISCOUNT ON OVERDISTANCE (READ-ONLY AUTO COMPUTED) */}
                 <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
@@ -593,14 +584,6 @@ export function BAOperatingTable({
                     </td>
                   </tr>
                 ))}
-                {computedLines.sectionEItems.length === 0 && (
-                  <tr>
-                    {isInlineEditingBA && <td className="p-2 text-center text-slate-300">-</td>}
-                    <td colSpan={isInlineEditingBA ? 8 : 7} className="p-2.5 text-center text-slate-400 italic">
-                      Potongan Overdistance (jadwal diskon Master Customer) otomatis terkalkulasi saat item Over Distance diinput
-                    </td>
-                  </tr>
-                )}
 
                 {/* SEKSI F: DP FUEL & TRANSPORT (DYNAMIC EDITABLE INPUT) */}
                 <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
