@@ -498,14 +498,13 @@ export interface BGGComputedLineItem {
   group?: string;
   description: string;
   period?: string;
-  rfIndex?: number;
   unit: string;
   volume: number;
   rate: number;
   subtotal: number;
 }
 
-const BGG_D_GROUPS = ["D1. OB Removal", "D2. Over Distance For OB Removal", "D3. Coal Winning", "D4. Over Distance For Coal Winning"];
+const BGG_D_GROUPS = ["D1. OB Removal Pit Kungkilan", "D2. Over Distance For OB Removal", "D3. Coal Winning", "D4. Over Distance For Coal Winning"];
 
 /**
  * Seksi D & E BGG seperti Excel invoice (sama dengan BE RecalculateBA):
@@ -540,7 +539,7 @@ export function getBGGComputedInvoiceLines(
     const vol = (prev?.volume || 0) + volume;
     const escRate = rate * Number((rf - 1).toFixed(3));
     lines.set(key, {
-      id: `rf-${key}`, section: "D", group: BGG_D_GROUPS[group], description: material, period: period || undefined, rfIndex: rf,
+      id: `rf-${key}`, section: "D", group: BGG_D_GROUPS[group], description: group === 0 ? material : "", period: period || undefined,
       unit, volume: vol, rate: escRate, subtotal: Math.round(vol * escRate),
       order: [group, materialOrder(material), parsePeriodToMonthIndex(period)],
     });
