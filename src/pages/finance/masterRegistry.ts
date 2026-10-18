@@ -177,13 +177,20 @@ export function sbsDistanceTiers() {
     .sort((a, b) => a.min - b.min);
 }
 
+/** Nama ternormalisasi item over/underhaul / over distance. */
+export const isDistSowName = (n: string): boolean => /overhaul|underhaul|distance/.test(n);
+
+/** Nama saling memuat, tapi item jarak tidak jatuh ke tarif produksi induknya (dan sebaliknya). */
+export const sowNamePartialMatch = (a: string, b: string): boolean =>
+  a.length > 3 && b.length > 3 && isDistSowName(a) === isDistSowName(b) && (a.includes(b) || b.includes(a));
+
 /** Item Master Variable SOW customer: nama persis, lalu nama yang saling memuat. */
 export function sowFor(code?: string, itemName?: string): any | undefined {
   const name = normName(itemName);
   if (!name) return undefined;
   const rows = masterRegistry.sows.filter((s) => sameCustomer(s.customerCode || s.customer, code) && s.status !== "Inactive");
   return rows.find((s) => normName(s.itemName || s.name) === name)
-    || rows.find((s) => { const n = normName(s.itemName || s.name); return n.length > 3 && name.length > 3 && (n.includes(name) || name.includes(n)); });
+    || rows.find((s) => sowNamePartialMatch(normName(s.itemName || s.name), name));
 }
 
 /**

@@ -3,7 +3,7 @@ import { Pickaxe, Trash2, GripVertical, ChevronUp, ChevronDown } from "lucide-re
 import { formatIDR, FormattedNumberInput } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { BAAddRowDropdown } from "./BAAddRowDropdown";
-import { isDistanceParent, isLandClearingItem, removeBAItem, invoiceTaxes } from "../ba_calculations";
+import { isDistanceParent, isLandClearingItem, removeBAItem, invoiceTaxes, getItemDistanceM } from "../ba_calculations";
 
 interface BAPOSTableProps {
   formData: any;
@@ -135,8 +135,7 @@ export function BAPOSTable({
 
   const subtotalB = distItems.reduce((acc, it) => {
     const vol = getBAEffectiveVolume(it, allBAItems, false);
-    const rawDist = Number(it.distanceWeightAvg ?? it.distance ?? 1000);
-    const actualDist = (rawDist > 0 && rawDist < 50) ? Math.round(rawDist * 1000) : rawDist;
+    const actualDist = getItemDistanceM(it);
     const deltaDist = actualDist - 1000;
     const r = getDynamicItemBaseIDR(it, true);
     return acc + Math.round((vol * r * deltaDist) / 1000);
@@ -183,7 +182,7 @@ export function BAPOSTable({
       if (matchedDist) {
         usedDist.add(matchedDist.id);
         const dVol = getBAEffectiveVolume(matchedDist, allBAItems, false);
-        const actualDist = Number(matchedDist.distanceWeightAvg ?? matchedDist.distance ?? 1000);
+        const actualDist = getItemDistanceM(matchedDist);
         const deltaDist = actualDist - 1000;
         const dBaseIDR = getDynamicItemBaseIDR(matchedDist, true);
         const rawDRfRate = rfFactor * dBaseIDR;
@@ -249,8 +248,7 @@ export function BAPOSTable({
   const renderItemRow = (item: any, idx: number) => {
     const isDist = isDistanceItem(item);
     const effVol = getBAEffectiveVolume(item, allBAItems, false);
-    const rawDist = Number(item.distanceWeightAvg ?? item.distance ?? 1000);
-    const actualDist = (rawDist > 0 && rawDist < 50) ? Math.round(rawDist * 1000) : rawDist;
+    const actualDist = getItemDistanceM(item);
     const deltaDist = actualDist - 1000;
     const effRate = getDynamicItemBaseIDR(item, isDist);
     const subtotal = isDPFuelItem(item)
