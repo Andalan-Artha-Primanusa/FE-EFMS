@@ -3,7 +3,7 @@ import { Building2, Trash2 } from "lucide-react";
 import { formatIDR, FormattedNumberInput } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { BAAddRowDropdown } from "./BAAddRowDropdown";
-import { isDistanceItem, isDistanceParent, isLandClearingItem, removeBAItem, getBAEffectiveVolume, getBAItemSubtotal, isOBMaterial, invoiceTaxes } from "../ba_calculations";
+import { isDistanceItem, isDistanceParent, isLandClearingItem, removeBAItem, getBAEffectiveVolume, getBAItemSubtotal, isOBMaterial, invoiceTaxes, getItemDistanceM } from "../ba_calculations";
 
 interface BAPOSMDOTableProps {
   formData: any;
@@ -57,8 +57,7 @@ export function BAPOSMDOTable({
 
   const subtotalB = distItems.reduce((acc, it) => {
     const effVol = getBAEffectiveVolume(it, allBAItems.length > 0 ? allBAItems : baMDOItems, false);
-    const rawDist = Number(it.distanceWeightAvg ?? it.distance ?? 1000);
-    const actualDist = (rawDist > 0 && rawDist < 50) ? Math.round(rawDist * 1000) : rawDist;
+    const actualDist = getItemDistanceM(it);
     const deltaDist = actualDist - 1000;
     const r = getDynamicMDOItemBaseIDR(it, true);
     return acc + Math.round((effVol * r * deltaDist) / 1000);
@@ -100,8 +99,7 @@ export function BAPOSMDOTable({
       if (matchedDist) {
         usedDist.add(matchedDist.id);
         const dVol = getBAEffectiveVolume(matchedDist, allBAItems.length > 0 ? allBAItems : baMDOItems, false);
-        const rawDist = Number(matchedDist.distanceWeightAvg ?? matchedDist.distance ?? 1000);
-        const actualDist = (rawDist > 0 && rawDist < 50) ? Math.round(rawDist * 1000) : rawDist;
+        const actualDist = getItemDistanceM(matchedDist);
         const deltaDist = actualDist - 1000;
         const dBaseIDR = getDynamicMDOItemBaseIDR(matchedDist, true);
         const rawDRfRate = rfFactor * dBaseIDR;
@@ -156,8 +154,7 @@ export function BAPOSMDOTable({
     const effVol = isDist
       ? getBAEffectiveVolume(item, allBAItems.length > 0 ? allBAItems : baMDOItems, false)
       : Number(item.initialVolume || 0);
-    const rawDist = Number(item.distanceWeightAvg ?? item.distance ?? 1000);
-    const actualDist = (rawDist > 0 && rawDist < 50) ? Math.round(rawDist * 1000) : rawDist;
+    const actualDist = getItemDistanceM(item);
     const deltaDist = actualDist - 1000;
     const dynamicRate = getDynamicMDOItemBaseIDR(item, isDist);
     const rowSubtotal = isDist

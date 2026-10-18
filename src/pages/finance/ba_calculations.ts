@@ -229,6 +229,12 @@ export function getBAItemSubtotal(item: any, volume: number, isCustomerDBK: bool
   return excelLineAmount(volume * r, customerCode || item.customerCode, false, mLow.includes("coal") || mLow.includes("batubara"));
 }
 
+/** Jarak baris (m). Kosong/0 = basis (input menampilkan basis sebagai placeholder); < 50 dianggap km (mis. 1.325). */
+export function getItemDistanceM(item: any, baseDist: number = 1000): number {
+  const rawDist = Number(item?.distanceM || item?.distance || item?.distanceWeightAvg || baseDist);
+  return rawDist < 50 ? Math.round(rawDist * 1000) : rawDist;
+}
+
 /**
  * Faktor jarak over/underhaul (selisih jarak / 100 m atau / 1.000 m), sama dengan BE RecalculateBA.
  * 0 bila basis jarak belum diatur di Master SOW (overdistance tidak ditagih).
@@ -236,9 +242,7 @@ export function getBAItemSubtotal(item: any, volume: number, isCustomerDBK: bool
 export function getDistanceFactor(item: any, customerCode?: string, isCustomerDBK: boolean = false): number {
   const baseDist = getBaseDistance(item, customerCode || item?.customerCode);
   if (baseDist <= 0) return 0;
-  const rawDist = Number(item.distanceM ?? item.distance ?? item.distanceWeightAvg ?? baseDist);
-  // Jarak < 50 dianggap km (mis. 1.325) lalu dikonversi ke meter.
-  const dist = (rawDist > 0 && rawDist < 50) ? rawDist * 1000 : rawDist;
+  const dist = getItemDistanceM(item, baseDist);
   const cust = customerKind(customerCode || item?.customerCode);
   const isPOS = cust === "POS" || (item.material || "").toLowerCase().includes("underhaul");
   const diffMtr = isPOS ? (dist - baseDist) : Math.max(0, dist - baseDist);
@@ -546,8 +550,7 @@ export function getBGGComputedInvoiceLines(
 
     if (isDist) {
       const baseDist = getBaseDistance(item, "BGG");
-      const rawDist = Number(item.distanceM ?? item.distance ?? item.distanceWeightAvg ?? baseDist);
-      const dist = (rawDist > 0 && rawDist < 50) ? rawDist * 1000 : rawDist;
+      const dist = getItemDistanceM(item, baseDist);
       const diffMtr = baseDist > 0 ? Math.max(0, dist - baseDist) : 0;
       const grossSub = getBAItemSubtotal(item, effVol, false, "BGG");
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { api, getFinanceTemplates } from "../../lib/api";
 import { matchPeriod } from "./helpers";
 import { isOBMaterial, isDistanceItem } from "./ba_calculations";
-import { setMasterData, rfMasterFor, kursForPeriod, customerKind, baseDistanceFor } from "./masterRegistry";
+import { setMasterData, rfMasterFor, kursForPeriod, customerKind, baseDistanceFor, sowNamePartialMatch } from "./masterRegistry";
 import { getSBSTarifByDistance } from "./distance_tiers";
 
 // Master data finance dari BE. RF & kurs mengikuti customer + periode dokumen (BA / Invoice) yang sedang dibuka.
@@ -175,12 +175,9 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
       return sName === itemNorm;
     });
 
-    // Match priority 2: Substring inclusion
+    // Match priority 2: Substring inclusion (item jarak tidak boleh jatuh ke tarif produksi induknya, dan sebaliknya)
     if (!match) {
-      match = filtered.find((s: any) => {
-        const sName = (s.itemName || s.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-        return sName.length > 3 && itemNorm.length > 3 && (sName.includes(itemNorm) || itemNorm.includes(sName));
-      });
+      match = filtered.find((s: any) => sowNamePartialMatch((s.itemName || s.name || "").toLowerCase().replace(/[^a-z0-9]/g, ""), itemNorm));
     }
 
     // Match priority 3: Domain keyword matching

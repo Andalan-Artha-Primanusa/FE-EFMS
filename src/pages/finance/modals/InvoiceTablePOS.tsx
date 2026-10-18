@@ -107,7 +107,7 @@ export function InvoiceTablePOS({
             <td className="p-2 text-right font-mono text-slate-900 font-extrabold">{formatIDR(cCalc.subtotalB)}</td>
           </tr>
           {invLineItems.filter((i) => i.section === "B").map((item, idx) => {
-            const effMtr = item.overhaulMtr ?? 1000;
+            const effMtr = item.overhaulMtr || 1000;
             const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
             const diffMtr = effMtr - 1000;
             const cleanDesc = (item.description || "").replace(/^[A-Z][0-9]*[\.\s\-]+\s*/i, "").trim();
