@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pickaxe, Trash2, GripVertical, ChevronUp, ChevronDown, Plus } from "lucide-react";
 import { formatIDR, FormattedNumberInput, MonthPickerInput } from "../helpers";
 import { getSBSTarifByDistance } from "../calculations";
@@ -6,6 +6,7 @@ import { getBGGComputedInvoiceLines, getDistanceFactor, isOBMaterial, customerKi
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { BAAddRowDropdown } from "./BAAddRowDropdown";
 import { BAPOSTable } from "./BAPOSTable";
+import { bggTierRate, masterRegistry } from "../masterRegistry";
 
 interface BAOperatingTableProps {
   formData: any;
@@ -58,6 +59,14 @@ export function BAOperatingTable({
   const isCustomerPOS = kind === "POS";
 
   const effectiveRF = Number(rfIndexCalculated || formData.bggData?.bggRfIndex || formData.posData?.posRfIndex || formData.rfIndexCalculated || 1.0);
+
+  // BGG: tarif baris = tier Coal Index periode baris di Master SOW (tabel tarif Kungkilan), bukan input manual.
+  const bggRateOf = (it: any) => (it.isCustom || it.isDeduction || it.category === "DP Fuel" ? 0 : bggTierRate(it.material, it.period || formData.workPeriod));
+  useEffect(() => {
+    if (!isCustomerBGG || !isInlineEditingBA) return;
+    const synced = baOperatingItems.map((it) => { const r = bggRateOf(it); return r > 0 && r !== Number(it.rate) ? { ...it, rate: r } : it; });
+    if (synced.some((it, i) => it !== baOperatingItems[i])) setBaOperatingItems(synced);
+  }, [isCustomerBGG, isInlineEditingBA, baOperatingItems, formData.workPeriod, masterRegistry.sows, masterRegistry.coalIndex]);
 
   if (isCustomerPOS) {
     return (
@@ -395,7 +404,7 @@ export function BAOperatingTable({
               : Number(item.rate || 0);
 
             // Baris jarak: tampilkan tarif efektif Rupiah (tarif SOW x selisih jarak) seperti Excel; input hanya bila tarif belum ada.
-            if (!isInlineEditingBA || (isDistance && Number(item.rate || 0) !== 0)) {
+            if (!isInlineEditingBA || (isDistance && Number(item.rate || 0) !== 0) || (isCustomerBGG && bggRateOf(item) > 0)) {
               return (
                 <span className="pt-1 block font-mono font-bold">
                   {isDistance && effDistanceRate !== 0
@@ -513,21 +522,26 @@ export function BAOperatingTable({
                 <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
                   {isInlineEditingBA && <td className="p-2 text-center text-slate-400">#</td>}
                   <td colSpan={7} className="p-2 uppercase font-extrabold tracking-wider">
-                    D. RAISE & FALL'S FACTOR (RF: {effectiveRF.toFixed(3)}x)
+                    D. RAISE & FALL'S FACTOR
                   </td>
                   <td className="p-2 text-right font-mono text-slate-900 font-extrabold">
                     {formatIDR(computedLines.subtotalD)}
                   </td>
                 </tr>
-                {computedLines.sectionDItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/80 transition bg-slate-50/20">
+                {computedLines.sectionDItems.map((item, i, arr) => (
+                  <React.Fragment key={item.id}>
+                  {item.group !== arr[i - 1]?.group && (
+                    <tr className="bg-slate-50 font-bold text-slate-800">
+                      {isInlineEditingBA && <td className="p-1.5" />}
+                      <td colSpan={8} className="px-2 py-1.5 text-[11px] font-extrabold">{item.group}</td>
+                    </tr>
+                  )}
+                  <tr className="hover:bg-slate-50/80 transition bg-slate-50/20">
                     {isInlineEditingBA && <td className="p-2 text-center text-slate-300">-</td>}
                     <td className="p-2 font-bold text-slate-800 align-top">Pit KKL</td>
                     <td className="p-2 font-medium text-slate-900 align-top">
-                      <div>
-                        <span className="font-bold text-slate-900">{item.description}</span>
-                        {item.notes && <span className="ml-2 text-[10px] text-slate-500 italic">({item.notes})</span>}
-                      </div>
+                      <span className="font-bold text-slate-900">{item.description}</span>
+                      {item.rfIndex !== undefined && <span className="ml-2 text-[10px] text-slate-500">RF {item.rfIndex.toLocaleString("id-ID", { minimumFractionDigits: 3 })}</span>}
                     </td>
                     <td className="p-2 text-center align-top font-mono text-slate-600 font-bold">{item.period || formData.workPeriod || ""}</td>
                     <td className="p-2 text-center align-top font-mono text-slate-600 font-bold">{item.unit}</td>
@@ -542,6 +556,7 @@ export function BAOperatingTable({
                       {formatIDR(item.subtotal)}
                     </td>
                   </tr>
+                  </React.Fragment>
                 ))}
                 {computedLines.sectionDItems.length === 0 && (
                   <tr>
