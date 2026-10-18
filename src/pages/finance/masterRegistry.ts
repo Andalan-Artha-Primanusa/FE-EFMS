@@ -13,6 +13,7 @@ export const masterRegistry = {
   exchangeRates: [] as any[],
   minWages: [] as any[],
   bankAccounts: [] as any[],
+  coalIndex: [] as any[],
 };
 
 export function setMasterData(part: Partial<typeof masterRegistry>) {
@@ -41,7 +42,7 @@ export const RF_SCHEME_LABELS: Record<string, string> = {
   KURS_TRANSAKSI_USD: "Kurs Transaksi USD",
 };
 
-/** Kuota SR & toleransi joint survey hanya dihitung pada BA joint survey BGG (sama dengan BE). */
+/** Toleransi joint survey hanya dihitung pada BA joint survey BGG (sama dengan BE). */
 export const hasJointSurveyQuota = (code?: string) => customerKind(code) === "BGG";
 
 /** Parameter kontrak dari Master Customer (0 = klausul tidak berlaku). */
@@ -50,7 +51,6 @@ export function contractParams(code?: string) {
   const bgg = hasJointSurveyQuota(code);
   return {
     odDiscountPct: Number(c.overDistanceDiscountPct || 0),
-    maxStrippingRatio: bgg ? Number(c.maxStrippingRatio || 0) : 0,
     surveyTolerancePct: bgg ? Number(c.surveyTolerancePct || 0) : 0,
   };
 }
@@ -237,6 +237,11 @@ export function coalTierForR3(avgR3: number): string {
 export const isCoalIndexFinal = (status?: string) => status === "Final" || status === "Locked" || status === "Verified";
 
 /** Tarif IDR item SOW untuk tier Coal Index (tier1/2/3), fallback tarif dasar. */
+/** Tier aktif Master Coal Index periode (kosong bila belum ada; sama dengan BE coalTierFor). */
+export function coalTierFor(period?: string): string {
+  return masterRegistry.coalIndex.find((c) => matchPeriod(c.period, period || ""))?.activeTier || "";
+}
+
 export function sowTierRate(s: any, tier?: string): number {
   if (!s) return 0;
   const byTier = tier === "Tier 1" ? s.tier1Rate : tier === "Tier 2" ? s.tier2Rate : tier === "Tier 3" ? s.tier3Rate : 0;

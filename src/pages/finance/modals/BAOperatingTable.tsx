@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Pickaxe, Trash2, GripVertical, ChevronUp, ChevronDown, Plus } from "lucide-react";
 import { formatIDR, FormattedNumberInput, MonthPickerInput } from "../helpers";
 import { getSBSTarifByDistance } from "../calculations";
-import { getBGGComputedInvoiceLines, getDistanceFactor, isOBMaterial, bggOBBillableFactor, customerKind, removeBAItem } from "../ba_calculations";
+import { getBGGComputedInvoiceLines, getDistanceFactor, isOBMaterial, customerKind, removeBAItem } from "../ba_calculations";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { BAAddRowDropdown } from "./BAAddRowDropdown";
 import { BAPOSTable } from "./BAPOSTable";
@@ -24,8 +24,7 @@ interface BAOperatingTableProps {
   getBAItemSubtotal: (item: any, volume: number, isCustomerDBK?: boolean, customerCode?: string) => number;
   reorderBAItems?: (startIndex: number, endIndex: number, listType?: "operating" | "mdo" | "deduction") => void;
   moveBAItem?: (id: string, dir: "up" | "down", listType?: "operating" | "mdo" | "deduction") => void;
-  getSowMasterRate?: (cust: string, name: string, fb: number, isUSD?: boolean, tier?: string) => number;
-  getBGGActiveCoalTier?: (period?: string) => string;
+  getSowMasterRate?: (cust: string, name: string, fb: number, isUSD?: boolean, period?: string) => number;
   rfIndexCalculated?: number;
 }
 
@@ -47,7 +46,6 @@ export function BAOperatingTable({
   reorderBAItems,
   moveBAItem,
   getSowMasterRate,
-  getBGGActiveCoalTier,
   rfIndexCalculated = 1.0,
 }: BAOperatingTableProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -86,17 +84,11 @@ export function BAOperatingTable({
     );
   }
 
-  const obFactor = bggOBBillableFactor(formData.customerCode, formData);
   const computedLines = isCustomerBGG
-    ? getBGGComputedInvoiceLines(allBAItems, effectiveRF, false, formData.bggData?.fuelPeriods, obFactor)
+    ? getBGGComputedInvoiceLines(allBAItems, effectiveRF, false, formData.bggData?.fuelPeriods)
     : { sectionDItems: [], sectionEItems: [], subtotalD: 0, subtotalE: 0 };
 
-  // Subtotal yang ditagih: OB BGG dibatasi kuota Stripping Ratio (sama dengan breakdown & BE).
-  const billedSubtotal = (it: any) => {
-    const m = (it.material || it.sowDescription || "").toLowerCase();
-    const factor = isOBMaterial(m) && !m.includes("coal") && !m.includes("batubara") ? obFactor : 1;
-    return getBAItemSubtotal(it, getBAEffectiveVolume(it, allBAItems, false) * factor, isCustomerDBK, formData.customerCode);
-  };
+  const billedSubtotal = (it: any) => getBAItemSubtotal(it, getBAEffectiveVolume(it, allBAItems, false), isCustomerDBK, formData.customerCode);
 
   const updateItem = (id: string, patch: Record<string, any>) =>
     setBaOperatingItems(baOperatingItems.map((it) => (it.id === id ? { ...it, ...patch } : it)));
@@ -287,8 +279,7 @@ export function BAOperatingTable({
                       return;
                     }
                     const cust = formData.customerCode || "BGG";
-                    const tier = getBGGActiveCoalTier ? getBGGActiveCoalTier(item.period || formData.workPeriod) : undefined;
-                    const dynamicRate = getSowMasterRate ? getSowMasterRate(cust, sow.name, sow.defaultRate || 0, false, tier) : (sow.defaultRate || item.rate);
+                    const dynamicRate = getSowMasterRate ? getSowMasterRate(cust, sow.name, sow.defaultRate || 0, false, item.period || formData.workPeriod) : (sow.defaultRate || item.rate);
                     updateItem(item.id, {
                       isCustom: false,
                       material: sow.name,
@@ -320,9 +311,8 @@ export function BAOperatingTable({
               <MonthPickerInput
                 value={item.period || formData.workPeriod || ""}
                 onChange={(val) => {
-                  const tier = getBGGActiveCoalTier ? getBGGActiveCoalTier(val) : undefined;
                   const newRate = getSowMasterRate && item.material && !item.isCustom
-                    ? getSowMasterRate(formData.customerCode || "BGG", item.material, item.rate || 0, false, tier)
+                    ? getSowMasterRate(formData.customerCode || "BGG", item.material, item.rate || 0, false, val)
                     : 0;
                   updateItem(item.id, { period: val, ...(newRate > 0 && { rate: newRate }) });
                 }}

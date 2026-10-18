@@ -5,6 +5,7 @@ import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, getFinanceTemplates, User as UserType } from "../../lib/api";
 import { BANotesUpdateModal } from "./modals/BANotesUpdateModal";
+import { pendingAmount } from "./modals/PendingVolumeRecordModal";
 import { companyScopeOf } from "../../lib/auth";
 
 import {
@@ -78,16 +79,6 @@ export function BATrackerView({ c }: { c: any }) {
         const nominalApprovedPeriod = stageReadyNominal;
         const baOnProgressNominal = stageDraftNominal + stageVerifNominal + stageRevisiNominal;
         const baOnProgressCount = stageDraftRows.length + stageVerifRows.length + stageRevisiRows.length;
-
-        // Pending Volume: Kelebihan volume pengerjaan Top Soil & Overburden di luar rasio kontrak terhadap Coal (Carry Over untuk invoice periode berikutnya)
-        const pendingVolumeRows = periodRows.filter((r) =>
-          (r.baNumber || "").toUpperCase().includes("PENDING") ||
-          (r.notes || "").toLowerCase().includes("pending volume") ||
-          (r.notesBottleneck || "").toLowerCase().includes("pending") ||
-          r.isPendingVolume ||
-          (r.pendingVolumeAmount && r.pendingVolumeAmount > 0)
-        );
-        const pendingVolumeNominal = pendingVolumeRows.reduce((sum, r) => sum + (r.pendingVolumeAmount || r.workAmount || 0), 0);
 
         const estTotalRevPeriod = periodRows.reduce((acc, r) => acc + (r.workAmount || 0), 0);
 
@@ -292,31 +283,29 @@ export function BATrackerView({ c }: { c: any }) {
 
                 {/* Card 3: Pending Volume */}
                 {(() => {
-                  const activePendingLedgers = pendingVolumeLedgers.filter((l: any) => l.remainingVolume > 0 || l.status === "Active" || l.status === "Partially Settled");
-                  const ledgerPendingNominal = activePendingLedgers.reduce((sum: number, l: any) => sum + (l.remainingVolume * (l.ob1Rate * 0.75 + l.ob2Rate * 0.25 || 27000)), 0);
-                  const totalPendingDisplay = ledgerPendingNominal > 0 ? ledgerPendingNominal : pendingVolumeNominal;
-                  const totalPendingCount = activePendingLedgers.length > 0 ? activePendingLedgers.length : pendingVolumeRows.length;
+                  const totalPendingDisplay = pendingVolumeLedgers.reduce((sum: number, l: any) => sum + pendingAmount(l.originalOBVolume || 0, l.ob1Rate || 0, l.ob2Rate || 0, l.customerCode), 0);
+                  const totalPendingCount = pendingVolumeLedgers.length;
 
                   return (
                     <div 
                       onClick={() => setShowPendingVolumeDrawer(true)}
                       className="p-4 bg-white border border-slate-200 shadow-sm hover:border-[#A57C50] transition cursor-pointer space-y-1 relative group"
                       style={{ borderRadius: 4 }}
-                      title="Buka Kartu Kontrol Saldo Pending Volume"
+                      title="Buka Kartu Pending Volume"
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
                           <Scale className="w-3.5 h-3.5 text-slate-600" /> Pending Volume
                         </span>
                         <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-[3px] bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-0.5">
-                          <span>{totalPendingCount > 0 ? `${totalPendingCount} Periode` : "Carry Over"}</span>
+                          <span>{totalPendingCount} Catatan</span>
                           <ChevronRight className="w-2.5 h-2.5" />
                         </span>
                       </div>
                       <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
                         {formatIDR(totalPendingDisplay)}
                       </div>
-                      <div className="text-[11px] text-slate-400">Carry-forward volume OB</div>
+                      <div className="text-[11px] text-slate-400">Amount (IDR)</div>
                     </div>
                   );
                 })()}

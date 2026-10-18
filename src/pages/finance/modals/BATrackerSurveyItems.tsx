@@ -4,7 +4,7 @@ import { formatIDR, FormattedNumberInput, matchPeriod } from "../helpers";
 import { BAOperatingTable } from "./BAOperatingTable";
 import { BAMDOTable } from "./BAMDOTable";
 import { BADeductionTable } from "./BADeductionTable";
-import { calculateBACommercialBreakdown, resolveHOMasterLaborAndCurrency, calculateTripleFactorRF, bggOBBillableFactor, customerKind } from "../ba_calculations";
+import { calculateBACommercialBreakdown, resolveHOMasterLaborAndCurrency, calculateTripleFactorRF, customerKind } from "../ba_calculations";
 import { computeRFIndex, rfMasterFor, rfTemplateFor, ptroContractRates } from "../masterRegistry";
 
 interface BATrackerSurveyItemsProps {
@@ -31,8 +31,7 @@ interface BATrackerSurveyItemsProps {
   minWageMasters?: any[];
   reorderBAItems?: (startIndex: number, endIndex: number, listType?: "operating" | "mdo" | "deduction") => void;
   moveBAItem?: (id: string, dir: "up" | "down", listType?: "operating" | "mdo" | "deduction") => void;
-  getSowMasterRate?: (cust: string, name: string, fb: number, isUSD?: boolean, tier?: string) => number;
-  getBGGActiveCoalTier?: (period?: string) => string;
+  getSowMasterRate?: (cust: string, name: string, fb: number, isUSD?: boolean, period?: string) => number;
 }
 
 export function BATrackerSurveyItems({
@@ -60,7 +59,6 @@ export function BATrackerSurveyItems({
   reorderBAItems,
   moveBAItem,
   getSowMasterRate,
-  getBGGActiveCoalTier,
 }: BATrackerSurveyItemsProps) {
   const kind = customerKind(formData.customerCode);
   const isCustomerDBK = kind === "PTRO";
@@ -810,8 +808,7 @@ export function BATrackerSurveyItems({
     effectiveRF,
     isCustomerDBK,
     false,
-    isBGG ? bggData.fuelPeriods : isPOS ? posData.fuelPeriods : isPTRO ? ptroData.fuelPeriods : sbsData.fuelPeriods,
-    bggOBBillableFactor(formData.customerCode, formData)
+    isBGG ? bggData.fuelPeriods : isPOS ? posData.fuelPeriods : isPTRO ? ptroData.fuelPeriods : sbsData.fuelPeriods
   );
 
   return (
@@ -835,7 +832,6 @@ export function BATrackerSurveyItems({
         reorderBAItems={reorderBAItems}
         moveBAItem={moveBAItem}
         getSowMasterRate={getSowMasterRate}
-        getBGGActiveCoalTier={getBGGActiveCoalTier}
         rfIndexCalculated={effectiveRF}
       />
 

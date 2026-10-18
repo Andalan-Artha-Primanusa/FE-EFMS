@@ -65,7 +65,8 @@ export function createFinanceCalculations(deps: {
     customer: string,
     itemName: string,
     fallbackRate: number,
-    isUSD?: boolean
+    isUSD?: boolean,
+    period?: string
   ) => number;
   mRate: number;
 }) {
@@ -168,9 +169,11 @@ export function createFinanceCalculations(deps: {
     let amount = Number(item.amountIDR ?? item.amount ?? 0);
 
     if (cust === "BGG") {
+      // Tarif & RF fallback mengikuti periode baris (pending volume memakai periode asalnya).
+      const itemPeriod = item.workPeriod || item.period || formData.workPeriod;
       if (item.section === "A" || item.section === "B") {
         if (unitRate === 0) {
-          unitRate = getSowMasterRate("BGG", item.description || item.sowDescription || "", 0);
+          unitRate = getSowMasterRate("BGG", item.description || item.sowDescription || "", 0, false, itemPeriod);
         }
         // Excel BGG: OB (Seksi A) tanpa ROUND, coal (Seksi B) ROUND.
         amount = item.section === "A" ? vol * unitRate : Math.round(vol * unitRate);
@@ -181,14 +184,14 @@ export function createFinanceCalculations(deps: {
         const diffMtr = baseMtr > 0 ? Math.max(0, mtr - baseMtr) : 0;
         if (unitRate === 0) {
           const isCoal = item.subSection?.includes("Coal") || item.description?.includes("Coal");
-          const per100m = isCoal ? getSowMasterRate("BGG", "Over Distance For Coal Winning", 0) : getSowMasterRate("BGG", "Over Distance For OB Removal", 0);
+          const per100m = isCoal ? getSowMasterRate("BGG", "Over Distance For Coal Winning", 0, false, itemPeriod) : getSowMasterRate("BGG", "Over Distance For OB Removal", 0, false, itemPeriod);
           unitRate = (per100m * diffMtr) / 100;
         }
         amount = Math.round(vol * unitRate);
         return { unitRate, amount };
       }
       if (item.section === "D") {
-        const rfDelta = rfFactor;
+        const rfDelta = Number(item.rfIndex) > 0 ? Number(item.rfIndex) - 1 : rfFactor;
         if (unitRate === 0) {
           const isOB2 = item.description?.includes("REMOVAL 2") || item.description?.includes("25%");
           const isCoal = item.description?.toLowerCase().includes("coal");
@@ -198,21 +201,21 @@ export function createFinanceCalculations(deps: {
           if (isODOB) {
             const baseMtr = baseDistanceFor("BGG", "Over Distance For OB Removal");
             const diffMtr = baseMtr > 0 ? Math.max(0, mtr - baseMtr) : 0;
-            const baseRate = getSowMasterRate("BGG", "Over Distance For OB Removal", 0);
+            const baseRate = getSowMasterRate("BGG", "Over Distance For OB Removal", 0, false, itemPeriod);
             unitRate = baseRate * rfDelta * (diffMtr / 100);
           } else if (isODCoal) {
             const baseMtr = baseDistanceFor("BGG", "Over Distance For Coal Winning");
             const diffMtr = baseMtr > 0 ? Math.max(0, mtr - baseMtr) : 0;
-            const baseRate = getSowMasterRate("BGG", "Over Distance For Coal Winning", 0);
+            const baseRate = getSowMasterRate("BGG", "Over Distance For Coal Winning", 0, false, itemPeriod);
             unitRate = baseRate * rfDelta * (diffMtr / 100);
           } else if (isOB2) {
-            const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 2 (25%)", 0);
+            const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 2 (25%)", 0, false, itemPeriod);
             unitRate = baseRate * rfDelta;
           } else if (isCoal) {
-            const baseRate = getSowMasterRate("BGG", "Coal Winning", 0);
+            const baseRate = getSowMasterRate("BGG", "Coal Winning", 0, false, itemPeriod);
             unitRate = baseRate * rfDelta;
           } else {
-            const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 1 (75%)", 0);
+            const baseRate = getSowMasterRate("BGG", "OVER BURDEN REMOVAL 1 (75%)", 0, false, itemPeriod);
             unitRate = baseRate * rfDelta;
           }
         }

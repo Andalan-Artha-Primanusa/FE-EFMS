@@ -408,7 +408,9 @@ export function BATrackerHeaderForm({
                     const cwRate = sowTierRate(sowFor(code, "Coal Winning"), activeTier);
                     const odObRate = sowTierRate(sowFor(code, "Over Distance For OB Removal"), activeTier);
                     const odCwRate = sowTierRate(sowFor(code, "Over Distance For Coal Winning"), activeTier);
+                    // Baris periode lain (pending volume) tetap pada periode & tarifnya sendiri.
                     setBaOperatingItems(prev => prev.map(it => {
+                      if (it.period && it.period !== formData.workPeriod) return it;
                       let r = it.rate;
                       const m = (it.material || "").toUpperCase();
                       if (m.includes("REMOVAL 1") || m.includes("75%")) r = ob1Rate;

@@ -232,14 +232,6 @@ export interface BGGDailySeamEntry {
   notes: string;
 }
 
-export interface BGGPendingOBEntry {
-  period: string;
-  invoiceVolumeCG: number;
-  pendingOBVolume: number;
-  cummPendingOB: number;
-  status: string;
-}
-
 export interface BGGSignOff {
   surveyorBGG: string;
   surveyorAAP: string;
@@ -272,7 +264,6 @@ export interface BGGJointSurveyData {
   coalAvgDist: number;
   coalOverDistanceM: number;
   dailySeamData: BGGDailySeamEntry[];
-  pendingOBData: BGGPendingOBEntry[];
   inventoryCoalAwal: number;
   inventorySeam: string;
   bggFuelP1?: number;

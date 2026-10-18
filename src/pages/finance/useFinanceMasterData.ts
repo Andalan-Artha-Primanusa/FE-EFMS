@@ -94,8 +94,8 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
   // Registry master dipakai helper hitung (ba_calculations, tarif jarak, nama customer).
   // Diisi saat render (bukan useEffect) agar view yang membaca registry di render yang sama tidak tertinggal satu langkah.
   useMemo(() => {
-    setMasterData({ customers: customerRows || [], raiseFall: raiseFallMasters, exchangeRates, minWages: minWageMasters, bankAccounts, sows: dynamicSowOptions });
-  }, [customerRows, raiseFallMasters, exchangeRates, minWageMasters, bankAccounts, dynamicSowOptions]);
+    setMasterData({ customers: customerRows || [], raiseFall: raiseFallMasters, exchangeRates, minWages: minWageMasters, bankAccounts, sows: dynamicSowOptions, coalIndex: coalIndexMaster });
+  }, [customerRows, raiseFallMasters, exchangeRates, minWageMasters, bankAccounts, dynamicSowOptions, coalIndexMaster]);
 
   // Kurs = M-Rate periode dokumen dari Master Kurs BI (bukan rata-rata seluruh periode).
   const latestKursBI = useMemo(() => kursForPeriod(workPeriod, exchangeRates), [exchangeRates, workPeriod]);
@@ -150,12 +150,13 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
   const defaultMasterVariableOptions = templateRows("variable_sow_defaults");
   const masterVariableOptions = dynamicSowOptions.length > 0 ? dynamicSowOptions : defaultMasterVariableOptions;
 
-  const getSowMasterRate = useCallback((customer: string, itemName: string, fallbackRate: number, isUSD: boolean = false, tier?: string): number => {
+  // Tarif SOW periode: tier Coal Index (BGG) & kurs BI periode tersebut (sama dengan BE sowRateIDR).
+  const getSowMasterRate = useCallback((customer: string, itemName: string, fallbackRate: number, isUSD: boolean = false, period?: string): number => {
     const custUpper = customerKind(customer || customerCode);
     const itemNorm = (itemName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
     if (!itemNorm) return fallbackRate;
 
-    const currentKurs = latestKursBI || mRate || 0;
+    const currentKurs = kursForPeriod(period) || latestKursBI || mRate || 0;
     const catalog = dynamicSowOptions.length > 0 ? dynamicSowOptions : defaultMasterVariableOptions;
 
     // Filter catalog for customer: baris milik customer didahulukan dari baris generik (tanpa kode customer),
@@ -312,7 +313,7 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
     }
 
     if (match) {
-      const activeTier = tier || (custUpper === "BGG" ? getBGGActiveCoalTier() : undefined);
+      const activeTier = custUpper === "BGG" ? getBGGActiveCoalTier(period) : undefined;
       if (activeTier === "Tier 1" && match.tier1Rate) return match.tier1Rate;
       if (activeTier === "Tier 2" && match.tier2Rate) return match.tier2Rate;
       if (activeTier === "Tier 3" && match.tier3Rate) return match.tier3Rate;
@@ -500,9 +501,8 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
       }
       const isUSD = Boolean(it.isUSD);
       const itemPeriod = it.period || period;
-      const tier = cust.toUpperCase() === "BGG" ? getBGGActiveCoalTier(itemPeriod) : undefined;
-      const masterRateIDR = getSowMasterRate(cust, mat, it.rate || 0, false, tier);
-      const masterRateUSD = isUSD ? getSowMasterRate(cust, mat, it.rateUSD || 0, true, tier) : 0;
+      const masterRateIDR = getSowMasterRate(cust, mat, it.rate || 0, false, itemPeriod);
+      const masterRateUSD = isUSD ? getSowMasterRate(cust, mat, it.rateUSD || 0, true, itemPeriod) : 0;
       // Basis jarak over distance selalu dari Master SOW customer (bukan nilai lama yang tersimpan di baris).
       const masterBase = isDistanceItem(it) ? baseDistanceFor(cust, mat) : 0;
       if (masterBase > 0) it = { ...it, distanceBasis: masterBase };

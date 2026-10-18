@@ -34,12 +34,10 @@ const sameKind = (s: any, kind: string) => customerKind(s.customerCode || s.cust
 function clientTags(c: any) {
   const kind = customerKind(c.code);
   const model = sowModel(kind, c.sowModel);
-  const sr = contractParams(c.code).maxStrippingRatio;
   const baseDist = baseDistanceFor(c.code, "OB");
   const tags: { label: string; cls: string; icon?: any }[] = [
     { label: SOW_MODEL_LABELS[model], cls: model === "coal" ? "bg-emerald-50 text-emerald-800 border-emerald-200" : "bg-blue-50 text-blue-800 border-blue-200", icon: model === "coal" ? TrendingUp : undefined },
   ];
-  if (sr > 0) tags.push({ label: `Quota SR ${sr}:1 (Pending OB)`, cls: "bg-amber-50 text-amber-800 border-amber-200", icon: Scale });
   if (RF_SCHEME_LABELS[c.formulaScheme]) tags.push({ label: RF_SCHEME_LABELS[c.formulaScheme], cls: "bg-slate-100 text-slate-800 border-slate-200", icon: Calculator });
   if (kind === "POS") tags.push({ label: "Dual-Invoice (Mining & MDO)", cls: "bg-[#A57C50]/10 text-[#A57C50] border-[#A57C50]/30", icon: Pickaxe });
   if (baseDist > 0) tags.push({ label: `Overhaul basis ${baseDist.toLocaleString("id-ID")} m`, cls: "bg-slate-100 text-slate-700 border-slate-200" });
@@ -444,17 +442,11 @@ export function CustomerView({ c }: { c: any }) {
                   <h4 className="font-bold uppercase tracking-wider text-amber-950 flex items-center gap-1.5">
                     <Scale size={15} className="text-amber-700" /> Parameter Kontrak (Master Customer)
                   </h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
-                    <div><span className="text-slate-500 font-bold block">Kuota Stripping Ratio</span><strong>{params.maxStrippingRatio > 0 ? `Maks. ${params.maxStrippingRatio} : 1` : "Tidak berlaku"}</strong></div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
                     <div><span className="text-slate-500 font-bold block">Diskon Overdistance</span><strong>{params.odDiscountPct > 0 ? `${params.odDiscountPct}%` : "Tidak berlaku"}{(record?.overDistanceDiscountSchedule || []).map((s: any) => ` → ${s.pct}% mulai ${s.fromPeriod}`).join("")}</strong></div>
                     <div><span className="text-slate-500 font-bold block">Toleransi Joint Survey</span><strong>{params.surveyTolerancePct > 0 ? `${params.surveyTolerancePct}%` : "Tidak berlaku"}</strong></div>
                     <div><span className="text-slate-500 font-bold block">Termin Pembayaran</span><strong>{record?.terminDays ?? "-"} Hari</strong></div>
                   </div>
-                  {params.maxStrippingRatio > 0 && (
-                    <p className="text-slate-700 text-[11px]">
-                      Volume OB yang dapat ditagihkan langsung dibatasi sebesar <strong>{params.maxStrippingRatio}x Volume Batubara (Ton)</strong>. Kelebihan volume survei OB dicatat ke <strong>Pending Volume Ledger (Carry-Forward)</strong> dan diserap otomatis (periode terlama lebih dulu) oleh invoice berikutnya yang masih punya sisa kuota.
-                    </p>
-                  )}
                 </div>
 
                 {/* Formula Raise & Fall sesuai skema Master Customer */}
@@ -532,17 +524,13 @@ export function CustomerView({ c }: { c: any }) {
 
               const coalVol = simCoalVolume || 0;
               const obVol = simOBVolume || 0;
-              const maxSR = params.maxStrippingRatio;
-              const maxQuotaOB = maxSR > 0 ? coalVol * maxSR : obVol;
-              const billableOB = Math.min(obVol, maxQuotaOB);
-              const excessOB = obVol - billableOB;
               const rfIndex = hasEscalation && Number(rf?.rfIndexResult) > 0 ? Number(rf.rfIndexResult) : 1;
 
               const items = [
                 ...(productSow ? [{ id: "sim-product", material: productSow.itemName, unit: productSow.unit, initialVolume: coalVol, rate: rateOf(productSow) }] : []),
                 ...obSows.map((s, i) => ({
                   id: `sim-ob-${i}`, material: s.itemName, unit: s.unit,
-                  initialVolume: billableOB * (obSows.length > 1 ? Number(s.splitPercentage) : 100) / 100,
+                  initialVolume: obVol * (obSows.length > 1 ? Number(s.splitPercentage) : 100) / 100,
                   rate: rateOf(s),
                 })),
               ];
@@ -556,7 +544,7 @@ export function CustomerView({ c }: { c: any }) {
                       <Zap size={15} className="text-amber-600" /> Live Simulation Playground: Perhitungan Otomatis BA & Invoice ({selected})
                     </h4>
                     <p className="text-slate-600 text-[11px]">
-                      Masukkan volume hasil survei. Tarif, tier Coal Index, kuota SR, Raise & Fall, dan pajak diambil dari master data dan dihitung dengan mesin kalkulasi BA yang sama.
+                      Masukkan volume hasil survei. Tarif, tier Coal Index, Raise & Fall, dan pajak diambil dari master data dan dihitung dengan mesin kalkulasi BA yang sama.
                     </p>
                   </div>
 
@@ -594,15 +582,8 @@ export function CustomerView({ c }: { c: any }) {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
                     <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-[4px] space-y-2">
-                      <h5 className="font-bold text-slate-900 uppercase tracking-wider text-[11px]">1. Validasi Berita Acara & Rasio Kuota</h5>
+                      <h5 className="font-bold text-slate-900 uppercase tracking-wider text-[11px]">1. Validasi Berita Acara</h5>
                       <div className="flex justify-between"><span className="text-slate-500">Stripping Ratio (SR) Aktual:</span><strong className="tabular-nums">{(obVol / (coalVol || 1)).toFixed(2)} : 1</strong></div>
-                      {maxSR > 0 && (
-                        <>
-                          <div className="flex justify-between"><span className="text-slate-500">Kapasitas Kuota Kontrak ({maxSR}x):</span><strong className="tabular-nums text-slate-900">{maxQuotaOB.toLocaleString("id-ID")} BCM</strong></div>
-                          <div className="flex justify-between"><span className="text-slate-500">Volume OB Siap Ditagih:</span><strong className="tabular-nums text-emerald-800">{billableOB.toLocaleString("id-ID")} BCM</strong></div>
-                          <div className="flex justify-between"><span className="text-slate-500">Alokasi Pending Volume:</span><strong className={`tabular-nums ${excessOB > 0 ? "text-amber-700 font-bold" : "text-slate-400"}`}>{excessOB > 0 ? `+${excessOB.toLocaleString("id-ID")} BCM (Carry-Over)` : "0 BCM"}</strong></div>
-                        </>
-                      )}
                       <div className="border-t border-slate-200 pt-2 space-y-1">
                         {items.map((it) => (
                           <div key={it.id} className="flex justify-between gap-2">

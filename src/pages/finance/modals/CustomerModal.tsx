@@ -213,29 +213,21 @@ export function CustomerModal({ formData, setFormData }: CustomerModalProps) {
             <span className="text-[10px] text-slate-500">0 = tidak ada diskon; berlaku untuk periode sebelum jadwal diskon di bawah</span>
           </div>
           {hasJointSurveyQuota(formData.code) ? (
-            <>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Kuota Stripping Ratio (OB : Coal)</label>
-                <input type="number" step="any" min={0} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.maxStrippingRatio ?? ""}
-                  onChange={(e) => setFormData({ ...formData, maxStrippingRatio: Number(e.target.value) })} />
-                <span className="text-[10px] text-slate-500">0 = tanpa kuota; kelebihan OB menjadi pending volume</span>
-              </div>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Toleransi Joint Survey (%)</label>
-                <input type="number" step="any" min={0} max={100} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.surveyTolerancePct ?? ""}
-                  onChange={(e) => setFormData({ ...formData, surveyTolerancePct: Number(e.target.value) })} />
-                <span className="text-[10px] text-slate-500">Batas selisih volume AAP vs customer</span>
-              </div>
-            </>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Toleransi Joint Survey (%)</label>
+              <input type="number" step="any" min={0} max={100} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.surveyTolerancePct ?? ""}
+                onChange={(e) => setFormData({ ...formData, surveyTolerancePct: Number(e.target.value) })} />
+              <span className="text-[10px] text-slate-500">Batas selisih volume AAP vs customer</span>
+            </div>
           ) : (
-            <div className="sm:col-span-2 text-[10px] text-slate-500">
-              Kuota Stripping Ratio & Toleransi Joint Survey hanya berlaku pada BA joint survey BGG.
+            <div className="text-[10px] text-slate-500">
+              Toleransi Joint Survey hanya berlaku pada BA joint survey BGG.
             </div>
           )}
           <label className="sm:col-span-2 flex items-center gap-2 text-xs font-bold text-slate-700">
             <input type="checkbox" checked={Boolean(formData.pendingVolumeEligible)}
               onChange={(e) => setFormData({ ...formData, pendingVolumeEligible: e.target.checked })} />
-            Boleh dicatat manual di Pending Volume Ledger
+            Boleh dicatat di Kartu Pending Volume
           </label>
           <div className="sm:col-span-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Jadwal Diskon Overdistance (per Periode Asal Volume)</label>
