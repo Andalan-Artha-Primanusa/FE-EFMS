@@ -6,7 +6,7 @@
 
 import { matchPeriod } from "./helpers";
 
-import { customerKind, customerByCode, contractParams, baseDistanceFor, rfMasterFor, rfTemplateFor, computeRFIndex, forexRatio, minWageFor, kursForPeriod, masterRegistry, obSplitSOWs, odDiscountPctFor } from "./masterRegistry";
+import { customerKind, customerByCode, baseDistanceFor, rfMasterFor, rfTemplateFor, computeRFIndex, forexRatio, minWageFor, kursForPeriod, masterRegistry, obSplitSOWs, odDiscountPctFor } from "./masterRegistry";
 
 export { customerKind };
 
@@ -250,18 +250,6 @@ export function getDistanceFactor(item: any, customerCode?: string, isCustomerDB
   return diffMtr / (isPer100m ? 100 : 1000);
 }
 
-/**
- * Porsi OB BGG yang bisa ditagih menurut kuota Stripping Ratio Master Customer (sama dengan BE RecalculateBA).
- * 1 = tanpa batas; kelebihannya dicatat ke Pending Volume Ledger saat BA ditagih.
- */
-export function bggOBBillableFactor(customerCode: string, form?: any): number {
-  if (customerKind(customerCode) !== "BGG") return 1;
-  const sr = contractParams(customerCode).maxStrippingRatio;
-  const coal = Number(form?.bggCoalVolumeTon ?? form?.bggData?.coalVolumeTon ?? 0);
-  const nett = Number(form?.bggNettOB ?? form?.bggData?.nettOBVolume ?? 0);
-  return sr > 0 && coal > 0 && nett > coal * sr ? (coal * sr) / nett : 1;
-}
-
 export interface BACommercialBreakdown {
   basePokok: number;
   obAmount: number;
@@ -326,8 +314,7 @@ export function calculateBACommercialBreakdown(
   rfIndexCalculated: number = 1.0,
   isCustomerDBK: boolean = false,
   isSurvey?: boolean,
-  fuelPeriods?: Record<string, any>,
-  obFactor: number = 1
+  fuelPeriods?: Record<string, any>
 ): BACommercialBreakdown {
   const kind = customerKind(customerCode);
   const isBGG = kind === "BGG";
@@ -355,9 +342,7 @@ export function calculateBACommercialBreakdown(
   for (const it of allItems || []) {
     const mLow = (it.material || it.sowDescription || "").toLowerCase();
     const isCoalMat = mLow.includes("coal") || mLow.includes("batubara");
-    // BGG: OB (termasuk over distance OB) dibatasi kuota Stripping Ratio.
-    const volFactor = isBGG && !isCoalMat && isOBMaterial(mLow) ? obFactor : 1;
-    const vol = getBAEffectiveVolume(it, allItems, effectiveIsSurvey) * volFactor;
+    const vol = getBAEffectiveVolume(it, allItems, effectiveIsSurvey);
     const subtotal = getBAItemSubtotal(it, vol, isCustomerDBK, customerCode);
     const cat = it.category || "";
 
@@ -402,7 +387,7 @@ export function calculateBACommercialBreakdown(
   let odDeduction = 0;
 
   if (isBGG) {
-    const bggComputed = getBGGComputedInvoiceLines(allItems, effectiveRF, effectiveIsSurvey, fuelPeriods, obFactor);
+    const bggComputed = getBGGComputedInvoiceLines(allItems, effectiveRF, effectiveIsSurvey, fuelPeriods);
     rfAmount = bggComputed.subtotalD;
     odDeduction = Math.abs(bggComputed.subtotalE);
   } else if (isPOS) {
@@ -508,8 +493,7 @@ export function getBGGComputedInvoiceLines(
   allItems: any[],
   rfIndexCalculated: number = 1.0,
   isSurvey: boolean = false,
-  fuelPeriods?: Record<string, any>,
-  obFactor: number = 1
+  fuelPeriods?: Record<string, any>
 ): {
   sectionDItems: BGGComputedLineItem[];
   sectionEItems: BGGComputedLineItem[];
@@ -536,8 +520,7 @@ export function getBGGComputedInvoiceLines(
     const mLow = (item.material || item.sowDescription || "").toLowerCase();
     const isOB = isOBMaterial(mLow);
     const isCoal = mLow.includes("coal") || mLow.includes("batubara");
-    // OB dibatasi kuota Stripping Ratio (sama dengan BE).
-    const effVol = getBAEffectiveVolume(item, allItems, isSurvey) * (isOB && !isCoal ? obFactor : 1);
+    const effVol = getBAEffectiveVolume(item, allItems, isSurvey);
     const r = Number(item.rate || 0);
     const itemPeriod = (item.period || item.notes || "").trim();
     const itemRF = Number(getBGGRFIndexForPeriod(itemPeriod, effectiveRF, fuelPeriods).toFixed(3));

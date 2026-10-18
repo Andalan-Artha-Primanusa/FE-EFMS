@@ -3,7 +3,7 @@
 // Setiap fungsi menerima snapshot state (ctx) dari controller.
 // =============================================================
 
-import { invoiceTaxes } from "./ba_calculations";
+import { invoiceTaxes, getBGGRFIndexForPeriod } from "./ba_calculations";
 import { pendingAmount } from "./modals/PendingVolumeRecordModal";
 import { formatIDR, getBAInvoiceStatus, getBAStatusForExport, getCustomerOfficialName, parsePeriodToMonthIndex } from "./helpers";
 
@@ -93,7 +93,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
           return `
             <tr>
-              <td style="padding-left: 20px;">${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.period || ""}</span></td>
+              <td style="padding-left: 20px;">${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.workPeriod || i.period || ""}</span></td>
               <td class="text-center font-mono">${effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
               <td class="text-center">${i.unit || "Bcm"}</td>
               <td class="text-right font-mono">${unitRate.toLocaleString("id-ID")}</td>
@@ -141,7 +141,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
             <tr>
               <td style="padding-left: 20px;">
                 Pit Kungkilan<br/>
-                <span style="font-size: 8.5px; color: #475569;">${effMtr} mtr - 1000 mtr = ${diffMtr > 0 ? `+${diffMtr}` : diffMtr} mtr &nbsp; &nbsp; ${i.period || ""}</span>
+                <span style="font-size: 8.5px; color: #475569;">${effMtr} mtr - 1000 mtr = ${diffMtr > 0 ? `+${diffMtr}` : diffMtr} mtr &nbsp; &nbsp; ${i.workPeriod || i.period || ""}</span>
               </td>
               <td class="text-center font-mono">${effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
               <td class="text-center">${i.unit || "Bcm"}</td>
@@ -160,7 +160,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
             <tr>
               <td style="padding-left: 20px;">
                 Pit Kungkilan<br/>
-                <span style="font-size: 8.5px; color: #475569;">${effMtr} mtr - 1000 mtr = ${diffMtr > 0 ? `+${diffMtr}` : diffMtr} mtr &nbsp; &nbsp; ${i.period || ""}</span>
+                <span style="font-size: 8.5px; color: #475569;">${effMtr} mtr - 1000 mtr = ${diffMtr > 0 ? `+${diffMtr}` : diffMtr} mtr &nbsp; &nbsp; ${i.workPeriod || i.period || ""}</span>
               </td>
               <td class="text-center font-mono">${effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
               <td class="text-center">${i.unit || "Ton"}</td>
@@ -182,7 +182,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
           return `
             <tr>
-              <td style="padding-left: 20px;">${i.subSection || ""} ${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.period || ""}</span></td>
+              <td style="padding-left: 20px;">${i.subSection || ""} ${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.workPeriod || i.period || ""}</span></td>
               <td class="text-center font-mono">${effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
               <td class="text-center">${i.unit || "Bcm"}</td>
               <td class="text-right font-mono">${unitRate.toLocaleString("id-ID")}</td>
@@ -243,13 +243,18 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         </tr>
       `;
 
-      noteHTML = `
+      // Note: indeks Raise & Fall tiap periode baris Seksi D (dari invoice; fallback Master RF periode).
+      const rfByPeriod = new Map<string, number>();
+      for (const i of secDItems) {
+        const p = String(i.workPeriod || i.period || i.notes || "").trim();
+        if (p && !rfByPeriod.has(p)) rfByPeriod.set(p, Number(i.rfIndex) || getBGGRFIndexForPeriod(p, 1, targetBA?.bggData?.fuelPeriods));
+      }
+      noteHTML = rfByPeriod.size ? `
         <div class="note-box">
           Note:<br/>
-          1. Raise & Fall's Factor Feb 26: <strong>1,274</strong><br/>
-          2. Raise & Fall's Factor Juni 26: <strong>1,560</strong>
+          ${[...rfByPeriod].map(([p, rf], n) => `${n + 1}. Raise & Fall's Factor ${p.replace("-", " ")}: <strong>${rf.toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</strong>`).join("<br/>")}
         </div>
-      `;
+      ` : "";
     } else if (custCode === "PTRO" || custCode === "DBK") {
       // PTRO / DBK Table Layout (Petrosea - Dual Currency USD & IDR)
       const secAItems = activeItems.filter((i: any) => i.section === "A");
@@ -1363,11 +1368,11 @@ export function exportBAOnlyPDFImpl(ctx: any) {
     ? parsePeriodToMonthIndex(periodFilter)
     : Math.max(0, ...targetRows.map(({ ba }) => parsePeriodToMonthIndex(ba.workPeriod || "")).filter((i) => i % 100));
   const monthName = summaryIdx ? new Date(Math.floor(summaryIdx / 100), (summaryIdx % 100) - 1, 1).toLocaleDateString("en-US", { month: "long" }) : "";
-  // Outstanding s.d. periode ringkasan: semua BA belum terbit invoice + sisa pending volume
+  // Outstanding s.d. periode ringkasan: semua BA belum terbit invoice + catatan pending volume
   const totalInvoice = targetRows.reduce((s, { ba }) => s + withTax(ba.workAmount), 0);
   const pendingVolume = withTax(ledgers
-    .filter((l) => l.remainingVolume > 0 && parsePeriodToMonthIndex(l.workPeriod || l.sourcePeriod || "") <= summaryIdx)
-    .reduce((s, l) => s + pendingAmount(l.remainingVolume || 0, l.ob1Rate || 0, l.ob2Rate || 0, l.customerCode), 0));
+    .filter((l) => parsePeriodToMonthIndex(l.sourcePeriod || "") <= summaryIdx)
+    .reduce((s, l) => s + pendingAmount(l.originalOBVolume || 0, l.ob1Rate || 0, l.ob2Rate || 0, l.customerCode), 0));
 
   const htmlContent = `<!DOCTYPE html>
 <html lang="id">

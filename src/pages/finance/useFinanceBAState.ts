@@ -19,7 +19,7 @@ interface UseFinanceBAStateProps {
   defaultPOSBAMDOItems?: any[];
   detailViewItem: any;
   getCurrentMonthPeriod: () => string;
-  getSowMasterRate?: (cust: string, name: string, fb: number, isUSD?: boolean, tier?: string) => number;
+  getSowMasterRate?: (cust: string, name: string, fb: number, isUSD?: boolean, period?: string) => number;
   syncBARatesWithMasterData?: (items: any[], cust: string, period?: string) => any[];
   actionLoadingKey?: string | null;
   setActionLoadingKey?: (key: string | null) => void;

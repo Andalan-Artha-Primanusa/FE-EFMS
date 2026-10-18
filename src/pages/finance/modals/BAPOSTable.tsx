@@ -22,7 +22,7 @@ interface BAPOSTableProps {
   getBAItemSubtotal: (item: any, volume: number, isCustomerDBK?: boolean, customerCode?: string) => number;
   reorderBAItems?: (startIndex: number, endIndex: number, listType?: "operating" | "mdo" | "deduction") => void;
   moveBAItem?: (id: string, dir: "up" | "down", listType?: "operating" | "mdo" | "deduction") => void;
-  getSowMasterRate?: (cust: string, name: string, fb: number, isUSD?: boolean, tier?: string) => number;
+  getSowMasterRate?: (cust: string, name: string, fb: number, isUSD?: boolean, period?: string) => number;
   rfIndexCalculated?: number;
 }
 

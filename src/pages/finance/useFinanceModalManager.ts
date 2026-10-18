@@ -1,7 +1,8 @@
 import { uploadBADocument, previewInvoiceFromBA } from "../../lib/api";
 import { generateInvoiceNumber, formatDateInput, matchPeriod, isBAApproved } from "./helpers";
 import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF } from "./ba_calculations";
-import { customerKind, rfMasterFor, computeRFIndex, obSplitSOWs, ptroContractRates, baItemsFromSOW, kursForPeriod } from "./masterRegistry";
+import { masterOBRates } from "./modals/PendingVolumeRecordModal";
+import { customerKind, rfMasterFor, computeRFIndex, ptroContractRates, baItemsFromSOW, kursForPeriod } from "./masterRegistry";
 
 interface UseFinanceModalManagerProps {
   user: any;
@@ -91,14 +92,6 @@ export function useFinanceModalManager({
       projectSite: c.project || "", contractNo: c.contract || "", noPO: c.noPO || "",
       bankName: c.bankName || "", bankAccountNo: c.bankAccountNo || "", bankBranch: c.bankBranch || "",
       directorName: c.directorName || "", directorTitle: c.directorTitle || "",
-    };
-  };
-  // Tarif pending OB default = tarif OB ber-split customer di Master Variable SOW.
-  const pendingOBRates = (code: string) => {
-    const [ob1, ob2] = obSplitSOWs(code);
-    return {
-      r1: Number(ob1?.rateIDR || ob1?.tier2Rate || 0), r2: Number(ob2?.rateIDR || ob2?.tier2Rate || 0),
-      s1: Number(ob1?.splitPercentage || 0) / 100, s2: Number(ob2?.splitPercentage || 0) / 100,
     };
   };
 
@@ -308,11 +301,10 @@ export function useFinanceModalManager({
       setActiveBAStep(1);
     } else if (type === "pending_volume") {
       const defaultCust = initialData?.customerCode || ((user?.companyCode && user.companyCode !== "HO") ? user.companyCode : "");
-      const { r1, r2 } = pendingOBRates(defaultCust);
+      const { r1, r2 } = masterOBRates(defaultCust, initialData?.sourcePeriod || curMonth);
       setFormData({
-        customerCode: defaultCust, workPeriod: initialData?.workPeriod || curMonth, sourcePeriod: initialData?.sourcePeriod || curMonth,
-        sourceBARef: initialData?.sourceBARef || "-", originalOBVolume: 0, absorbedVolume: 0, remainingVolume: 0,
-        ob1Rate: r1, ob2Rate: r2, workAmount: 0, picAAP: "Surveyor Site", notes: "", ...initialData,
+        customerCode: defaultCust, sourcePeriod: initialData?.sourcePeriod || curMonth,
+        sourceBARef: "", originalOBVolume: 0, ob1Rate: r1, ob2Rate: r2, notes: "", ...initialData,
       });
     } else if (type === "invoice") {
       const userSiteCode = (user?.companyCode && user.companyCode !== "HO") ? user.companyCode : "";
@@ -337,15 +329,12 @@ export function useFinanceModalManager({
     if (type === "ba") { openBAModal(item, true); return; }
     if (type === "pending_volume") {
       setEditItem(item);
-      const master = pendingOBRates(item.customerCode);
+      const master = masterOBRates(item.customerCode, item.sourcePeriod);
       const r1 = item.ob1Rate ?? master.r1;
       const r2 = item.ob2Rate ?? master.r2;
-      const vol = item.originalOBVolume ?? 0;
       setFormData({
-        ...item, customerCode: item.customerCode || "", workPeriod: item.sourcePeriod || "",
-        sourcePeriod: item.sourcePeriod || "", sourceBARef: item.sourceBaRef || item.sourceBARef || "-",
-        originalOBVolume: vol, absorbedVolume: item.absorbedVolume ?? 0, remainingVolume: item.remainingVolume ?? vol,
-        ob1Rate: r1, ob2Rate: r2, workAmount: Math.round(vol * (r1 * master.s1 + r2 * master.s2)), status: item.status || "Active", notes: item.notes || ""
+        ...item, customerCode: item.customerCode || "", sourcePeriod: item.sourcePeriod || "",
+        sourceBARef: item.sourceBaRef || "", originalOBVolume: item.originalOBVolume ?? 0, ob1Rate: r1, ob2Rate: r2, notes: item.notes || ""
       });
       setShowPendingVolumeDrawer(false);
       setModalType("pending_volume");

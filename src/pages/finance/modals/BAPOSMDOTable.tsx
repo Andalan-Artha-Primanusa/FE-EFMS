@@ -14,7 +14,7 @@ interface BAPOSMDOTableProps {
   mRate: number;
   allBAItems?: any[];
   rfIndexCalculated?: number;
-  getSowMasterRate?: (customer: string, itemName: string, fallbackRate: number, isUSD?: boolean, tier?: string) => number;
+  getSowMasterRate?: (customer: string, itemName: string, fallbackRate: number, isUSD?: boolean, period?: string) => number;
 }
 
 export function BAPOSMDOTable({

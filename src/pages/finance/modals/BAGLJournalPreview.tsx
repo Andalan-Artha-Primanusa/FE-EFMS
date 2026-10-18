@@ -12,7 +12,6 @@ interface BAGLJournalPreviewProps {
   rfIndexCalculated?: number;
   isCustomerDBK?: boolean;
   fuelPeriods?: Record<string, any>;
-  obFactor?: number;
 }
 
 export function BAGLJournalPreview({
@@ -21,7 +20,6 @@ export function BAGLJournalPreview({
   rfIndexCalculated = 1.0,
   isCustomerDBK = false,
   fuelPeriods,
-  obFactor = 1,
 }: BAGLJournalPreviewProps) {
   const breakdown = calculateBACommercialBreakdown(
     customerCode,
@@ -29,8 +27,7 @@ export function BAGLJournalPreview({
     rfIndexCalculated,
     isCustomerDBK,
     false,
-    fuelPeriods,
-    obFactor
+    fuelPeriods
   );
   const { lines, totalDebit, totalCredit, isBalanced } = generateBAGLJournalPreview(
     breakdown,

@@ -24,7 +24,7 @@ interface BAAddRowDropdownProps {
   baDeductionItems?: any[];
   setBaDeductionItems?: React.Dispatch<React.SetStateAction<any[]>>;
   mRate?: number;
-  getSowMasterRate?: (customer: string, itemName: string, fallbackRate: number, isUSD?: boolean, tier?: string) => number;
+  getSowMasterRate?: (customer: string, itemName: string, fallbackRate: number, isUSD?: boolean, period?: string) => number;
   activeSOWCatalog?: any[];
   targetSection?: "operating" | "mdo" | "deduction";
 }
@@ -85,7 +85,7 @@ export function BAAddRowDropdown({
 
     let calculatedRate = sow.defaultRate || sow.rateIDR || (sow.rateUSD ? sow.rateUSD * (mRate || 0) : 0);
     if (getSowMasterRate) {
-      const dynRate = getSowMasterRate(rawCust, sow.name || sow.itemName, calculatedRate, false);
+      const dynRate = getSowMasterRate(rawCust, sow.name || sow.itemName, calculatedRate, false, curPeriod);
       if (dynRate > 0) calculatedRate = dynRate;
     }
 

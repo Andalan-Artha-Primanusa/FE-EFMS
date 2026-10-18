@@ -1,7 +1,7 @@
 import React from "react";
 import { UserCheck, CheckCircle, Clock, CheckCircle2, ExternalLink, Pickaxe, Building2, Zap } from "lucide-react";
 import { getBAInvoiceStatus, generateAuditTimeline, isBAApproved } from "../helpers";
-import { bggOBBillableFactor, customerKind } from "../ba_calculations";
+import { customerKind } from "../ba_calculations";
 import { BAGLJournalPreview } from "./BAGLJournalPreview";
 import { verifyBATracker } from "../../../lib/api";
 
@@ -166,7 +166,6 @@ export function BATrackerFinancialRecap({
         )}
         isCustomerDBK={customerKind(formData.customerCode) === "PTRO"}
         fuelPeriods={formData.bggData?.fuelPeriods || formData.posData?.fuelPeriods || formData.ptroData?.fuelPeriods || formData.sbsData?.fuelPeriods}
-        obFactor={bggOBBillableFactor(formData.customerCode, formData)}
       />
 
       {/* Invoice Generation & Linked Status */}
