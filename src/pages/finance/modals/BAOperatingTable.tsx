@@ -6,7 +6,7 @@ import { getBGGComputedInvoiceLines, getDistanceFactor, isOBMaterial, customerKi
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { BAAddRowDropdown } from "./BAAddRowDropdown";
 import { BAPOSTable } from "./BAPOSTable";
-import { bggTierRate, masterRegistry } from "../masterRegistry";
+import { bggTierRate, coalTierFor, masterRegistry } from "../masterRegistry";
 
 interface BAOperatingTableProps {
   formData: any;
@@ -67,6 +67,11 @@ export function BAOperatingTable({
     const synced = baOperatingItems.map((it) => { const r = bggRateOf(it); return r > 0 && r !== Number(it.rate) ? { ...it, rate: r } : it; });
     if (synced.some((it, i) => it !== baOperatingItems[i])) setBaOperatingItems(synced);
   }, [isCustomerBGG, isInlineEditingBA, baOperatingItems, formData.workPeriod, masterRegistry.sows, masterRegistry.coalIndex]);
+
+  // Periode baris BGG tanpa Coal Index: tarif jatuh ke tarif dasar SOW; invoice diblokir BE sampai master diisi.
+  const missingCoalIndex = isCustomerBGG
+    ? [...new Set(baOperatingItems.filter((it) => !it.isDeduction && it.category !== "DP Fuel").map((it) => it.period || formData.workPeriod).filter(Boolean))].filter((p) => !coalTierFor(p))
+    : [];
 
   if (isCustomerPOS) {
     return (
@@ -463,6 +468,12 @@ export function BAOperatingTable({
           )}
         </div>
       </div>
+
+      {missingCoalIndex.length > 0 && (
+        <div className="rounded-[3px] border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">
+          Coal Index belum diinput: {missingCoalIndex.join(", ")}
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-[4px] border border-slate-200 shadow-xs">
         <table className="w-full text-xs text-left">
