@@ -39,6 +39,26 @@
   --shadow-lg: 0 10px 24px -3px rgba(26, 22, 18, 0.08), 0 4px 6px -4px rgba(26, 22, 18, 0.04);
 }
 
+.dark {
+  --brand-soft: #2f271f;
+  --ink-900: #f2eee8;
+  --ink-800: #e4ded6;
+  --ink-700: #d3ccc3;
+  --ink-600: #bdb5ab;
+  --ink-500: #a39b91;
+  --ink-400: #7d756c;
+  --ink-300: #464038;
+  --ink-200: #342f29;
+  --ink-100: #26221d;
+  --ink-050: #1b1814;
+  --paper: #211d19;
+  --status-go-soft: #1f3328;
+  --status-caution-soft: #3a2f17;
+  --status-stop-soft: #3b201d;
+  --status-info-soft: #1c2a33;
+  --status-idle-soft: #26221d;
+}
+
 /* Micro-interactions: Buttons — Weighted, no bouncy scale */
 button {
   transition: background-color 0.14s cubic-bezier(0.2, 0, 0.2, 1), border-color 0.14s cubic-bezier(0.2, 0, 0.2, 1), color 0.14s cubic-bezier(0.2, 0, 0.2, 1), box-shadow 0.14s cubic-bezier(0.2, 0, 0.2, 1);

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate, useParams, useOutlet } from "react-router-dom";
-import { Bell, ChevronDown, LogOut, Menu, UserCog, X } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Menu, Moon, Sun, UserCog, X } from "lucide-react";
 import { NotificationPanel } from "../components/NotificationPanel";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { ACCOUNT_SETTINGS_VIEW, menu, menuCodeFor, menuPermissionModuleFor, titleFromSlug, viewMap, viewPath } from "../data/navigation";
@@ -42,6 +42,12 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notice, setNoticeState] = useState<{ id: number; message: string } | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
+  const toggleTheme = () => {
+    document.documentElement.classList.toggle("dark", !dark);
+    try { localStorage.setItem("theme", dark ? "light" : "dark"); } catch { /* storage diblokir: tema tetap berlaku untuk sesi ini */ }
+    setDark(!dark);
+  };
 
   const setNotice = useCallback((msg: string) => {
     if (!msg) {
@@ -225,6 +231,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
           </div>
           <div className="top-actions">
             <button className="icon-btn notification-button" onClick={async () => { setNotificationOpen(!notificationOpen); await refreshNotifications(); }}><Bell size={19} />{unreadCount > 0 && <b>{unreadCount}</b>}</button>
+            <button className="icon-btn" onClick={toggleTheme} title={dark ? "Light Mode" : "Dark Mode"}>{dark ? <Sun size={19} /> : <Moon size={19} />}</button>
             <button className="user-pill" onClick={async () => { navigate("/account-settings"); setNotificationOpen(false); await refreshNotifications(); }}>
               <UserCog size={17} />
               <span>{user.name}</span>
