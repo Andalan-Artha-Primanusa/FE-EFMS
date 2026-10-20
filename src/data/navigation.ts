@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 export const menu = [
-  { group: "Dashboard", icon: LayoutDashboard, items: ["Executive Dashboard", "Finance Dashboard"] },
+  { group: "Dashboard", icon: LayoutDashboard, items: ["AR Dashboard", "Executive Dashboard", "Finance Dashboard"] },
   { group: "Master Data", icon: Building2, items: ["Chart of Accounts", "Company", "Site", "Department", "Cost Center", "Project", "Vendor", "Client Setup", "Employee", "Bank", "Tax", "Currency", "Coal Index", "Variable SOW", "RAISE & FALL"] },
   { group: "Budget Management", icon: WalletCards, items: ["Annual Budget", "Monthly Budget", "Budget Submission", "Budget Approval", "Budget Revision", "Budget Transfer", "Budget versus Actual"] },
   { group: "Transaction Request", icon: ClipboardCheck, items: ["Purchase Request", "Expense Request", "Cash Advance", "Reimbursement", "Payment Request"] },
@@ -102,6 +102,7 @@ export function menuPermissionModuleFor(item: string): string {
 }
 
 export const viewMap: Record<string, ViewConfig> = {
+  "AR Dashboard": { title: "AR Dashboard", endpoint: "/api/finance/invoices" },
   "Executive Dashboard": { title: "Executive Dashboard", endpoint: "/api/management-dashboard" },
   "Finance Dashboard": { title: "Finance Dashboard", endpoint: "/api/dashboard" },
   "Chart of Accounts": { title: "Chart of Accounts", endpoint: "/api/master-data?type=chart_of_accounts", importType: "master_records", masterType: "chart_of_accounts" },
@@ -178,6 +179,7 @@ export const viewMap: Record<string, ViewConfig> = {
 };
 
 export const menuPermissionMap: Record<string, string[]> = {
+  "AR Dashboard": ["operational_transaction:read", "financial_report:read"],
   "Executive Dashboard": ["management_dashboard:read"],
   "Finance Dashboard": ["management_dashboard:read", "financial_report:read", "transaction_request:read"],
   "Chart of Accounts": ["master_data:read"],

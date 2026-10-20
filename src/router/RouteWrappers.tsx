@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { routes } from "./routes";
 import type { TreasuryTab } from "../data/navigation";
+import { canAccessMenu } from "../lib/auth";
 
 function RouteLoading() {
   return (
@@ -18,6 +19,7 @@ const RBACPage = lazy(() => import("../pages/RBACPage").then((m) => ({ default: 
 const AccountingShell = lazy(() => import("../pages/accounting/AccountingShell").then((m) => ({ default: m.AccountingShell })));
 const CoalIndexPage = lazy(() => import("../pages/CoalIndexPage").then((m) => ({ default: m.CoalIndexPage })));
 const MasterRaiseFallPage = lazy(() => import("../pages/MasterRaiseFallPage").then((m) => ({ default: m.MasterRaiseFallPage })));
+const ARDashboardPage = lazy(() => import("../pages/finance/ARDashboardView").then((m) => ({ default: m.ARDashboardPage })));
 const FinanceDashboardPage = lazy(() => import("../pages/FinanceDashboardPage").then((m) => ({ default: m.FinanceDashboardPage })));
 const FinanceBATrackerPage = lazy(() => import("../pages/FinanceBATrackerPage").then((m) => ({ default: m.FinanceBATrackerPage })));
 const FinanceInvoicePage = lazy(() => import("../pages/FinanceInvoicePage").then((m) => ({ default: m.FinanceInvoicePage })));
@@ -50,6 +52,21 @@ export function DashboardRoute() {
       <DashboardPage dashboard={dashboard} transactions={transactions} query={query} onRefresh={refresh} onCreate={() => navigate(routes.transaction.new)} onNotice={setNotice} />
     </Suspense>
   );
+}
+
+export function ARDashboardRoute() {
+  const { query, setNotice, user } = useOutletContext<any>();
+  return (
+    <Suspense fallback={<RouteLoading />}>
+      <ARDashboardPage query={query} onNotice={setNotice} user={user} />
+    </Suspense>
+  );
+}
+
+// Halaman awal: AR Dashboard bila user punya akses, selain itu Executive Dashboard.
+export function HomeRoute() {
+  const { user, permissions, tcodes } = useOutletContext<any>();
+  return canAccessMenu("AR Dashboard", user.role, permissions, tcodes, user) ? <ARDashboardRoute /> : <DashboardRoute />;
 }
 
 export function AccountSettingsRoute() {

@@ -28,7 +28,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
     : location.pathname === "/account-settings"
     ? ACCOUNT_SETTINGS_VIEW
     : location.pathname === "/"
-    ? "Executive Dashboard"
+    ? "AR Dashboard"
     : resolvedView ?? "Finance Dashboard";
   const [viewRows, setViewRows] = useState<any[]>([]);
   const [viewLoading, setViewLoading] = useState(false);

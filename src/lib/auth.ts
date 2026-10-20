@@ -121,6 +121,8 @@ export function canAccessMenu(item: string, role: string, permissions: Permissio
   if (ledgerInAccurateItems.has(item)) return false;
   // Treasury sub-menus share the existing "Treasury Management" grant (incl. its T-Code).
   if (item in treasuryTabs) item = "Treasury Management";
+  // AR Dashboard shares the existing "Finance & AR Dashboard" grant (incl. its T-Code).
+  if (item === "AR Dashboard") item = "Finance & AR Dashboard";
   if (isSuperAdminRole(role)) return true;
 
   if (item === "Tunai PO Tracking") {

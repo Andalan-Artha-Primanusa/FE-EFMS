@@ -4,7 +4,7 @@ import { AppShell } from "./layouts/AppShell";
 import type { User } from "./lib/api";
 import { ProtectedRoute } from "./router/ProtectedRoute";
 import {
-  DashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute,
+  DashboardRoute, HomeRoute, ARDashboardRoute, AccountSettingsRoute, RBACRoute, GeneralJournalRoute,
   CoalIndexRoute, RaiseFallRoute, FinanceDashboardRoute, FinanceBATrackerRoute,
   FinanceInvoiceRoute, FinancePaymentRoute, FinanceCustomerRoute,
   CompanyRoute, TreasuryManagementRoute, BudgetManagementRoute, ClosingPeriodRoute,
@@ -30,12 +30,13 @@ export function AuthenticatedApp({ user, onLogout }: { user: User; onLogout: () 
   return (
     <Routes>
       <Route path="/*" element={<AppShell user={user} onLogout={onLogout} />}>
-        <Route index element={<DashboardRoute />} />
+        <Route index element={<HomeRoute />} />
         <Route path="account-settings" element={<AccountSettingsRoute />} />
         <Route path="rbac-management" element={<ProtectedRoute requiredView="RBAC Management"><RBACRoute /></ProtectedRoute>} />
         <Route path="role-and-permission" element={<ProtectedRoute requiredView="Role and Permission"><RBACRoute initialTab="matrix" pageTitle="Role and Permission" /></ProtectedRoute>} />
         <Route path="system-settings" element={<ProtectedRoute requiredView="System Settings"><RBACRoute initialTab="tcodes" pageTitle="System Settings" /></ProtectedRoute>} />
         
+        <Route path="ar-dashboard" element={<ProtectedRoute requiredView="AR Dashboard"><ARDashboardRoute /></ProtectedRoute>} />
         <Route path="executive-dashboard" element={<ProtectedRoute requiredView="Executive Dashboard"><DashboardRoute /></ProtectedRoute>} />
         <Route path="finance-dashboard" element={<ProtectedRoute requiredView="Finance Dashboard"><DashboardRoute /></ProtectedRoute>} />
         
