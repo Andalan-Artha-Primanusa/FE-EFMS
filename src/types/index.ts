@@ -828,26 +828,6 @@ export interface FlatJournalRow {
   [key: string]: any;
 }
 
-export interface TunaiPOTracking {
-  id: number;
-  voucherNo: string;
-  site: string;
-  vendor: string;
-  invoiceQty: number;
-  totalAmount: number;
-  justification: string;
-  hasOriginalInvoice: boolean;
-  originalInvoiceUrl?: string;
-  hasTaxInvoice: boolean;
-  taxInvoiceUrl?: string;
-  hasPo: boolean;
-  poUrl?: string;
-  hasGr: boolean;
-  grUrl?: string;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-}
 export interface VoucherRow {
   noVoucher: string;
   tgl: Date;

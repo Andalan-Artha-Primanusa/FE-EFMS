@@ -14,19 +14,12 @@ interface UseFinanceSaveHandlersProps {
   baOperatingItems: any[];
   baMDOItems: any[];
   baDeductionItems: any[];
-  invLineItems: any[];
   baRows: any[];
   setBaRows?: (rows: any[] | ((prev: any[]) => any[])) => void;
   loadData: (showLoading?: boolean) => Promise<void>;
   reloadMasterData?: () => Promise<void>;
   onNotice: (msg: string) => void;
   setShowPendingVolumeDrawer: (val: boolean) => void;
-  totalGrossCalc: number;
-  dpp11_12Calc: number;
-  vat12Calc: number;
-  pph23Calc: number;
-  netTotalInvoiceCalc: number;
-  calcs: any;
   rfIndexCalculated: number;
   detailViewItem: any;
   setDetailViewItem: (val: any) => void;
@@ -57,19 +50,12 @@ export function useFinanceSaveHandlers({
   baOperatingItems,
   baMDOItems,
   baDeductionItems,
-  invLineItems,
   baRows,
   setBaRows,
   loadData,
   reloadMasterData,
   onNotice,
   setShowPendingVolumeDrawer,
-  totalGrossCalc,
-  dpp11_12Calc,
-  vat12Calc,
-  pph23Calc,
-  netTotalInvoiceCalc,
-  calcs,
   rfIndexCalculated,
   detailViewItem,
   setDetailViewItem,
@@ -223,22 +209,10 @@ export function useFinanceSaveHandlers({
           customerCode: formData.customerCode, sourcePeriod, sourceBARef: formData.sourceBARef || "",
           originalOBVolume: vol, ob1Rate: Number(formData.ob1Rate || 0), ob2Rate: Number(formData.ob2Rate || 0), notes: formData.notes || ""
         };
-      } else if (modalType === "invoice") {
-        endpoint = "/api/finance/invoices";
-        // Nomor invoice kosong dibuatkan server (unik); status dikelola server via verify/approve.
-        payload = {
-          ...formData, items: invLineItems, lineItems: invLineItems,
-          invoiceNo: (formData.invoiceNo || "").trim(), customerCode: formData.customerCode || "",
-          jobType: "Mining Production & Overhaul Billing", volumeUnit: "BCM",
-          revenueGross: totalGrossCalc, subTotalDPP: dpp11_12Calc, ppn11: vat12Calc, pph23: pph23Calc, totalInvoice: netTotalInvoiceCalc,
-          totalDibayar: (formData.customerCode === "SBS") ? calcs.totalDibayar : netTotalInvoiceCalc,
-          invoiceDate: formData.invoiceDate ? new Date(formData.invoiceDate).toISOString() : new Date().toISOString(),
-          notes: formData.customerCode === "SBS" ? "PAYMENT DETAIL (PPN & PPh Dikenakan Sebelum Pengurang Pembayaran)" : `PAYMENT DETAIL (RF Index: ${rfIndexCalculated.toFixed(3)})`
-        };
       } else if (modalType === "payment") endpoint = "/api/finance/payments";
       else if (modalType === "customer") endpoint = "/api/finance/customers";
 
-      const dateKeys = ["workEndDate", "baSubmittedDate", "baSentDate", "internalRoutingDate", "baSignedDate", "invoiceIssuedDate", "baDate", "invoiceDate", "paymentDate", "verifiedAt", "approvedAt", "dueDate", "taxReportedDate"];
+      const dateKeys = ["workEndDate", "baSubmittedDate", "baSentDate", "internalRoutingDate", "baSignedDate", "invoiceIssuedDate", "baDate", "invoiceDate", "paymentDate", "verifiedAt", "approvedAt", "dueDate", "invoiceSubmissionDate", "taxReportedDate"];
       dateKeys.forEach((key) => {
         if (payload[key] && typeof payload[key] === "string" && payload[key].trim() !== "") {
           try { payload[key] = new Date(payload[key]).toISOString(); } catch { payload[key] = null; }
@@ -264,12 +238,6 @@ export function useFinanceSaveHandlers({
           setBaRows((prev) => prev.map((r) => r.id === editItem.id ? { ...r, ...finalItem } : r));
         } else {
           setBaRows((prev) => [finalItem, ...prev]);
-        }
-      } else if (modalType === "invoice") {
-        if (editItem?.id) {
-          setInvoiceRows((prev) => prev.map((r) => r.id === editItem.id ? { ...r, ...finalItem } : r));
-        } else {
-          setInvoiceRows((prev) => [finalItem, ...prev]);
         }
       } else if (modalType === "payment") {
         if (editItem?.id) {

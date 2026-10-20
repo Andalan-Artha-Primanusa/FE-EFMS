@@ -7,9 +7,7 @@ import { isOBMaterial, invoiceTaxes } from "./ba_calculations";
 // =============================================================
 
 import {
-  calculateMiningInvoice,
   calculateBATracker,
-  calculateInvoicePreview,
 } from "../../lib/api";
 import {
 
@@ -26,16 +24,6 @@ export const ptroBaseMtr = (item: any): number => {
   return Number(item?.baseMtr) || baseDistanceFor("PTRO", desc) || (/coal|batubara/i.test(desc) ? 3000 : 1000);
 };
 
-export async function fetchServerCalculations(input: any) {
-  try {
-    const result = await calculateMiningInvoice(input);
-    return result;
-  } catch (error) {
-    console.error("Gagal mengambil kalkulasi server", error);
-    return null;
-  }
-}
-
 export async function fetchServerBACalculation(input: any) {
   try {
     const result = await calculateBATracker(input);
@@ -46,20 +34,9 @@ export async function fetchServerBACalculation(input: any) {
   }
 }
 
-export async function fetchServerInvoicePreview(input: any) {
-  try {
-    const result = await calculateInvoicePreview(input);
-    return result;
-  } catch (error) {
-    console.error("Gagal mengambil preview kalkulasi invoice server", error);
-    return null;
-  }
-}
-
 /** Pabrik rumus item invoice: dependensi state disuntikkan lewat parameter. */
 export function createFinanceCalculations(deps: {
   formData: any;
-  invLineItems: any[];
   rfIndexCalculated: number;
   getSowMasterRate: (
     customer: string,
@@ -70,14 +47,14 @@ export function createFinanceCalculations(deps: {
   ) => number;
   mRate: number;
 }) {
-  const { formData, invLineItems, rfIndexCalculated, getSowMasterRate, mRate } = deps;
+  const { formData, rfIndexCalculated, getSowMasterRate, mRate } = deps;
 
   const getItemEffectiveVolume = (item: any, currentList?: any[]) => {
     if (!item) return 0;
     const directVol = Number(item.volume ?? item.adjustedVolume ?? item.initialVolume ?? 0);
     if (directVol > 0) return directVol;
 
-    const list = currentList && currentList.length > 0 ? currentList : invLineItems;
+    const list = currentList || [];
     const cust = (formData.customerCode || "").toUpperCase();
 
     if (cust === "BGG") {

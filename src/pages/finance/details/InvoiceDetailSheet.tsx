@@ -11,8 +11,6 @@ import { InvoiceDetailSummary } from "./InvoiceDetailSummary";
 interface InvoiceDetailSheetProps {
   data: any;
   baRows: any[];
-  invLineItems: any[];
-  formData: any;
   buildInvoiceItemsFromBA: (ba: any, custCode: string, cat?: string) => any[];
   customerContractMap: Record<string, any>;
   getItemEffectiveVolume: (item: any, currentList?: any[]) => number;
@@ -25,8 +23,6 @@ interface InvoiceDetailSheetProps {
 export const InvoiceDetailSheet: React.FC<InvoiceDetailSheetProps> = ({
   data,
   baRows,
-  invLineItems,
-  formData,
   buildInvoiceItemsFromBA,
   customerContractMap,
   getItemEffectiveVolume,
@@ -44,12 +40,9 @@ export const InvoiceDetailSheet: React.FC<InvoiceDetailSheetProps> = ({
       : null;
   let activeItems = rawItems
     ? rawItems
-    : (invLineItems && invLineItems.length > 0 && formData?.invoiceNo === data.invoiceNo
-        ? invLineItems
-        : (typeof buildInvoiceItemsFromBA === "function"
-            ? buildInvoiceItemsFromBA(targetBA || data, viewCustCode, data.invoiceCategory)
-            : (data.items || data.lineItems || []))
-      );
+    : (typeof buildInvoiceItemsFromBA === "function"
+        ? buildInvoiceItemsFromBA(targetBA || data, viewCustCode, data.invoiceCategory)
+        : []);
 
   if ((!activeItems || activeItems.length === 0 || activeItems.every((i: any) => !(i.volume > 0 || i.amount > 0 || i.unitRateIDR > 0))) && typeof buildInvoiceItemsFromBA === "function") {
     activeItems = buildInvoiceItemsFromBA(data, viewCustCode, data.invoiceCategory);

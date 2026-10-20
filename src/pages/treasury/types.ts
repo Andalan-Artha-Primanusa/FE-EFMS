@@ -60,6 +60,8 @@ export interface TreasuryInvoice {
   vendorBillNo?: string;
   isDownPayment?: boolean;
   possibleDuplicate?: boolean;
+  // PO already paid via Tunai PO but this invoice consumed no DP; create-plan refuses it.
+  dpNotDeducted?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -78,6 +80,8 @@ export interface PaymentPlanItem {
   paymentPlanId: number;
   invoiceId?: number;
   invoice?: TreasuryInvoice;
+  tunaiPoRequestId?: number;
+  tunaiPoRequest?: TunaiPORequest;
   vendorId: number;
   vendor?: TreasuryVendor;
   amountPaid: string;
@@ -114,6 +118,8 @@ export interface PaymentPlan {
   kopraExportedCount?: number;
   needsReview?: boolean;
   reviewNote?: string;
+  paymentProofName?: string;
+  paidAt?: string | null;
   items?: PaymentPlanItem[];
   createdAt: string;
   updatedAt: string;
@@ -134,6 +140,20 @@ export interface BankStatementTransaction {
   matchedPlan?: PaymentPlan;
   isReconciled: boolean;
   createdAt: string;
+}
+
+// Subset of the /api/tunai-po request DTO used by the voucher flow.
+export interface TunaiPORequest {
+  id: number;
+  poNo: string;
+  vendorId: number;
+  vendor?: TreasuryVendor;
+  site: string;
+  proformaNo: string;
+  description: string;
+  totalAmount: string;
+  payAmount: string;
+  status: string;
 }
 
 export interface AgingSummary {

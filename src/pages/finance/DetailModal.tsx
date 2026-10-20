@@ -2,6 +2,8 @@ import React from "react";
 import { FileText, Edit2, X } from "lucide-react";
 import { BADetailSheet } from "./details/BADetailSheet";
 import { InvoiceDetailSheet } from "./details/InvoiceDetailSheet";
+import { InvoiceBillingPanel } from "./details/InvoiceBillingPanel";
+import { INVOICE_LOCKED } from "./helpers";
 import { PaymentCustomerDetailSheet } from "./details/PaymentCustomerDetailSheet";
 import { DetailPaymentTracker } from "./details/DetailPaymentTracker";
 import { DetailAuditTimeline } from "./details/DetailAuditTimeline";
@@ -11,11 +13,11 @@ export function DetailModal({ c }: { c: any }) {
   const {
     isSuper, canVerifyBA, canVerifyInvoice, canApproveInvoice, canApproveBA, invoiceRows: rawInvoiceRows, paymentRows: rawPaymentRows, baRows: rawBaRows,
     detailViewItem, setDetailViewItem, showAddPartialPayment, setShowAddPartialPayment, partialPaymentForm,
-    setPartialPaymentForm, rfIndexCalculated, invLineItems, formData, buildInvoiceItemsFromBA, customerContractMap, getItemEffectiveVolume,
+    setPartialPaymentForm, rfIndexCalculated, buildInvoiceItemsFromBA, customerContractMap, getItemEffectiveVolume,
     getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations,
     exportPaymentDetailPDF,
     handleSavePartialPayment, handleVerifyPartialPayment, createInvoiceFromBA, handleVerifyBA, handleApproveBA,
-    handleApproveInvoice, openEditModal, can = () => false
+    handleApproveInvoice, openEditModal, onNotice, loadData, can = () => false
   } = (c || {}) as Record<string, any>;
 
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
@@ -57,7 +59,7 @@ export function DetailModal({ c }: { c: any }) {
                   openEditModal(typeToEdit, itemToEdit);
                 }
               }}
-              className={`px-3 py-1.5 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-extrabold text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer ${can(({ ba: "ba_tracker", customer: "master_data" } as Record<string, string>)[type] ?? type, "write") ? "" : "hidden"}`}
+              className={`px-3 py-1.5 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-extrabold text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer ${type !== "invoice" && can(({ ba: "ba_tracker", customer: "master_data" } as Record<string, string>)[type] ?? type, "write") ? "" : "hidden"}`}
               title="Buka Form Modal Edit untuk Mengubah Data"
             >
               <Edit2 size={13} />
@@ -105,11 +107,22 @@ export function DetailModal({ c }: { c: any }) {
               )}
 
               {type === "invoice" && (
+                <InvoiceBillingPanel
+                  data={data}
+                  canEdit={can("invoice", "write")}
+                  canAlterPosted={canApproveInvoice || !INVOICE_LOCKED.has(data.status)}
+                  onNotice={onNotice}
+                  onSaved={(updated) => {
+                    setDetailViewItem({ type: "invoice", data: { ...data, ...(updated || {}) } });
+                    loadData?.();
+                  }}
+                />
+              )}
+
+              {type === "invoice" && (
                 <InvoiceDetailSheet
                   data={data}
                   baRows={baRows}
-                  invLineItems={invLineItems}
-                  formData={formData}
                   buildInvoiceItemsFromBA={buildInvoiceItemsFromBA}
                   customerContractMap={customerContractMap}
                   getItemEffectiveVolume={getItemEffectiveVolume}

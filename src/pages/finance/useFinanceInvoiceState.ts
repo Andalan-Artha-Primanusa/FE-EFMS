@@ -1,25 +1,10 @@
-import { useState } from "react";
-import { api, generateInvoiceFromBA, verifyInvoice, approveInvoice } from "../../lib/api";
+import { generateInvoiceFromBA, verifyInvoice, approveInvoice } from "../../lib/api";
 
 interface UseFinanceInvoiceStateProps {
-  formData: any;
-  setFormData: React.Dispatch<React.SetStateAction<any>>;
-  blankPOSItems: any[];
-  demoPOSItems: any[];
-  blankBGGItems: any[];
-  demoBGGItems: any[];
-  blankPTROItems: any[];
-  demoPTROItems: any[];
-  blankSBSItems: any[];
-  demoSBSItems: any[];
-  masterVariableOptions: any[];
-  latestKursBI: number;
-  mRate: number;
   onNotice: (msg: string) => void;
   loadData: () => Promise<void>;
   detailViewItem: any;
   setDetailViewItem: (item: any) => void;
-  getSowMasterRate: (cust: string, name: string, fb: number, isUSD?: boolean) => number;
   actionLoadingKey?: string | null;
   setActionLoadingKey?: (key: string | null) => void;
   setInvoiceRows?: (rows: any[] | ((prev: any[]) => any[])) => void;
@@ -27,129 +12,23 @@ interface UseFinanceInvoiceStateProps {
 }
 
 export function useFinanceInvoiceState({
-  formData,
-  setFormData,
-  blankPOSItems,
-  demoPOSItems,
-  blankBGGItems,
-  demoBGGItems,
-  blankPTROItems,
-  demoPTROItems,
-  blankSBSItems,
-  demoSBSItems,
-  masterVariableOptions,
-  mRate,
   onNotice,
   loadData,
   detailViewItem,
   setDetailViewItem,
-  getSowMasterRate,
   actionLoadingKey,
   setActionLoadingKey,
   setInvoiceRows,
   setBaRows
 }: UseFinanceInvoiceStateProps) {
-  const [posInvoiceCategory, setPosInvoiceCategory] = useState<"Operation & Mining" | "MDO">("Operation & Mining");
-  const [invLineItems, setInvLineItems] = useState<any[]>(blankPOSItems);
-
-  const [selectedVarA, setSelectedVarA] = useState("");
-  const [selectedVarB, setSelectedVarB] = useState("");
-  const [selectedVarC, setSelectedVarC] = useState("");
-  const [selectedVarD, setSelectedVarD] = useState("");
-  const [selectedVarE, setSelectedVarE] = useState("");
-  const [selectedVarF, setSelectedVarF] = useState("");
-  const [selectedVarP, setSelectedVarP] = useState("");
-
-  const addVariableToSection = (section: string, code: string) => {
-    if (!code) return;
-    const opt = masterVariableOptions.find(o => o.code === code);
-    if (!opt) return;
-
-    const newItem = {
-      id: `SOW_${Date.now()}`,
-      section,
-      code: opt.code,
-      description: `${section}.${invLineItems.filter(i => i.section === section).length + 1} ${opt.name}`,
-      volume: 0,
-      unit: opt.unit,
-      baseRateUSD: opt.baseRateUSD,
-      unitRateIDR: opt.rateIDR || Math.round((opt.baseRateUSD || 1) * mRate),
-      overhaulMtr: opt.overhaulMtr || 1000,
-      type: section === "D" && opt.code.includes("OVERHAUL") ? "overhaul" : section === "D" && opt.code.includes("CLEARING") ? "land_clearing" : "production"
-    };
-
-    setInvLineItems(prev => [...prev, newItem]);
-    if (section === "A") setSelectedVarA("");
-    if (section === "B") setSelectedVarB("");
-    if (section === "C") setSelectedVarC("");
-    if (section === "D") setSelectedVarD("");
-    if (section === "E") setSelectedVarE("");
-    if (section === "F") setSelectedVarF("");
-    if (section === "P") setSelectedVarP("");
-  };
-
-  const removeInvLineItem = (idToRemove: string) => {
-    setInvLineItems(prev => prev.filter(item => item.id !== idToRemove));
-  };
-
-  const updateInvItemVolume = (id: string, vol: number) => {
-    setInvLineItems(prev => prev.map(item => item.id === id ? { ...item, volume: vol } : item));
-  };
-
-  const updateInvItemOverhaul = (id: string, mtr: number) => {
-    setInvLineItems(prev => prev.map(item => item.id === id ? { ...item, overhaulMtr: mtr } : item));
-  };
-
-  const updateInvItemRateIDR = (id: string, rate: number) => {
-    setInvLineItems(prev => prev.map(item => item.id === id ? { ...item, unitRateIDR: rate } : item));
-  };
-
-  const updateInvItemRateUSD = (id: string, rate: number) => {
-    setInvLineItems(prev => prev.map(item => item.id === id ? { ...item, unitRateUSD: rate } : item));
-  };
-
-  const updateInvItemKurs = (id: string, kurs: number) => {
-    setInvLineItems(prev => prev.map(item => item.id === id ? { ...item, kursBI: kurs } : item));
-  };
-
-  const updateInvItemAmount = (id: string, amt: number) => {
-    setInvLineItems(prev => prev.map(item => item.id === id ? { ...item, amount: amt } : item));
-  };
-
-  const updateInvItemField = (id: string, field: string, val: any) => {
-    setInvLineItems(prev => prev.map(item => item.id === id ? { ...item, [field]: val } : item));
-  };
-
-  const reorderInvLineItems = (startIndex: number, endIndex: number) => {
-    setInvLineItems(prev => {
-      if (startIndex < 0 || startIndex >= prev.length || endIndex < 0 || endIndex >= prev.length) return prev;
-      const result = Array.from(prev);
-      const [removed] = result.splice(startIndex, 1);
-      result.splice(endIndex, 0, removed);
-      return result;
-    });
-  };
-
-  const moveInvRow = (id: string, dir: "up" | "down") => {
-    setInvLineItems(prev => {
-      const idx = prev.findIndex(item => item.id === id);
-      if (idx === -1) return prev;
-      const targetIdx = dir === "up" ? idx - 1 : idx + 1;
-      if (targetIdx < 0 || targetIdx >= prev.length) return prev;
-      const result = Array.from(prev);
-      const [removed] = result.splice(idx, 1);
-      result.splice(targetIdx, 0, removed);
-      return result;
-    });
-  };
-
-  const handleGenerateInvoiceFromBA = async (baId: number) => {
+  const handleGenerateInvoiceFromBA = async (baId: number, category?: "Operation & Mining" | "MDO") => {
     const key = `generate-inv-${baId}`;
     if (setActionLoadingKey) setActionLoadingKey(key);
     onNotice("⏳ Sedang menerbitkan draft invoice dari Berita Acara...");
     try {
-      const newInv: any = await generateInvoiceFromBA(baId);
-      onNotice(`✅ Berhasil membuat Draft Mining Invoice No. ${newInv?.invoiceNo || "091/BGG-AAP/VI/2026"} dari Berita Acara.`);
+      const newInv: any = await generateInvoiceFromBA(baId, category);
+      onNotice(`✅ Draft Invoice No. ${newInv?.invoiceNo} diterbitkan dari Berita Acara.`);
+      setDetailViewItem({ type: "invoice", data: newInv });
       if (setInvoiceRows && newInv) {
         setInvoiceRows((prev) => [newInv, ...prev.filter((i) => i.id !== newInv.id)]);
       }
@@ -209,30 +88,8 @@ export function useFinanceInvoiceState({
 
   const handleApproveInvoiceTier1 = async (id: number) => handleApproveInvoice(id);
 
-  const handleSetInvoiceSubmissionDate = async (id: number, date: string) => {
-    try {
-      const updated: any = await api(`/api/finance/invoices/${id}/submission-date`, { method: "PUT", body: JSON.stringify({ date }) });
-      if (setInvoiceRows) setInvoiceRows((prev) => prev.map((i) => i.id === id ? { ...i, ...(updated || {}) } : i));
-    } catch (err: any) {
-      onNotice(err?.message || "Gagal menyimpan tanggal Invoice Submission");
-    }
-  };
-
   return {
-    posInvoiceCategory, setPosInvoiceCategory,
-    invLineItems, setInvLineItems,
-    selectedVarA, setSelectedVarA,
-    selectedVarB, setSelectedVarB,
-    selectedVarC, setSelectedVarC,
-    selectedVarD, setSelectedVarD,
-    selectedVarE, setSelectedVarE,
-    selectedVarF, setSelectedVarF,
-    selectedVarP, setSelectedVarP,
-    addVariableToSection,
-    removeInvLineItem, updateInvItemVolume, updateInvItemOverhaul,
-    updateInvItemRateIDR, updateInvItemRateUSD, updateInvItemKurs, updateInvItemAmount,
-    updateInvItemField, reorderInvLineItems, moveInvRow,
     handleGenerateInvoiceFromBA, handleVerifyInvoice, handleApproveInvoice,
-    handleApproveInvoiceTier1, handleSetInvoiceSubmissionDate
+    handleApproveInvoiceTier1
   };
 }

@@ -26,6 +26,7 @@ import { formatCurrency, formatDate } from "../../../lib/format";
 import type { useTreasuryController } from "../useTreasuryController";
 import type { TreasuryInvoice, TreasuryVendor } from "../types";
 import { VoucherPaymentOfficialPrint } from "../components/VoucherPaymentOfficialPrint";
+import { DpNotDeductedBadge, DP_NOT_DEDUCTED_TIP } from "./PivotAgingPlanningView";
 
 type Props = {
   c: ReturnType<typeof useTreasuryController>;
@@ -64,7 +65,10 @@ export function FinanceVoucherView({ c }: Props) {
 
   // States for Assigning Voucher
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<number[]>([]);
-  const [inputVoucherNo, setInputVoucherNo] = useState<string>("001");
+  // Blank = new server-assigned number; filled = add to that existing voucher.
+  const [inputVoucherNo, setInputVoucherNo] = useState<string>("");
+  const [voucherType, setVoucherType] = useState("AP");
+  const [nextVoucherNo, setNextVoucherNo] = useState("");
   const [inputVoucherDate, setInputVoucherDate] = useState<string>(
     new Date().toISOString().slice(0, 10)
   );
@@ -81,10 +85,8 @@ export function FinanceVoucherView({ c }: Props) {
 
   // Load next recommended voucher transaction number globally across system
   useEffect(() => {
-    fetchNextVoucherNo("").then((nextNo) => {
-      setInputVoucherNo(nextNo);
-    });
-  }, [fetchNextVoucherNo]);
+    fetchNextVoucherNo(voucherType).then(setNextVoucherNo);
+  }, [fetchNextVoucherNo, voucherType]);
 
   // Toggle expand voucher in row view
   const toggleExpandVoucher = (key: string) => {
@@ -313,6 +315,7 @@ export function FinanceVoucherView({ c }: Props) {
 
   // Selection handlers
   const handleToggleInvoice = (invId: number, vendorInvoices: TreasuryInvoice[]) => {
+    if (vendorInvoices.find((i) => i.id === invId)?.dpNotDeducted) return;
     setSelectedInvoiceIds((prev) => {
       // If selecting a new invoice, verify it belongs to the same vendor and site
       if (!prev.includes(invId)) {
@@ -332,7 +335,7 @@ export function FinanceVoucherView({ c }: Props) {
   };
 
   const handleSelectAllForVendor = (vendorInvoices: TreasuryInvoice[]) => {
-    const vInvIds = vendorInvoices.map((i) => i.id);
+    const vInvIds = vendorInvoices.filter((i) => !i.dpNotDeducted).map((i) => i.id);
     const allSelected = vInvIds.every((id) => selectedInvoiceIds.includes(id));
 
     if (allSelected) {
@@ -346,23 +349,19 @@ export function FinanceVoucherView({ c }: Props) {
   // Execute Assign Voucher to Selected POs
   const handleExecuteAssignVoucher = async () => {
     if (selectedInvoiceIds.length === 0) return;
-    if (!inputVoucherNo.trim()) {
-      alert("Nomor voucher wajib diisi!");
-      return;
-    }
 
     setIsSubmitting(true);
     try {
       const ok = await handleAssignVoucher(
         selectedInvoiceIds,
         inputVoucherNo.trim(),
-        inputVoucherDate
+        inputVoucherDate,
+        voucherType
       );
       if (ok) {
         setSelectedInvoiceIds([]);
-        // Refresh next global voucher transaction number
-        const nextNo = await fetchNextVoucherNo("");
-        setInputVoucherNo(nextNo);
+        setInputVoucherNo("");
+        setNextVoucherNo(await fetchNextVoucherNo(voucherType));
         setActiveSubTab("SAVED");
       }
     } finally {
@@ -384,9 +383,6 @@ export function FinanceVoucherView({ c }: Props) {
     setIsSubmitting(true);
     try {
       await handleRemoveVoucher(invIds);
-      // Refresh next global voucher transaction number
-      const nextNo = await fetchNextVoucherNo("");
-      setInputVoucherNo(nextNo);
     } finally {
       setIsSubmitting(false);
     }
@@ -623,7 +619,7 @@ export function FinanceVoucherView({ c }: Props) {
           )}
 
           <div className="text-[11px] font-mono font-bold text-stone-700 bg-stone-100 px-3 py-1.5 rounded-[3px] border border-stone-300">
-            No Voucher Transaksi Berikutnya: <span className="text-blue-900 font-black">{inputVoucherNo}</span>
+            No Voucher Berikutnya: <span className="text-blue-900 font-black">{nextVoucherNo || "-"}</span>
           </div>
         </div>
       </div>
@@ -831,13 +827,27 @@ export function FinanceVoucherView({ c }: Props) {
               </div>
 
               <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold text-stone-600">Jenis:</span>
+                <select
+                  value={voucherType}
+                  onChange={(e) => setVoucherType(e.target.value)}
+                  className="px-2 py-1 text-[11px] font-bold border border-stone-300 rounded-[3px] bg-white focus:border-[#A57C50] focus:outline-none"
+                >
+                  {["AP", "NPO", "LSG", "LOAN", "OTH"].map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5">
                 <span className="text-[11px] font-semibold text-stone-600">No Voucher:</span>
                 <input
                   type="text"
                   value={inputVoucherNo}
                   onChange={(e) => setInputVoucherNo(e.target.value)}
-                  placeholder="001"
-                  className="w-20 px-2 py-1 text-[11px] font-mono font-bold border border-stone-300 rounded-[3px] text-blue-900 bg-white text-center focus:border-[#A57C50] focus:outline-none"
+                  placeholder={nextVoucherNo || "Baru"}
+                  title="Kosong = nomor baru"
+                  className="w-52 px-2 py-1 text-[11px] font-mono font-bold border border-stone-300 rounded-[3px] text-blue-900 bg-white text-center focus:border-[#A57C50] focus:outline-none"
                 />
               </div>
 
@@ -953,12 +963,15 @@ export function FinanceVoucherView({ c }: Props) {
                                   <input
                                     type="checkbox"
                                     checked={isChecked}
+                                    disabled={inv.dpNotDeducted}
+                                    title={inv.dpNotDeducted ? DP_NOT_DEDUCTED_TIP : undefined}
                                     onChange={() => {}} // handled by tr click
-                                    className="cursor-pointer accent-[#A57C50]"
+                                    className="cursor-pointer accent-[#A57C50] disabled:cursor-not-allowed"
                                   />
                                 </td>
                                 <td className="p-2 font-bold text-blue-900 font-mono">
                                   {inv.poNo || "NON PO"}
+                                  {inv.dpNotDeducted && <DpNotDeductedBadge />}
                                 </td>
                                 <td className="p-2 font-mono text-stone-700">
                                   {inv.invoiceNo}

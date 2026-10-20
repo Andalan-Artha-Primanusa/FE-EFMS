@@ -119,15 +119,15 @@ export function authorized(
 export function canAccessMenu(item: string, role: string, permissions: Permission[], tcodes?: TCode[], user?: User) {
   // Hidden from the sidebar and blocked by URL (ProtectedRoute uses this too): ledger work happens in Accurate.
   if (ledgerInAccurateItems.has(item)) return false;
-  // Treasury sub-menus share the existing "Treasury Management" grant (incl. its T-Code).
-  if (item in treasuryTabs) item = "Treasury Management";
+  // Treasury sub-menus (and Rekap Voucher) share the existing "Treasury Management" grant (incl. its T-Code).
+  if (item in treasuryTabs || item === "Rekap Voucher") item = "Treasury Management";
   // AR Dashboard shares the existing "Finance & AR Dashboard" grant (incl. its T-Code).
   if (item === "AR Dashboard") item = "Finance & AR Dashboard";
   if (isSuperAdminRole(role)) return true;
 
-  if (item === "Tunai PO Tracking") {
-    const roleUpper = role.toUpperCase();
-    return roleUpper.includes("FINANCE HO") || roleUpper.includes("SCM HO");
+  // Tunai PO pages are permission-only (no T-Code), so SCM reaches them without any treasury grant.
+  if (item === "Pengajuan Tunai PO" || item === "Tracking Tunai PO") {
+    return ["read", "submit", "verify"].some((action) => hasPermission(permissions, "tunai_po", action));
   }
 
   // Site-specific Master Data restrictions:

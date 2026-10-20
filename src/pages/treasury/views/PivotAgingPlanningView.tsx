@@ -38,6 +38,14 @@ interface VendorGroup {
 // Open balance, not the gross invoice total (partial payments and consumed DP are already deducted).
 const outstandingOf = (inv: TreasuryInvoice) => Number(inv.remainingBalance ?? inv.totalAmount ?? 0);
 
+// Invoices whose PO was paid via Tunai PO but consumed no DP cannot go into a voucher.
+export const DP_NOT_DEDUCTED_TIP = "PO sudah dibayar Tunai PO, invoice belum memotong DP";
+export const DpNotDeductedBadge = () => (
+  <span className="ml-1 px-1 rounded bg-rose-600 text-white font-bold text-[9px]" title={DP_NOT_DEDUCTED_TIP}>
+    DP belum dipotong
+  </span>
+);
+
 function formatMonthHeader(mKey: string): string {
   if (mKey === "BLANK" || !mKey) return "(blank)";
   const [yearStr, monthStr] = mKey.split("-");
@@ -225,7 +233,7 @@ export function PivotAgingPlanningView({ c }: Props) {
 
   // Toggle selection on Vendor Level
   const toggleVendorSelection = (grp: VendorGroup) => {
-    const itemIds = grp.items.map((i) => i.id);
+    const itemIds = grp.items.filter((i) => !i.dpNotDeducted).map((i) => i.id);
     const allSelected = itemIds.every((id) => selectedInvoiceIds.includes(id));
 
     if (allSelected) {
@@ -236,7 +244,9 @@ export function PivotAgingPlanningView({ c }: Props) {
   };
 
   // Toggle selection on PO Level
-  const toggleInvoiceSelection = (invId: number) => {
+  const toggleInvoiceSelection = (inv: TreasuryInvoice) => {
+    if (inv.dpNotDeducted) return;
+    const invId = inv.id;
     setSelectedInvoiceIds((prev) =>
       prev.includes(invId) ? prev.filter((id) => id !== invId) : [...prev, invId]
     );
@@ -404,7 +414,7 @@ export function PivotAgingPlanningView({ c }: Props) {
               ) : (
                 filteredGroups.map((grp) => {
                   const isExpanded = !!expandedVendors[grp.key];
-                  const itemIds = grp.items.map((i) => i.id);
+                  const itemIds = grp.items.filter((i) => !i.dpNotDeducted).map((i) => i.id);
                   const selectedCount = itemIds.filter((id) => selectedInvoiceIds.includes(id)).length;
                   const isAllSelected = selectedCount === itemIds.length && itemIds.length > 0;
                   const isPartial = selectedCount > 0 && selectedCount < itemIds.length;
@@ -564,7 +574,7 @@ export function PivotAgingPlanningView({ c }: Props) {
                                 className={`border-b border-stone-100 ${
                                   isInvSelected ? "bg-amber-50/50" : "bg-white"
                                 } hover:bg-stone-50/80 transition cursor-pointer text-[10px]`}
-                                onClick={() => toggleInvoiceSelection(inv.id)}
+                                onClick={() => toggleInvoiceSelection(inv)}
                               >
                                 {/* # — indent to align under vendor */}
                                 <td className="p-1.5 text-center text-stone-400 pl-10 w-8">
@@ -578,8 +588,10 @@ export function PivotAgingPlanningView({ c }: Props) {
                                   <input
                                     type="checkbox"
                                     checked={isInvSelected}
-                                    onChange={() => toggleInvoiceSelection(inv.id)}
-                                    className="w-3.5 h-3.5 accent-[#A57C50] rounded-[2px] cursor-pointer"
+                                    disabled={inv.dpNotDeducted}
+                                    title={inv.dpNotDeducted ? DP_NOT_DEDUCTED_TIP : undefined}
+                                    onChange={() => toggleInvoiceSelection(inv)}
+                                    className="w-3.5 h-3.5 accent-[#A57C50] rounded-[2px] cursor-pointer disabled:cursor-not-allowed"
                                   />
                                 </td>
                                 {/* PO + Invoice + Description (merged into VENDOR column) */}
@@ -598,6 +610,7 @@ export function PivotAgingPlanningView({ c }: Props) {
                                   {inv.accurateDeleted && (
                                     <span className="ml-1 px-1 rounded bg-stone-800 text-white font-bold text-[9px]">Dihapus di Accurate</span>
                                   )}
+                                  {inv.dpNotDeducted && <DpNotDeductedBadge />}
                                   <span className="ml-1.5 text-stone-600 font-medium truncate">
                                     {inv.itemDescription
                                       ? inv.itemDescription.length > 60
