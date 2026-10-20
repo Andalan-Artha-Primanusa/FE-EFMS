@@ -245,11 +245,13 @@ export function useTreasuryController(onNotice?: (msg: string) => void, user?: U
     justification: string;
     planMonth?: string;
     planWeek?: number;
+    // Tunai PO vouchers pass their own items ({tunaiPoRequestId, vendorId, amountPaid}).
+    items?: Record<string, unknown>[];
   }) => {
     try {
       const pool = allUnpaidInvoices.length > 0 ? allUnpaidInvoices : invoices;
       const selectedInvs = pool.filter((i) => selectedInvoiceIds.includes(i.id));
-      const items = selectedInvs.map((inv) => {
+      const items = data.items ?? selectedInvs.map((inv) => {
         const amt = partialAmounts[inv.id] || inv.remainingBalance;
         return {
           invoiceId: inv.id,
@@ -460,7 +462,8 @@ export function useTreasuryController(onNotice?: (msg: string) => void, user?: U
   };
 
   // Assign Voucher to Invoices (Strictly 1 Site + 1 Vendor)
-  const handleAssignVoucher = async (invoiceIds: number[], voucherNo: string, voucherDate?: string) => {
+  // Empty voucherNo = new server-assigned number; an existing number adds the invoices to that voucher.
+  const handleAssignVoucher = async (invoiceIds: number[], voucherNo: string, voucherDate?: string, voucherType = "AP") => {
     try {
       const res = await api<{ success: boolean; message: string }>("/api/treasury/invoices/assign-voucher", {
         method: "POST",
@@ -468,6 +471,7 @@ export function useTreasuryController(onNotice?: (msg: string) => void, user?: U
           invoiceIds,
           voucherNo,
           voucherDate,
+          voucherType,
         }),
       });
       onNotice?.(res.message || "Nomor voucher berhasil diterapkan dan disimpan");
@@ -499,15 +503,27 @@ export function useTreasuryController(onNotice?: (msg: string) => void, user?: U
     }
   };
 
-  // Fetch Next Recommended Voucher Number for a Site
-  const fetchNextVoucherNo = async (site: string): Promise<string> => {
+  // Preview (not reserved) of the next number from the shared yearly sequence.
+  const fetchNextVoucherNo = useCallback(async (type = "AP"): Promise<string> => {
     try {
       const res = await api<{ success: boolean; nextVoucher: string }>(
-        `/api/treasury/invoices/next-voucher-no?site=${encodeURIComponent(site)}`
+        `/api/treasury/invoices/next-voucher-no?type=${encodeURIComponent(type)}`
       );
-      return res.nextVoucher || "001";
+      return res.nextVoucher || "";
     } catch (e) {
-      return "001";
+      return "";
+    }
+  }, []);
+
+  const handleUploadPaymentProof = async (planId: number, file: File) => {
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      await api(`/api/treasury/payment-plans/${planId}/payment-proof`, { method: "POST", body: form });
+      onNotice?.("Bukti bayar tersimpan");
+      fetchPlans();
+    } catch (e: any) {
+      onNotice?.(e.message || "Gagal upload bukti bayar");
     }
   };
 
@@ -567,5 +583,21 @@ export function useTreasuryController(onNotice?: (msg: string) => void, user?: U
     handleAssignVoucher,
     handleRemoveVoucher,
     fetchNextVoucherNo,
+    handleUploadPaymentProof,
   };
+}
+
+// Authenticated file download (plain links cannot carry the bearer token).
+export async function downloadFile(path: string, fallbackName: string) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${localStorage.getItem("financeerp.token") || ""}` },
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => null))?.message || "Gagal download file");
+  const name = (res.headers.get("content-disposition") || "").match(/filename="?([^"]+)"?/)?.[1] || fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
 }

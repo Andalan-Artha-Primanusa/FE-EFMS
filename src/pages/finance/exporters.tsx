@@ -10,7 +10,7 @@ import { formatIDR, getBAInvoiceStatus, getBAStatusForExport, getCustomerOfficia
 export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { 
-    formData, rfIndexCalculated, invLineItems, customerContractMap, getItemEffectiveVolume,
+    formData, rfIndexCalculated, customerContractMap, getItemEffectiveVolume,
     getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations, baRows, buildInvoiceItemsFromBA
   } = ctx;
     const printWin = window.open("", "_blank", "width=1000,height=800");
@@ -28,12 +28,9 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         : null;
     let activeItems = rawItems
       ? rawItems
-      : (invLineItems && invLineItems.length > 0 && (!itemData?.invoiceNo || formData?.invoiceNo === itemData?.invoiceNo)
-          ? invLineItems
-          : (typeof buildInvoiceItemsFromBA === "function"
-              ? buildInvoiceItemsFromBA(targetBA || itemData, custCode, itemData?.invoiceCategory)
-              : (itemData?.items || itemData?.lineItems || []))
-        );
+      : (typeof buildInvoiceItemsFromBA === "function"
+          ? buildInvoiceItemsFromBA(targetBA || itemData, custCode, itemData?.invoiceCategory)
+          : []);
 
     if ((!activeItems || activeItems.length === 0 || activeItems.every((i: any) => !(i.volume > 0 || i.amount > 0 || i.unitRateIDR > 0))) && typeof buildInvoiceItemsFromBA === "function") {
       activeItems = buildInvoiceItemsFromBA(itemData, custCode, itemData?.invoiceCategory);

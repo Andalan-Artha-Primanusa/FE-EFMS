@@ -10,8 +10,11 @@ import {
   CompanyRoute, TreasuryManagementRoute, BudgetManagementRoute, ClosingPeriodRoute,
   NotificationCenterRoute, OrgUnitsRoute, VariableSOWRoute, KopraRoute
 } from "./router/RouteWrappers";
-import { TunaiPOView } from "./pages/finance/TunaiPOView";
 import { slugify, treasuryTabs, viewPath } from "./data/navigation";
+
+const TunaiPOPage = lazy(() => import("./pages/tunai-po/TunaiPOPage").then((m) => ({ default: m.TunaiPOPage })));
+const TrackingTunaiPOPage = lazy(() => import("./pages/tunai-po/TrackingTunaiPOPage").then((m) => ({ default: m.TrackingTunaiPOPage })));
+const RekapVoucherView = lazy(() => import("./pages/treasury/views/RekapVoucherView"));
 
 const VariableSOWFormPage = lazy(() => import("./pages/VariableSOWFormPage").then((m) => ({ default: m.VariableSOWFormPage })));
 const MasterDataFormRoute = lazy(() => import("./pages/MasterDataFormRoute").then((m) => ({ default: m.MasterDataFormRoute })));
@@ -83,7 +86,9 @@ export function AuthenticatedApp({ user, onLogout }: { user: User; onLogout: () 
         <Route path="invoice-management" element={<ProtectedRoute requiredView="Invoice Management"><FinanceInvoiceRoute /></ProtectedRoute>} />
         
         <Route path="payment-receipt-log" element={<ProtectedRoute requiredView="Payment & Receipt Log"><FinancePaymentRoute /></ProtectedRoute>} />
-        <Route path="tunai-po-tracking" element={<TunaiPOView />} />
+        <Route path="pengajuan-tunai-po" element={<ProtectedRoute requiredView="Pengajuan Tunai PO"><Suspense fallback={<FormLoadingFallback />}><TunaiPOPage /></Suspense></ProtectedRoute>} />
+        <Route path="tracking-tunai-po" element={<ProtectedRoute requiredView="Tracking Tunai PO"><Suspense fallback={<FormLoadingFallback />}><TrackingTunaiPOPage /></Suspense></ProtectedRoute>} />
+        <Route path="rekap-voucher" element={<ProtectedRoute requiredView="Rekap Voucher"><Suspense fallback={<FormLoadingFallback />}><RekapVoucherView /></Suspense></ProtectedRoute>} />
         <Route path="treasury-management" element={<Navigate to={viewPath("Pivot Hutang")} replace />} />
         {(Object.keys(treasuryTabs) as (keyof typeof treasuryTabs)[]).map((title) => (
           <Route key={title} path={slugify(title)} element={<ProtectedRoute requiredView={title}><TreasuryManagementRoute tab={treasuryTabs[title]} /></ProtectedRoute>} />

@@ -55,6 +55,8 @@ export const draftKey = (type: string, id?: any) => `efms:draft:${draftUser()}:$
 
 export const formatDateInput = (dateStr: any) => {
   if (!dateStr) return "";
+  // Tanggal kalender sesuai yang tertulis di server; konversi ke UTC bisa mundur sehari (mis. 06:00+07:00).
+  if (typeof dateStr === "string" && /^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.startsWith("0001-") ? "" : dateStr.slice(0, 10);
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return "";
   return d.toISOString().split("T")[0];

@@ -5,6 +5,7 @@ import type { TreasuryTab } from "../../data/navigation";
 import { PivotAgingPlanningView } from "./views/PivotAgingPlanningView";
 import { WeeklyPlanningExcelView } from "./views/WeeklyPlanningExcelView";
 import { PaymentPlanView } from "./views/PaymentPlanView";
+import { FinanceVoucherView } from "./views/FinanceVoucherView";
 import { KopraExportView } from "./views/KopraExportView";
 import { ReconciliationView } from "./views/ReconciliationView";
 import { RekapAapView } from "./views/RekapAapView";
@@ -110,6 +111,7 @@ export function TreasuryShell({
         {activeTab === "pivot" && <PivotAgingPlanningView c={c} />}
         {activeTab === "planning" && <WeeklyPlanningExcelView c={c} />}
         {activeTab === "voucher" && <PaymentPlanView c={c} />}
+        {activeTab === "assign" && <FinanceVoucherView c={c} />}
         {activeTab === "kopra" && <KopraExportView c={c} />}
         {activeTab === "reconcile" && <ReconciliationView c={c} />}
         {activeTab === "rekap" && <RekapAapView c={c} />}

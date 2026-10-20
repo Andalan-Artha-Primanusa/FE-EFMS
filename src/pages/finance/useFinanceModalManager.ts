@@ -1,27 +1,16 @@
-import { uploadBADocument, previewInvoiceFromBA } from "../../lib/api";
-import { generateInvoiceNumber, formatDateInput, matchPeriod, isBAApproved } from "./helpers";
+import { uploadBADocument } from "../../lib/api";
+import { formatDateInput } from "./helpers";
 import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF } from "./ba_calculations";
 import { masterOBRates } from "./modals/PendingVolumeRecordModal";
 import { customerKind, rfMasterFor, computeRFIndex, ptroContractRates, baItemsFromSOW, kursForPeriod } from "./masterRegistry";
 
 interface UseFinanceModalManagerProps {
   user: any;
-  formData: any;
   setFormData: React.Dispatch<React.SetStateAction<any>>;
   customerRows: any[];
-  customerContractMap: Record<string, any>;
-  invoiceRows: any[];
-  baRows: any[];
-  setInvLineItems: (items: any[]) => void;
-  blankPOSItems: any[];
-  blankBGGItems: any[];
-  blankPTROItems: any[];
-  blankSBSItems: any[];
-  buildInvItems: (ba: any, custCode?: string, category?: any) => any[];
   onNotice: (msg: string) => void;
   setModalType: (type: any) => void;
   setEditItem: (item: any) => void;
-  setDetailViewItem: (item: any) => void;
   setIsInlineEditingBA: (val: boolean) => void;
   createBlankBGGBAItems: (period?: string) => any[];
   createBlankSBSBAItems: (period?: string) => any[];
@@ -47,22 +36,11 @@ interface UseFinanceModalManagerProps {
 
 export function useFinanceModalManager({
   user,
-  formData,
   setFormData,
   customerRows,
-  customerContractMap,
-  invoiceRows,
-  baRows,
-  setInvLineItems,
-  blankPOSItems,
-  blankBGGItems,
-  blankPTROItems,
-  blankSBSItems,
-  buildInvItems,
   onNotice,
   setModalType,
   setEditItem,
-  setDetailViewItem,
   setIsInlineEditingBA,
   createBlankBGGBAItems,
   createBlankSBSBAItems,
@@ -85,95 +63,6 @@ export function useFinanceModalManager({
   latestKursBI,
   mRate
 }: UseFinanceModalManagerProps) {
-  // Header kontrak & rekening penerimaan invoice: Master Customer + Master Rekening Bank (kosong bila belum diatur).
-  const contractHeader = (code: string) => {
-    const c = customerContractMap[String(code || "").toUpperCase()] || {};
-    return {
-      projectSite: c.project || "", contractNo: c.contract || "", noPO: c.noPO || "",
-      bankName: c.bankName || "", bankAccountNo: c.bankAccountNo || "", bankBranch: c.bankBranch || "",
-      directorName: c.directorName || "", directorTitle: c.directorTitle || "",
-    };
-  };
-
-  const handleCompanySelect = (code: string) => {
-    if (code === "BGG") setInvLineItems(blankBGGItems.map(i => ({ ...i })));
-    else if (code === "PTRO" || code === "DBK") setInvLineItems(blankPTROItems.map(i => ({ ...i })));
-    else if (code === "SBS") setInvLineItems(blankSBSItems.map(i => ({ ...i })));
-    else setInvLineItems(blankPOSItems.map(i => ({ ...i })));
-
-    setFormData((prev: any) => {
-      const period = prev.workPeriod || getCurrentMonthPeriod();
-      return { ...prev, customerCode: code, ...contractHeader(code), noPO: prev.noPO || contractHeader(code).noPO, invoiceNo: generateInvoiceNumber(code, period, invoiceRows.length) };
-    });
-  };
-
-  // Item invoice dari BA dihitung backend (validasi & rumus sama dengan generate invoice).
-  const loadBAInvoiceItems = async (ba: any, category: "Operation & Mining" | "MDO"): Promise<any[] | null> => {
-    try {
-      const draft = await previewInvoiceFromBA(ba.id, category);
-      return draft.lineItems || draft.items || [];
-    } catch (err: any) {
-      onNotice(`Gagal menyiapkan item invoice dari BA ${ba.baNumber}: ${err?.message || err}`);
-      return null;
-    }
-  };
-
-  const handleBASelect = (baNumber: string) => {
-    if (!baNumber) {
-      setFormData((prev: any) => ({ ...prev, baNoReference: "" }));
-      return;
-    }
-    const selectedBa = baRows.find((r) => r.baNumber === baNumber);
-    if (selectedBa) {
-      const code = selectedBa.customerCode || "";
-      const header = contractHeader(code);
-      const workPeriod = selectedBa.workPeriod || "";
-      const cat = (formData.invoiceCategory || (formData.activityGroup?.includes("MDO") ? "MDO" : "Operation & Mining")) as "Operation & Mining" | "MDO";
-      let autoInvNo = generateInvoiceNumber(code, workPeriod, invoiceRows.length);
-      if (code === "POS" && cat === "MDO") autoInvNo = autoInvNo.replace(/RF|MINING/g, "MDO");
-      const poNum = selectedBa.noPO || selectedBa.poNumber || header.noPO;
-
-      setFormData((prev: any) => ({
-        ...prev, ...header, baNoReference: selectedBa.baNumber, customerCode: code, workPeriod, invoiceNo: autoInvNo,
-        noPO: poNum, poNumber: poNum,
-        activityGroup: (code === "POS" && cat === "MDO") ? "MINE DEVELOPMENT OPERATION (MDO)" : (selectedBa.activityGroup || "OPERATION & MINING"),
-        invoiceCategory: cat,
-      }));
-      loadBAInvoiceItems(selectedBa, cat).then((items) => {
-        if (!items) return;
-        setInvLineItems(items);
-        onNotice(`No. BA ${selectedBa.baNumber} dipilih. Volume survei klaim [${cat}] berhasil diisi otomatis.`);
-      });
-    }
-  };
-
-  const createInvoiceFromBA = async (ba: any, category: "Operation & Mining" | "MDO" = "Operation & Mining") => {
-    if (!isBAApproved(ba)) {
-      onNotice("Perhatian: Berita Acara belum disetujui Manager. Invoice hanya dapat diterbitkan setelah BA diverifikasi Finance Specialist dan di-approve Manager.");
-      return;
-    }
-    const items = await loadBAInvoiceItems(ba, category);
-    if (!items) return;
-    const code = ba.customerCode || "";
-    const period = ba.workPeriod || "";
-    let autoInvNo = generateInvoiceNumber(code, period, invoiceRows.length);
-    if (code === "POS" && category === "MDO") autoInvNo = autoInvNo.replace(/RF|MINING/g, "MDO");
-    const header = contractHeader(code);
-    const poNum = ba.noPO || ba.poNumber || header.noPO;
-
-    setEditItem(null);
-    setFormData({
-      ...header, baID: ba.id, customerCode: code, workPeriod: period, invoiceNo: autoInvNo, baNoReference: ba.baNumber,
-      noPO: poNum, poNumber: poNum,
-      activityGroup: (code === "POS" && category === "MDO") ? "MINE DEVELOPMENT OPERATION (MDO)" : "OPERATION & MINING",
-      invoiceCategory: category,
-    });
-    setInvLineItems(items);
-    setDetailViewItem(null);
-    setModalType("invoice");
-    onNotice(`Menyiapkan Form Draf Invoice [${category}] dari No. BA ${ba.baNumber} (${code}).`);
-  };
-
   const openCreateModal = (type: any, initialData: any = {}) => {
     setEditItem(null);
     const todayStr = new Date().toISOString().slice(0, 10);
@@ -306,21 +195,6 @@ export function useFinanceModalManager({
         customerCode: defaultCust, sourcePeriod: initialData?.sourcePeriod || curMonth,
         sourceBARef: "", originalOBVolume: 0, ob1Rate: r1, ob2Rate: r2, notes: "", ...initialData,
       });
-    } else if (type === "invoice") {
-      const userSiteCode = (user?.companyCode && user.companyCode !== "HO") ? user.companyCode : "";
-      const defaultCompany = initialData?.customerCode || userSiteCode || "";
-      const defaultPeriod = initialData?.workPeriod || curMonth;
-      setFormData({
-        ...contractHeader(defaultCompany),
-        customerCode: defaultCompany, workPeriod: defaultPeriod,
-        invoiceNo: defaultCompany ? generateInvoiceNumber(defaultCompany, defaultPeriod, invoiceRows.length) : "",
-        activityGroup: initialData?.activityGroup || "OPERATION & MINING",
-        ...initialData,
-      });
-      if (defaultCompany === "BGG") setInvLineItems(blankBGGItems.map(i => ({ ...i })));
-      else if (defaultCompany === "PTRO" || defaultCompany === "DBK") setInvLineItems(blankPTROItems.map(i => ({ ...i })));
-      else if (defaultCompany === "SBS") setInvLineItems(blankSBSItems.map(i => ({ ...i })));
-      else setInvLineItems(blankPOSItems.map(i => ({ ...i })));
     }
     setModalType(type);
   };
@@ -348,14 +222,6 @@ export function useFinanceModalManager({
       baSignedDate: formatDateInput(item.baSignedDate), invoiceIssuedDate: formatDateInput(item.invoiceIssuedDate),
       baDate: formatDateInput(item.baDate), invoiceDate: formatDateInput(item.invoiceDate), paymentDate: formatDateInput(item.paymentDate),
     });
-    if (type === "invoice") {
-      const code = (item.customerCode || "").toUpperCase();
-      const cat = item.invoiceCategory;
-      const items = (item.items && Array.isArray(item.items) && item.items.length > 0)
-        ? item.items
-        : buildInvItems(baRows.find((b: any) => b.baNumber === item.baNoReference) || item, code, cat);
-      setInvLineItems(items);
-    }
     setModalType(type);
   };
 
@@ -373,9 +239,6 @@ export function useFinanceModalManager({
   };
 
   return {
-    handleCompanySelect,
-    handleBASelect,
-    createInvoiceFromBA,
     openCreateModal,
     openEditModal,
     handleFileUpload

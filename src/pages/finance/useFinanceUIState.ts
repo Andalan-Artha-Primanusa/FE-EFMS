@@ -19,7 +19,6 @@ export function useFinanceUIState() {
   const [showExportBADropdown, setShowExportBADropdown] = useState(false);
   const [showInputBADropdown, setShowInputBADropdown] = useState(false);
   const [showExportARDropdown, setShowExportARDropdown] = useState(false);
-  const [showInputARDropdown, setShowInputARDropdown] = useState(false);
   const [baRowActionDropdownId, setBaRowActionDropdownId] = useState<number | null>(null);
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
   const [actionLoadingKey, setActionLoadingKey] = useState<string | null>(null);
@@ -124,8 +123,6 @@ export function useFinanceUIState() {
     setShowInputBADropdown,
     showExportARDropdown,
     setShowExportARDropdown,
-    showInputARDropdown,
-    setShowInputARDropdown,
     baRowActionDropdownId,
     setBaRowActionDropdownId,
     detailViewItem,

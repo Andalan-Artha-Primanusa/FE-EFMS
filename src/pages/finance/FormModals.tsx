@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { X, CheckCircle2, Loader2 } from "lucide-react";
-import { InvoiceModal } from "./modals/InvoiceModal";
 import { BATrackerModal } from "./modals/BATrackerModal";
 import { PaymentModal } from "./modals/PaymentModal";
 import { CustomerModal } from "./modals/CustomerModal";
@@ -47,10 +46,6 @@ export function FormModals({ c }: { c: any }) {
   }, [modalType, setModalType]);
 
   if (!modalType || modalType === "none") return null;
-
-  if (modalType === "invoice") {
-    return <InvoiceModal c={c} />;
-  }
 
   if (modalType === "ba") {
     return <BATrackerModal c={c} />;

@@ -14,6 +14,7 @@ import { formatCurrency, formatDate } from "../../../lib/format";
 import type { useTreasuryController } from "../useTreasuryController";
 import type { TreasuryInvoice } from "../types";
 import { SetPlanWeekModal } from "../modals/SetPlanWeekModal";
+import { DpNotDeductedBadge, DP_NOT_DEDUCTED_TIP } from "./PivotAgingPlanningView";
 
 type Props = {
   c: ReturnType<typeof useTreasuryController>;
@@ -243,7 +244,7 @@ export function WeeklyPlanningExcelView({ c }: Props) {
   };
 
   const toggleVendorSelection = (r: typeof vendorRows[0]) => {
-    const itemIds = r.items.map((i) => i.id);
+    const itemIds = r.items.filter((i) => !i.dpNotDeducted).map((i) => i.id);
     const allSelected = itemIds.every((id) => selectedInvoiceIds.includes(id));
 
     if (allSelected) {
@@ -253,7 +254,9 @@ export function WeeklyPlanningExcelView({ c }: Props) {
     }
   };
 
-  const toggleInvoiceSelection = (invId: number) => {
+  const toggleInvoiceSelection = (inv: TreasuryInvoice) => {
+    if (inv.dpNotDeducted) return;
+    const invId = inv.id;
     setSelectedInvoiceIds((prev) =>
       prev.includes(invId) ? prev.filter((id) => id !== invId) : [...prev, invId]
     );
@@ -447,7 +450,7 @@ export function WeeklyPlanningExcelView({ c }: Props) {
               ) : (
                 filteredRows.map((r, idx) => {
                   const isExpanded = !!expandedVendors[r.key];
-                  const itemIds = r.items.map((i) => i.id);
+                  const itemIds = r.items.filter((i) => !i.dpNotDeducted).map((i) => i.id);
                   const isVendorFullySelected =
                     itemIds.length > 0 && itemIds.every((id) => selectedInvoiceIds.includes(id));
                   const isVendorPartiallySelected =
@@ -605,7 +608,7 @@ export function WeeklyPlanningExcelView({ c }: Props) {
                               className={`border-b border-stone-100 ${
                                 isInvSelected ? "bg-amber-50/50" : "bg-stone-50/20"
                               } hover:bg-stone-100/70 transition cursor-pointer text-[10px]`}
-                              onClick={() => toggleInvoiceSelection(inv.id)}
+                              onClick={() => toggleInvoiceSelection(inv)}
                             >
                               <td className="p-1.5 text-center text-stone-400 font-mono text-[9px] pl-6">
                                 {idx + 1}.{invIdx + 1}
@@ -614,14 +617,17 @@ export function WeeklyPlanningExcelView({ c }: Props) {
                                 <input
                                   type="checkbox"
                                   checked={isInvSelected}
-                                  onChange={() => toggleInvoiceSelection(inv.id)}
-                                  className="w-3 h-3 accent-[#A57C50] rounded-[2px] cursor-pointer"
+                                  disabled={inv.dpNotDeducted}
+                                  title={inv.dpNotDeducted ? DP_NOT_DEDUCTED_TIP : undefined}
+                                  onChange={() => toggleInvoiceSelection(inv)}
+                                  className="w-3 h-3 accent-[#A57C50] rounded-[2px] cursor-pointer disabled:cursor-not-allowed"
                                 />
                               </td>
                               <td className="p-1.5 pl-6">
                                 <span className="font-bold text-blue-900 font-mono">{inv.poNo || "-"}</span>
                                 <span className="mx-1 text-stone-300">|</span>
                                 <span className="font-mono text-stone-500">{inv.invoiceNo}</span>
+                                {inv.dpNotDeducted && <DpNotDeductedBadge />}
                                 <span className="ml-1.5 text-stone-600 truncate">
                                   {inv.itemDescription
                                     ? inv.itemDescription.length > 50

@@ -19,9 +19,9 @@ export function InvoiceView({ c }: { c: any }) {
   const {
     baRows: rawBaRows, isSuper, canVerifyBA, canVerifyInvoice, canApproveInvoice, canApproveBA, can = () => false, invoiceRows: rawInvoiceRows,
     invStatusFilter, setInvStatusFilter, invCardTab, setInvCardTab, invPeriodFilter,
-    setInvPeriodFilter, showExportARDropdown, setShowExportARDropdown, showInputARDropdown, setShowInputARDropdown,
-    setDetailViewItem, templateRows: rawTemplateRows, exportAROnlyExcel, exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV, openCreateModal,
-    openEditModal, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleSetInvoiceSubmissionDate, handleDelete,
+    setInvPeriodFilter, showExportARDropdown, setShowExportARDropdown,
+    setDetailViewItem, templateRows: rawTemplateRows, exportAROnlyExcel, exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV,
+    handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1, handleDelete,
     sbsPenalties: rawSbsPenalties, sbsPenaltyModalOpen, sbsPenaltyEditItem, handleSaveSBSPenalty, handleDeleteSBSPenalty, openSBSPenaltyModal, closeSBSPenaltyModal,
     query = "", accountingJournals: rawAccountingJournals, deletingKey, actionLoadingKey
   } = (c || {}) as Record<string, any>;
@@ -37,16 +37,17 @@ export function InvoiceView({ c }: { c: any }) {
         <div className="space-y-6">
           {(() => {
             const targetPeriodIndex = parsePeriodToMonthIndex(invPeriodFilter);
+            const outstandingOf = (r: any) => r?.outstanding ?? ((r?.totalInvoice || 0) - (r?.totalPaid || 0));
             const periodFilteredUnpaidInvoices = safeInvoiceRows.filter((r) => {
               if (invPeriodFilter !== "All") {
                 const rowPeriodIndex = parsePeriodToMonthIndex(r?.workPeriod || "");
                 if (rowPeriodIndex > targetPeriodIndex) return false;
               }
-              const outstandingAmount = r?.outstanding ?? ((r?.totalInvoice || 0) - (r?.totalPaid || 0));
-              if (outstandingAmount <= 0 || r?.status === "Paid") return false;
+              if (outstandingOf(r) <= 0 || r?.status === "Paid") return false;
               return true;
             });
-            const totalARAndalan = periodFilteredUnpaidInvoices.reduce((acc, r) => acc + (r?.outstanding ?? ((r?.totalInvoice || 0) - (r?.totalPaid || 0))), 0);
+            const totalARAndalan = periodFilteredUnpaidInvoices.reduce((acc, r) => acc + outstandingOf(r), 0);
+            const totalBackcharge = periodFilteredUnpaidInvoices.reduce((acc, r) => acc + Number(r?.otherDeduction || 0), 0);
 
             // Penalty & Section P deductions dataset dynamically derived from live SBS Penalty Ledger (Eksklusif SBS Project)
             const penaltyDataRows = sbsPenalties
@@ -234,102 +235,6 @@ export function InvoiceView({ c }: { c: any }) {
                         </button>
                       )}
 
-                      {/* Dropdown 2: Input / Buat Invoice */}
-                      <div className={`relative z-30 ${can("invoice", "write") ? "" : "hidden"}`}>
-                        <button
-                          type="button"
-                          className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:brightness-95 shrink-0 cursor-pointer"
-                          style={{ background: "#A57C50", borderRadius: 3 }}
-                          onClick={() => setShowInputARDropdown(!showInputARDropdown)}
-                          title="Buat Invoice Baru (Ops / MDO)"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>+ Input / Buat Invoice</span>
-                          <ChevronDown className="w-3 h-3 text-white/80" />
-                        </button>
-
-                        {showInputARDropdown && (
-                          <>
-                            <div className="fixed inset-0 z-40" onClick={() => setShowInputARDropdown(false)} />
-                            <div className="absolute right-0 mt-1.5 w-72 bg-white rounded-[4px] shadow-xl border border-slate-200 py-1.5 z-50 text-xs font-semibold divide-y divide-slate-100">
-                              <button
-                                type="button"
-                                className="w-full px-3.5 py-2.5 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-start gap-2.5 transition cursor-pointer"
-                                onClick={() => {
-                                  openCreateModal("invoice", { customerCode: "POS", activityGroup: "OPERATION & MINING", invoiceCategory: "Operation & Mining" });
-                                  setShowInputARDropdown(false);
-                                }}
-                              >
-                                <Pickaxe className="w-4 h-4 text-[#A57C50] mt-0.5 shrink-0" />
-                                <div>
-                                  <strong className="block text-slate-900 font-bold">1. Invoice Operations & Mining (POS)</strong>
-                                  <span className="text-[10px] text-slate-500 font-normal">OB Removal, Top Soil, Nikel Ore, Overhaul & RF</span>
-                                </div>
-                              </button>
-
-                              <button
-                                type="button"
-                                className="w-full px-3.5 py-2.5 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-start gap-2.5 transition cursor-pointer"
-                                onClick={() => {
-                                  openCreateModal("invoice", { customerCode: "POS", activityGroup: "MINE DEVELOPMENT OPERATION (MDO)", invoiceCategory: "MDO" });
-                                  setShowInputARDropdown(false);
-                                }}
-                              >
-                                <Building2 className="w-4 h-4 text-[#6E5033] mt-0.5 shrink-0" />
-                                <div>
-                                  <strong className="block text-slate-900 font-bold">2. Invoice Mine Development (POS)</strong>
-                                  <span className="text-[10px] text-slate-500 font-normal">MDO SOW: Jetty, Road & Infrastruktur</span>
-                                </div>
-                              </button>
-
-                              <button
-                                type="button"
-                                className="w-full px-3.5 py-2.5 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-start gap-2.5 transition cursor-pointer"
-                                onClick={() => {
-                                  openCreateModal("invoice", { customerCode: "BGG", activityGroup: "OVERBURDEN & COAL MINING" });
-                                  setShowInputARDropdown(false);
-                                }}
-                              >
-                                <Scale className="w-4 h-4 text-[#A57C50] mt-0.5 shrink-0" />
-                                <div>
-                                  <strong className="block text-slate-900 font-bold">3. Invoice PT BGG (Lahat)</strong>
-                                  <span className="text-[10px] text-slate-500 font-normal">OB, Coal, Distance Slip & SR True-Up</span>
-                                </div>
-                              </button>
-
-                              <button
-                                type="button"
-                                className="w-full px-3.5 py-2.5 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-start gap-2.5 transition cursor-pointer"
-                                onClick={() => {
-                                  openCreateModal("invoice", { customerCode: "PTRO", activityGroup: "COAL HAULING & MINING SERVICES" });
-                                  setShowInputARDropdown(false);
-                                }}
-                              >
-                                <Pickaxe className="w-4 h-4 text-[#A57C50] mt-0.5 shrink-0" />
-                                <div>
-                                  <strong className="block text-slate-900 font-bold">4. Invoice PT Petrosea (PTRO)</strong>
-                                  <span className="text-[10px] text-slate-500 font-normal">Pekerjaan Tambang & Hauling</span>
-                                </div>
-                              </button>
-
-                              <button
-                                type="button"
-                                className="w-full px-3.5 py-2.5 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-start gap-2.5 transition cursor-pointer"
-                                onClick={() => {
-                                  openCreateModal("invoice", { customerCode: "SBS", activityGroup: "OVERBURDEN & JASA PENUNJANG PRODUKSI" });
-                                  setShowInputARDropdown(false);
-                                }}
-                              >
-                                <Truck className="w-4 h-4 text-[#A57C50] mt-0.5 shrink-0" />
-                                <div>
-                                  <strong className="block text-slate-900 font-bold">5. Invoice PT SBS (Tanjung Enim)</strong>
-                                  <span className="text-[10px] text-slate-500 font-normal">OB 8 Titik Disposal, Jam Alat & Denda</span>
-                                </div>
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
                     </div>
                   </div>
 
@@ -398,7 +303,7 @@ export function InvoiceView({ c }: { c: any }) {
                 {/* Table Sajian Terkelompok Per Client */}
                 <Panel title={invCardTab === "AR_ANDALAN" ? "Tabel Outstandings AR — Total AR Andalan (Per Klien)" : invCardTab === "PENALTY_UNCUT" ? "Tabel Progress Penalti Belum Terpotong — Eksklusif PT SBS (Section P)" : "Tabel Subject To Invoice — BA Ready To Invoice (Per Klien)"}>
                   <div className="table-wrapper overflow-x-auto rounded-lg border border-slate-200 shadow-2xs">
-                    <table className="data-table w-full min-w-[1250px] text-xs text-left border-collapse">
+                    <table className="data-table w-full min-w-[1500px] text-xs text-left border-collapse">
                       <thead>
                         <tr className="bg-slate-100/90 text-slate-700 font-extrabold text-[11px] uppercase tracking-wider border-b border-slate-200">
                           <th className="p-2.5 whitespace-nowrap min-w-[130px]">Project</th>
@@ -409,8 +314,18 @@ export function InvoiceView({ c }: { c: any }) {
                           <th className="p-2.5 whitespace-nowrap min-w-[110px]">Invoice Date</th>
                           <th className="p-2.5 whitespace-nowrap min-w-[130px]">Invoice Submission</th>
                           <th className="p-2.5 whitespace-nowrap min-w-[110px]">Due Date</th>
-                          {invCardTab !== "AR_ANDALAN" && <th className="p-2.5 text-right font-bold whitespace-nowrap min-w-[140px]">Outstanding</th>}
-                          <th className="p-2.5 text-center whitespace-nowrap min-w-[160px]">Status</th>
+                          {invCardTab === "AR_ANDALAN" ? (
+                            <>
+                              <th className="p-2.5 text-right font-bold whitespace-nowrap min-w-[150px]">Outstanding Receivable</th>
+                              <th className="p-2.5 text-right font-bold whitespace-nowrap min-w-[150px]">Deduction Backcharge</th>
+                              <th className="p-2.5 text-right font-bold whitespace-nowrap min-w-[140px]">Nett</th>
+                            </>
+                          ) : (
+                            <>
+                              <th className="p-2.5 text-right font-bold whitespace-nowrap min-w-[140px]">Outstanding</th>
+                              <th className="p-2.5 text-center whitespace-nowrap min-w-[160px]">Status</th>
+                            </>
+                          )}
                           {invCardTab !== "SUBJECT_TO_INVOICE" && <th className="p-2.5 text-center whitespace-nowrap min-w-[170px] sticky right-0 z-20 bg-slate-100 text-slate-700 border-l border-slate-200 font-sans">AKSI</th>}
                         </tr>
                       </thead>
@@ -454,7 +369,7 @@ export function InvoiceView({ c }: { c: any }) {
                           if (groupedCust.length === 0) {
                             return (
                               <tr>
-                                <td colSpan={10} className="p-6 text-center text-slate-500 font-bold font-sans">
+                                <td colSpan={12} className="p-6 text-center text-slate-500 font-bold font-sans">
                                   Tidak ada data invoice penagihan yang sesuai.
                                 </td>
                               </tr>
@@ -463,16 +378,15 @@ export function InvoiceView({ c }: { c: any }) {
 
                           return groupedCust.map((custCode) => {
                             const clientRows = filteredInv.filter((r) => (r.customerCode || "OTHER") === custCode);
-                            const clientTotalAmount = clientRows.reduce((sum, r) => {
-                              const amt = Number(r.totalInvoice || 0);
-                              return sum + (isNaN(amt) ? 0 : amt);
-                            }, 0);
+                            const clientTotalAmount = clientRows.reduce((sum, r) => sum + Number(r.totalInvoice || 0), 0);
+                            const clientTotalOutstanding = clientRows.reduce((sum, r) => sum + outstandingOf(r), 0);
+                            const clientTotalBackcharge = clientRows.reduce((sum, r) => sum + Number(r.otherDeduction || 0), 0);
 
                             return (
                               <Fragment key={custCode}>
                                 {/* Client Group Header Banner */}
                                 <tr className="bg-slate-50/90 font-extrabold text-xs border-t border-b border-slate-200 font-sans">
-                                  <td colSpan={10} className="p-2.5 px-3 bg-slate-100/60 uppercase tracking-wider relative font-sans">
+                                  <td colSpan={12} className="p-2.5 px-3 bg-slate-100/60 uppercase tracking-wider relative font-sans">
                                     <div className="flex items-center gap-2">
                                       <span className="w-2 h-2 rounded-full bg-cyan-700 inline-block"></span>
                                       <span className="font-extrabold text-slate-900 text-xs">CLIENT / SITE: {custCode}</span>
@@ -503,32 +417,11 @@ export function InvoiceView({ c }: { c: any }) {
                                         <td className="p-2.5 text-slate-700 font-medium">{row.jobType || row.notes || "OB & CG"}</td>
                                         <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">{formatIDR(row.totalInvoice)}</td>
                                         <td className="p-2.5 text-slate-700 whitespace-nowrap">{row.invoiceDate ? new Date(row.invoiceDate).toLocaleDateString("id-ID") : "-"}</td>
-                                        <td className="p-2.5 text-slate-700 whitespace-nowrap">
-                                          {can("invoice", "write") ? (
-                                            <input
-                                              type="date"
-                                              className="border border-slate-200 rounded px-1.5 py-0.5 text-xs bg-white"
-                                              value={row.invoiceSubmissionDate ? String(row.invoiceSubmissionDate).slice(0, 10) : ""}
-                                              onChange={(e) => handleSetInvoiceSubmissionDate(row.id, e.target.value)}
-                                            />
-                                          ) : (row.invoiceSubmissionDate ? new Date(row.invoiceSubmissionDate).toLocaleDateString("id-ID") : "-")}
-                                        </td>
+                                        <td className="p-2.5 text-slate-700 whitespace-nowrap">{row.invoiceSubmissionDate ? new Date(row.invoiceSubmissionDate).toLocaleDateString("id-ID") : "-"}</td>
                                         <td className="p-2.5 text-slate-700 whitespace-nowrap">{row.dueDate ? new Date(row.dueDate).toLocaleDateString("id-ID") : "-"}</td>
-                                        <td className="p-2.5 text-center">
-                                          {renderInvoiceStatusBadge(row.status)}
-                                          {(() => {
-                                            const matchedJrn = accountingJournals.find((j: any) => j.sourceModule === "INVOICE" && j.sourceReference === row.invoiceNo && j.status !== "Void" && j.status !== "Reversed");
-                                            if (!matchedJrn) return null;
-                                            return (
-                                              <div className="mt-1">
-                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-emerald-50 text-emerald-800 border border-emerald-300 font-semibold" title={`Jurnal Piutang: ${matchedJrn.journalNumber} (${matchedJrn.status})`}>
-                                                  <BookOpen size={10} className="text-emerald-700" />
-                                                  {matchedJrn.journalNumber}
-                                                </span>
-                                              </div>
-                                            );
-                                          })()}
-                                        </td>
+                                        <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">{formatIDR(outstandingOf(row))}</td>
+                                        <td className="p-2.5 text-right font-mono text-slate-700 whitespace-nowrap">{formatIDR(Number(row.otherDeduction || 0))}</td>
+                                        <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">{formatIDR(outstandingOf(row) - Number(row.otherDeduction || 0))}</td>
                                         <td className="p-2.5 text-right whitespace-nowrap sticky right-0 z-10 bg-white group-hover:bg-slate-50 transition-colors shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] border-l border-slate-200">
                                           <div className="flex items-center justify-end gap-1.5 flex-nowrap min-w-[150px]">
                                              {canVerifyInvoice && (row.status === "Draft" || !row.status || row.status === "Pending" || row.status === "Submitted") && (() => {
@@ -569,9 +462,6 @@ export function InvoiceView({ c }: { c: any }) {
                                               </span>
                                             ) : (
                                               <>
-                                                {can("invoice", "write") && <button className="p-1.5 rounded border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition shrink-0 cursor-pointer" onClick={() => openEditModal("invoice", row)} title="Edit Invoice">
-                                                  <Edit2 size={14} />
-                                                </button>}
                                                 {can("invoice", "delete") && (() => {
                                                   const isDeleting = deletingKey === `invoice-${row.id}`;
                                                   return (
@@ -595,8 +485,11 @@ export function InvoiceView({ c }: { c: any }) {
                                 {/* Client Group Subtotal Row */}
                                 <tr className="bg-slate-50 font-bold text-slate-800 border-b border-slate-200 font-sans">
                                   <td colSpan={4} className="p-2.5 text-right uppercase tracking-wider text-xs font-extrabold text-slate-700 font-sans">TOTAL AR {custCode}:</td>
-                                  <td className="p-2.5 text-right font-mono text-xs sm:text-sm font-black text-rose-700 whitespace-nowrap">{formatIDR(clientTotalAmount)}</td>
-                                  <td colSpan={4}></td>
+                                  <td className="p-2.5 text-right font-mono text-xs sm:text-sm font-black text-slate-900 whitespace-nowrap">{formatIDR(clientTotalAmount)}</td>
+                                  <td colSpan={3}></td>
+                                  <td className="p-2.5 text-right font-mono text-xs sm:text-sm font-black text-rose-700 whitespace-nowrap">{formatIDR(clientTotalOutstanding)}</td>
+                                  <td className="p-2.5 text-right font-mono text-xs sm:text-sm font-black text-slate-700 whitespace-nowrap">{formatIDR(clientTotalBackcharge)}</td>
+                                  <td className="p-2.5 text-right font-mono text-xs sm:text-sm font-black text-rose-700 whitespace-nowrap">{formatIDR(clientTotalOutstanding - clientTotalBackcharge)}</td>
                                   <td className="sticky right-0 bg-slate-50 border-l border-slate-200 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.04)]"></td>
                                 </tr>
                               </Fragment>
@@ -766,19 +659,29 @@ export function InvoiceView({ c }: { c: any }) {
 
                       {/* GRAND SUMMARY FOOTER ROW (CLEAN LIGHT CORPORATE THEME) */}
                       <tfoot className="bg-slate-50/95 text-slate-800 font-bold text-xs border-t-2 border-slate-200 font-sans">
-                        <tr>
-                          <td colSpan={4} className="p-3 text-right uppercase tracking-wider text-xs font-black text-slate-800 font-sans">
-                            {invCardTab === "AR_ANDALAN" ? "TOTAL AR ANDALAN" : invCardTab === "PENALTY_UNCUT" ? "TOTAL PROGRESS PINALTY" : "TOTAL SUBJECT TO INVOICE"}:
-                          </td>
-                          <td className={`p-3 text-right font-mono font-black whitespace-nowrap ${invCardTab === "AR_ANDALAN" ? "text-sm sm:text-base text-rose-800" : "text-xs sm:text-sm text-slate-900"}`}>
-                            {invCardTab === "AR_ANDALAN" ? formatIDR(totalARAndalan) : invCardTab === "PENALTY_UNCUT" ? formatIDR(totalPenaltyUncut) : formatIDR(totalSubjectToInvoice)}
-                          </td>
-                          <td colSpan={invCardTab === "AR_ANDALAN" ? 4 : 3}></td>
-                          {invCardTab !== "AR_ANDALAN" && <td className="p-3 text-right font-mono text-sm sm:text-base font-black text-rose-800 whitespace-nowrap">
-                            {invCardTab === "PENALTY_UNCUT" ? formatIDR(totalPenaltyUncut) : formatIDR(totalSubjectToInvoice)}
-                          </td>}
-                          <td colSpan={invCardTab === "PENALTY_UNCUT" ? 2 : 1} className="sticky right-0 bg-slate-50 border-l border-slate-200 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.04)]"></td>
-                        </tr>
+                        {invCardTab === "AR_ANDALAN" ? (
+                          <tr>
+                            <td colSpan={8} className="p-3 text-right uppercase tracking-wider text-xs font-black text-slate-800 font-sans">TOTAL AR ANDALAN:</td>
+                            <td className="p-3 text-right font-mono text-sm sm:text-base font-black text-rose-800 whitespace-nowrap">{formatIDR(totalARAndalan)}</td>
+                            <td className="p-3 text-right font-mono text-sm sm:text-base font-black text-slate-700 whitespace-nowrap">{formatIDR(totalBackcharge)}</td>
+                            <td className="p-3 text-right font-mono text-sm sm:text-base font-black text-rose-800 whitespace-nowrap">{formatIDR(totalARAndalan - totalBackcharge)}</td>
+                            <td className="sticky right-0 bg-slate-50 border-l border-slate-200 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.04)]"></td>
+                          </tr>
+                        ) : (
+                          <tr>
+                            <td colSpan={4} className="p-3 text-right uppercase tracking-wider text-xs font-black text-slate-800 font-sans">
+                              {invCardTab === "PENALTY_UNCUT" ? "TOTAL PROGRESS PINALTY" : "TOTAL SUBJECT TO INVOICE"}:
+                            </td>
+                            <td className="p-3 text-right font-mono font-black whitespace-nowrap text-xs sm:text-sm text-slate-900">
+                              {invCardTab === "PENALTY_UNCUT" ? formatIDR(totalPenaltyUncut) : formatIDR(totalSubjectToInvoice)}
+                            </td>
+                            <td colSpan={3}></td>
+                            <td className="p-3 text-right font-mono text-sm sm:text-base font-black text-rose-800 whitespace-nowrap">
+                              {invCardTab === "PENALTY_UNCUT" ? formatIDR(totalPenaltyUncut) : formatIDR(totalSubjectToInvoice)}
+                            </td>
+                            <td colSpan={invCardTab === "PENALTY_UNCUT" ? 2 : 1} className="sticky right-0 bg-slate-50 border-l border-slate-200 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.04)]"></td>
+                          </tr>
+                        )}
                       </tfoot>
                     </table>
                   </div>

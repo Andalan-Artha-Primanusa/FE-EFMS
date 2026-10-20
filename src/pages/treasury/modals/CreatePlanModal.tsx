@@ -1,7 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Plus, ShieldCheck, X } from "lucide-react";
 import { formatCurrency } from "../../../lib/format";
+import { api } from "../../../lib/api";
 import type { useTreasuryController } from "../useTreasuryController";
+import type { TunaiPORequest } from "../types";
+import { DpNotDeductedBadge } from "../views/PivotAgingPlanningView";
 
 type Props = {
   c: ReturnType<typeof useTreasuryController>;
@@ -23,28 +26,68 @@ export function CreatePlanModal({ c }: Props) {
     companyBanks[0]?.id || 1
   );
   const [category, setCategory] = useState<string>("AP");
+  // Tunai PO vouchers pay verified requests instead of invoices.
+  const [tpoRequests, setTpoRequests] = useState<TunaiPORequest[]>([]);
+  const [tpoSelected, setTpoSelected] = useState<number[]>([]);
+  const isTPO = category === "TUNAI_PO";
+
+  useEffect(() => {
+    if (!showCreatePlanModal) return;
+    setCategory(selectedInvoiceIds.length ? "AP" : "TUNAI_PO");
+    if (companyBanks[0]) setCompanyBankId((id) => (companyBanks.some((b) => b.id === id) ? id : companyBanks[0].id));
+    setTpoSelected([]);
+  }, [showCreatePlanModal]);
+
+  useEffect(() => {
+    if (!showCreatePlanModal || !isTPO) return;
+    api<{ success: boolean; requests: TunaiPORequest[] }>("/api/tunai-po/requests?status=verified")
+      .then((res) => setTpoRequests(res.requests || []))
+      .catch(() => setTpoRequests([]));
+  }, [showCreatePlanModal, isTPO]);
 
   if (!showCreatePlanModal) return null;
 
   const pool = allUnpaidInvoices && allUnpaidInvoices.length > 0 ? allUnpaidInvoices : invoices;
-  const selectedInvoices = pool.filter((inv) =>
+  const selectedInvoices = isTPO ? [] : pool.filter((inv) =>
     selectedInvoiceIds.includes(inv.id)
   );
+  const selectedTpo = isTPO ? tpoRequests.filter((r) => tpoSelected.includes(r.id)) : [];
+  const blocked = selectedInvoices.some((inv) => inv.dpNotDeducted);
+  const itemCount = isTPO ? selectedTpo.length : selectedInvoices.length;
 
-  const totalCalculated = selectedInvoices.reduce((sum, inv) => {
-    const amt = partialAmounts[inv.id] !== undefined
-      ? Number(partialAmounts[inv.id])
-      : Number(inv.remainingBalance);
-    return sum + (isNaN(amt) ? 0 : amt);
-  }, 0);
+  const totalCalculated = isTPO
+    ? selectedTpo.reduce((sum, r) => sum + Number(r.payAmount || 0), 0)
+    : selectedInvoices.reduce((sum, inv) => {
+        const amt = partialAmounts[inv.id] !== undefined
+          ? Number(partialAmounts[inv.id])
+          : Number(inv.remainingBalance);
+        return sum + (isNaN(amt) ? 0 : amt);
+      }, 0);
+
+  // 1 vendor + 1 site per voucher: picking a request of another vendor/site restarts the selection.
+  const toggleTpo = (r: TunaiPORequest) =>
+    setTpoSelected((prev) => {
+      if (prev.includes(r.id)) return prev.filter((id) => id !== r.id);
+      const first = tpoRequests.find((x) => x.id === prev[0]);
+      return first && (first.vendorId !== r.vendorId || first.site !== r.site) ? [r.id] : [...prev, r.id];
+    });
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (itemCount === 0 || blocked) return;
     handleCreatePlan({
       companyBankId,
       category,
       voucherDate: new Date().toISOString().slice(0, 10),
       justification: "",
+      items: isTPO
+        ? selectedTpo.map((r) => ({
+            tunaiPoRequestId: r.id,
+            vendorId: r.vendorId,
+            amountPaid: r.payAmount,
+            remarks: `${r.poNo} ${r.proformaNo || ""}`.trim(),
+          }))
+        : undefined,
     });
   };
 
@@ -60,7 +103,7 @@ export function CreatePlanModal({ c }: Props) {
                 Buat Pengajuan Rencana Bayar (RAB / Voucher)
               </h3>
               <p className="text-[11px] text-stone-400">
-                Menjadwalkan pembayaran {selectedInvoices.length} tagihan terpilih ke Finance HO
+                {itemCount} item terpilih
               </p>
             </div>
           </div>
@@ -75,7 +118,7 @@ export function CreatePlanModal({ c }: Props) {
         <form onSubmit={onSubmit} className="p-5 space-y-4 text-xs font-sans">
           {/* Automatic Voucher Note */}
           <div className="bg-amber-50/70 border border-amber-200/80 rounded-[3px] p-2.5 flex items-center justify-between text-[11px] text-amber-900 font-medium">
-            <span>Nomor Voucher dibuat otomatis per Site &amp; Vendor secara berurutan.</span>
+            <span>Nomor Voucher</span>
             <span className="font-mono font-bold text-[#A57C50] text-xs">AUTO-GENERATE</span>
           </div>
 
@@ -117,10 +160,40 @@ export function CreatePlanModal({ c }: Props) {
             </div>
           </div>
 
-          {/* Selected Invoices Summary Box */}
+          {/* Selected Items Summary Box */}
           <div className="p-3 bg-stone-50 border border-stone-200 rounded-[3px] space-y-2">
-            <div className="font-semibold text-stone-700">Ringkasan Tagihan Terpilih ({selectedInvoices.length} Item):</div>
-            <div className="max-h-36 overflow-y-auto space-y-1">
+            <div className="font-semibold text-stone-700">
+              {isTPO
+                ? `Tunai PO Terverifikasi (${selectedTpo.length}/${tpoRequests.length}):`
+                : `Ringkasan Tagihan Terpilih (${selectedInvoices.length} Item):`}
+            </div>
+            <div className="max-h-56 overflow-y-auto space-y-1">
+              {isTPO && tpoRequests.length === 0 && (
+                <div className="text-[11px] text-stone-400 p-1.5">Tidak ada Tunai PO terverifikasi.</div>
+              )}
+              {isTPO && tpoRequests.map((r) => (
+                <label
+                  key={r.id}
+                  className={`flex items-center justify-between gap-2 text-[11px] p-1.5 rounded-[2px] border cursor-pointer ${
+                    tpoSelected.includes(r.id) ? "bg-amber-50 border-[#A57C50]/50" : "bg-white border-stone-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={tpoSelected.includes(r.id)}
+                      onChange={() => toggleTpo(r)}
+                      className="accent-[#A57C50]"
+                    />
+                    <span className="px-1.5 rounded-[2px] bg-stone-200 font-bold text-[9px]">{r.site || "HO"}</span>
+                    <span className="font-bold text-stone-900">{r.vendor?.name}</span>
+                    <span className="text-stone-400 font-mono">
+                      ({r.poNo}{r.proformaNo ? ` / ${r.proformaNo}` : ""})
+                    </span>
+                  </div>
+                  <span className="font-mono font-bold text-blue-900">{formatCurrency(Number(r.payAmount))}</span>
+                </label>
+              ))}
               {selectedInvoices.map((inv) => {
                 const amt = partialAmounts[inv.id] !== undefined
                   ? Number(partialAmounts[inv.id])
@@ -134,6 +207,7 @@ export function CreatePlanModal({ c }: Props) {
                     <div>
                       <span className="font-bold text-stone-900">{inv.vendor?.name}</span>
                       <span className="text-stone-400 ml-1.5 font-mono">({inv.invoiceNo})</span>
+                      {inv.dpNotDeducted && <DpNotDeductedBadge />}
                     </div>
                     <div className="font-mono font-bold text-blue-900">
                       {formatCurrency(amt)}
@@ -165,7 +239,8 @@ export function CreatePlanModal({ c }: Props) {
             </button>
             <button
               type="submit"
-              className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-extrabold text-white bg-[#A57C50] hover:bg-[#8e6941] rounded-[3px] shadow-sm transition cursor-pointer"
+              disabled={itemCount === 0 || blocked}
+              className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-extrabold text-white bg-[#A57C50] hover:bg-[#8e6941] rounded-[3px] shadow-sm transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ShieldCheck className="w-4 h-4" /> Simpan &amp; Kunci Jadwal Voucher
             </button>
