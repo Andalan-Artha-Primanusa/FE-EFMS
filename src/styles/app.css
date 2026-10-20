@@ -841,7 +841,7 @@ th { color: #5A5046; font-size: 0.7rem; text-transform: uppercase; letter-spacin
   @apply flex gap-4 rounded-enterprise border border-cyan-100 bg-cyan-50/70 p-4;
 }
 .account-profile-page {
-  @apply bg-white;
+  @apply items-center bg-gradient-to-r from-cyan-50 to-white p-5;
 }
 .account-profile h2 {
   @apply text-xl font-black text-finance-navy;
@@ -849,27 +849,89 @@ th { color: #5A5046; font-size: 0.7rem; text-transform: uppercase; letter-spacin
 .account-profile p {
   @apply mb-2 mt-1 text-sm text-slate-600;
 }
+.account-badges {
+  @apply flex flex-wrap gap-1.5;
+}
+.account-badges span {
+  @apply rounded-full bg-white px-2.5 py-0.5 text-[11px] font-extrabold capitalize text-finance-navy ring-1 ring-slate-200;
+}
+.account-badges .ok {
+  @apply bg-emerald-50 text-emerald-700 ring-emerald-200;
+}
+.account-badges .warn {
+  @apply bg-amber-50 text-amber-700 ring-amber-200;
+}
 .account-avatar {
-  @apply relative grid h-20 w-20 place-items-center rounded-enterprise bg-white text-finance-teal shadow-sm;
+  @apply relative grid h-20 w-20 shrink-0 place-items-center rounded-full bg-white text-finance-teal shadow-sm ring-4 ring-white;
 }
 .account-avatar.large {
-  @apply h-28 w-28;
+  @apply h-24 w-24;
 }
-.account-avatar button {
-  @apply absolute -bottom-1 -right-1 grid h-8 w-8 place-items-center rounded-full border border-slate-200 bg-white text-finance-navy shadow-sm;
+.account-avatar img {
+  @apply h-full w-full rounded-full object-cover;
+}
+.account-avatar button,
+.account-avatar label {
+  @apply absolute -bottom-0.5 -right-0.5 grid h-8 w-8 cursor-pointer place-items-center rounded-full border border-slate-200 bg-white text-finance-navy shadow-sm transition hover:text-finance-teal;
 }
 .account-grid {
   @apply grid grid-cols-2 gap-3;
 }
 .account-grid-page {
-  @apply grid-cols-2;
+  @apply grid-cols-2 gap-4;
 }
 .account-grid section,
 .permission-section {
   @apply rounded-enterprise border border-slate-100 bg-slate-50 p-3;
 }
+.account-grid-page > section,
 .account-section-page {
-  @apply bg-white;
+  @apply bg-white p-4 shadow-sm;
+}
+.account-2fa {
+  @apply mt-3 flex flex-wrap items-center gap-3 rounded-enterprise border border-amber-200 bg-amber-50/60 p-3 text-amber-700;
+}
+.account-2fa.on {
+  @apply border-emerald-200 bg-emerald-50/60 text-emerald-700;
+}
+.account-2fa strong {
+  @apply block text-xs font-black text-finance-navy;
+}
+.account-2fa small {
+  @apply text-[11px] text-slate-500;
+}
+.account-form {
+  @apply grid gap-3;
+}
+.account-form label span {
+  @apply mb-1 block text-xs font-bold text-slate-600;
+}
+.account-form input {
+  @apply w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold focus:border-finance-teal focus:outline-none;
+}
+.account-form footer {
+  @apply flex flex-wrap items-center justify-end gap-3;
+}
+.account-btn {
+  @apply inline-flex items-center gap-2 rounded-xl bg-[#20a6b8] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#1c92a2] disabled:opacity-50;
+}
+.account-btn.danger {
+  @apply bg-rose-600/10 text-rose-700 shadow-none hover:bg-rose-600/20;
+}
+.account-feedback {
+  @apply mr-auto mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-rose-600;
+}
+.account-feedback.ok {
+  @apply text-emerald-600;
+}
+.permission-groups {
+  @apply grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(220px,1fr))];
+}
+.permission-groups > div {
+  @apply rounded-enterprise border border-slate-100 bg-slate-50/60 p-2.5;
+}
+.permission-groups strong {
+  @apply mb-1.5 block text-[11px] font-black uppercase tracking-wide text-slate-500;
 }
 .account-grid h4,
 .permission-section h4 {
@@ -888,10 +950,10 @@ th { color: #5A5046; font-size: 0.7rem; text-transform: uppercase; letter-spacin
   @apply m-0 text-right font-extrabold text-finance-navy;
 }
 .permission-tags {
-  @apply flex flex-wrap gap-2;
+  @apply flex flex-wrap gap-1.5;
 }
 .permission-tags span {
-  @apply rounded-full bg-white px-3 py-1 text-xs font-black text-finance-teal ring-1 ring-cyan-100;
+  @apply rounded-full bg-white px-2.5 py-0.5 text-[11px] font-bold text-finance-teal ring-1 ring-cyan-100;
 }
 .account-activity {
   @apply grid max-h-52 gap-2 overflow-y-auto;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Camera, KeyRound, ShieldCheck, UserRound, RefreshCw, CheckCircle2, AlertCircle, QrCode, Smartphone } from "lucide-react";
+import { ArrowLeft, Camera, KeyRound, ShieldCheck, UserRound, RefreshCw, CheckCircle2, AlertCircle, QrCode, Smartphone, History } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import { changePassword, disableTwoFactor, enableTwoFactor, generateTwoFactorSetup, getProfile, updateProfile, uploadAvatar, type TwoFactorSetup, type User } from "../lib/api";
 import type { AuditLog } from "../lib/api";
@@ -174,6 +174,9 @@ export function AccountSettingsPage({
     }
   }
 
+  const scope = isHeadOfficeUser(user) ? "All Company" : user.companyCode ?? "Company";
+  const access = effectiveAccess(user);
+
   return <section className="account-page">
     <PageHeader
       title="Account Settings"
@@ -183,187 +186,141 @@ export function AccountSettingsPage({
 
     <section className="account-profile account-profile-page">
       <div className="account-avatar large">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="Avatar" className="w-full h-full rounded-full object-cover" />
-        ) : (
-          <UserRound size={52} />
-        )}
-        <label title="Upload foto karyawan" className="cursor-pointer">
-          <Camera size={16} />
-          <input type="file" accept="image/*" className="hidden" onChange={handleAvatar} />
+        {avatarUrl ? <img src={avatarUrl} alt="Avatar" /> : <UserRound size={48} />}
+        <label title="Upload foto karyawan">
+          <Camera size={15} />
+          <input type="file" accept="image/*" hidden onChange={handleAvatar} />
         </label>
       </div>
-      <div>
+      <div className="min-w-0 flex-1">
         <p className="eyebrow">Employee Account</p>
         <h2>{displayName}</h2>
-        <p>{user.email}</p>
-        <span className="header-meta">{displayPosition}</span>
+        <p>{displayPosition} · {user.email}</p>
+        <div className="account-badges">
+          <span>{user.role}</span>
+          <span className={user.status === "active" ? "ok" : "warn"}>{user.status}</span>
+          <span className={twoFactorOn ? "ok" : "warn"}>2FA {twoFactorOn ? "aktif" : "nonaktif"}</span>
+          <span>{scope}</span>
+        </div>
       </div>
     </section>
 
     <div className="account-grid account-grid-page">
       <section>
-        <h4>Data Karyawan</h4>
+        <h4><UserRound size={16} /> Data Karyawan</h4>
         <dl>
           <div><dt>Employee ID</dt><dd>EMP-{String(user.id).padStart(5, "0")}</dd></div>
           <div><dt>Full Name</dt><dd>{displayName}</dd></div>
           <div><dt>Email</dt><dd>{user.email}</dd></div>
-          <div><dt>Status</dt><dd>{user.status}</dd></div>
-          <div><dt>Department</dt><dd>{displayDepartment ?? "Belum tersedia di API"}</dd></div>
+          <div><dt>Status</dt><dd className="capitalize">{user.status}</dd></div>
+          <div><dt>Department</dt><dd>{displayDepartment || "—"}</dd></div>
           <div><dt>Position</dt><dd>{displayPosition}</dd></div>
-          <div><dt>Phone</dt><dd>{profile?.phone || "Belum diisi"}</dd></div>
-          <div><dt>Company</dt><dd>{isHeadOfficeUser(user) ? "HO - All Company" : user.companyName ?? user.companyCode ?? "Belum tersedia di API"}</dd></div>
+          <div><dt>Phone</dt><dd>{profile?.phone || "—"}</dd></div>
+          <div><dt>Company</dt><dd>{isHeadOfficeUser(user) ? "HO - All Company" : user.companyName ?? user.companyCode ?? "—"}</dd></div>
         </dl>
       </section>
 
       <section>
-        <h4>Akses dan Keamanan</h4>
+        <h4><ShieldCheck size={16} /> Akses dan Keamanan</h4>
         <dl>
           <div><dt>Role</dt><dd>{user.role}</dd></div>
-          <div><dt>2FA</dt><dd>{twoFactorOn ? "Enabled" : "Not enabled"}</dd></div>
           <div><dt>Login Method</dt><dd>Email + Password</dd></div>
           <div><dt>Session</dt><dd>JWT authenticated</dd></div>
-          <div><dt>Scope</dt><dd>{isHeadOfficeUser(user) ? "All Company" : user.companyCode ?? "Company"}</dd></div>
+          <div><dt>Scope</dt><dd>{scope}</dd></div>
           <div><dt>Password Policy</dt><dd>Managed by backend auth</dd></div>
         </dl>
+        <div className={`account-2fa ${twoFactorOn ? "on" : ""}`}>
+          <Smartphone size={18} />
+          <div className="flex-1">
+            <strong>Autentikasi Dua Faktor {twoFactorOn ? "aktif" : "nonaktif"}</strong>
+            <small>{twoFactorOn ? "Login memerlukan kode authenticator." : "Tambahkan lapisan keamanan ekstra untuk login."}</small>
+          </div>
+          {twoFactorOn ? (
+            <button onClick={openSetup} className="account-btn danger"><ShieldCheck size={13} /> Nonaktifkan</button>
+          ) : (
+            <button onClick={openSetup} className="account-btn"><QrCode size={13} /> Aktifkan 2FA</button>
+          )}
+        </div>
+        {twoFaFeedback && !setupOpen && (
+          <p className={`account-feedback ${twoFaFeedback.ok ? "ok" : ""}`}>
+            {twoFaFeedback.ok ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />} {twoFaFeedback.message}
+          </p>
+        )}
+      </section>
+
+      <section>
+        <h4><UserRound size={16} /> Edit Profil</h4>
+        <form data-enter-submit onSubmit={submitProfile} className="account-form">
+          <label>
+            <span>Nama Lengkap</span>
+            <input value={profile?.name ?? user.name} onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} />
+          </label>
+          <label>
+            <span>Position</span>
+            <input value={profile?.position ?? ""} onChange={(e) => setProfile((p) => ({ ...p, position: e.target.value }))} placeholder="cth. Finance Manager" />
+          </label>
+          <label>
+            <span>No. Telepon</span>
+            <input value={profile?.phone ?? ""} onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))} placeholder="cth. +62 812 3456 7890" />
+          </label>
+          <footer>
+            {profileFeedback && (
+              <p className={`account-feedback ${profileFeedback.ok ? "ok" : ""}`}>
+                {profileFeedback.ok ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />} {profileFeedback.message}
+              </p>
+            )}
+            <button type="submit" disabled={profileSaving} className="account-btn">
+              {profileSaving ? <RefreshCw size={13} className="animate-spin" /> : <UserRound size={13} />}
+              Simpan Profil
+            </button>
+          </footer>
+        </form>
+      </section>
+
+      <section>
+        <h4><KeyRound size={16} /> Ganti Password</h4>
+        <form data-enter-submit onSubmit={submitPassword} className="account-form">
+          <label>
+            <span>Password Lama</span>
+            <input type="password" required value={pwdForm.oldPassword} onChange={(e) => setPwdForm({ ...pwdForm, oldPassword: e.target.value })} />
+          </label>
+          <label>
+            <span>Password Baru</span>
+            <input type="password" required value={pwdForm.newPassword} onChange={(e) => setPwdForm({ ...pwdForm, newPassword: e.target.value })} placeholder="Minimal 8 karakter" />
+          </label>
+          <label>
+            <span>Konfirmasi Password Baru</span>
+            <input type="password" required value={pwdForm.confirm} onChange={(e) => setPwdForm({ ...pwdForm, confirm: e.target.value })} />
+          </label>
+          <footer>
+            {pwdFeedback && (
+              <p className={`account-feedback ${pwdFeedback.ok ? "ok" : ""}`}>
+                {pwdFeedback.ok ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />} {pwdFeedback.message}
+              </p>
+            )}
+            <button type="submit" disabled={pwdSaving} className="account-btn">
+              {pwdSaving ? <RefreshCw size={13} className="animate-spin" /> : <KeyRound size={13} />}
+              Simpan Password
+            </button>
+          </footer>
+        </form>
       </section>
     </div>
 
     <section className="permission-section account-section-page">
-      <h4><UserRound size={16} /> Edit Profil</h4>
-      <form data-enter-submit onSubmit={submitProfile} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2 text-sm">
-        <label className="block">
-          <span className="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap</span>
-          <input
-            value={profile?.name ?? user.name}
-            onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))}
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-blue-500 font-semibold text-xs"
-          />
-        </label>
-        <label className="block">
-          <span className="block text-xs font-bold text-slate-700 mb-1">Position</span>
-          <input
-            value={profile?.position ?? ""}
-            onChange={(e) => setProfile((p) => ({ ...p, position: e.target.value }))}
-            placeholder="cth. Finance Manager"
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-blue-500 font-semibold text-xs"
-          />
-        </label>
-        <label className="block">
-          <span className="block text-xs font-bold text-slate-700 mb-1">No. Telepon</span>
-          <input
-            value={profile?.phone ?? ""}
-            onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))}
-            placeholder="cth. +62 812 3456 7890"
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-blue-500 font-semibold text-xs"
-          />
-        </label>
-        <div className="sm:col-span-3 flex items-center justify-between gap-3 flex-wrap">
-          {profileFeedback && (
-            <span className={`text-xs font-bold inline-flex items-center gap-1.5 ${profileFeedback.ok ? "text-emerald-600" : "text-rose-600"}`}>
-              {profileFeedback.ok ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />} {profileFeedback.message}
-            </span>
-          )}
-          <button
-            type="submit"
-            disabled={profileSaving}
-            className="px-4 py-2 bg-[#20a6b8] hover:bg-[#1c92a2] text-white rounded-xl text-xs font-bold inline-flex items-center gap-2 shadow-sm transition disabled:opacity-50 sm:ml-auto"
-          >
-            {profileSaving ? <RefreshCw size={13} className="animate-spin" /> : <UserRound size={13} />}
-            Simpan Profil
-          </button>
-        </div>
-      </form>
-    </section>
-
-    <section className="permission-section account-section-page">
       <h4><ShieldCheck size={16} /> Permission Summary</h4>
-      <div className="permission-tags">
-        {effectiveAccess(user).map((item) => <span key={item}>{item}</span>)}
-      </div>
+      {access.length ? (
+        <div className="permission-groups">
+          {access.map(([module, actions]) => <div key={module}>
+            <strong>{module.replace(/_/g, " ")}</strong>
+            <div className="permission-tags">{actions.map((a) => <span key={a}>{a}</span>)}</div>
+          </div>)}
+        </div>
+      ) : <p className="text-xs text-slate-500">Tidak ada permission eksplisit — akses dikontrol backend.</p>}
     </section>
 
     <section className="permission-section account-section-page">
-      <h4><ShieldCheck size={16} /> Autentikasi Dua Faktor (2FA)</h4>
-      <div className="flex items-center justify-between gap-3 flex-wrap mt-2">
-        <div className="text-sm text-slate-600 flex items-center gap-2">
-          <Smartphone size={16} className={twoFactorOn ? "text-emerald-600" : "text-slate-400"} />
-          <span className="font-bold">
-            {twoFactorOn
-              ? "2FA aktif — masuk memerlukan kode authenticator."
-              : "2FA nonaktif — tambahkan lapisan keamanan ekstra untuk login Anda."}
-          </span>
-        </div>
-        {twoFactorOn ? (
-          <button
-            onClick={openSetup}
-            className="px-4 py-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-700 rounded-xl text-xs font-bold inline-flex items-center gap-2 transition"
-          >
-            <ShieldCheck size={13} /> Nonaktifkan 2FA
-          </button>
-        ) : (
-          <button
-            onClick={openSetup}
-            className="px-4 py-2 bg-[#20a6b8] hover:bg-[#1c92a2] text-white rounded-xl text-xs font-bold inline-flex items-center gap-2 shadow-sm transition"
-          >
-            <QrCode size={13} /> Aktifkan 2FA
-          </button>
-        )}
-      </div>
-      {twoFaFeedback && (
-        <div className={`mt-3 p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${twoFaFeedback.ok ? "bg-emerald-50 border border-emerald-200 text-emerald-900" : "bg-rose-50 border border-rose-200 text-rose-900"}`}>
-          {twoFaFeedback.ok ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />} {twoFaFeedback.message}
-        </div>
-      )}
-    </section>
-
-    <section className="permission-section account-section-page">
-      <h4><KeyRound size={16} /> Ganti Password</h4>
-      <form data-enter-submit onSubmit={submitPassword} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2 text-sm">
-        <input
-          type="password"
-          required
-          value={pwdForm.oldPassword}
-          onChange={(e) => setPwdForm({ ...pwdForm, oldPassword: e.target.value })}
-          placeholder="Password lama"
-          className="px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-blue-500 font-semibold text-xs"
-        />
-        <input
-          type="password"
-          required
-          value={pwdForm.newPassword}
-          onChange={(e) => setPwdForm({ ...pwdForm, newPassword: e.target.value })}
-          placeholder="Password baru (min. 8 karakter)"
-          className="px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-blue-500 font-semibold text-xs"
-        />
-        <input
-          type="password"
-          required
-          value={pwdForm.confirm}
-          onChange={(e) => setPwdForm({ ...pwdForm, confirm: e.target.value })}
-          placeholder="Konfirmasi password baru"
-          className="px-3 py-2 border border-slate-200 rounded-xl focus:outline-hidden focus:border-blue-500 font-semibold text-xs"
-        />
-        <div className="sm:col-span-3 flex items-center justify-between gap-3 flex-wrap">
-          {pwdFeedback && (
-            <span className={`text-xs font-bold inline-flex items-center gap-1.5 ${pwdFeedback.ok ? "text-emerald-600" : "text-rose-600"}`}>
-              {pwdFeedback.ok ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />} {pwdFeedback.message}
-            </span>
-          )}
-          <button
-            type="submit"
-            disabled={pwdSaving}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold inline-flex items-center gap-2 shadow-sm transition disabled:opacity-50 sm:ml-auto"
-          >
-            {pwdSaving ? <RefreshCw size={13} className="animate-spin" /> : <KeyRound size={13} />}
-            Simpan Password Baru
-          </button>
-        </div>
-      </form>
-    </section>
-
-    <section className="permission-section account-section-page">
-      <h4><KeyRound size={16} /> Aktivitas Akun</h4>
+      <h4><History size={16} /> Aktivitas Akun</h4>
       <div className="account-activity account-activity-page">
         {userLogs.map((log) => <div key={log.id}>
           <strong>{log.action} - {log.module}</strong>
@@ -467,31 +424,12 @@ export function AccountSettingsPage({
   </section>;
 }
 
-// Menampilkan akses efektif dari backend (permissions + T-Codes), bukan tebakan nama role.
-// Fail-safe: jika data permission belum dimuat, tampilkan peringatan alih-alih menebak hak akses.
-function effectiveAccess(user: User): string[] {
-  const perms = Array.isArray(user.permissions) ? user.permissions : [];
-  const tcs = Array.isArray(user.tcodes) ? user.tcodes : [];
-
-  if (!perms.length && !tcs.length) {
-    return ["Permission data not loaded — access is enforced by backend"];
-  }
-
-  const labels: string[] = [];
-  const seen = new Set<string>();
-  tcs.forEach((tc) => {
-    if (tc.description && !seen.has(tc.description)) {
-      seen.add(tc.description);
-      labels.push(tc.description);
-    }
-  });
-  perms.forEach((p) => {
-    if (p.action === "manage" || p.action === "*") return;
-    const label = `${p.module} : ${p.action}`;
-    if (!seen.has(label)) {
-      seen.add(label);
-      labels.push(label);
-    }
-  });
-  return labels.length ? labels : ["No explicit permissions"];
+// Menampilkan akses efektif dari backend (permissions + T-Codes), dikelompokkan per modul.
+// Fail-safe: jika data permission belum dimuat, kembalikan kosong alih-alih menebak hak akses.
+function effectiveAccess(user: User): [string, string[]][] {
+  const groups = new Map<string, Set<string>>();
+  const add = (group: string, item: string) => (groups.get(group) ?? groups.set(group, new Set()).get(group)!).add(item);
+  (Array.isArray(user.tcodes) ? user.tcodes : []).forEach((tc) => tc.description && add("t-code", tc.description));
+  (Array.isArray(user.permissions) ? user.permissions : []).forEach((p) => p.action !== "manage" && p.action !== "*" && add(p.module, p.action));
+  return [...groups].map(([group, items]) => [group, [...items]]);
 }
