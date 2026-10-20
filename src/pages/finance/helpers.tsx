@@ -297,6 +297,9 @@ export function generateInvoiceNumber(customerCode: string, workPeriod: string, 
   return `${nextSeq}/${code}-AAP/RF/${romanMonth}/${yearStr}`;
 }
 
+// Sama dengan isInvoiceLocked BE: piutang & jurnal diakui sejak approval Manager FATB; nilai & tanggal invoice beku.
+export const INVOICE_LOCKED = new Set(["Approved", "Tax_Reported", "Faktur Pajak Terlapor", "Paid", "Lunas"]);
+
 export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
   if (!ba) {
     return {

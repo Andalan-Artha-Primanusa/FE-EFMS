@@ -55,12 +55,15 @@ export function BATrackerView({ c }: { c: any }) {
           return invStatus.isFullyInvoiced;
         };
 
-        // Stage 1: Draft / Joint Survey
-        const stageDraftRows = periodRows.filter((r) => r.statusBA === "Submit" || r.statusBA === "Draft" || (r.statusBA || "").startsWith("Submit"));
+        // Stage 1: Draft / Joint Survey (belum diajukan)
+        const isStageDraft = (r: any) => r.statusBA === "Draft";
+        // Stage 2: diajukan (Submit) s.d. menunggu approval Manager
+        const isStageVerif = (r: any) => (r.statusBA || "").startsWith("Submit") || r.statusBA === "Pending Berita Acara" || r.statusBA === "Pending" || r.statusBA === "Pending BAI" || r.statusBA === "Verified" || (r.statusBA === "Ready to Invoice" && !isBAInvoiced(r));
+        const stageDraftRows = periodRows.filter(isStageDraft);
         const stageDraftNominal = stageDraftRows.reduce((sum, r) => sum + (r.workAmount || 0), 0);
 
         // Stage 2: Verifikasi Internal SPV
-        const stageVerifRows = periodRows.filter((r) => r.statusBA === "Pending Berita Acara" || r.statusBA === "Pending" || r.statusBA === "Pending BAI" || r.statusBA === "Verified" || (r.statusBA === "Ready to Invoice" && !isBAInvoiced(r)));
+        const stageVerifRows = periodRows.filter(isStageVerif);
         const stageVerifNominal = stageVerifRows.reduce((sum, r) => sum + (r.workAmount || 0), 0);
 
         // Stage 3: Revisi / Tertahan
@@ -86,8 +89,8 @@ export function BATrackerView({ c }: { c: any }) {
           const matchQ = JSON.stringify(r).toLowerCase().includes(query.toLowerCase());
           if (!matchQ) return false;
           if (periodFilter !== "All" && r.workPeriod !== periodFilter) return false;
-          if (baFilter === "Submit") return r.statusBA === "Submit" || r.statusBA === "Draft" || (r.statusBA || "").startsWith("Submit");
-          if (baFilter === "Pending Berita Acara") return r.statusBA === "Pending Berita Acara" || r.statusBA === "Pending" || r.statusBA === "Pending BAI" || r.statusBA === "Verified" || (r.statusBA === "Ready to Invoice" && !isBAInvoiced(r));
+          if (baFilter === "Submit") return isStageDraft(r);
+          if (baFilter === "Pending Berita Acara") return isStageVerif(r);
           if (baFilter === "Revisi") return r.statusBA === "Revisi" || (r.statusBA || "").startsWith("Reject");
           if (baFilter === "Ready to Invoice") return isBAApproved(r) && !isBAInvoiced(r);
           if (baFilter === "Arsip") return (r.statusBA === "Ready to Invoice" || r.statusBA === "Approved" || r.statusBA === "Invoiced" || r.statusBA === "Arsip") && isBAInvoiced(r);
