@@ -1,6 +1,6 @@
 import React from "react";
 import { FileCheck } from "lucide-react";
-import { formatIDR, MonthPickerInput, generateInvoiceNumber } from "../helpers";
+import { formatIDR, MonthPickerInput, generateInvoiceNumber, INVOICE_LOCKED } from "../helpers";
 
 interface InvoiceHeaderFormProps {
   formData: any;
@@ -110,6 +110,17 @@ export function InvoiceHeaderForm({
               value={formData.invoiceNo || ""}
               onChange={(e) => setFormData({ ...formData, invoiceNo: e.target.value })}
               required
+            />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="w-28 text-slate-600 font-bold shrink-0">Tanggal Invoice:</span>
+            <input
+              type="date"
+              className="bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 font-bold text-slate-900 text-xs px-2.5 py-1.5 rounded-lg focus:border-cyan-700 outline-none flex-1 w-full transition disabled:opacity-60"
+              value={formData.invoiceDate || ""}
+              onChange={(e) => setFormData({ ...formData, invoiceDate: e.target.value })}
+              disabled={INVOICE_LOCKED.has(formData.status)}
             />
           </div>
 

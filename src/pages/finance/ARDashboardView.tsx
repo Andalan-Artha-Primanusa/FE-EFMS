@@ -4,11 +4,14 @@ import { BarChart3, Eye, RefreshCw } from "lucide-react";
 import { Panel } from "../../components/Panel";
 import { FinanceShell } from "./FinanceShell";
 import { compactMoney } from "../../lib/api";
-import { formatIDR, getBAInvoiceStatus, renderBAStatusBadge, renderInvoiceStatusBadge, indonesianMonths } from "./helpers";
+import { formatIDR, getBAInvoiceStatus, renderBAStatusBadge, renderInvoiceStatusBadge, indonesianMonths, INVOICE_LOCKED as ISSUED } from "./helpers";
+import { customerKind } from "./masterRegistry";
 
 const BA_STAGES = ["Submit", "Revisi", "Ready to Invoice", "Approved", "Arsip"];
-const UNISSUED = new Set(["", "Draft", "Draft Invoice", "Pending", "Submitted", "Pending Approval", "Rejected"]);
 const baValue = (ba: any) => Number(ba.adjustedWorkAmount || ba.workAmount || 0);
+// Total Receipt = tagihan setelah potongan (SBS); basis outstanding di BE.
+const billed = (i: any) => Number(i.totalReceipt || i.totalInvoice || 0);
+const isVerified = (p: any) => !p.verificationStatus || p.verificationStatus === "Verified";
 const monthKey = (d: any) => (d ? String(d).slice(0, 7) : "");
 const validDate = (v: any) => String(v || "").slice(0, 10) > "1900";
 const daysBetween = (a: any, b: any) => Math.round((Date.parse(String(b).slice(0, 10)) - Date.parse(String(a).slice(0, 10))) / 86400000);
@@ -31,24 +34,30 @@ export function ARDashboardView({ c }: { c: any }) {
   const { baRows = [], invoiceRows = [], paymentRows = [], loadData, setDetailViewItem } = c as Record<string, any>;
   const [customer, setCustomer] = useState("All");
 
+  const invoiceOf = (p: any) => invoiceRows.find((i: any) => (p.invoiceId && i.id === p.invoiceId) || i.invoiceNo === p.invoiceNo);
+  // Site dinormalisasi (DBK = PTRO, "PT BGG" = BGG); site pembayaran ikut invoice-nya.
+  const site = (r: any) => customerKind(r.customerCode);
+  const paySite = (p: any) => customerKind(invoiceOf(p)?.customerCode || p.customerCode);
   const customers = useMemo(
-    () => Array.from(new Set([...baRows, ...invoiceRows].map((r: any) => r.customerCode).filter(Boolean))).sort() as string[],
+    () => Array.from(new Set([...baRows, ...invoiceRows].map(site).filter(Boolean))).sort() as string[],
     [baRows, invoiceRows]
   );
-  const pick = (rows: any[]) => (customer === "All" ? rows : rows.filter((r) => r.customerCode === customer));
-  const bas = pick(baRows), invoices = pick(invoiceRows), payments = pick(paymentRows);
+  const bas = customer === "All" ? baRows : baRows.filter((r: any) => site(r) === customer);
+  const invoices = customer === "All" ? invoiceRows : invoiceRows.filter((r: any) => site(r) === customer);
+  const payments = customer === "All" ? paymentRows : paymentRows.filter((p: any) => paySite(p) === customer);
 
   const d = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
-    const issued = invoices.filter((i: any) => !UNISSUED.has(String(i.status || "").trim()));
+    const issued = invoices.filter((i: any) => ISSUED.has(String(i.status || "").trim()));
     const sum = (rows: any[], f: (r: any) => number) => rows.reduce((s, r) => s + (f(r) || 0), 0);
     const uninvoicedBA = bas.filter((b: any) => (b.statusBA === "Ready to Invoice" || b.statusBA === "Approved") && !getBAInvoiceStatus(b, invoiceRows).isFullyInvoiced);
+    // POS: 1 BA = 2 invoice (Mining + MDO); bila baru terbit satu, sisa = separuh nilai BA.
+    const unbilledValue = (b: any) => (site(b) === "POS" && getBAInvoiceStatus(b, invoiceRows).isPartiallyInvoiced ? Math.round(baValue(b) / 2) : baValue(b));
     const pastDue = (i: any) => (validDate(i.dueDate) ? daysBetween(i.dueDate, today) : 0);
     const open = issued.filter((i: any) => Number(i.outstanding) > 0);
     const overdue = open.filter((i: any) => pastDue(i) > 0);
-    const validPayments = payments.filter((p: any) => p.verificationStatus !== "Rejected");
+    const validPayments = payments.filter(isVerified);
     const aging = AGING.map((b) => ({ ...b, value: sum(open.filter((i: any) => pastDue(i) >= b.min && pastDue(i) <= b.max), (i) => Number(i.outstanding)) }));
-    const invoiceOf = (p: any) => invoiceRows.find((i: any) => (p.invoiceId && i.id === p.invoiceId) || i.invoiceNo === p.invoiceNo);
     const payDelays = validPayments
       .map((p: any) => { const inv = invoiceOf(p); return inv && validDate(inv.dueDate) && validDate(p.paymentDate) ? daysBetween(inv.dueDate, p.paymentDate) : null; })
       .filter((x: number | null): x is number => x !== null);
@@ -60,7 +69,7 @@ export function ARDashboardView({ c }: { c: any }) {
       const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
       return {
         label: `${indonesianMonths[dt.getMonth()].slice(0, 3)} ${String(dt.getFullYear()).slice(2)}`,
-        invoiced: sum(issued.filter((i: any) => monthKey(i.invoiceDate) === key), (i) => Number(i.totalInvoice)),
+        invoiced: sum(issued.filter((i: any) => monthKey(i.invoiceDate) === key), billed),
         collected: sum(validPayments.filter((p: any) => monthKey(p.paymentDate) === key), (p) => Number(p.amountPaid)),
       };
     });
@@ -68,31 +77,31 @@ export function ARDashboardView({ c }: { c: any }) {
     const byCustomer = customers
       .filter((code) => customer === "All" || code === customer)
       .map((code) => {
-        const inv = issued.filter((i: any) => i.customerCode === code);
-        const invoiced = sum(inv, (i) => Number(i.totalInvoice));
+        const inv = issued.filter((i: any) => site(i) === code);
+        const invoiced = sum(inv, billed);
         const paid = sum(inv, (i) => Number(i.totalPaid));
         return {
           code,
-          baCount: bas.filter((b: any) => b.customerCode === code).length,
-          baValue: sum(bas.filter((b: any) => b.customerCode === code), baValue),
+          baCount: bas.filter((b: any) => site(b) === code).length,
+          baValue: sum(bas.filter((b: any) => site(b) === code), baValue),
           invCount: inv.length,
           invoiced,
           paid,
           outstanding: sum(inv, (i) => Number(i.outstanding)),
-          overdue: sum(overdue.filter((i: any) => i.customerCode === code), (i) => Number(i.outstanding)),
+          overdue: sum(overdue.filter((i: any) => site(i) === code), (i) => Number(i.outstanding)),
           rate: pct(paid, invoiced),
         };
       });
 
-    const invoicedTotal = sum(issued, (i) => Number(i.totalInvoice));
+    const invoicedTotal = sum(issued, billed);
     const outstandingTotal = sum(issued, (i) => Number(i.outstanding));
     const overdueTotal = sum(overdue, (i) => Number(i.outstanding));
-    const uninvoicedTotal = sum(uninvoicedBA, baValue);
-    const pendingPayments = payments.filter((p: any) => p.verificationStatus === "Pending").length;
+    const uninvoicedTotal = sum(uninvoicedBA, unbilledValue);
+    const pendingPayments = payments.filter((p: any) => !isVerified(p) && p.verificationStatus !== "Rejected").length;
     const collectionRate = pct(sum(issued, (i) => Number(i.totalPaid)), invoicedTotal);
 
     return {
-      issued, uninvoicedBA, overdue, months, byCustomer, aging,
+      issued, uninvoicedBA, unbilledValue, overdue, months, byCustomer, aging,
       baTotal: sum(bas, baValue),
       invoicedTotal, outstandingTotal, overdueTotal, uninvoicedTotal, pendingPayments,
       collectedTotal: sum(validPayments, (p) => Number(p.amountPaid)),
@@ -102,7 +111,7 @@ export function ARDashboardView({ c }: { c: any }) {
         { label: "Avg BA ke Invoice", value: avg(bas.map((b: any) => Number(b.lagBAToInvoiceDays)).filter((x: number) => x > 0)), limit: 7 },
         { label: "Avg Telat Bayar", value: avg(payDelays), limit: 0 },
       ].map((m: any) => typeof m.value === "string" ? m : { ...m, bad: m.value !== null && m.value > m.limit, value: m.value === null ? "-" : `${Math.round(m.value)} hari` }),
-      draftInvoices: invoices.filter((i: any) => UNISSUED.has(String(i.status || "").trim()) && i.status !== "Rejected").length,
+      draftInvoices: invoices.filter((i: any) => !ISSUED.has(String(i.status || "").trim()) && i.status !== "Rejected").length,
       stages: BA_STAGES.map((s) => ({ stage: s, rows: bas.filter((b: any) => b.statusBA === s) })),
       recentPayments: [...payments].sort((a: any, b: any) => String(b.paymentDate).localeCompare(String(a.paymentDate))).slice(0, 8),
     };
@@ -269,9 +278,9 @@ export function ARDashboardView({ c }: { c: any }) {
                 {d.uninvoicedBA.slice(0, 8).map((b: any) => (
                   <tr key={b.id} className="hover:bg-slate-50/80 transition">
                     <td className={`${th} font-bold text-slate-900`}>{b.baNumber}</td>
-                    <td className={th}>{b.customerCode}</td>
+                    <td className={th}>{site(b)}</td>
                     <td className={`${th} text-slate-600`}>{b.workPeriod}</td>
-                    <td className={`${th} text-right tabular-nums font-bold`}>{formatIDR(baValue(b))}</td>
+                    <td className={`${th} text-right tabular-nums font-bold`}>{formatIDR(d.unbilledValue(b))}</td>
                     <td className={th}>{renderBAStatusBadge(b.statusBA, b.invoiceNoLinked, false, b, invoiceRows)}</td>
                   </tr>
                 ))}
@@ -299,7 +308,7 @@ export function ARDashboardView({ c }: { c: any }) {
                 {[...d.overdue].sort((a: any, b: any) => String(a.dueDate).localeCompare(String(b.dueDate))).slice(0, 8).map((inv: any) => (
                   <tr key={inv.id} className="hover:bg-slate-50/80 transition">
                     <td className={`${th} font-bold text-slate-900`}>{inv.invoiceNo}</td>
-                    <td className={th}>{inv.customerCode}</td>
+                    <td className={th}>{site(inv)}</td>
                     <td className={`${th} tabular-nums text-amber-700 font-semibold`}>{String(inv.dueDate).slice(0, 10)} · {daysBetween(inv.dueDate, new Date().toISOString())} hari</td>
                     <td className={`${th} text-right tabular-nums font-bold text-rose-700`}>{formatIDR(inv.outstanding)}</td>
                     <td className={`${th} text-right`}>
@@ -335,12 +344,12 @@ export function ARDashboardView({ c }: { c: any }) {
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white text-slate-800 font-medium">
               {d.recentPayments.map((p: any) => {
-                const inv = invoiceRows.find((i: any) => (p.invoiceId && i.id === p.invoiceId) || i.invoiceNo === p.invoiceNo);
+                const inv = invoiceOf(p);
                 return (
                   <tr key={p.id} className="hover:bg-slate-50/80 transition">
                     <td className={`${th} tabular-nums`}>{String(p.paymentDate).slice(0, 10)}</td>
                     <td className={`${th} font-bold text-slate-900`}>{p.invoiceNo}</td>
-                    <td className={th}>{p.customerCode}</td>
+                    <td className={th}>{paySite(p)}</td>
                     <td className={th}>{p.receivingBank || "-"}</td>
                     <td className={`${th} text-slate-600`}>{p.refNo || "-"}</td>
                     <td className={`${th} text-right tabular-nums font-bold text-emerald-700`}>{formatIDR(p.amountPaid)}</td>
