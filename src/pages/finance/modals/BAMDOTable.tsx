@@ -1,6 +1,6 @@
 import React from "react";
 import { Building2, Plus, Trash2 } from "lucide-react";
-import { formatIDR, FormattedNumberInput } from "../helpers";
+import { formatIDR, FormattedNumberInput, parsePeriodToMonthIndex } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { isDistanceItem, getBAEffectiveVolume, getBAItemSubtotal, customerKind, removeBAItem } from "../ba_calculations";
 import { BAPOSMDOTable } from "./BAPOSMDOTable";
@@ -226,12 +226,22 @@ export function BAMDOTable({
                       value={item.unit || (isCustomerSBS ? "Hours" : "USD/BCM")}
                       onChange={(e) => {
                         const updated = [...baMDOItems];
-                        updated[idx].unit = e.target.value;
+                        const next = e.target.value;
+                        // Month <-> Days: tarif bulanan diprorata per hari kalender periode BA (subtotal tetap volume x tarif).
+                        const pIdx = parsePeriodToMonthIndex(formData.workPeriod || "");
+                        const days = pIdx % 100 ? new Date(Math.floor(pIdx / 100), pIdx % 100, 0).getDate() : 30;
+                        const r = Number(updated[idx].rate || 0);
+                        if (updated[idx].unit === "Month" && next === "Days") updated[idx].rate = Math.round((r / days) * 1000) / 1000;
+                        if (updated[idx].unit === "Days" && next === "Month") updated[idx].rate = Math.round(r * days);
+                        updated[idx].unit = next;
+                        const vol = Number(updated[idx].initialVolume || 0);
+                        updated[idx].subtotalInitial = Math.round(vol * Number(updated[idx].rate || 0));
+                        updated[idx].subtotalAdjusted = Math.round(Number(updated[idx].adjustedVolume || vol) * Number(updated[idx].rate || 0));
                         setBaMDOItems(updated);
                       }}
                     >
-                      {["USD/BCM", "USD/1KM", "USD/m2", "Hours", "Month", "Ha", "BCM", "Ton", "Lot", "Unit", "Trip", "m2", "M3", "M'"]
-                        .concat(item.unit && !["USD/BCM", "USD/1KM", "USD/m2", "Hours", "Month", "Ha", "BCM", "Ton", "Lot", "Unit", "Trip", "m2", "M3", "M'"].includes(item.unit) ? [item.unit] : [])
+                      {["USD/BCM", "USD/1KM", "USD/m2", "Hours", "Days", "Month", "Ha", "BCM", "Ton", "Lot", "Unit", "Trip", "m2", "M3", "M'"]
+                        .concat(item.unit && !["USD/BCM", "USD/1KM", "USD/m2", "Hours", "Days", "Month", "Ha", "BCM", "Ton", "Lot", "Unit", "Trip", "m2", "M3", "M'"].includes(item.unit) ? [item.unit] : [])
                         .map((u) => (
                           <option key={u} value={u}>
                             {u}
@@ -308,7 +318,7 @@ export function BAMDOTable({
                   ) : (
                     <FormattedNumberInput
                       allowDecimals
-                      maxDecimals={0}
+                      maxDecimals={3}
                       className={`w-20 sm:w-24 border rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none ${item.isCustom && (!item.rate || item.rate === 0) ? "bg-amber-50 border-amber-400 text-amber-900" : "bg-slate-50 hover:bg-white border-slate-300"}`}
                       value={item.rate === 0 ? "" : (item.rate ?? "")}
                       placeholder="00.00"

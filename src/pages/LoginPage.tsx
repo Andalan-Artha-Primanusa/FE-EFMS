@@ -6,8 +6,8 @@ import loginFinanceBg from "../assets/login-finance-bg.webp";
 import andalanLogo from "../assets/andalan-logo.png";
 
 export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
-  const [email, setEmail] = useState("admin@financeerp.local");
-  const [password, setPassword] = useState("Admin@12345");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotNewPassword, setShowForgotNewPassword] = useState(false);
   const [error, setError] = useState("");
