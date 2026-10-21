@@ -15,6 +15,7 @@ import {
 import { formatCurrency } from "../../../lib/format";
 import type { useTreasuryController } from "../useTreasuryController";
 import type { TreasuryInvoice } from "../types";
+import { periodLabel } from "../../tunai-po/shared";
 
 type Props = {
   c: ReturnType<typeof useTreasuryController>;
@@ -642,7 +643,7 @@ export function PivotAgingPlanningView({ c }: Props) {
                                 <td className="p-1.5 text-center">
                                   {inv.planMonth && inv.planWeek ? (
                                     <span className="px-1.5 py-0.5 rounded-[2px] bg-blue-50 border border-blue-200 text-blue-900 font-bold text-[9px]">
-                                      {inv.planMonth} (W{inv.planWeek})
+                                      {periodLabel(inv)}
                                     </span>
                                   ) : (
                                     <span className="text-stone-300 text-[10px]">—</span>

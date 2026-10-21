@@ -5,7 +5,7 @@ import { api } from "../../lib/api";
 import { authorized } from "../../lib/auth";
 import { formatCurrency, formatDate } from "../../lib/format";
 import type { TPORequest } from "./types";
-import { DOC_LABEL, DOC_SHORT, DOC_TYPES, DocToggle, OverdueBadge, StatusBadge, btnSecondary, cents, docOf, fromCents, inputCls, isDocRequired, useAccountMappings } from "./shared";
+import { DOC_LABEL, DOC_SHORT, DOC_TYPES, DocToggle, OverdueBadge, StatusBadge, btnSecondary, cents, docOf, fromCents, inputCls, isDocRequired, periodLabel, useAccountMappings } from "./shared";
 import { RequestDetailModal } from "./RequestDetailModal";
 
 const docProgress = (r: TPORequest) => {
@@ -155,6 +155,7 @@ export function TrackingTunaiPOPage() {
               <th rowSpan={2} className="p-2.5 whitespace-nowrap border-b border-slate-200">No. PO</th>
               <th rowSpan={2} className="p-2.5 border-b border-slate-200">Vendor</th>
               <th rowSpan={2} className="p-2.5 border-b border-slate-200">Site</th>
+              <th rowSpan={2} className="p-2.5 border-b border-slate-200">Periode</th>
               <th rowSpan={2} className="p-2.5 text-right whitespace-nowrap border-b border-slate-200">Total Bayar</th>
               <th rowSpan={2} className="p-2.5 border-b border-slate-200">Voucher</th>
               <th rowSpan={2} className="p-2.5 text-center border-b border-slate-200">Status</th>
@@ -188,6 +189,7 @@ export function TrackingTunaiPOPage() {
                   <td className="p-2.5">
                     <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700">{r.site}</span>
                   </td>
+                  <td className="p-2.5 whitespace-nowrap">{periodLabel(r)}</td>
                   <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">{formatCurrency(r.payAmount)}</td>
                   <td className="p-2.5 font-mono whitespace-nowrap">{r.voucherNo || "-"}</td>
                   <td className="p-2.5 text-center">
@@ -216,7 +218,7 @@ export function TrackingTunaiPOPage() {
             })}
             {!filtered.length && (
               <tr>
-                <td colSpan={9 + DOC_TYPES.length} className="p-10 text-center text-slate-400">
+                <td colSpan={10 + DOC_TYPES.length} className="p-10 text-center text-slate-400">
                   {loading ? "Memuat…" : "Tidak ada data"}
                 </td>
               </tr>
@@ -225,7 +227,7 @@ export function TrackingTunaiPOPage() {
           {filtered.length > 0 && (
             <tfoot className="sticky bottom-0">
               <tr className="bg-slate-50 border-t border-slate-200 font-bold text-slate-900">
-                <td colSpan={3} className="p-2.5 text-slate-600">
+                <td colSpan={4} className="p-2.5 text-slate-600">
                   {filtered.length} PO
                 </td>
                 <td className="p-2.5 text-right font-mono whitespace-nowrap">{formatCurrency(sumPay)}</td>

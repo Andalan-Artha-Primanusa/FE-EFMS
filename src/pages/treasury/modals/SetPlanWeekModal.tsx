@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import { Calendar, Check, Clock, Loader2, X } from "lucide-react";
+import { Clock, Loader2, X } from "lucide-react";
 import { formatCurrency } from "../../../lib/format";
+import { PeriodInput, currentPeriod } from "../../tunai-po/shared";
 
 type Props = {
   isOpen: boolean;
+  defaultMonth?: string;
   onClose: () => void;
   selectedInvoiceIds: number[];
   totalAmount: number;
@@ -12,37 +14,24 @@ type Props = {
 
 export function SetPlanWeekModal({
   isOpen,
+  defaultMonth,
   onClose,
   selectedInvoiceIds,
   totalAmount,
   onConfirm,
 }: Props) {
-  const [planMonth, setPlanMonth] = useState<string>("September 2026");
-  const [planWeek, setPlanWeek] = useState<number>(1);
+  const [period, setPeriod] = useState(() =>
+    defaultMonth ? { planMonth: defaultMonth, planWeek: defaultMonth === currentPeriod().planMonth ? currentPeriod().planWeek : 1 } : currentPeriod()
+  );
   const [saving, setSaving] = useState(false);
 
   if (!isOpen) return null;
-
-  const months = [
-    "Januari 2026",
-    "Februari 2026",
-    "Maret 2026",
-    "April 2026",
-    "Mei 2026",
-    "Juni 2026",
-    "Juli 2026",
-    "Agustus 2026",
-    "September 2026",
-    "Oktober 2026",
-    "November 2026",
-    "Desember 2026",
-  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      const ok = await onConfirm(planMonth, planWeek);
+      const ok = await onConfirm(period.planMonth, period.planWeek);
       if (ok) {
         onClose();
       }
@@ -92,46 +81,9 @@ export function SetPlanWeekModal({
             </div>
           </div>
 
-          {/* Month Selection */}
           <div>
-            <label className="block font-semibold text-stone-700 mb-1">
-              Target Bulan Pencairan:
-            </label>
-            <select
-              value={planMonth}
-              onChange={(e) => setPlanMonth(e.target.value)}
-              className="w-full p-2 border border-stone-300 rounded-[3px] font-semibold text-stone-900 bg-white focus:ring-1 focus:ring-[#A57C50] focus:border-[#A57C50] focus:outline-none"
-            >
-              {months.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Week Selection */}
-          <div>
-            <label className="block font-semibold text-stone-700 mb-1.5">
-              Target Distribusi Minggu (Week):
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              {[1, 2, 3, 4].map((w) => (
-                <button
-                  type="button"
-                  key={w}
-                  onClick={() => setPlanWeek(w)}
-                  className={`py-2 px-3 rounded-[3px] border text-center font-bold text-xs transition cursor-pointer flex flex-col items-center gap-1 ${
-                    planWeek === w
-                      ? "bg-[#1A1612] text-[#A57C50] border-[#A57C50] shadow-xs"
-                      : "bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100"
-                  }`}
-                >
-                  <span>Week {w}</span>
-                  {planWeek === w && <Check className="w-3.5 h-3.5 text-[#A57C50]" />}
-                </button>
-              ))}
-            </div>
+            <label className="block font-semibold text-stone-700 mb-1">Target Pencairan:</label>
+            <PeriodInput value={period} onChange={setPeriod} />
           </div>
 
           {/* Actions */}

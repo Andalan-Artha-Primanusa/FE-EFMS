@@ -3,7 +3,7 @@ import { Loader2, Search } from "lucide-react";
 import { api } from "../../lib/api";
 import { formatCurrency } from "../../lib/format";
 import type { AccountMapping, TPOKind, TPOLookup, TPOPurchaseOrder, TPORequest } from "./types";
-import { AmountInput, Field, Modal, VendorBank, btnPrimary, btnSecondary, cents, fromCents, inputCls } from "./shared";
+import { AmountInput, Field, Modal, PeriodInput, VendorBank, btnPrimary, btnSecondary, cents, currentPeriod, fromCents, inputCls } from "./shared";
 
 type Props = {
   kind: TPOKind;
@@ -28,6 +28,8 @@ export function RequestFormModal({ kind, editing, mappings, onClose, onSaved, on
     dpType: editing?.dpType || (kind === "FUEL" ? "SOLAR" : ""),
     isPkp: editing?.isPkp ?? false,
   });
+  const [period, setPeriod] = useState(editing?.planMonth ? { planMonth: editing.planMonth, planWeek: editing.planWeek || 0 } : currentPeriod());
+  const hasPeriod = !!period.planMonth && period.planWeek > 0;
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
   const dpTypes = mappings.filter((m) => m.kind === "DP");
 
@@ -83,6 +85,7 @@ export function RequestFormModal({ kind, editing, mappings, onClose, onSaved, on
         vatAmount: fromCents(cents(form.vatAmount)),
         dpType: form.dpType,
         isPkp: form.isPkp,
+        ...period,
       });
       let res = editing
         ? await api<{ success: boolean; request: TPORequest }>(`/api/tunai-po/requests/${editing.id}`, { method: "PUT", body })
@@ -152,6 +155,11 @@ export function RequestFormModal({ kind, editing, mappings, onClose, onSaved, on
 
         {po && (
           <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <Field label="Periode Pengajuan">
+                <PeriodInput value={period} onChange={setPeriod} />
+              </Field>
+            </div>
             <Field label="No. Proforma">
               <input value={form.proformaNo} onChange={(e) => set({ proformaNo: e.target.value })} className={inputCls} />
             </Field>
@@ -191,11 +199,11 @@ export function RequestFormModal({ kind, editing, mappings, onClose, onSaved, on
           <button type="button" onClick={onClose} className={btnSecondary}>
             Batal
           </button>
-          <button type="button" disabled={!po || saving} onClick={() => save(false)} className={btnSecondary}>
+          <button type="button" disabled={!po || saving || !hasPeriod} onClick={() => save(false)} className={btnSecondary}>
             {editing && editing.status !== "draft" ? "Simpan" : "Simpan Draft"}
           </button>
           {(!editing || editing.status === "draft" || editing.status === "rejected") && (
-            <button type="button" disabled={!po || saving || total <= 0} onClick={() => save(true)} className={btnPrimary}>
+            <button type="button" disabled={!po || saving || total <= 0 || !hasPeriod} onClick={() => save(true)} className={btnPrimary}>
               {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Ajukan
             </button>
           )}

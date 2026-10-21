@@ -91,6 +91,72 @@ export function Field({ label, children }: { label: string; children: React.Reac
   );
 }
 
+// Submission period is stored as "Oktober 2026" + week, like the invoice plan columns.
+// Weeks run Monday-Sunday and belong to the month holding their Thursday (ISO rule): 4 or 5 weeks per month.
+// Mirrors weeksInPlanMonth in the backend.
+const MONTHS_ID = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+export type Period = { planMonth: string; planWeek: number };
+const firstThursday = (y: number, m: number) => 1 + ((11 - new Date(y, m, 1).getDay()) % 7);
+// planWeeksOf("Oktober 2026") lists the month's weeks with their Monday-Sunday range; [] for an unknown label.
+export const planWeeksOf = (label: string) => {
+  const [name, year] = label.split(" ");
+  const m = MONTHS_ID.indexOf(name);
+  const y = Number(year);
+  const out: { week: number; monday: Date; sunday: Date }[] = [];
+  if (m < 0 || !y) return out;
+  for (let thu = firstThursday(y, m); thu <= new Date(y, m + 1, 0).getDate(); thu += 7) {
+    out.push({ week: out.length + 1, monday: new Date(y, m, thu - 3), sunday: new Date(y, m, thu + 3) });
+  }
+  return out;
+};
+export const currentPeriod = (d = new Date()): Period => {
+  const thu = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7) + 3);
+  return { planMonth: `${MONTHS_ID[thu.getMonth()]} ${thu.getFullYear()}`, planWeek: Math.ceil(thu.getDate() / 7) };
+};
+export const periodLabel = (p: Partial<Period>) => (p.planMonth && p.planWeek ? `Week ${p.planWeek} ${p.planMonth}` : "-");
+export const weekRange = (w: { monday: Date; sunday: Date }) => {
+  const dm = (d: Date) => d.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
+  return `${dm(w.monday)} – ${dm(w.sunday)}`;
+};
+
+// MonthInput edits a "Oktober 2026" label with the native month picker.
+export function MonthInput({ value, onChange, className = inputCls }: { value: string; onChange: (label: string) => void; className?: string }) {
+  const [name, year] = value.split(" ");
+  const m = MONTHS_ID.indexOf(name);
+  return (
+    <input
+      type="month"
+      required
+      value={m >= 0 ? `${year}-${String(m + 1).padStart(2, "0")}` : ""}
+      onChange={(e) => {
+        const [y, mm] = e.target.value.split("-").map(Number);
+        onChange(y ? `${MONTHS_ID[mm - 1]} ${y}` : "");
+      }}
+      className={className}
+    />
+  );
+}
+
+export function PeriodInput({ value, onChange }: { value: Period; onChange: (p: Period) => void }) {
+  const weeks = planWeeksOf(value.planMonth);
+  return (
+    <div className="flex gap-2">
+      <MonthInput
+        value={value.planMonth}
+        onChange={(planMonth) => onChange({ planMonth, planWeek: value.planWeek <= planWeeksOf(planMonth).length ? value.planWeek : 0 })}
+      />
+      <select required value={value.planWeek || ""} onChange={(e) => onChange({ ...value, planWeek: Number(e.target.value) })} className={inputCls}>
+        <option value="">Week</option>
+        {weeks.map((w) => (
+          <option key={w.week} value={w.week}>
+            Week {w.week} · {weekRange(w)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 // Account mappings: DP/PPH/TAX (Tunai PO) dan ITEM/CUSTOMER/PROJECT/KONTRAK/SALES (posting revenue). Kode bisa sama antar kind.
 export function useAccountMappings(base = "/api/tunai-po") {
   const [mappings, setMappings] = useState<AccountMapping[]>([]);

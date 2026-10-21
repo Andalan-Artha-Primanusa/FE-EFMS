@@ -22,6 +22,7 @@ import {
   inputCls,
   isDocRequired,
   openDocumentFile,
+  periodLabel,
   saveDocument,
 } from "./shared";
 import { Info } from "./RequestFormModal";
@@ -138,6 +139,7 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-[3px] p-3">
           <Info label="Vendor" value={req.vendor?.name || "-"} />
           <Info label="Site" value={req.site || "-"} />
+          <Info label="Periode" value={periodLabel(req)} />
           <Info label="No. Proforma" value={req.proformaNo || "-"} />
           <Info label="Jenis Uang Muka" value={dpName(req.dpType)} />
           <Info label="PKP" value={req.isPkp ? "Ya" : "Tidak"} />

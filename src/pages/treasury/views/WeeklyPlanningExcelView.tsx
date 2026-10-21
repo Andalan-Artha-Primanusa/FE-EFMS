@@ -15,6 +15,11 @@ import type { useTreasuryController } from "../useTreasuryController";
 import type { TreasuryInvoice } from "../types";
 import { SetPlanWeekModal } from "../modals/SetPlanWeekModal";
 import { DpNotDeductedBadge, DP_NOT_DEDUCTED_TIP } from "./PivotAgingPlanningView";
+import { MonthInput, currentPeriod, planWeeksOf, weekRange } from "../../tunai-po/shared";
+
+// Amounts per plan week (1-5); key 0 = week outside the month.
+type WeekAmounts = Record<number, number>;
+const addWeeks = (into: WeekAmounts, from: WeekAmounts) => Object.entries(from).forEach(([w, v]) => (into[+w] = (into[+w] || 0) + v));
 
 type Props = {
   c: ReturnType<typeof useTreasuryController>;
@@ -78,17 +83,19 @@ export function WeeklyPlanningExcelView({ c }: Props) {
   const [search, setSearch] = useState("");
   const [siteFilter, setSiteFilter] = useState("ALL");
   const [categoryFilter, setCategoryFilter] = useState<"ALL" | "DEALER" | "NON_DEALER">("ALL");
-  const [targetPlanMonth, setTargetPlanMonth] = useState<string>("September 2026");
+  const [targetPlanMonth, setTargetPlanMonth] = useState<string>(() => currentPeriod().planMonth);
   const [expandedVendors, setExpandedVendors] = useState<Record<string, boolean>>({});
   const [showBatchWeekModal, setShowBatchWeekModal] = useState(false);
   const [assigningWeekId, setAssigningWeekId] = useState<number | null>(null);
+  const weeks = useMemo(() => planWeeksOf(targetPlanMonth), [targetPlanMonth]);
+  const weekNos = weeks.map((w) => w.week);
 
-  // Pool of planned invoices for the target month (Week 1-4 only)
+  // Pool of planned invoices for the target month
   const activeInvoices = useMemo(() => {
     const list = allUnpaidInvoices && allUnpaidInvoices.length > 0 ? allUnpaidInvoices : invoices;
     return list.filter((inv) => {
       if (inv.status === "paid") return false;
-      if (!inv.planWeek || inv.planWeek < 1 || inv.planWeek > 4) return false;
+      if (!inv.planWeek || inv.planWeek < 1) return false;
       return isSamePlanMonth(inv.planMonth, targetPlanMonth);
     });
   }, [invoices, allUnpaidInvoices, targetPlanMonth]);
@@ -113,7 +120,7 @@ export function WeeklyPlanningExcelView({ c }: Props) {
       sites: string[];
       dueMonths: Set<string>;
       totalMonthAmount: number;
-      weekAmounts: { 1: number; 2: number; 3: number; 4: number; unassigned: number };
+      weekAmounts: WeekAmounts;
       items: TreasuryInvoice[];
     }>();
 
@@ -137,7 +144,7 @@ export function WeeklyPlanningExcelView({ c }: Props) {
           sites: [],
           dueMonths: new Set<string>(),
           totalMonthAmount: 0,
-          weekAmounts: { 1: 0, 2: 0, 3: 0, 4: 0, unassigned: 0 },
+          weekAmounts: {},
           items: [],
         };
         map.set(key, grp);
@@ -155,17 +162,12 @@ export function WeeklyPlanningExcelView({ c }: Props) {
       grp.totalMonthAmount += amt;
       grp.items.push(inv);
 
-      // Distribute into Week 1-4 or unassigned
-      const w = inv.planWeek;
-      if (w === 1 || w === 2 || w === 3 || w === 4) {
-        grp.weekAmounts[w] += amt;
-      } else {
-        grp.weekAmounts.unassigned += amt;
-      }
+      const w = (inv.planWeek || 0) <= weeks.length ? inv.planWeek || 0 : 0;
+      grp.weekAmounts[w] = (grp.weekAmounts[w] || 0) + amt;
     });
 
     return Array.from(map.values()).sort((a, b) => b.totalMonthAmount - a.totalMonthAmount);
-  }, [activeInvoices, siteFilter]);
+  }, [activeInvoices, siteFilter, weeks.length]);
 
   // Filtered rows
   const filteredRows = useMemo(() => {
@@ -190,15 +192,11 @@ export function WeeklyPlanningExcelView({ c }: Props) {
   // Grand Totals across all filtered rows
   const grandTotals = useMemo(() => {
     let totalValue = 0;
-    const weeks = { 1: 0, 2: 0, 3: 0, 4: 0, unassigned: 0 };
+    const weeks: WeekAmounts = {};
 
     filteredRows.forEach((r) => {
       totalValue += r.totalMonthAmount;
-      weeks[1] += r.weekAmounts[1];
-      weeks[2] += r.weekAmounts[2];
-      weeks[3] += r.weekAmounts[3];
-      weeks[4] += r.weekAmounts[4];
-      weeks.unassigned += r.weekAmounts.unassigned;
+      addWeeks(weeks, r.weekAmounts);
     });
 
     return { totalValue, weeks };
@@ -206,25 +204,17 @@ export function WeeklyPlanningExcelView({ c }: Props) {
 
   // Category Breakdown Matrix (Dealer vs Non Dealer)
   const categoryMatrix = useMemo(() => {
-    const dealer = { totalValue: 0, 1: 0, 2: 0, 3: 0, 4: 0 };
-    const nonDealer = { totalValue: 0, 1: 0, 2: 0, 3: 0, 4: 0 };
+    const dealer = { totalValue: 0, weeks: {} as WeekAmounts };
+    const nonDealer = { totalValue: 0, weeks: {} as WeekAmounts };
+    const total = { totalValue: 0, weeks: {} as WeekAmounts };
 
     filteredRows.forEach((r) => {
       const target = r.categoryType === "DEALER" ? dealer : nonDealer;
       target.totalValue += r.totalMonthAmount;
-      target[1] += r.weekAmounts[1];
-      target[2] += r.weekAmounts[2];
-      target[3] += r.weekAmounts[3];
-      target[4] += r.weekAmounts[4];
+      total.totalValue += r.totalMonthAmount;
+      addWeeks(target.weeks, r.weekAmounts);
+      addWeeks(total.weeks, r.weekAmounts);
     });
-
-    const total = {
-      totalValue: dealer.totalValue + nonDealer.totalValue,
-      1: dealer[1] + nonDealer[1],
-      2: dealer[2] + nonDealer[2],
-      3: dealer[3] + nonDealer[3],
-      4: dealer[4] + nonDealer[4],
-    };
 
     return { dealer, nonDealer, total };
   }, [filteredRows]);
@@ -287,23 +277,11 @@ export function WeeklyPlanningExcelView({ c }: Props) {
           <div className="flex items-center gap-1.5 bg-stone-50 px-2 py-1 rounded-[3px] border border-stone-200">
             <Calendar className="w-3.5 h-3.5 text-[#A57C50]" />
             <span className="text-[10px] font-bold text-stone-600 uppercase">Target Rencana:</span>
-            <select
+            <MonthInput
               value={targetPlanMonth}
-              onChange={(e) => setTargetPlanMonth(e.target.value)}
+              onChange={(m) => m && setTargetPlanMonth(m)}
               className="font-bold text-stone-900 bg-transparent focus:outline-none cursor-pointer text-xs"
-            >
-              {[
-                "September 2026",
-                "Oktober 2026",
-                "November 2026",
-                "Desember 2026",
-                "Januari 2027",
-              ].map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {/* Dealer Filter */}
@@ -361,7 +339,7 @@ export function WeeklyPlanningExcelView({ c }: Props) {
             onClick={() => setShowBatchWeekModal(true)}
             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-[3px] bg-stone-800 hover:bg-stone-700 text-stone-100 font-bold text-xs transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <Calendar className="w-3.5 h-3.5 text-[#A57C50]" /> Set Week (1–4)
+            <Calendar className="w-3.5 h-3.5 text-[#A57C50]" /> Set Week
           </button>
 
           <button
@@ -408,7 +386,7 @@ export function WeeklyPlanningExcelView({ c }: Props) {
                 <th colSpan={6} className="p-2 border-r border-amber-900/30 text-stone-300">
                   DAFTAR TAGIHAN &amp; JATUH TEMPO VENDOR
                 </th>
-                <th colSpan={4} className="p-2 text-center text-amber-400 bg-[#251F19] font-black border-r border-amber-900/30">
+                <th colSpan={weeks.length} className="p-2 text-center text-amber-400 bg-[#251F19] font-black border-r border-amber-900/30">
                   DISTRIBUSI MINGGUAN ({targetPlanMonth.toUpperCase()})
                 </th>
                 <th className="p-2 text-center text-stone-300">AKSI</th>
@@ -424,18 +402,12 @@ export function WeeklyPlanningExcelView({ c }: Props) {
                   {targetPlanMonth.split(" ")[0]}
                 </th>
                 <th className="p-2 w-24 text-center">Jatuh tempo</th>
-                <th className="p-2 w-28 text-right bg-[#251F19] text-amber-300 border-l border-amber-900/30">
-                  Week 1
-                </th>
-                <th className="p-2 w-28 text-right bg-[#251F19] text-amber-300">
-                  Week 2
-                </th>
-                <th className="p-2 w-28 text-right bg-[#251F19] text-amber-300">
-                  Week 3
-                </th>
-                <th className="p-2 w-28 text-right bg-[#251F19] text-amber-300 border-r border-amber-900/30">
-                  Week 4
-                </th>
+                {weeks.map((w, i) => (
+                  <th key={w.week} className={`p-2 w-28 text-right bg-[#251F19] text-amber-300 ${i === 0 ? "border-l" : ""} ${i === weeks.length - 1 ? "border-r" : ""} border-amber-900/30`}>
+                    Week {w.week}
+                    <div className="text-[9px] font-normal normal-case text-stone-400">{weekRange(w)}</div>
+                  </th>
+                ))}
                 <th className="p-2 w-28 text-center">Set Week</th>
               </tr>
             </thead>
@@ -443,13 +415,13 @@ export function WeeklyPlanningExcelView({ c }: Props) {
             <tbody className="divide-y divide-stone-200">
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="p-12 text-center text-stone-500 bg-white">
+                  <td colSpan={7 + weeks.length} className="p-12 text-center text-stone-500 bg-white">
                     <div className="max-w-md mx-auto space-y-2">
                       <p className="font-bold text-stone-800 text-sm">
                         Belum Ada Rencana Pembayaran untuk Periode {targetPlanMonth}
                       </p>
                       <p className="text-xs text-stone-500 leading-relaxed">
-                        Silakan buka tab <strong className="text-stone-700">1. Pivot Hutang</strong>, pilih tagihan yang ingin dijadwalkan, lalu tentukan minggu pembayarannya (Week 1–4) atau klik tombol <strong className="text-stone-700">+ Buat Pengajuan RAB</strong>.
+                        Silakan buka tab <strong className="text-stone-700">1. Pivot Hutang</strong>, pilih tagihan yang ingin dijadwalkan, lalu tentukan minggu pembayarannya atau klik tombol <strong className="text-stone-700">+ Buat Pengajuan RAB</strong>.
                       </p>
                     </div>
                   </td>
@@ -549,46 +521,20 @@ export function WeeklyPlanningExcelView({ c }: Props) {
                           {dueMonthStr}
                         </td>
 
-                        {/* Week 1 */}
-                        <td className="p-2 text-right font-mono font-semibold bg-stone-50/50 border-l border-stone-200">
-                          {r.weekAmounts[1] > 0 ? (
-                            <span className="text-stone-900">{formatCurrency(r.weekAmounts[1])}</span>
-                          ) : (
-                            <span className="text-stone-300">-</span>
-                          )}
-                        </td>
-
-                        {/* Week 2 */}
-                        <td className="p-2 text-right font-mono font-semibold bg-stone-50/50">
-                          {r.weekAmounts[2] > 0 ? (
-                            <span className="text-stone-900">{formatCurrency(r.weekAmounts[2])}</span>
-                          ) : (
-                            <span className="text-stone-300">-</span>
-                          )}
-                        </td>
-
-                        {/* Week 3 */}
-                        <td className="p-2 text-right font-mono font-semibold bg-stone-50/50">
-                          {r.weekAmounts[3] > 0 ? (
-                            <span className="text-stone-900">{formatCurrency(r.weekAmounts[3])}</span>
-                          ) : (
-                            <span className="text-stone-300">-</span>
-                          )}
-                        </td>
-
-                        {/* Week 4 */}
-                        <td className="p-2 text-right font-mono font-semibold bg-stone-50/50 border-r border-stone-200">
-                          {r.weekAmounts[4] > 0 ? (
-                            <span className="text-stone-900">{formatCurrency(r.weekAmounts[4])}</span>
-                          ) : (
-                            <span className="text-stone-300">-</span>
-                          )}
-                        </td>
+                        {weekNos.map((w, i) => (
+                          <td key={w} className={`p-2 text-right font-mono font-semibold bg-stone-50/50 ${i === 0 ? "border-l" : ""} ${i === weekNos.length - 1 ? "border-r" : ""} border-stone-200`}>
+                            {r.weekAmounts[w] > 0 ? (
+                              <span className="text-stone-900">{formatCurrency(r.weekAmounts[w])}</span>
+                            ) : (
+                              <span className="text-stone-300">-</span>
+                            )}
+                          </td>
+                        ))}
 
                         {/* Set Week Quick Actions */}
                         <td className="p-1.5 text-center" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-1">
-                            {[1, 2, 3, 4].map((w) => (
+                            {weekNos.map((w) => (
                               <button
                                 key={w}
                                 onClick={() => handleQuickAssignWeek(itemIds, w)}
@@ -655,46 +601,20 @@ export function WeeklyPlanningExcelView({ c }: Props) {
                                 {inv.dueDate ? formatDate(inv.dueDate) : invMonth}
                               </td>
 
-                              {/* Week 1 PO Cell */}
-                              <td className="p-1.5 text-right font-mono text-[10px] bg-stone-50/30 border-l border-stone-100">
-                                {inv.planWeek === 1 ? (
-                                  <span className="font-bold text-blue-900">{formatCurrency(amt)}</span>
-                                ) : (
-                                  <span className="text-stone-200">-</span>
-                                )}
-                              </td>
-
-                              {/* Week 2 PO Cell */}
-                              <td className="p-1.5 text-right font-mono text-[10px] bg-stone-50/30">
-                                {inv.planWeek === 2 ? (
-                                  <span className="font-bold text-blue-900">{formatCurrency(amt)}</span>
-                                ) : (
-                                  <span className="text-stone-200">-</span>
-                                )}
-                              </td>
-
-                              {/* Week 3 PO Cell */}
-                              <td className="p-1.5 text-right font-mono text-[10px] bg-stone-50/30">
-                                {inv.planWeek === 3 ? (
-                                  <span className="font-bold text-blue-900">{formatCurrency(amt)}</span>
-                                ) : (
-                                  <span className="text-stone-200">-</span>
-                                )}
-                              </td>
-
-                              {/* Week 4 PO Cell */}
-                              <td className="p-1.5 text-right font-mono text-[10px] bg-stone-50/30 border-r border-stone-100">
-                                {inv.planWeek === 4 ? (
-                                  <span className="font-bold text-blue-900">{formatCurrency(amt)}</span>
-                                ) : (
-                                  <span className="text-stone-200">-</span>
-                                )}
-                              </td>
+                              {weekNos.map((w, i) => (
+                                <td key={w} className={`p-1.5 text-right font-mono text-[10px] bg-stone-50/30 ${i === 0 ? "border-l" : ""} ${i === weekNos.length - 1 ? "border-r" : ""} border-stone-100`}>
+                                  {inv.planWeek === w ? (
+                                    <span className="font-bold text-blue-900">{formatCurrency(amt)}</span>
+                                  ) : (
+                                    <span className="text-stone-200">-</span>
+                                  )}
+                                </td>
+                              ))}
 
                               {/* Quick Week Setter for this PO */}
                               <td className="p-1 text-center" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex items-center justify-center gap-0.5">
-                                  {[1, 2, 3, 4].map((w) => (
+                                  {weekNos.map((w) => (
                                     <button
                                       key={w}
                                       onClick={() => handleQuickAssignWeek([inv.id], w)}
@@ -735,18 +655,11 @@ export function WeeklyPlanningExcelView({ c }: Props) {
                   {formatCurrency(grandTotals.totalValue)}
                 </td>
                 <td className="p-2.5 w-24 bg-[#1A1612]"></td>
-                <td className="p-2.5 w-28 text-right font-mono font-black text-amber-300 text-xs bg-[#251F19] border-l border-amber-900/40 whitespace-nowrap">
-                  {formatCurrency(grandTotals.weeks[1])}
-                </td>
-                <td className="p-2.5 w-28 text-right font-mono font-black text-amber-300 text-xs bg-[#251F19] whitespace-nowrap">
-                  {formatCurrency(grandTotals.weeks[2])}
-                </td>
-                <td className="p-2.5 w-28 text-right font-mono font-black text-amber-300 text-xs bg-[#251F19] whitespace-nowrap">
-                  {formatCurrency(grandTotals.weeks[3])}
-                </td>
-                <td className="p-2.5 w-28 text-right font-mono font-black text-amber-300 text-xs bg-[#251F19] border-r border-amber-900/40 whitespace-nowrap">
-                  {formatCurrency(grandTotals.weeks[4])}
-                </td>
+{weekNos.map((w, i) => (
+                  <td key={w} className={`p-2.5 w-28 text-right font-mono font-black text-amber-300 text-xs bg-[#251F19] ${i === 0 ? "border-l" : ""} ${i === weekNos.length - 1 ? "border-r" : ""} border-amber-900/40 whitespace-nowrap`}>
+                    {formatCurrency(grandTotals.weeks[w] || 0)}
+                  </td>
+                ))}
                 <td className="p-2.5 w-28 bg-[#1A1612]"></td>
               </tr>
             </tbody>
@@ -772,10 +685,11 @@ export function WeeklyPlanningExcelView({ c }: Props) {
                 <th className="p-2 border-r border-stone-300 min-w-[140px]">Kategori</th>
                 <th className="p-2 border-r border-stone-300 text-right w-36">Total Value</th>
                 <th className="p-2 border-r border-stone-300 text-center w-28 text-stone-500">Distribusi &rarr;</th>
-                <th className="p-2 border-r border-stone-300 text-right w-32 bg-stone-50 font-bold text-stone-900">Week 1</th>
-                <th className="p-2 border-r border-stone-300 text-right w-32 bg-stone-50 font-bold text-stone-900">Week 2</th>
-                <th className="p-2 border-r border-stone-300 text-right w-32 bg-stone-50 font-bold text-stone-900">Week 3</th>
-                <th className="p-2 text-right w-32 bg-stone-50 font-bold text-stone-900">Week 4</th>
+{weekNos.map((w, i) => (
+                  <th key={w} className={`p-2 ${i < weekNos.length - 1 ? "border-r" : ""} border-stone-300 text-right w-32 bg-stone-50 font-bold text-stone-900`}>
+                    Week {w}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-200 text-[11px]">
@@ -788,18 +702,11 @@ export function WeeklyPlanningExcelView({ c }: Props) {
                   {formatCurrency(categoryMatrix.dealer.totalValue)}
                 </td>
                 <td className="p-2 border-r border-stone-200 text-center text-stone-300 font-mono">-</td>
-                <td className="p-2 border-r border-stone-200 text-right font-mono font-semibold text-stone-800">
-                  {formatCurrency(categoryMatrix.dealer[1])}
-                </td>
-                <td className="p-2 border-r border-stone-200 text-right font-mono font-semibold text-stone-800">
-                  {formatCurrency(categoryMatrix.dealer[2])}
-                </td>
-                <td className="p-2 border-r border-stone-200 text-right font-mono font-semibold text-stone-800">
-                  {formatCurrency(categoryMatrix.dealer[3])}
-                </td>
-                <td className="p-2 text-right font-mono font-semibold text-stone-800">
-                  {formatCurrency(categoryMatrix.dealer[4])}
-                </td>
+{weekNos.map((w, i) => (
+                  <td key={w} className={`p-2 ${i < weekNos.length - 1 ? "border-r" : ""} border-stone-200 text-right font-mono font-semibold text-stone-800`}>
+                    {formatCurrency(categoryMatrix.dealer.weeks[w] || 0)}
+                  </td>
+                ))}
               </tr>
 
               {/* NON DEALER */}
@@ -811,18 +718,11 @@ export function WeeklyPlanningExcelView({ c }: Props) {
                   {formatCurrency(categoryMatrix.nonDealer.totalValue)}
                 </td>
                 <td className="p-2 border-r border-stone-200 text-center text-stone-300 font-mono">-</td>
-                <td className="p-2 border-r border-stone-200 text-right font-mono font-semibold text-stone-800">
-                  {formatCurrency(categoryMatrix.nonDealer[1])}
-                </td>
-                <td className="p-2 border-r border-stone-200 text-right font-mono font-semibold text-stone-800">
-                  {formatCurrency(categoryMatrix.nonDealer[2])}
-                </td>
-                <td className="p-2 border-r border-stone-200 text-right font-mono font-semibold text-stone-800">
-                  {formatCurrency(categoryMatrix.nonDealer[3])}
-                </td>
-                <td className="p-2 text-right font-mono font-semibold text-stone-800">
-                  {formatCurrency(categoryMatrix.nonDealer[4])}
-                </td>
+{weekNos.map((w, i) => (
+                  <td key={w} className={`p-2 ${i < weekNos.length - 1 ? "border-r" : ""} border-stone-200 text-right font-mono font-semibold text-stone-800`}>
+                    {formatCurrency(categoryMatrix.nonDealer.weeks[w] || 0)}
+                  </td>
+                ))}
               </tr>
 
               {/* TOTAL */}
@@ -834,18 +734,11 @@ export function WeeklyPlanningExcelView({ c }: Props) {
                   {formatCurrency(categoryMatrix.total.totalValue)}
                 </td>
                 <td className="p-2 border-r border-stone-300 text-center text-stone-300 font-mono">-</td>
-                <td className="p-2 border-r border-stone-300 text-right font-mono font-black text-blue-900 bg-stone-200/60">
-                  {formatCurrency(categoryMatrix.total[1])}
-                </td>
-                <td className="p-2 border-r border-stone-300 text-right font-mono font-black text-blue-900 bg-stone-200/60">
-                  {formatCurrency(categoryMatrix.total[2])}
-                </td>
-                <td className="p-2 border-r border-stone-300 text-right font-mono font-black text-blue-900 bg-stone-200/60">
-                  {formatCurrency(categoryMatrix.total[3])}
-                </td>
-                <td className="p-2 text-right font-mono font-black text-blue-900 bg-stone-200/60">
-                  {formatCurrency(categoryMatrix.total[4])}
-                </td>
+{weekNos.map((w, i) => (
+                  <td key={w} className={`p-2 ${i < weekNos.length - 1 ? "border-r" : ""} border-stone-300 text-right font-mono font-black text-blue-900 bg-stone-200/60`}>
+                    {formatCurrency(categoryMatrix.total.weeks[w] || 0)}
+                  </td>
+                ))}
               </tr>
             </tbody>
           </table>
@@ -856,6 +749,7 @@ export function WeeklyPlanningExcelView({ c }: Props) {
       {showBatchWeekModal && (
         <SetPlanWeekModal
           isOpen={showBatchWeekModal}
+          defaultMonth={targetPlanMonth}
           onClose={() => setShowBatchWeekModal(false)}
           selectedInvoiceIds={selectedInvoiceIds}
           totalAmount={totalSelectedAmount}

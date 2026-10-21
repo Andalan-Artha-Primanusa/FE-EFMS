@@ -5,7 +5,7 @@ import { api } from "../../lib/api";
 import { authorized } from "../../lib/auth";
 import { formatCurrency, formatDate } from "../../lib/format";
 import type { POSyncStatus, TPOKind, TPORequest, TPOStatus } from "./types";
-import { MappingsModal, OverdueBadge, STATUS_LABEL, StatusBadge, btnPrimary, btnSecondary, cents, fromCents, inputCls, useAccountMappings } from "./shared";
+import { MappingsModal, OverdueBadge, STATUS_LABEL, StatusBadge, btnPrimary, btnSecondary, cents, fromCents, inputCls, periodLabel, useAccountMappings } from "./shared";
 import { RequestFormModal } from "./RequestFormModal";
 import { RequestDetailModal } from "./RequestDetailModal";
 
@@ -155,6 +155,7 @@ export function TunaiPOPage({ kind = "TUNAI_PO" }: { kind?: TPOKind }) {
                 <th className="p-2.5 whitespace-nowrap">No. PO</th>
                 <th className="p-2.5">Vendor</th>
                 <th className="p-2.5">Site</th>
+                <th className="p-2.5">Periode</th>
                 <th className="p-2.5">Proforma</th>
                 <th className="p-2.5 text-right">Total</th>
                 <th className="p-2.5 text-right whitespace-nowrap">Total Bayar</th>
@@ -171,6 +172,7 @@ export function TunaiPOPage({ kind = "TUNAI_PO" }: { kind?: TPOKind }) {
                   <td className="p-2.5">
                     <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700">{r.site}</span>
                   </td>
+                  <td className="p-2.5 whitespace-nowrap">{periodLabel(r)}</td>
                   <td className="p-2.5 font-mono text-slate-600">{r.proformaNo || "-"}</td>
                   <td className="p-2.5 text-right font-mono text-slate-600 whitespace-nowrap">{formatCurrency(r.totalAmount)}</td>
                   <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">{formatCurrency(r.payAmount)}</td>
@@ -187,7 +189,7 @@ export function TunaiPOPage({ kind = "TUNAI_PO" }: { kind?: TPOKind }) {
               ))}
               {!filtered.length && (
                 <tr>
-                  <td colSpan={9} className="p-10 text-center text-slate-400">
+                  <td colSpan={10} className="p-10 text-center text-slate-400">
                     {loading ? "Memuat…" : "Tidak ada data"}
                   </td>
                 </tr>
@@ -196,7 +198,7 @@ export function TunaiPOPage({ kind = "TUNAI_PO" }: { kind?: TPOKind }) {
             {filtered.length > 0 && (
               <tfoot className="sticky bottom-0">
                 <tr className="bg-slate-50 border-t border-slate-200 font-bold text-slate-900">
-                  <td colSpan={4} className="p-2.5 text-slate-600">
+                  <td colSpan={5} className="p-2.5 text-slate-600">
                     {filtered.length} pengajuan
                   </td>
                   <td className="p-2.5 text-right font-mono whitespace-nowrap">{formatCurrency(sumTotal)}</td>

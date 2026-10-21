@@ -166,6 +166,8 @@ export interface TunaiPORequest {
   vendorId: number;
   vendor?: TreasuryVendor;
   site: string;
+  planMonth?: string;
+  planWeek?: number;
   proformaNo: string;
   description: string;
   totalAmount: string;

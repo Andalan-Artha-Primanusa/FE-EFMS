@@ -26,6 +26,8 @@ export interface TPORequest {
   vendorId: number;
   vendor?: TreasuryVendor;
   site: string;
+  planMonth?: string;
+  planWeek?: number;
   proformaNo: string;
   description: string;
   isPkp: boolean;
