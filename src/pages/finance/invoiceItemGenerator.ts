@@ -111,6 +111,7 @@ export function buildInvoiceItemsFromBA(
         posItems.push({
           id: bi.id || `pos_inv_${idx}`,
           section: isDed ? "E" : isDist ? "B" : "A",
+          subSection: bi.area || "",
           isDeduction: isDed,
           baseMtr: isDist ? baseMtr : 0,
           code: bi.code || `POS_${idx}`,
@@ -129,7 +130,7 @@ export function buildInvoiceItemsFromBA(
 
       if (rf > 0 && rf !== 1 && gross > 0) {
         const desc = `Raise & Fall (Indeks RF ${rf.toFixed(3)})`;
-        posItems.push({ id: "pos_rf_auto", section: "D", code: "RF", category: "Raise & Fall", description: desc, sowDescription: desc, unit: "Lot", volume: 1, unitRateIDR: rfAmt, amount: rfAmt, amountIDR: rfAmt, isDeduction: rfAmt < 0 });
+        posItems.push({ id: "pos_rf_auto", section: "D", code: "RF", category: "Raise & Fall", description: desc, sowDescription: desc, unit: "Lot", volume: 1, unitRateIDR: rfAmt, amount: rfAmt, amountIDR: rfAmt, isDeduction: rfAmt < 0, rfIndex: rf });
       }
       return posItems;
     }
@@ -265,7 +266,7 @@ export function buildInvoiceItemsFromBA(
               section: "P",
               description: bi.material || bi.description,
               sowDescription: bi.material || bi.description,
-              unit: bi.unit || "Lot",
+              unit: bi.unit || "",
               amount: -Math.abs(amt),
               amountIDR: -Math.abs(amt),
               isDeduction: true,

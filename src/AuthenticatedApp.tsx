@@ -87,9 +87,12 @@ export function AuthenticatedApp({ user, onLogout }: { user: User; onLogout: () 
         
         <Route path="payment-receipt-log" element={<ProtectedRoute requiredView="Payment & Receipt Log"><FinancePaymentRoute /></ProtectedRoute>} />
         <Route path="pengajuan-tunai-po" element={<ProtectedRoute requiredView="Pengajuan Tunai PO"><Suspense fallback={<FormLoadingFallback />}><TunaiPOPage /></Suspense></ProtectedRoute>} />
+        <Route path="fuel" element={<ProtectedRoute requiredView="Fuel"><Suspense fallback={<FormLoadingFallback />}><TunaiPOPage key="fuel" kind="FUEL" /></Suspense></ProtectedRoute>} />
         <Route path="tracking-tunai-po" element={<ProtectedRoute requiredView="Tracking Tunai PO"><Suspense fallback={<FormLoadingFallback />}><TrackingTunaiPOPage /></Suspense></ProtectedRoute>} />
         <Route path="rekap-voucher" element={<ProtectedRoute requiredView="Rekap Voucher"><Suspense fallback={<FormLoadingFallback />}><RekapVoucherView /></Suspense></ProtectedRoute>} />
         <Route path="treasury-management" element={<Navigate to={viewPath("Pivot Hutang")} replace />} />
+        <Route path="payment-plan" element={<Navigate to={viewPath("Plan AP")} replace />} />
+        <Route path="payment-voucher" element={<Navigate to={viewPath("Voucher Payment")} replace />} />
         {(Object.keys(treasuryTabs) as (keyof typeof treasuryTabs)[]).map((title) => (
           <Route key={title} path={slugify(title)} element={<ProtectedRoute requiredView={title}><TreasuryManagementRoute tab={treasuryTabs[title]} /></ProtectedRoute>} />
         ))}

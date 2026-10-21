@@ -4,6 +4,8 @@
 // =============================================================
 
 import { invoiceTaxes, getBGGRFIndexForPeriod } from "./ba_calculations";
+import { baseDistanceFor } from "./masterRegistry";
+import { ptroBaseMtr } from "./calculations";
 import { pendingAmount } from "./modals/PendingVolumeRecordModal";
 import { formatIDR, getBAInvoiceStatus, getBAStatusForExport, getCustomerOfficialName, parsePeriodToMonthIndex } from "./helpers";
 
@@ -22,7 +24,25 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
     getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations, baRows, buildInvoiceItemsFromBA
   } = ctx;
     const custCode = (itemData?.customerCode || formData?.customerCode || "").toUpperCase();
-    const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+    // Tanggal invoice kosong dicetak "-" (bukan tanggal hari ini) agar dokumen resmi tidak salah tanggal.
+    const fmtInvDate = (locale: string, opts: Intl.DateTimeFormatOptions) => itemData?.invoiceDate ? new Date(itemData.invoiceDate).toLocaleDateString(locale, opts) : "-";
+    // "Sep-26" -> { short: "Sept 26", covered: "1-30 SEPTEMBER 26" }
+    const periodParts = (p: string) => {
+      const ym = parsePeriodToMonthIndex(p), y = Math.floor(ym / 100), m = ym % 100;
+      if (!m || m > 12) return { short: p, covered: p, coveredID: p, monthYear: p };
+      const d = new Date(y, m - 1, 1), yy = String(y).slice(2), last = new Date(y, m, 0).getDate();
+      return {
+        short: `${d.toLocaleString("en-GB", { month: "short" })} ${yy}`,
+        covered: `1-${last} ${d.toLocaleString("en-US", { month: "long" }).toUpperCase()} ${yy}`,
+        coveredID: `01 - ${last} ${d.toLocaleString("id-ID", { month: "long" }).toUpperCase()} ${y}`,
+        monthYear: `${d.toLocaleString("en-US", { month: "long" }).toUpperCase()} ${y}`,
+      };
+    };
+    const isBGG = custCode === "BGG";
+    const isPTRO = custCode === "PTRO" || custCode === "DBK";
+    const isSBS = custCode === "SBS";
+    const isPOS = !isBGG && !isPTRO && !isSBS;
+    const isMDO = (itemData?.invoiceCategory || formData?.invoiceCategory) === "MDO" || /MDO/i.test(itemData?.activityGroup || "");
     const logoUrl = `${window.location.origin}/andalan-logo.png`;
 
     const targetBA = baRows?.find((b: any) => b.baNumber === itemData?.baNoReference || b.baNumber === itemData?.baNumber || b.id === itemData?.baID);
@@ -70,179 +90,65 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
     let noteHTML = "";
 
     if (custCode === "BGG") {
-      // BGG Table Layout (Gambar 2)
+      // BGG — format resmi "PAYMENT DETAIL".
+      const n0 = (v: number) => Math.round(v || 0).toLocaleString("id-ID");
+      const v2 = (v: number) => (v || 0).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const label = (i: any) => String(i.sowDescription || i.description || "").replace(/\s*\(RF\)$/, "");
+      const byGroup = (items: any[]) => [...items.reduce((m: Map<string, any[]>, i: any) => m.set(i.subSection || "", [...(m.get(i.subSection || "") || []), i]), new Map<string, any[]>())];
+      const valRow = (desc: string, i: any, pad: number, bold = false) => {
+        const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
+        return `<tr${bold ? ' style="font-weight: bold;"' : ""}><td style="padding-left: ${pad}px;">${desc}</td><td class="text-right">${v2(getItemEffectiveVolume(i, activeItems))}</td><td class="text-center">${i.unit || ""}</td><td class="text-right">${n0(unitRate)}</td><td class="text-right">${n0(amount)}</td></tr>`;
+      };
+      const subHdr = (text: string, volTxt = "", unit = "") => `<tr style="font-weight: bold;"><td style="padding-left: 10px;">${text}</td><td class="text-right">${volTxt}</td><td class="text-center">${unit}</td><td></td><td></td></tr>`;
+      const secHdr = (title: string, amount: number, volTxt = "", unit = "") => `<tr class="sec-hdr"><td style="text-decoration: underline;">${title}</td><td class="text-right">${volTxt}</td><td class="text-center">${unit}</td><td></td><td class="text-right">${amount < 0 ? `(${n0(Math.abs(amount))})` : n0(amount)}</td></tr>`;
+      const pitRow = (i: any) => `<tr style="font-weight: bold;"><td style="padding-left: 22px;">${i.description}</td><td></td><td></td><td></td><td></td></tr>`;
+      const odRow = (i: any) => {
+        const effMtr = getItemEffectiveOverhaulMtr(i);
+        const base = baseDistanceFor("BGG", label(i)) || 1000;
+        const mtr = (m: number) => m.toLocaleString("id-ID", { maximumFractionDigits: 3 });
+        return valRow(`${mtr(effMtr)} &nbsp;mtr &nbsp;- &nbsp;${mtr(base)} &nbsp;mtr =&nbsp;&nbsp; ${mtr(Math.max(0, effMtr - base))} &nbsp;mtr`, i, 34);
+      };
+      const dedRows = (items: any[]) => items.map((i: any) => {
+        const { amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
+        return `<tr><td colspan="4" style="padding-left: 10px;">${i.description}</td><td class="text-right">(${n0(Math.abs(amount))})</td></tr>`;
+      }).join("");
+
       const secAItems = activeItems.filter((i: any) => i.section === "A");
       const secBItems = activeItems.filter((i: any) => i.section === "B");
       const secCItems = activeItems.filter((i: any) => i.section === "C");
       const secDItems = activeItems.filter((i: any) => i.section === "D");
       const secEItems = activeItems.filter((i: any) => i.section === "E");
       const secFItems = activeItems.filter((i: any) => i.section === "F");
-
-      const volA = secAItems.reduce((s: number, i: any) => s + (getItemEffectiveVolume(i, activeItems) || i.volume || 0), 0);
-      const volB = secBItems.reduce((s: number, i: any) => s + (getItemEffectiveVolume(i, activeItems) || i.volume || 0), 0);
+      const volOf = (items: any[]) => items.reduce((s: number, i: any) => s + (getItemEffectiveVolume(i, activeItems) || i.volume || 0), 0);
 
       tableBodyHTML = `
-        <tr class="sec-hdr">
-          <td>A. OB REMOVAL</td>
-          <td class="text-center font-mono">${volA.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-          <td class="text-center">Bcm</td>
-          <td></td>
-          <td class="text-right font-mono font-black">${c.subtotalA.toLocaleString("id-ID")}</td>
-        </tr>
-        <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">A1. Pit Kungkilan</td></tr>
-        ${secAItems.map((i: any) => {
-          const effVol = getItemEffectiveVolume(i, activeItems);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
-          return `
-            <tr>
-              <td style="padding-left: 20px;">${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.workPeriod || i.period || ""}</span></td>
-              <td class="text-center font-mono">${effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-              <td class="text-center">${i.unit || "Bcm"}</td>
-              <td class="text-right font-mono">${unitRate.toLocaleString("id-ID")}</td>
-              <td class="text-right font-mono">${amount.toLocaleString("id-ID")}</td>
-            </tr>
-          `;
-        }).join("")}
+        ${secHdr("A. OB REMOVAL", c.subtotalA, v2(volOf(secAItems)), "Bcm")}
+        ${byGroup(secAItems).map(([sub, items]) => subHdr(sub, v2(volOf(items)), "Bcm") + items.map((i: any) => valRow(label(i), i, 22)).join("")).join("")}
 
-        <tr class="sec-hdr">
-          <td>B. COAL WINNING</td>
-          <td class="text-center font-mono">${volB.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-          <td class="text-center">Ton</td>
-          <td></td>
-          <td class="text-right font-mono font-black">${c.subtotalB.toLocaleString("id-ID")}</td>
-        </tr>
-        <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">B1. Pit Kungkilan</td></tr>
-        ${secBItems.map((i: any) => {
-          const effVol = getItemEffectiveVolume(i, activeItems);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
-          return `
-            <tr>
-              <td style="padding-left: 20px;">${i.description}</td>
-              <td class="text-center font-mono">${effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-              <td class="text-center">${i.unit || "Ton"}</td>
-              <td class="text-right font-mono">${unitRate.toLocaleString("id-ID")}</td>
-              <td class="text-right font-mono">${amount.toLocaleString("id-ID")}</td>
-            </tr>
-          `;
-        }).join("")}
+        ${secHdr("B. COAL WINNING", c.subtotalB, v2(volOf(secBItems)), "Ton")}
+        ${byGroup(secBItems).map(([sub, items]) => items.length === 1 && sub.includes(items[0].description)
+          ? valRow(sub, items[0], 10, true)
+          : subHdr(sub, v2(volOf(items)), "Ton") + items.map((i: any) => valRow(label(i), i, 22)).join("")).join("")}
 
-        <tr class="sec-hdr">
-          <td>C. OVER DISTANCE</td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td class="text-right font-mono font-black">${c.subtotalC.toLocaleString("id-ID")}</td>
-        </tr>
-        <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">C1. Over Distance For OB Removal</td></tr>
-        ${secCItems.filter((i: any) => i.subSection?.includes("OB") || i.description?.includes("OB")).map((i: any) => {
-          const effVol = getItemEffectiveVolume(i, activeItems);
-          const effMtr = getItemEffectiveOverhaulMtr(i);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
-          const diffMtr = Number((effMtr - 1000).toFixed(3));
-          return `
-            <tr>
-              <td style="padding-left: 20px;">
-                Pit Kungkilan<br/>
-                <span style="font-size: 8.5px; color: #475569;">${effMtr} mtr - 1000 mtr = ${diffMtr > 0 ? `+${diffMtr}` : diffMtr} mtr &nbsp; &nbsp; ${i.workPeriod || i.period || ""}</span>
-              </td>
-              <td class="text-center font-mono">${effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-              <td class="text-center">${i.unit || "Bcm"}</td>
-              <td class="text-right font-mono">${unitRate.toLocaleString("id-ID")}</td>
-              <td class="text-right font-mono">${amount.toLocaleString("id-ID")}</td>
-            </tr>
-          `;
-        }).join("")}
-        <tr><td colspan="5" style="font-weight: bold; padding-left: 10px; background: #fafafa;">C2. Over Distance For Coal Winning</td></tr>
-        ${secCItems.filter((i: any) => !i.subSection?.includes("OB") && !i.description?.includes("OB")).map((i: any) => {
-          const effVol = getItemEffectiveVolume(i, activeItems);
-          const effMtr = getItemEffectiveOverhaulMtr(i);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
-          const diffMtr = Number((effMtr - 1000).toFixed(3));
-          return `
-            <tr>
-              <td style="padding-left: 20px;">
-                Pit Kungkilan<br/>
-                <span style="font-size: 8.5px; color: #475569;">${effMtr} mtr - 1000 mtr = ${diffMtr > 0 ? `+${diffMtr}` : diffMtr} mtr &nbsp; &nbsp; ${i.workPeriod || i.period || ""}</span>
-              </td>
-              <td class="text-center font-mono">${effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-              <td class="text-center">${i.unit || "Ton"}</td>
-              <td class="text-right font-mono">${unitRate.toLocaleString("id-ID")}</td>
-              <td class="text-right font-mono">${amount.toLocaleString("id-ID")}</td>
-            </tr>
-          `;
-        }).join("")}
+        ${secHdr("C. OVER DISTANCE", c.subtotalC)}
+        ${byGroup(secCItems).map(([sub, items]) => subHdr(sub) + items.map((i: any) => pitRow(i) + odRow(i)).join("")).join("")}
 
-        <tr class="sec-hdr">
-          <td>D. RAISE & FALL'S FACTOR</td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td class="text-right font-mono font-black">${c.subtotalD.toLocaleString("id-ID")}</td>
-        </tr>
-        ${secDItems.map((i: any) => {
-          const effVol = getItemEffectiveVolume(i, activeItems);
-          const { unitRate, amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
-          return `
-            <tr>
-              <td style="padding-left: 20px;">${i.subSection || ""} ${i.description} &nbsp; &nbsp; <span style="font-size: 8.5px; color: #475569;">${i.workPeriod || i.period || ""}</span></td>
-              <td class="text-center font-mono">${effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-              <td class="text-center">${i.unit || "Bcm"}</td>
-              <td class="text-right font-mono">${unitRate.toLocaleString("id-ID")}</td>
-              <td class="text-right font-mono">${amount.toLocaleString("id-ID")}</td>
-            </tr>
-          `;
-        }).join("")}
+        ${secHdr("D. RAISE & FALL'S FACTOR", c.subtotalD)}
+        ${byGroup(secDItems).map(([sub, items]) => subHdr(sub) + items.map((i: any) => valRow(sub.includes(label(i)) ? i.description : label(i), i, 22)).join("")).join("")}
 
-        <tr class="sec-hdr" style="background: #fee2e2;">
-          <td colspan="4">E. DISCOUNT ON OVERDISTANCE</td>
-          <td class="text-right font-mono font-black">(${Math.abs(c.subtotalE).toLocaleString("id-ID")})</td>
-        </tr>
-        ${secEItems.map((i: any) => {
-          const { amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
-          return `
-            <tr>
-              <td colspan="4" style="padding-left: 20px;">${i.description}</td>
-              <td class="text-right font-mono">(${Math.abs(amount).toLocaleString("id-ID")})</td>
-            </tr>
-          `;
-        }).join("")}
+        ${secHdr("E. DISCOUNT ON OVERDISTANCE", -Math.abs(c.subtotalE))}
+        ${dedRows(secEItems)}
 
-        <tr class="sec-hdr" style="background: #fee2e2;">
-          <td colspan="4">F. DP FUEL & TRANSPORT (Deduction)</td>
-          <td class="text-right font-mono font-black">(${Math.abs(c.subtotalF).toLocaleString("id-ID")})</td>
-        </tr>
-        ${secFItems.map((i: any) => {
-          const { amount } = calculateItemRateAndAmount(i, "BGG", activeItems);
-          return `
-            <tr>
-              <td colspan="4" style="padding-left: 20px;">${i.description}</td>
-              <td class="text-right font-mono">(${Math.abs(amount).toLocaleString("id-ID")})</td>
-            </tr>
-          `;
-        }).join("")}
+        ${secHdr("F. DP FUEL & TRANSPORT", -Math.abs(c.subtotalF))}
+        ${dedRows(secFItems)}
       `;
 
       totalsFooterHTML = `
-        <tr class="tot-row">
-          <td colspan="4"><strong>TOTAL</strong></td>
-          <td class="text-right font-mono"><strong>${c.totalGross.toLocaleString("id-ID")}</strong></td>
-        </tr>
-        <tr class="tot-row">
-          <td colspan="4">DPP PPN 11/12</td>
-          <td class="text-right font-mono">${c.dpp11_12.toLocaleString("id-ID")}</td>
-        </tr>
-        <tr class="tot-row">
-          <td colspan="4">VAT ( 12%)</td>
-          <td class="text-right font-mono">${c.vat12.toLocaleString("id-ID")}</td>
-        </tr>
-        <tr class="tot-row">
-          <td colspan="4">WITH HOLDING TAX ART 23</td>
-          <td class="text-right font-mono">(${c.pph23.toLocaleString("id-ID")})</td>
-        </tr>
-        <tr class="net-row">
-          <td colspan="4"><strong>TOTAL INVOICE</strong></td>
-          <td class="text-right net-val"><strong>${c.totalInvoice.toLocaleString("id-ID")}</strong></td>
-        </tr>
+        <tr class="tot-row"><td colspan="4">TOTAL</td><td class="text-right">${n0(c.totalGross)}</td></tr>
+        <tr class="tot-row"><td colspan="4">DPP PPN 11/12</td><td class="text-right">${n0(c.dpp11_12)}</td></tr>
+        <tr class="tot-row"><td colspan="4">VAT ( 12%)</td><td class="text-right">${n0(c.vat12)}</td></tr>
+        <tr class="tot-row"><td colspan="4">WITH HOLDING TAX ART 23</td><td class="text-right">(${n0(c.pph23)})</td></tr>
+        <tr class="tot-row"><td colspan="4">TOTAL INVOICE</td><td class="text-right">${n0(c.totalInvoice)}</td></tr>
       `;
 
       // Note: indeks Raise & Fall tiap periode baris Seksi D (dari invoice; fallback Master RF periode).
@@ -253,364 +159,236 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
       }
       noteHTML = rfByPeriod.size ? `
         <div class="note-box">
-          Note:<br/>
-          ${[...rfByPeriod].map(([p, rf], n) => `${n + 1}. Raise & Fall's Factor ${p.replace("-", " ")}: <strong>${rf.toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</strong>`).join("<br/>")}
+          Note:<br/><br/>
+          <table style="border-collapse: collapse; font-size: 9.5px;">
+            ${[...rfByPeriod].map(([p, rf], n) => `<tr><td style="padding: 1px 0; width: 320px;">${n + 1}. Raise &amp; Fall's Factor ${periodParts(p).short}</td><td style="font-weight: bold;">${rf.toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td></tr>`).join("")}
+          </table>
         </div>
       ` : "";
     } else if (custCode === "PTRO" || custCode === "DBK") {
-      // PTRO / DBK Table Layout (Petrosea - Dual Currency USD & IDR)
-      const secAItems = activeItems.filter((i: any) => i.section === "A");
-      const secBItems = activeItems.filter((i: any) => i.section === "B");
-      const secCItems = activeItems.filter((i: any) => {
-        if (i.section !== "C") return false;
-        const baseM = i.baseMtr || ((i.subSection || i.description || "").toLowerCase().includes("coal") ? 3000 : 1000);
-        return (i.overhaulMtr ?? baseM) > baseM;
-      });
-
-      const volA = secAItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
-      const volB = secBItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
-
-      tableBodyHTML = `
-        <tr class="sec-hdr">
-          <td>A. OB REMOVAL</td>
-          <td class="text-center font-mono">${volA.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-          <td class="text-center">Bcm</td>
-          <td></td>
-          <td></td>
-          <td class="text-right font-mono font-black">${c.subtotalA.toLocaleString("id-ID")}</td>
-        </tr>
-        <tr><td colspan="6" style="font-weight: bold; padding-left: 10px; background: #fafafa;">A1. PIT SAPAN</td></tr>
-        ${secAItems.map((i: any) => `
-          <tr>
-            <td style="padding-left: 20px;">${i.description}</td>
-            <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            <td class="text-center">${i.unit || "Bcm"}</td>
-            <td class="text-right font-mono">${(i.unitRateUSD || 0).toFixed(3)}</td>
-            <td class="text-right font-mono">${(i.kursBI || 17140.76).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-            <td class="text-right font-mono">${Math.round((i.volume || 0) * (i.unitRateUSD || 0) * (i.kursBI || 17140.76)).toLocaleString("id-ID")}</td>
-          </tr>
-        `).join("")}
-
-        <tr class="sec-hdr">
-          <td>B. COAL WINNING</td>
-          <td class="text-center font-mono">${volB.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-          <td class="text-center">Ton</td>
-          <td></td>
-          <td></td>
-          <td class="text-right font-mono font-black">${c.subtotalB.toLocaleString("id-ID")}</td>
-        </tr>
-        <tr><td colspan="6" style="font-weight: bold; padding-left: 10px; background: #fafafa;">B1. PIT SAPAN</td></tr>
-        ${secBItems.map((i: any) => `
-          <tr>
-            <td style="padding-left: 20px;">PIT SAPAN</td>
-            <td class="text-center font-mono">${(i.actualVolume || i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            <td class="text-center">${i.unit || "Ton"}</td>
-            <td class="text-right font-mono">${(i.unitRateUSD || 0).toFixed(3)}</td>
-            <td class="text-right font-mono">${(i.kursBI || 17140.76).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-            <td class="text-right font-mono">${Math.round((i.volume || 0) * (i.unitRateUSD || 0) * (i.kursBI || 17140.76)).toLocaleString("id-ID")}</td>
-          </tr>
-        `).join("")}
-
-        ${secCItems.length > 0 ? `
-        <tr class="sec-hdr">
-          <td>C. OVER DISTANCE</td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td class="text-right font-mono font-black">${c.subtotalC.toLocaleString("id-ID")}</td>
-        </tr>
-        ${secCItems.map((i: any) => {
-          const isCoal = (i.subSection || i.description || "").toLowerCase().includes("coal") || (i.subSection || i.description || "").toLowerCase().includes("batubara");
-          const baseM = i.baseMtr || (isCoal ? 3000 : 1000);
-          const diff = Math.max(0, (i.overhaulMtr || baseM) - baseM);
-          const usdRate = i.unitRateUSD || 0.028;
-          const idrRate = i.unitRateIDR || 230;
-          const kurs = i.kursBI || 0;
-          const amount = !isCoal
-            ? Math.round((i.volume || 0) * (diff / 100) * usdRate * kurs)
-            : Math.round((i.volume || 0) * (diff / 100) * idrRate);
-
-          return `
-            <tr>
-              <td style="padding-left: 20px;">
-                <strong>${i.subSection || i.description || ""}</strong><br/>
-                PIT SAPAN<br/>
-                <span style="font-size: 8.5px; color: #475569;">${(i.overhaulMtr || baseM).toLocaleString("id-ID", { minimumFractionDigits: 2 })} mtr - ${baseM} mtr = ${diff.toFixed(2)} mtr</span>
-              </td>
-              <td class="text-center font-mono">${i.volume ? i.volume.toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0,00"}</td>
-              <td class="text-center">${i.unit || (isCoal ? "Ton" : "Bcm")}</td>
-              <td class="text-right font-mono">${!isCoal ? usdRate.toFixed(3) : "-"}</td>
-              <td class="text-right font-mono">${!isCoal ? kurs.toLocaleString("id-ID", { minimumFractionDigits: 2 }) : idrRate.toLocaleString("id-ID")}</td>
-              <td class="text-right font-mono font-bold">${amount.toLocaleString("id-ID")}</td>
-            </tr>
-          `;
-        }).join("")}
-        ` : ""}
-      `;
-
-      totalsFooterHTML = `
-        <tr class="tot-row">
-          <td colspan="5"><strong>TOTAL</strong></td>
-          <td class="text-right font-mono"><strong>${c.totalGross.toLocaleString("id-ID")}</strong></td>
-        </tr>
-        <tr class="tot-row">
-          <td colspan="5">DPP PPN 11/12</td>
-          <td class="text-right font-mono">${c.dpp11_12.toLocaleString("id-ID")}</td>
-        </tr>
-        <tr class="tot-row">
-          <td colspan="5">VAT ( 12%)</td>
-          <td class="text-right font-mono">${c.vat12.toLocaleString("id-ID")}</td>
-        </tr>
-        <tr class="tot-row">
-          <td colspan="5">WITH HOLDING TAX ART 23 (2%)</td>
-          <td class="text-right font-mono">(${c.pph23.toLocaleString("id-ID")})</td>
-        </tr>
-        <tr class="net-row">
-          <td colspan="5"><strong>TOTAL INVOICE</strong></td>
-          <td class="text-right net-val"><strong>${c.totalInvoice.toLocaleString("id-ID")}</strong></td>
-        </tr>
-      `;
-    } else if (custCode === "SBS") {
-      // SBS Table Layout (Gambar 4)
-      const secAItems = activeItems.filter((i: any) => i.section === "A");
-      const secBItems = activeItems.filter((i: any) => i.section === "B");
-      const secPItems = activeItems.filter((i: any) => i.section === "P");
-
-      const volA = secAItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
-      const volB = secBItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
-
-      tableBodyHTML = `
-        <tr class="sec-hdr">
-          <td>OB REMOVAL (Per Area Kerja)</td>
-          <td class="text-center font-mono">-</td>
-          <td class="text-center font-mono">${volA.toLocaleString("id-ID", { minimumFractionDigits: 2 })} BCM</td>
-          <td></td>
-          <td class="text-right font-mono font-black">${c.subtotalA.toLocaleString("id-ID")}</td>
-        </tr>
-        ${secAItems.map((i: any) => {
-          const dist = i.distanceM ?? i.overhaulMtr;
-          return `
-          <tr>
-            <td style="padding-left: 20px;">${i.description}</td>
-            <td class="text-center font-mono font-bold">${dist ? Number(dist).toLocaleString("id-ID") + " m" : "-"}</td>
-            <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} ${i.unit || "BCM"}</td>
-            <td class="text-right font-mono">${(i.unitRateIDR || 0).toLocaleString("id-ID")}</td>
-            <td class="text-right font-mono">${Math.round((i.volume || 0) * (i.unitRateIDR || 0)).toLocaleString("id-ID")}</td>
-          </tr>
-          `;
-        }).join("")}
-
-        <tr class="sec-hdr">
-          <td>JASA PENUNJANG PRODUKSI (Rental Alat)</td>
-          <td class="text-center font-mono">-</td>
-          <td class="text-center font-mono">${volB.toLocaleString("id-ID", { minimumFractionDigits: 2 })} Hours</td>
-          <td></td>
-          <td class="text-right font-mono font-black">${c.subtotalB.toLocaleString("id-ID")}</td>
-        </tr>
-        ${secBItems.map((i: any) => `
-          <tr>
-            <td style="padding-left: 20px;">${i.description}</td>
-            <td class="text-center font-mono">-</td>
-            <td class="text-center font-mono">${(i.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })} ${i.unit || "Hours"}</td>
-            <td class="text-right font-mono">${(i.unitRateIDR || 0).toLocaleString("id-ID")}</td>
-            <td class="text-right font-mono">${Math.round((i.volume || 0) * (i.unitRateIDR || 0)).toLocaleString("id-ID")}</td>
-          </tr>
-        `).join("")}
-      `;
-
-      totalsFooterHTML = `
-        <tr class="tot-row">
-          <td colspan="4"><strong>TOTAL (NILAI PEKERJAAN BRUTO)</strong></td>
-          <td class="text-right font-mono"><strong>${c.totalGross.toLocaleString("id-ID")}</strong></td>
-        </tr>
-        <tr class="tot-row">
-          <td colspan="4">DPP PPN 11/12</td>
-          <td class="text-right font-mono">${c.dpp11_12.toLocaleString("id-ID")}</td>
-        </tr>
-        <tr class="tot-row">
-          <td colspan="4">VAT ( 12% ) (+)</td>
-          <td class="text-right font-mono">${c.vat12.toLocaleString("id-ID")}</td>
-        </tr>
-        <tr class="tot-row">
-          <td colspan="4">WITH HOLDING TAX ART 23 (2%) (-)</td>
-          <td class="text-right font-mono">(${c.pph23.toLocaleString("id-ID")})</td>
-        </tr>
-        <tr class="net-row">
-          <td colspan="4"><strong>TOTAL INVOICE</strong></td>
-          <td class="text-right net-val font-mono"><strong>${c.totalInvoice.toLocaleString("id-ID")}</strong></td>
-        </tr>
-      `;
-
-      noteHTML = `
-        <div style="margin-top: 10px; margin-bottom: 6px;">
-          <table class="main-table" style="margin-bottom: 0;">
-            <thead>
-              <tr>
-                <th width="45%" style="text-align: left;">PENGURANG PEMBAYARAN</th>
-                <th width="20%" style="text-align: center;">CLAIMED UNIT</th>
-                <th width="15%" style="text-align: right;">UNIT RATE (IDR)</th>
-                <th width="20%" style="text-align: right;">AMOUNT (IDR)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${secPItems.map((p: any) => `
-                <tr>
-                  <td style="padding-left: 15px;">${p.description}</td>
-                  <td class="text-center font-mono">${p.unit || "-"}</td>
-                  <td class="text-right font-mono">-</td>
-                  <td class="text-right font-mono font-bold">${p.amount ? `(${Math.abs(p.amount).toLocaleString("id-ID")})` : "-"}</td>
-                </tr>
-              `).join("")}
-            </tbody>
-            <tfoot>
-              <tr class="tot-row">
-                <td colspan="3"><strong>TOTAL PENGURANG PEMBAYARAN</strong></td>
-                <td class="text-right font-mono font-bold">(${Math.abs(c.subtotalP).toLocaleString("id-ID")})</td>
-              </tr>
-              <tr class="net-row">
-                <td colspan="3"><strong>TOTAL DIBAYAR</strong></td>
-                <td class="text-right net-val font-mono"><strong>${c.totalDibayar.toLocaleString("id-ID")}</strong></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      `;
-    } else {
-      // Default: POS Mining Table Layout (Gambar 1)
+      // PTRO / DBK Table Layout (Petrosea "PAYMENT DETAIL" - Dual Currency USD & IDR)
+      const num = (v: number, min: number, max = min) => v.toLocaleString("id-ID", { minimumFractionDigits: min, maximumFractionDigits: max });
       const secAItems = activeItems.filter((i: any) => i.section === "A");
       const secBItems = activeItems.filter((i: any) => i.section === "B");
       const secCItems = activeItems.filter((i: any) => i.section === "C");
-      const secDItems = activeItems.filter((i: any) => i.section === "D");
+      const isCoalItem = (i: any) => /coal|batubara/i.test(i.subSection || i.description || "");
 
-      const isFacility = (itemData?.jobType || "").toLowerCase().includes("mess") || (itemData?.jobType || "").toLowerCase().includes("mob") || (itemData?.jobType || "").toLowerCase().includes("facility") || (itemData?.invoiceNo || "").toLowerCase().includes("bc-");
-      const isMDO = (itemData?.invoiceCategory === "MDO" || itemData?.activityGroup?.includes("MDO") || formData?.invoiceCategory === "MDO");
       const volA = secAItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
+      const volB = secBItems.reduce((s: number, i: any) => s + (i.volume || 0), 0);
+      const pit = "PIT SAPAN";
+      const emptyCells = (n: number) => "<td></td>".repeat(n);
+      // Amount baris = sumber yang sama dengan TOTAL (calculateItemRateAndAmount); kolom USD/kurs hanya untuk item bertarif USD.
+      const rateRow = (i: any, vol: number, unit: string) => {
+        const usd = Number(i.unitRateUSD) > 0;
+        const { unitRate, amount } = calculateItemRateAndAmount(i, custCode, activeItems);
+        return `
+            <td class="text-right font-mono">${num(vol, 3)}</td>
+            <td class="text-center">${unit}</td>
+            <td class="text-center font-mono">${usd ? num(Number(i.unitRateUSD), 3) : ""}</td>
+            <td class="text-center font-mono">${usd ? "" : num(unitRate, 2)}</td>
+            <td class="text-center font-mono">${usd ? num(Number(i.kursBI || 0), 2) : ""}</td>
+            <td class="text-right font-mono">${Math.round(amount).toLocaleString("id-ID")}</td>`;
+      };
+      const pitHdr = (label: string, items: any[], unit: string) =>
+        `<tr><td><strong>${label}</strong></td><td class="text-right font-mono">${num(items.reduce((s: number, i: any) => s + (i.volume || 0), 0), 3)}</td><td class="text-center">${unit}</td>${emptyCells(4)}</tr>`;
+      const descRow = (i: any, fallback: string, unit: string) =>
+        `<tr><td style="padding-left: 10px;">${(i.description || fallback).toUpperCase()}</td>${rateRow(i, i.volume || 0, i.unit || unit)}</tr>`;
 
-      const secAHTML = secAItems.length > 0 ? `
-        <tr class="sec-hdr">
-          <td>${isFacility ? "A. PEKERJAAN FASILITAS / KLAIM PROYEK" : isMDO ? "A. MINE DEVELOPMENT (MDO)" : "A. PRODUCTION"}</td>
-          <td class="text-center font-mono">${(isMDO || isFacility) ? "" : volA.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-          <td class="text-center">${(isMDO || isFacility) ? "" : "Bcm"}</td>
-          <td></td>
-          <td class="text-right font-mono font-black">${c.subtotalA.toLocaleString("id-ID")}</td>
-        </tr>
-        ${secAItems.map((item: any, idx: number) => {
-          const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
-          const effUnitRate = unitRate > 0 ? unitRate : Number(item.unitRateIDR || (item.volume > 0 ? Math.round((item.amount || 0) / item.volume) : 0));
-          const effAmount = amount !== 0 ? amount : Number(item.amount || Math.round((item.volume || 0) * effUnitRate));
-          const cleanDesc = (item.description || "").replace(/^[A-Z][0-9]*[\.\s\-]+\s*/i, "").trim();
-          return `<tr>
-            <td style="padding-left: 15px;"><strong>A${idx + 1}.</strong> ${cleanDesc}</td>
-            <td class="text-center font-mono">${(item.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-            <td class="text-center">${item.unit || "Bcm"}</td>
-            <td class="text-right font-mono">${effUnitRate.toLocaleString("id-ID")}</td>
-            <td class="text-right font-mono"><strong>${effAmount.toLocaleString("id-ID")}</strong></td>
+      const overDistanceHTML = (label: string, items: any[]) => items.length ? `
+          <tr><td><strong>${label}</strong></td>${emptyCells(6)}</tr>
+          <tr><td style="padding-left: 10px;"><strong>${pit}</strong></td>${emptyCells(6)}</tr>
+          ${items.map((i: any) => {
+            const baseM = ptroBaseMtr(i);
+            const mtr = i.overhaulMtr || baseM;
+            const diff = mtr - baseM;
+            return `<tr>
+            <td style="padding-left: 10px;">${num(mtr, isCoalItem(i) ? 2 : 3)} mtr - ${baseM} mtr = &nbsp; ${diff < 0 ? `(${num(Math.abs(diff), 2)})` : num(diff, 2)} mtr</td>
+            ${diff > 0 ? rateRow(i, (i.volume || 0) * (diff / 100), "") : emptyCells(6)}
           </tr>`;
-        }).join("")}
-      ` : "";
+          }).join("")}` : "";
 
-      const secBHTML = secBItems.length > 0 ? `
+      tableBodyHTML = `
         <tr class="sec-hdr">
-          <td>B. OVER / UNDER DISTANCE</td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td class="text-right font-mono font-black">${c.subtotalB < 0 ? `(${Math.abs(c.subtotalB).toLocaleString("id-ID")})` : c.subtotalB.toLocaleString("id-ID")}</td>
+          <td><u>A. OB REMOVAL</u></td>
+          <td class="text-right font-mono">${num(volA, 3)}</td>
+          <td class="text-center">Bcm</td>
+          ${emptyCells(4)}
         </tr>
-        ${secBItems.map((item: any, idx: number) => {
-          const effVol = getItemEffectiveVolume(item);
-          const effMtr = getItemEffectiveOverhaulMtr(item);
-          const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
-          const diffMtr = effMtr - 1000;
-          const cleanDesc = (item.description || "").replace(/^[A-Z][0-9]*[\.\s\-]+\s*/i, "").trim();
-          return `<tr>
-            <td style="padding-left: 15px;">
-              <div><strong>B${idx + 1}.</strong> ${cleanDesc}</div>
-              <div style="font-size: 8.5px; color: #64748b;">${effMtr} mtr - 1000 mtr = (${diffMtr}) mtr</div>
-            </td>
-            <td class="text-center font-mono">${effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-            <td class="text-center">${item.unit || "Bcm"}</td>
-            <td class="text-right font-mono">${unitRate.toLocaleString("id-ID")}</td>
-            <td class="text-right font-mono"><strong>${amount < 0 ? `(${Math.abs(amount).toLocaleString("id-ID")})` : amount.toLocaleString("id-ID")}</strong></td>
-          </tr>`;
-        }).join("")}
-      ` : "";
+        <tr class="gap-row">${emptyCells(7)}</tr>
+        ${secAItems.length ? pitHdr(`A1. ${pit}`, secAItems, secAItems[0].unit || "Bcm") + secAItems.map((i: any) => descRow(i, "OVER BURDEN REMOVAL", "Bcm")).join("") : ""}
+        <tr class="gap-row">${emptyCells(7)}</tr>
 
-      const secCHTML = secCItems.length > 0 ? `
         <tr class="sec-hdr">
-          <td>C. LAND CLEARING</td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td class="text-right font-mono font-black">${c.subtotalC.toLocaleString("id-ID")}</td>
+          <td><u>B. COAL WINNING</u></td>
+          <td class="text-right font-mono">${num(volB, 3)}</td>
+          <td class="text-center">Ton</td>
+          ${emptyCells(4)}
         </tr>
-        ${secCItems.map((item: any, idx: number) => {
-          const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
-          const cleanDesc = (item.description || "").replace(/^[A-Z][0-9]*[\.\s\-]+\s*/i, "").trim();
-          return `<tr>
-            <td style="padding-left: 15px;"><strong>C${idx + 1}.</strong> ${cleanDesc}</td>
-            <td class="text-center font-mono">${(item.volume || 0).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-            <td class="text-center">${item.unit || "m2"}</td>
-            <td class="text-right font-mono">${unitRate.toLocaleString("id-ID")}</td>
-            <td class="text-right font-mono"><strong>${amount.toLocaleString("id-ID")}</strong></td>
-          </tr>`;
-        }).join("")}
-      ` : "";
+        <tr class="gap-row">${emptyCells(7)}</tr>
+        ${secBItems.length === 1
+          ? `<tr><td><strong>B1. ${pit}</strong></td>${rateRow(secBItems[0], secBItems[0].volume || 0, secBItems[0].unit || "Ton")}</tr>`
+          : secBItems.length ? pitHdr(`B1. ${pit}`, secBItems, secBItems[0].unit || "Ton") + secBItems.map((i: any) => descRow(i, "COAL GETTING", "Ton")).join("") : ""}
+        <tr class="gap-row">${emptyCells(7)}</tr>
 
-      const secDHTML = secDItems.length > 0 ? `
+        ${secCItems.length > 0 ? `
         <tr class="sec-hdr">
-          <td>D. RAISE & FALL'S FACTOR</td>
-          <td></td>
-          <td></td>
-          <td></td>
-          <td class="text-right font-mono font-black">${c.subtotalD.toLocaleString("id-ID")}</td>
+          <td><u>C. OVER DISTANCE</u></td>
+          ${emptyCells(6)}
         </tr>
-        ${secDItems.map((item: any, idx: number) => {
-          const effVol = getItemEffectiveVolume(item);
-          const { unitRate, amount } = calculateItemRateAndAmount(item, "POS");
-          const cleanDesc = (item.description || "").replace(/^[A-Z][0-9]*[\.\s\-]+\s*/i, "").trim();
-          return `<tr>
-            <td style="padding-left: 15px;"><strong>D${idx + 1}.</strong> ${cleanDesc}</td>
-            <td class="text-center font-mono">${effVol.toLocaleString("id-ID", { minimumFractionDigits: 2 })}</td>
-            <td class="text-center">${item.unit || "Bcm"}</td>
-            <td class="text-right font-mono">${unitRate.toLocaleString("id-ID")}</td>
-            <td class="text-right font-mono"><strong>${amount < 0 ? `(${Math.abs(amount).toLocaleString("id-ID")})` : amount.toLocaleString("id-ID")}</strong></td>
-          </tr>`;
-        }).join("")}
-      ` : "";
-
-      tableBodyHTML = `${secAHTML}${secBHTML}${secCHTML}${secDHTML}`;
+        <tr class="gap-row">${emptyCells(7)}</tr>
+        ${overDistanceHTML("C1. Over Distance For OB Removal", secCItems.filter((i: any) => !isCoalItem(i)))}
+        <tr class="gap-row">${emptyCells(7)}</tr>
+        ${overDistanceHTML("C2. Over Distance For Coal Winning", secCItems.filter(isCoalItem))}
+        ` : ""}
+        <tr class="filler-row">${emptyCells(7)}</tr>
+      `;
 
       totalsFooterHTML = `
         <tr class="tot-row">
-          <td colspan="4"><strong>TOTAL (REVENUE GROSS)</strong></td>
+          <td colspan="6"><strong>TOTAL</strong></td>
           <td class="text-right font-mono"><strong>${c.totalGross.toLocaleString("id-ID")}</strong></td>
         </tr>
         <tr class="tot-row">
-          <td colspan="4">DPP PPN 11/12</td>
-          <td class="text-right font-mono">${c.dpp11_12.toLocaleString("id-ID")}</td>
+          <td colspan="6"><strong>DPP PPN 11/12</strong></td>
+          <td class="text-right font-mono"><strong>${c.dpp11_12.toLocaleString("id-ID")}</strong></td>
         </tr>
         <tr class="tot-row">
-          <td colspan="4">VAT ( 12% )</td>
-          <td class="text-right font-mono">${c.vat12.toLocaleString("id-ID")}</td>
+          <td colspan="6"><strong>VAT ( 12%)</strong></td>
+          <td class="text-right font-mono"><strong>${c.vat12.toLocaleString("id-ID")}</strong></td>
         </tr>
         <tr class="tot-row">
-          <td colspan="4">WITH HOLDING TAX ART 23</td>
-          <td class="text-right font-mono">(${c.pph23.toLocaleString("id-ID")})</td>
+          <td colspan="6"><strong>WITH HOLDING TAX ART 23 (2%)</strong></td>
+          <td class="text-right font-mono"><strong>(${c.pph23.toLocaleString("id-ID")})</strong></td>
         </tr>
-        <tr class="net-row">
-          <td colspan="4"><strong>TOTAL INVOICE (NET)</strong></td>
-          <td class="text-right net-val"><strong>${c.totalInvoice.toLocaleString("id-ID")}</strong></td>
+        <tr class="tot-row">
+          <td colspan="6"><strong>TOTAL INVOICE</strong></td>
+          <td class="text-right font-mono"><strong>${c.totalInvoice.toLocaleString("id-ID")}</strong></td>
         </tr>
+      `;
+    } else if (custCode === "SBS") {
+      // SBS — format resmi "PAYMENT DETAIL" + tabel Pengurang Pembayaran & TOTAL DIBAYAR.
+      const n0 = (v: number) => { const r = Math.round(v || 0); return r < 0 ? `(${Math.abs(r).toLocaleString("id-ID")})` : r.toLocaleString("id-ID"); };
+      const v2 = (v: number) => (v || 0).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const rate = (i: any) => Number(i.unitRateIDR || (i.volume > 0 ? Math.round((i.amount || 0) / i.volume) : 0));
+      const amt = (i: any) => Number(i.amount || Math.round((i.volume || 0) * rate(i)));
+      const secAItems = activeItems.filter((i: any) => i.section === "A");
+      const secBItems = activeItems.filter((i: any) => i.section === "B");
+      const secPItems = activeItems.filter((i: any) => i.section === "P");
+      const volOf = (items: any[]) => items.reduce((s: number, i: any) => s + (i.volume || 0), 0);
+      const gap = `<tr class="gap-row"><td></td><td></td><td></td><td></td><td></td></tr>`;
+      const secHdr = (title: string, items: any[], total: number, unit = "") =>
+        `<tr class="sec-hdr"><td style="text-decoration: underline;">${title}</td><td class="text-right">${v2(volOf(items))}</td><td class="text-center">${unit}</td><td></td><td class="text-right">${n0(total)}</td></tr>${gap}`;
+      const row = (i: any) =>
+        `<tr><td style="padding-left: 10px;">${i.description}</td><td class="text-right">${v2(i.volume)}</td><td class="text-center">${i.unit || ""}</td><td class="text-right">${n0(rate(i))}</td><td class="text-right">${n0(amt(i))}</td></tr>`;
+
+      tableBodyHTML = `
+        ${gap}
+        ${secHdr("OB REMOVAL", secAItems, c.subtotalA, secAItems[0]?.unit || "")}
+        ${secAItems.map(row).join("")}
+        ${gap}
+        ${secHdr("JASA PENUNJANG PRODUKSI", secBItems, c.subtotalB)}
+        ${secBItems.map(row).join("")}
+        ${gap}
+      `;
+
+      totalsFooterHTML = `
+        <tr class="tot-row"><td colspan="4">TOTAL</td><td class="text-right">${n0(c.totalGross)}</td></tr>
+        <tr class="tot-row"><td colspan="4">DPP PPN 11/12</td><td class="text-right">${n0(c.dpp11_12)}</td></tr>
+        <tr class="tot-row"><td colspan="4">VAT ( 12%)</td><td class="text-right">${n0(c.vat12)}</td></tr>
+        <tr class="tot-row"><td colspan="4">WITH HOLDING TAX ART 23 (2%)</td><td class="text-right">(${n0(c.pph23)})</td></tr>
+        <tr class="tot-row"><td colspan="4">TOTAL INVOICE</td><td class="text-right">${n0(c.totalInvoice)}</td></tr>
       `;
 
       noteHTML = `
-        <div class="note-box">
-          Note:<br/>
-          1. Raise & Fall's Factor: <strong>${rfIndexCalculated.toFixed(3)}</strong>
-        </div>
+        <table class="main-table" style="margin-top: 10px;">
+          <thead>
+            <tr>
+              <th width="48%" style="text-transform: none; text-align: left;">Pengurang Pembayaran</th>
+              <th width="22%" colspan="2" class="text-center" style="text-transform: none;">Claimed Unit</th>
+              <th width="12%" class="text-center" style="text-transform: none;">Unit Rate<br/>(IDR)</th>
+              <th width="18%" class="text-center" style="text-transform: none;">Amount (IDR)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${gap}
+            ${secPItems.map((p: any, n: number) => `<tr><td style="padding-left: 10px;">${n + 1}. ${p.description}</td><td class="text-right">${p.volume ? v2(p.volume) : ""}</td><td class="text-center">${p.unit || ""}</td><td class="text-right">${p.unitRateIDR ? n0(p.unitRateIDR) : ""}</td><td class="text-right">${p.amount ? `(${n0(Math.abs(p.amount))})` : ""}</td></tr>`).join("")}
+            ${gap}
+          </tbody>
+        </table>
+        <table class="main-table" style="margin-top: 10px;">
+          <tr class="tot-row"><td width="82%">TOTAL DIBAYAR</td><td width="18%" class="text-right">${n0(c.totalDibayar)}</td></tr>
+        </table>
       `;
+    } else {
+      // POS — format resmi "PAYMENT DETAIL": huruf seksi berurutan, A per Area, R&F dirinci per baris.
+      const n0 = (v: number) => { const r = Math.round(v || 0); return r < 0 ? `(${Math.abs(r).toLocaleString("id-ID")})` : r.toLocaleString("id-ID"); };
+      const v2 = (v: number) => (v || 0).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const uom = (u: string) => /^bcm$/i.test(u || "") ? "Bcm" : (u || "");
+      const desc = (i: any) => String(i.description || "").replace(/^[A-Z][0-9]*[.\s-]+\s*/i, "").trim();
+      const withArea = (i: any) => i.subSection && !desc(i).includes(i.subSection) ? `${desc(i)} (${i.subSection})` : desc(i);
+      // Tarif & amount dari sumber yang sama dengan TOTAL.
+      const rate = (i: any) => calculateItemRateAndAmount(i, custCode, activeItems).unitRate;
+      const amt = (i: any) => calculateItemRateAndAmount(i, custCode, activeItems).amount;
+      const vol = (i: any) => Number(i.volume || 0);
+      const sum = (items: any[], f: (i: any) => number) => items.reduce((s, i) => s + f(i), 0);
+      const row = (d: string, i: any, pad: number, r = rate(i), a = amt(i)) =>
+        `<tr><td style="padding-left: ${pad}px;">${d}</td><td class="text-right">${v2(vol(i))}</td><td class="text-center">${uom(i.unit)}</td><td class="text-right">${n0(r)}</td><td class="text-right">${n0(a)}</td></tr>`;
+      const bold = (d: string, items: any[] = [], withTotals = false) =>
+        `<tr style="font-weight: bold;"><td>${d}</td><td class="text-right">${withTotals ? v2(sum(items, vol)) : ""}</td><td class="text-center">${withTotals ? uom(items[0]?.unit) : ""}</td><td></td><td class="text-right">${withTotals ? n0(sum(items, amt)) : ""}</td></tr>`;
+      let letter = 0;
+      const section = (title: string, total: number, body: (L: string) => string, volItems?: any[]) => {
+        const L = "ABCDEFGH"[letter++];
+        return `<tr class="sec-hdr"><td style="text-decoration: underline;">${L}. ${title}</td><td class="text-right">${volItems ? v2(sum(volItems, vol)) : ""}</td><td class="text-center">${volItems ? uom(volItems[0]?.unit) : ""}</td><td></td><td class="text-right">${n0(total)}</td></tr>${body(L)}`;
+      };
+
+      const isFacility = ["mess", "mob", "facility"].some((k) => (itemData?.jobType || "").toLowerCase().includes(k)) || (itemData?.invoiceNo || "").toLowerCase().includes("bc-");
+      const isLC = (i: any) => i.section === "C" || /land clearing/i.test(i.description || "");
+      const prodItems = activeItems.filter((i: any) => i.section === "A" && !isLC(i));
+      const distItems = activeItems.filter((i: any) => i.section === "B");
+      const lcItems = activeItems.filter((i: any) => (i.section === "A" || i.section === "C") && isLC(i));
+      const rfItems = activeItems.filter((i: any) => i.section === "D");
+      const dedItems = activeItems.filter((i: any) => i.section === "E");
+      const rf = Number(rfItems[0]?.rfIndex) || Number(/RF\s*([\d.]+)/.exec(rfItems[0]?.description || "")?.[1]) || Number(targetBA?.posData?.posRfIndex) || rfIndexCalculated;
+      const areas = [...new Set(prodItems.map((i: any) => i.subSection || ""))];
+      const byArea = areas.some(Boolean);
+
+      const parts: string[] = [];
+      if (prodItems.length) parts.push(section(isFacility ? "PEKERJAAN FASILITAS / KLAIM PROYEK" : "PRODUCTION", sum(prodItems, amt), (L) => byArea
+        ? areas.map((a, n) => { const its = prodItems.filter((i: any) => (i.subSection || "") === a); return bold(`${L}${n + 1}. Area/${a || "-"}`, its, true) + its.map((i: any) => row(desc(i), i, 24)).join(""); }).join("")
+        : prodItems.map((i: any, n: number) => row(`${L}${n + 1}. ${desc(i)}`, i, 6)).join(""), byArea ? prodItems : undefined));
+      if (distItems.length) parts.push(section("OVER DISTANCE", sum(distItems, amt), (L) => distItems.map((i: any, n: number) => {
+        const eff = Number(getItemEffectiveOverhaulMtr(i)), base = Number(i.baseMtr) || 1000, diff = eff - base;
+        const m = (v: number) => v.toLocaleString("id-ID", { maximumFractionDigits: 2 });
+        return bold(`${L}${n + 1}. ${withArea(i)}`) + row(`${m(eff)} &nbsp;mtr &nbsp;- &nbsp;${base} mtr &nbsp;= &nbsp;&nbsp;${diff < 0 ? `(${m(-diff)})` : m(diff)} &nbsp;mtr`, i, 24);
+      }).join("")));
+      if (lcItems.length) parts.push(section("LAND CLEARING", sum(lcItems, amt), (L) => lcItems.map((i: any, n: number) => row(`${L}${n + 1}. ${desc(i)}`, i, 6)).join("")));
+      if (rfItems.length) {
+        // R&F per baris = (RF-1) x tarif & amount tiap baris tagihan (urutan BA); total seksi tetap dari item R&F.
+        const base = activeItems.filter((i: any) => ["A", "B", "C"].includes(i.section));
+        parts.push(section("RAISE & FALL'S FACTOR", sum(rfItems, amt), (L) => rf > 0 && rf !== 1
+          ? base.map((i: any, n: number) => row(`${L}${n + 1}. ${withArea(i)}`, i, 6, rate(i) * (rf - 1), amt(i) * (rf - 1))).join("")
+          : rfItems.map((i: any, n: number) => row(`${L}${n + 1}. ${desc(i)}`, i, 6)).join("")));
+      }
+      if (dedItems.length) parts.push(section("PENGURANG PEMBAYARAN", -Math.abs(sum(dedItems, amt)), (L) => dedItems.map((i: any, n: number) =>
+        `<tr><td colspan="4" style="padding-left: 6px;">${L}${n + 1}. ${desc(i)}</td><td class="text-right">(${Math.abs(Math.round(amt(i))).toLocaleString("id-ID")})</td></tr>`).join("")));
+      tableBodyHTML = parts.join("");
+
+      totalsFooterHTML = `
+        <tr class="tot-row"><td colspan="4">TOTAL</td><td class="text-right">${n0(c.totalGross)}</td></tr>
+        <tr class="tot-row"><td colspan="4">DPP PPN 11/12</td><td class="text-right">${n0(c.dpp11_12)}</td></tr>
+        <tr class="tot-row"><td colspan="4">VAT ( 12%)</td><td class="text-right">${n0(c.vat12)}</td></tr>
+        <tr class="tot-row"><td colspan="4">WITH HOLDING TAX ART 23</td><td class="text-right">(${n0(c.pph23)})</td></tr>
+        <tr class="tot-row"><td colspan="4">TOTAL INVOICE</td><td class="text-right">${n0(c.totalInvoice)}</td></tr>
+      `;
+
+      noteHTML = rfItems.length ? `
+        <div class="note-box" style="font-weight: normal;">
+          Note:<br/>
+          <table style="border-collapse: collapse; font-size: 9.5px;">
+            <tr><td style="padding: 1px 0; width: 420px;">1. Raise &amp; Fall's Factor</td><td style="font-weight: bold;">${rf.toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td></tr>
+          </table>
+        </div>
+      ` : "";
     }
 
     const htmlContent = `
@@ -636,9 +414,6 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
           .main-table td { border: 1px solid #334155; padding: 4px 6px; font-size: 9.5px; color: #0f172a; }
           .sec-hdr { background: #e2e8f0; font-weight: 800; border-top: 1.5px solid #0f172a; border-bottom: 1.5px solid #0f172a; }
           .tot-row { background: #ffffff; font-weight: 700; border-top: 1.2px solid #334155; }
-          .net-row { background: #f1f5f9; color: #0f172a; border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a; font-weight: 900; font-size: 11px; }
-          .net-row td { padding: 6px; font-size: 11px; font-weight: 900; border: 1.2px solid #0f172a; }
-          .net-val { font-size: 12.5px; font-weight: 900; color: #0f172a; text-decoration: underline; }
           .text-right { text-align: right; }
           .text-center { text-align: center; }
           .font-mono, td, th, span, div, p, strong { font-family: 'Plus Jakarta Sans', sans-serif !important; font-variant-numeric: tabular-nums; }
@@ -652,73 +427,138 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
           .btn-print:hover { background: #8e6941; }
           @media print { .btn-print { display: none; } body { padding: 0; } .page-container { min-height: auto; } }
           ${preview ? ".page-container { min-height: auto; }" : ""}
+          .flat .main-table th, .flat .sec-hdr { background: #fff; border-top: none; border-bottom: none; }
+          .flat .main-table th { border: 1.2px solid #0f172a; }
+          .flat .main-table tbody td { border-top: none; border-bottom: none; padding: 2px 6px; }
+          .flat .gap-row td { height: 10px; }
+          .flat .filler-row td { height: 160px; }
+          .flat .tot-row td { padding: 1px 6px; border-top: 1px solid #334155; border-bottom: 1px solid #334155; }
+          .flat .footer-date { margin-left: 41%; text-align: left; font-weight: normal; }
         </style>
       </head>
       <body>
         ${preview ? "" : `<button class="btn-print" onclick="window.print()">Cetak / Simpan PDF Dokumen Official (1 Halaman A4)</button>`}
 
-        <div class="page-container">
+        <div class="page-container${isPTRO || isSBS ? " flat" : ""}">
           <div>
             <div class="logo-header">
               <img src="${logoUrl}" alt="ANDALAN Logo" class="logo-img" />
             </div>
 
+            ${isBGG ? `
             <table class="info-table">
               <tr>
                 <td width="14%"><strong>Company</strong></td>
-                <td width="36%">: <strong>${itemData?.customerCode === "POS" ? "PT. POSITION" : itemData?.customerCode === "BGG" ? "PT. BUDI GEMA GEMPITA" : (itemData?.customerCode === "PTRO" || itemData?.customerCode === "DBK") ? "PT. PETROSEA" : itemData?.customerCode === "SBS" ? "PT. SATRIA BAHANA SARANA" : (itemData?.customerCode || "—")}</strong></td>
+                <td width="40%">: <strong>PT. BUDI GEMA GEMPITA</strong></td>
                 <td width="16%"><strong>Invoice No.</strong></td>
-                <td width="34%">: <strong>${itemData?.invoiceNo || "001/INV/2026"}</strong></td>
+                <td width="30%">: <strong>${itemData?.invoiceNo || "-"}</strong></td>
               </tr>
               <tr>
                 <td><strong>Contractor</strong></td>
                 <td>: <strong>PT. ANDALAN ARTHA PRIMANUSA</strong></td>
-                <td><strong>PO Number</strong></td>
-                <td>: <strong>${itemData?.noPO || itemData?.poNumber || (custCode === "SBS" ? "I05790/0002" : custCode === "POS" ? "PO-POS/2026/001" : "-")}</strong></td>
-              </tr>
-              <tr>
-                <td><strong>Project / Site</strong></td>
-                <td>: <strong>${itemData?.projectSite || contractInfo?.project || "MINING PROJECT"}</strong></td>
-                <td><strong>Activity Group</strong></td>
-                <td>: <strong>${(itemData?.activityGroup || itemData?.jobType || (itemData?.invoiceCategory === "MDO" ? "MINE DEVELOPMENT OPERATION (MDO)" : "OPERATION & MINING")).toUpperCase()}</strong></td>
-              </tr>
-              <tr>
                 <td><strong>Period Covered</strong></td>
-                <td>: <strong>${itemData?.workPeriod || "-"}</strong></td>
+                <td>: <strong>${periodParts(itemData?.workPeriod || "-").covered}</strong></td>
+              </tr>
+              <tr>
+                <td><strong>Project</strong></td>
+                <td>: <strong>${(itemData?.projectSite || contractInfo?.project || "BGG MINING PROJECT").toUpperCase()}</strong></td>
                 <td></td>
                 <td></td>
               </tr>
             </table>
+            ` : isPTRO ? `
+            <table class="info-table">
+              <tr>
+                <td width="12%"><strong>Company</strong></td>
+                <td width="42%">: <strong>PT. PETROSEA TBK</strong></td>
+                <td width="16%"><strong>Invoice No</strong></td>
+                <td width="30%">: <strong>${itemData?.invoiceNo || "-"}</strong></td>
+              </tr>
+              <tr>
+                <td><strong>Contractor</strong></td>
+                <td>: <strong>PT. ANDALAN ARTHA PRIMANUSA</strong></td>
+                <td><strong>Period Covered</strong></td>
+                <td>: <strong>${periodParts(itemData?.workPeriod || "-").coveredID}</strong></td>
+              </tr>
+              <tr>
+                <td><strong>Project</strong></td>
+                <td>: <strong>${(itemData?.projectSite || contractInfo?.project || "DBK MINING PROJECT").toUpperCase()}</strong></td>
+                <td><strong>No PO</strong></td>
+                <td>: <strong>${itemData?.noPO || itemData?.poNumber || "-"}</strong></td>
+              </tr>
+            </table>
+            ` : isPOS ? `
+            <table class="info-table">
+              <tr>
+                <td width="12%"><strong>Company</strong></td>
+                <td width="42%">: <strong>${custCode === "POS" ? "PT. POSITION" : getCustomerOfficialName(custCode)}</strong></td>
+                <td width="16%"><strong>Invoice No.</strong></td>
+                <td width="30%">: <strong>${itemData?.invoiceNo || "-"}</strong></td>
+              </tr>
+              <tr>
+                <td><strong>Contractor</strong></td>
+                <td>: <strong>PT. ANDALAN ARTHA PRIMANUSA</strong></td>
+                <td><strong>Activity Group</strong></td>
+                <td>: <strong>${isMDO ? "MINE DEVELOPMENT (MDO)" : "OPERATION &amp; MINING"}</strong></td>
+              </tr>
+              <tr>
+                <td><strong>Project</strong></td>
+                <td>: <strong>${custCode} PROJECT</strong></td>
+                <td><strong>Period Covered</strong></td>
+                <td>: <strong>${periodParts(itemData?.workPeriod || "-").monthYear}</strong></td>
+              </tr>
+            </table>
+            ` : `
+            <table class="info-table">
+              <tr>
+                <td width="12%"><strong>Company</strong></td>
+                <td width="42%">: <strong>PT SATRIA BAHANA SARANA</strong></td>
+                <td width="16%"><strong>Invoice No.</strong></td>
+                <td width="30%">: <strong>${itemData?.invoiceNo || "-"}</strong></td>
+              </tr>
+              <tr>
+                <td><strong>Contractor</strong></td>
+                <td>: <strong>PT ANDALAN ARTHA PRIMANUSA</strong></td>
+                <td><strong>Period Covered</strong></td>
+                <td>: <strong>${periodParts(itemData?.workPeriod || "-").coveredID}</strong></td>
+              </tr>
+              <tr>
+                <td><strong>Project</strong></td>
+                <td>: <strong>${itemData?.projectSite || contractInfo?.project || "SBS - Tanjung Enim"}</strong></td>
+                <td><strong>No PO</strong></td>
+                <td>: <strong>${itemData?.noPO || itemData?.poNumber || "-"}</strong></td>
+              </tr>
+            </table>
+            `}
 
             <div class="title-box">
-              <h2>INVOICE</h2>
-              ${custCode === "SBS" ? `
-                <div class="contract-sub">(NO KONTRAK : <strong>${itemData?.contractNo || "-"}</strong>)</div>
+              <h2>PAYMENT DETAIL</h2>
+              ${isBGG ? "" : isPOS ? `
+                <table style="margin: 4px auto 0; font-size: 9.5px; font-weight: 700; border-collapse: collapse;">
+                  ${String(itemData?.contractNo || contractInfo?.contract || "-").split(/\s*[;\n]\s*/).map((k, n) => `<tr><td style="padding: 1px 6px; vertical-align: top;">${n ? "" : "NO KONTRAK :"}</td><td style="text-align: left; padding: 1px 0;">${k}</td></tr>`).join("")}
+                </table>
+              ` : isPTRO ? `
+                <div class="contract-sub">Contract No : ${itemData?.contractNo || contractInfo?.contract || "-"}</div>
               ` : `
-                <div class="contract-sub">Contract Number : <strong>${itemData?.contractNo || contractInfo?.contract || "001/AAP/2025"}</strong></div>
+                <div class="contract-sub">(NO KONTRAK : ${itemData?.contractNo || contractInfo?.contract || "-"})</div>
               `}
             </div>
 
             <table class="main-table">
               <thead>
                 <tr>
-                  ${custCode === "SBS" ? `
-                    <th width="35%">DESCRIPTION</th>
-                    <th width="12%" class="text-center">JARAK (M)</th>
-                    <th width="18%" class="text-center">CLAIMED UNIT</th>
-                    <th width="15%" class="text-right">UNIT RATE (IDR)</th>
-                    <th width="20%" class="text-right">AMOUNT (IDR)</th>
+                  ${!isPTRO ? `
+                    <th width="48%">DESCRIPTION</th>
+                    <th width="22%" colspan="2" class="text-center">CLAIMED ${isSBS ? "UNIT" : "VOLUME"}</th>
+                    <th width="12%" class="text-center">UNIT RATE${isPOS ? "" : "<br/>(IDR)"}</th>
+                    <th width="18%" class="text-center">AMOUNT<br/>(IDR)</th>
                   ` : `
-                    <th width="${(custCode === "PTRO" || custCode === "DBK") ? "35%" : "40%"}">DESCRIPTION</th>
-                    <th width="16%" class="text-center">CLAIMED VOLUME</th>
-                    <th width="8%" class="text-center">UoM</th>
-                    ${(custCode === "PTRO" || custCode === "DBK") ? `
-                      <th width="11%" class="text-right">UNIT RATE (USD)</th>
-                      <th width="13%" class="text-right">KURS (USD to IDR)</th>
-                    ` : `
-                      <th width="16%" class="text-right">UNIT RATE (IDR)</th>
-                    `}
-                    <th width="20%" class="text-right">AMOUNT (IDR)</th>
+                    <th width="38%" class="text-center">DESCRIPTION</th>
+                    <th width="18%" colspan="2" class="text-center">CLAIMED VOLUME</th>
+                    <th width="9%" class="text-center">UNIT RATE<br/>(USD)</th>
+                    <th width="9%" class="text-center">UNIT RATE<br/>(IDR)</th>
+                    <th width="10%" class="text-center">KURS<br/>(USD to IDR)</th>
+                    <th width="16%" class="text-center">AMOUNT (IDR)</th>
                   `}
                 </tr>
               </thead>
@@ -733,7 +573,7 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
             ${noteHTML}
           </div>
 
-          <div class="footer-date">Jakarta, ${formattedDate}</div>
+          <div class="footer-date"${isBGG || isPOS ? ' style="width: 100%; margin-left: 0; font-weight: normal;"' : ""}>${isPOS ? `Jakarta ${fmtInvDate("en-GB", { day: "numeric", month: "long", year: "numeric" })}` : isSBS ? `Jakarta, ${fmtInvDate("en-GB", { day: "2-digit", month: "long", year: "2-digit" })}` : `Jakarta, ${fmtInvDate("id-ID", { day: "numeric", month: "long", year: "numeric" })}`}</div>
           <div class="footer-box">
             <div class="footer-cell footer-left">
               <strong style="text-transform: uppercase;">PLEASE MAKE PAYMENT TO THIS ACCOUNT:</strong><br/><br/>
@@ -741,7 +581,7 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
                 <tr><td width="85">Bank Name</td><td>: <strong>${itemData?.bankName || contractInfo?.bankName || "Bank BNI"}</strong></td></tr>
                 <tr><td>A/C Name</td><td>: <strong>${itemData?.bankAccountName || "PT Andalan Artha Primanusa"}</strong></td></tr>
                 <tr><td>A/C No</td><td>: <strong style="font-size: 11px;">${itemData?.bankAccountNo || contractInfo?.bankAccountNo || "-"}</strong></td></tr>
-                <tr><td>Branch</td><td>: <strong>${itemData?.bankBranch || contractInfo?.bankBranch || "Harmoni, Jakarta"}</strong></td></tr>
+                <tr><td>Branch</td><td>: <strong>${(itemData?.bankBranch || contractInfo?.bankBranch || "Harmoni, Jakarta").replace(/,\s*/, isPOS || isSBS ? "<br/>" : ", ")}</strong></td></tr>
               </table>
             </div>
             <div class="footer-cell" style="text-align: center;">

@@ -11,7 +11,7 @@ interface InvoiceBillingPanelProps {
   onNotice: (msg: string) => void;
 }
 
-type Form = { invoiceNo: string; jobType: string; invoiceDate: string; invoiceSubmissionDate: string; dueDate: string; otherDeduction: number };
+type Form = { invoiceNo: string; jobType: string; invoiceDate: string; invoiceSubmissionDate: string; otherDeduction: number };
 
 const isoOrNull = (d: string) => (d ? new Date(d).toISOString() : null);
 const showDate = (d: string) => (d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "-");
@@ -24,7 +24,6 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
     jobType: data.jobType || "",
     invoiceDate: formatDateInput(data.invoiceDate),
     invoiceSubmissionDate: formatDateInput(data.invoiceSubmissionDate),
-    dueDate: formatDateInput(data.dueDate),
     otherDeduction: Number(data.otherDeduction || 0),
   });
   const [f, setF] = useState(init);
@@ -48,7 +47,6 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
           ...f,
           invoiceDate: isoOrNull(f.invoiceDate),
           invoiceSubmissionDate: isoOrNull(f.invoiceSubmissionDate),
-          dueDate: isoOrNull(f.dueDate),
         }),
       });
       onSaved(updated);
@@ -80,7 +78,7 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
       </div>
     </div>
   );
-  const dateRow = (label: string, key: "invoiceDate" | "invoiceSubmissionDate" | "dueDate", locked = false) =>
+  const dateRow = (label: string, key: "invoiceDate" | "invoiceSubmissionDate", locked = false) =>
     row(label, showDate(f[key]), <input type="date" className={inputCls} value={f[key]} onChange={(e) => set(key, e.target.value)} />, locked);
 
   return (
@@ -101,7 +99,7 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
         )}
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+      <div className="grid grid-cols-2 gap-2.5">
         {tile("Amount", Number(data.totalInvoice || 0))}
         {tile("Outstanding Receivable", outstanding)}
         {editing ? (
@@ -113,7 +111,7 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
         {tile("Nett", outstanding - f.otherDeduction, true)}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 bg-white border border-slate-200 rounded-[4px] px-3 py-1">
+      <div className="grid grid-cols-1 gap-x-6 bg-white border border-slate-200 rounded-[4px] px-3 py-1">
         <div>
           {row("Project", <>{data.customerCode} <span className="text-[10px] text-slate-500 font-medium">{getCustomerOfficialName(data.customerCode)}</span></>)}
           {row("Inv. Progress", data.workPeriod || "-")}
@@ -123,7 +121,7 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
         <div>
           {dateRow("Invoice Date", "invoiceDate", refLocked)}
           {dateRow("Invoice Submission", "invoiceSubmissionDate")}
-          {dateRow("Due Date", "dueDate")}
+          {row("Due Date", showDate(data.dueDate))}
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from "react";
-import { ledgerInAccurateItems, menuPermissionMap, treasuryTabs } from "../data/navigation";
+import { hiddenMenuItems, menuPermissionMap, treasuryTabs } from "../data/navigation";
 import { DEFAULT_COMPANIES, getCompanies, type Company, type Permission, type RoleAccess, type TCode, type User } from "./api";
 
 // Harus sama dengan app.IsSuperAdminRole di backend (exact match, bukan substring).
@@ -117,23 +117,26 @@ export function authorized(
 }
 
 export function canAccessMenu(item: string, role: string, permissions: Permission[], tcodes?: TCode[], user?: User) {
-  // Hidden from the sidebar and blocked by URL (ProtectedRoute uses this too): ledger work happens in Accurate.
-  if (ledgerInAccurateItems.has(item)) return false;
+  // Hidden from the sidebar and blocked by URL (ProtectedRoute uses this too).
+  if (hiddenMenuItems.has(item)) return false;
   // Treasury sub-menus (and Rekap Voucher) share the existing "Treasury Management" grant (incl. its T-Code).
   if (item in treasuryTabs || item === "Rekap Voucher") item = "Treasury Management";
   // AR Dashboard shares the existing "Finance & AR Dashboard" grant (incl. its T-Code).
   if (item === "AR Dashboard") item = "Finance & AR Dashboard";
   if (isSuperAdminRole(role)) return true;
 
-  // Tunai PO pages are permission-only (no T-Code), so SCM reaches them without any treasury grant.
-  if (item === "Pengajuan Tunai PO" || item === "Tracking Tunai PO") {
-    return ["read", "submit", "verify"].some((action) => hasPermission(permissions, "tunai_po", action));
+  // Tunai PO pages (and Fuel, same flow) are permission-only (no T-Code), so SCM reaches them without any treasury grant.
+  // Fuel is entered by Finance Admin (payment:write).
+  if (item === "Pengajuan Tunai PO" || item === "Tracking Tunai PO" || item === "Fuel") {
+    return ["read", "submit", "verify"].some((action) => hasPermission(permissions, "tunai_po", action)) || (item === "Fuel" && hasPermission(permissions, "payment", "write"));
   }
 
   // Site-specific Master Data restrictions:
   // For site accounts (scope SITE / role includes "site"):
   // Master data only allows "RAISE & FALL", and even then strictly for BGG and POS sites.
   const isSiteUser = (user && !isHeadOfficeUser(user)) || (role && role.toLowerCase().includes("site"));
+  // Treasury is Head Office only (BE requireHOScope).
+  if (isSiteUser && item === "Treasury Management") return false;
   if (isSiteUser) {
     const isMasterDataItem = [
       "Chart of Accounts", "Company", "Site", "Department", "Cost Center", "Project",

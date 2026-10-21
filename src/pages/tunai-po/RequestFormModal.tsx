@@ -2,10 +2,11 @@ import React, { useEffect, useState } from "react";
 import { Loader2, Search } from "lucide-react";
 import { api } from "../../lib/api";
 import { formatCurrency } from "../../lib/format";
-import type { AccountMapping, TPOLookup, TPOPurchaseOrder, TPORequest } from "./types";
+import type { AccountMapping, TPOKind, TPOLookup, TPOPurchaseOrder, TPORequest } from "./types";
 import { AmountInput, Field, Modal, VendorBank, btnPrimary, btnSecondary, cents, fromCents, inputCls } from "./shared";
 
 type Props = {
+  kind: TPOKind;
   editing?: TPORequest | null;
   mappings: AccountMapping[];
   onClose: () => void;
@@ -13,7 +14,7 @@ type Props = {
   onError: (msg: string) => void;
 };
 
-export function RequestFormModal({ editing, mappings, onClose, onSaved, onError }: Props) {
+export function RequestFormModal({ kind, editing, mappings, onClose, onSaved, onError }: Props) {
   const [poNo, setPoNo] = useState(editing?.poNo || "");
   const [options, setOptions] = useState<TPOPurchaseOrder[]>([]);
   const [lookup, setLookup] = useState<TPOLookup | null>(null);
@@ -24,7 +25,7 @@ export function RequestFormModal({ editing, mappings, onClose, onSaved, onError 
     description: editing?.description || "",
     subtotalAmount: editing?.subtotalAmount || "",
     vatAmount: editing?.vatAmount || "",
-    dpType: editing?.dpType || "",
+    dpType: editing?.dpType || (kind === "FUEL" ? "SOLAR" : ""),
     isPkp: editing?.isPkp ?? false,
   });
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
@@ -74,6 +75,7 @@ export function RequestFormModal({ editing, mappings, onClose, onSaved, onError 
     setSaving(true);
     try {
       const body = JSON.stringify({
+        kind,
         poNo: lookup.purchaseOrder.poNo,
         proformaNo: form.proformaNo.trim(),
         description: form.description.trim(),

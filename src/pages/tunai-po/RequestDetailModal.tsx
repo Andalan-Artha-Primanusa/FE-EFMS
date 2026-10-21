@@ -105,7 +105,7 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
   const isOwner = !!userId && req.createdBy === userId;
   const ownerEditable = canSubmit && isOwner && (req.status === "draft" || req.status === "rejected");
   const canDocs = canSubmit || canVerify;
-  const dpName = (code?: string) => mappings.find((m) => m.code === code)?.name || code || "-";
+  const dpName = (code?: string) => mappings.find((m) => m.kind === "DP" && m.code === code)?.name || code || "-";
 
   const accTotal = cents(req.accSubtotal) + cents(req.accVat);
   const amountRows: [string, number, number][] = [
@@ -402,7 +402,10 @@ function VerifyForm({ req, mappings, busy, onCancel, onSubmit }: { req: TPOReque
         <button
           className={btnPrimary}
           disabled={busy || !f.dpType || total <= 0}
-          onClick={() =>
+          onClick={() => {
+            // A non-STOK Uang Muka account must be listed on the Accurate vendor, else posting fails after the transfer.
+            const dp = mappings.find((m) => m.kind === "DP" && m.code === f.dpType);
+            if (f.dpType !== "STOK" && !window.confirm(`Akun Uang Muka ${dp?.name || f.dpType} (${dp?.accurateAccountNo || "-"}) sudah terdaftar di Accurate › Pemasok ${req.vendor?.name || ""} › Akun Uang Muka?`)) return;
             onSubmit({
               subtotalAmount: fromCents(cents(f.subtotalAmount)),
               vatAmount: fromCents(vat),
@@ -410,8 +413,8 @@ function VerifyForm({ req, mappings, busy, onCancel, onSubmit }: { req: TPOReque
               pphAmount: fromCents(pph),
               dpType: f.dpType,
               isPkp: f.isPkp,
-            })
-          }
+            });
+          }}
         >
           {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Verifikasi
         </button>

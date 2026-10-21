@@ -15,12 +15,12 @@ import {
 
 export const menu = [
   { group: "Dashboard", icon: LayoutDashboard, items: ["AR Dashboard", "Executive Dashboard", "Finance Dashboard"] },
-  { group: "Master Data", icon: Building2, items: ["Chart of Accounts", "Company", "Site", "Department", "Cost Center", "Project", "Vendor", "Client Setup", "Employee", "Bank", "Tax", "Currency", "Coal Index", "Variable SOW", "RAISE & FALL"] },
+  { group: "Master Data", icon: Building2, items: ["Chart of Accounts", "Company", "Site", "Department", "Cost Center", "Project", "Vendor", "Master Vendor", "Client Setup", "Employee", "Bank", "Tax", "Currency", "Coal Index", "Variable SOW", "RAISE & FALL"] },
   { group: "Budget Management", icon: WalletCards, items: ["Annual Budget", "Monthly Budget", "Budget Submission", "Budget Approval", "Budget Revision", "Budget Transfer", "Budget versus Actual"] },
   { group: "Transaction Request", icon: ClipboardCheck, items: ["Purchase Request", "Expense Request", "Cash Advance", "Reimbursement", "Payment Request"] },
   { group: "Finance", icon: Landmark, items: ["Finance & AR Dashboard", "Berita Acara (BA) Tracker", "Invoice Management", "Payment & Receipt Log", "FEASTKOP"] },
-  { group: "Treasury Management", icon: Coins, items: ["Pivot Hutang", "Payment Plan", "Payment Voucher", "Assign Voucher", "Kopra Export", "Rekonsiliasi Bank", "Rekap AAP", "Rekap Voucher", "Master Vendor"] },
-  { group: "Tunai PO", icon: HandCoins, items: ["Pengajuan Tunai PO", "Tracking Tunai PO"] },
+  { group: "Treasury Management", icon: Coins, items: ["Pivot Hutang", "Plan AP", "Tunai Non PO", "Asuransi", "Infrastruktur", "Voucher Payment"] },
+  { group: "Tunai PO", icon: HandCoins, items: ["Pengajuan Tunai PO", "Fuel", "Tracking Tunai PO"] },
   { group: "Accounting", icon: FileSpreadsheet, items: ["Journal Entry", "Journal Approval", "Journal Posting", "General Ledger", "Trial Balance", "Closing Period"] },
   { group: "Reconciliation", icon: RefreshCw, items: ["Bank Reconciliation", "Vendor Reconciliation", "Customer Reconciliation", "Tax Reconciliation", "Intercompany Reconciliation"] },
   { group: "Period Closing", icon: LockKeyhole, items: ["Accrual and Adjustment Journal", "Depreciation Posting", "Review Trial Balance", "Financial Review and Approval", "Close Period Lock"] },
@@ -28,17 +28,23 @@ export const menu = [
   { group: "Governance", icon: ShieldCheck, items: ["Approval Center", "Notification Center", "Audit Trail", "RBAC Management", "Role and Permission", "System Settings"] }
 ];
 
-// The general ledger lives in Accurate Online (used fully by the accounting team). FEAST's own ledger
-// screens are hidden for every role, super admin included, so nobody books a second set of books here.
-export const ledgerInAccurateItems = new Set(
-  menu.filter((g) => g.group === "Accounting" || g.group === "Period Closing").flatMap((g) => g.items)
+// Hidden for every role, super admin included. The general ledger lives in Accurate Online (used fully by the
+// accounting team), so FEAST's ledger screens stay off; Budget and Reconciliation are parked until developed.
+export const hiddenMenuItems = new Set(
+  menu
+    .filter((g) => ["Accounting", "Period Closing", "Budget Management", "Reconciliation"].includes(g.group))
+    .flatMap((g) => g.items)
 );
 
 // Treasury sub-menus are steps of one page; access follows the "Treasury Management" grant.
+// Assign Voucher, Kopra Export, Rekonsiliasi Bank and Rekap AAP are off the sidebar (Kopra is a voucher button).
 export const treasuryTabs = {
   "Pivot Hutang": "pivot",
-  "Payment Plan": "planning",
-  "Payment Voucher": "voucher",
+  "Plan AP": "planning",
+  "Tunai Non PO": "npo",
+  "Asuransi": "asr",
+  "Infrastruktur": "inf",
+  "Voucher Payment": "voucher",
   "Assign Voucher": "assign",
   "Kopra Export": "kopra",
   "Rekonsiliasi Bank": "reconcile",
@@ -143,6 +149,7 @@ export const viewMap: Record<string, ViewConfig> = {
   "Payment & Receipt Log": { title: "Payment & Receipt Log", endpoint: "/api/finance/payments", importType: "operational_transactions" },
   "Pengajuan Tunai PO": { title: "Pengajuan Tunai PO", endpoint: "/api/tunai-po/requests" },
   "Tracking Tunai PO": { title: "Tracking Tunai PO", endpoint: "/api/tunai-po/requests" },
+  "Fuel": { title: "Fuel", endpoint: "/api/tunai-po/requests" },
   "Rekap Voucher": { title: "Rekap Voucher", endpoint: "/api/treasury/vouchers/rekap" },
   "Treasury Management": { title: "Treasury Management", endpoint: "/api/treasury/invoices" },
   ...Object.fromEntries(Object.keys(treasuryTabs).map((t) => [t, { title: t, endpoint: "/api/treasury/invoices" }])),
@@ -223,6 +230,7 @@ export const menuPermissionMap: Record<string, string[]> = {
   "Payment & Receipt Log": ["payment:read", "operational_transaction:read"],
   "Pengajuan Tunai PO": ["tunai_po:read", "tunai_po:submit", "tunai_po:verify"],
   "Tracking Tunai PO": ["tunai_po:read", "tunai_po:submit", "tunai_po:verify"],
+  "Fuel": ["tunai_po:read", "tunai_po:submit", "tunai_po:verify", "payment:write"],
   "Rekap Voucher": ["treasury:read"],
   "Purchase to Pay AP": ["operational_transaction:read"],
   "Order to Cash AR": ["operational_transaction:read"],

@@ -87,9 +87,21 @@ export interface PaymentPlanItem {
   amountPaid: string;
   isFullPayment: boolean;
   remarks?: string;
+  accountNo?: string;
   accuratePaymentNo?: string | null;
   createdAt: string;
 }
+
+export const VOUCHER_CATEGORIES: Record<string, string> = {
+  AP: "AP",
+  TUNAI_PO: "Tunai PO",
+  FUEL: "Fuel",
+  TUNAI_NON_PO: "Tunai Non PO",
+  ASURANSI: "Asuransi",
+  INFRASTRUKTUR: "Infrastruktur",
+  LEASING: "Leasing",
+  LOAN: "Loan",
+};
 
 export interface PaymentPlan {
   id: number;
@@ -100,7 +112,12 @@ export interface PaymentPlan {
   planWeek?: number;
   companyBankId: number;
   companyBank?: TreasuryCompanyBank;
-  category: "AP" | "TUNAI_PO" | "TUNAI_NON_PO" | "LEASING" | "SOLAR" | "PETTY_CASH";
+  category: string;
+  site?: string;
+  payeeName?: string;
+  payeeBankName?: string;
+  payeeAccountNumber?: string;
+  payeeAccountName?: string;
   totalAmount: string;
   status: "draft" | "printed_for_signature" | "approved" | "rejected" | "exported" | "reconciled" | "posted" | "void";
   justification?: string;
