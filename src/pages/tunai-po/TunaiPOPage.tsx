@@ -50,8 +50,8 @@ export function TunaiPOPage() {
     []
   );
   useEffect(() => {
-    if (canVerify) loadSync();
-  }, [canVerify, loadSync]);
+    if (canSubmit || canVerify) loadSync();
+  }, [canSubmit, canVerify, loadSync]);
   useEffect(() => {
     if (!sync?.running) return;
     const t = setInterval(loadSync, 3000);
@@ -101,7 +101,7 @@ export function TunaiPOPage() {
           </button>
         </div>
         <div className="flex items-center gap-2">
-          {canVerify && (
+          {(canSubmit || canVerify) && (
             <>
               <span className="text-[10px] text-slate-500 whitespace-nowrap" title={sync?.lastError || undefined}>
                 {sync?.running ? "Sync berjalan…" : sync?.last?.endedAt ? `Sync PO: ${new Date(sync.last.endedAt).toLocaleString("id-ID")}` : ""}
@@ -110,10 +110,12 @@ export function TunaiPOPage() {
               <button onClick={startSync} disabled={!!sync?.running} className={btnSecondary}>
                 <RefreshCw className={`w-3.5 h-3.5 ${sync?.running ? "animate-spin" : ""}`} /> Sync PO
               </button>
-              <button onClick={() => setShowSettings(true)} className={btnSecondary} title="Akun Uang Muka & PPh">
-                <Settings className="w-3.5 h-3.5" />
-              </button>
             </>
+          )}
+          {canVerify && (
+            <button onClick={() => setShowSettings(true)} className={btnSecondary} title="Akun Uang Muka & PPh">
+              <Settings className="w-3.5 h-3.5" />
+            </button>
           )}
           {canSubmit && (
             <button onClick={() => setForm({ editing: null })} className={btnPrimary}>
