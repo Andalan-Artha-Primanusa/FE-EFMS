@@ -22,6 +22,7 @@ import { VOUCHER_CATEGORIES, type PaymentPlan } from "../types";
 import { VoucherPaymentOfficialPrint } from "../components/VoucherPaymentOfficialPrint";
 import { PrintableSummaryModal } from "../components/PrintableSummaryModal";
 import { NonPOVoucherModal } from "../modals/NonPOVoucherModal";
+import { periodLabel } from "../../tunai-po/shared";
 
 type Props = {
   c: ReturnType<typeof useTreasuryController>;
@@ -446,7 +447,7 @@ export function PaymentPlanView({ c, category }: Props) {
                             )}
                             {plan.planMonth && (
                               <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
-                                {plan.planMonth} (W{plan.planWeek || 1})
+                                {periodLabel(plan)}
                               </span>
                             )}
                           </div>

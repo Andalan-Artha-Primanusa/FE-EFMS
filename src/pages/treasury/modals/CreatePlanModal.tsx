@@ -5,6 +5,7 @@ import { api } from "../../../lib/api";
 import type { useTreasuryController } from "../useTreasuryController";
 import type { TunaiPORequest } from "../types";
 import { DpNotDeductedBadge } from "../views/PivotAgingPlanningView";
+import { Field, PeriodInput, currentPeriod } from "../../tunai-po/shared";
 
 type Props = {
   c: ReturnType<typeof useTreasuryController>;
@@ -30,12 +31,16 @@ export function CreatePlanModal({ c }: Props) {
   const [tpoRequests, setTpoRequests] = useState<TunaiPORequest[]>([]);
   const [tpoSelected, setTpoSelected] = useState<number[]>([]);
   const isTPO = category === "TUNAI_PO" || category === "FUEL";
+  const [period, setPeriod] = useState(currentPeriod);
 
   useEffect(() => {
     if (!showCreatePlanModal) return;
     setCategory(selectedInvoiceIds.length ? "AP" : "TUNAI_PO");
     if (companyBanks[0]) setCompanyBankId((id) => (companyBanks.some((b) => b.id === id) ? id : companyBanks[0].id));
     setTpoSelected([]);
+    // Default to the planned period of the first selected invoice.
+    const planned = invoices.concat(allUnpaidInvoices || []).find((i) => selectedInvoiceIds.includes(i.id) && i.planMonth && i.planWeek);
+    setPeriod(planned ? { planMonth: planned.planMonth!, planWeek: planned.planWeek! } : currentPeriod());
   }, [showCreatePlanModal]);
 
   useEffect(() => {
@@ -66,12 +71,13 @@ export function CreatePlanModal({ c }: Props) {
       }, 0);
 
   // 1 vendor + 1 site per voucher: picking a request of another vendor/site restarts the selection.
-  const toggleTpo = (r: TunaiPORequest) =>
-    setTpoSelected((prev) => {
-      if (prev.includes(r.id)) return prev.filter((id) => id !== r.id);
-      const first = tpoRequests.find((x) => x.id === prev[0]);
-      return first && (first.vendorId !== r.vendorId || first.site !== r.site) ? [r.id] : [...prev, r.id];
-    });
+  const toggleTpo = (r: TunaiPORequest) => {
+    const first = tpoRequests.find((x) => x.id === tpoSelected[0]);
+    if (tpoSelected.includes(r.id)) return setTpoSelected(tpoSelected.filter((id) => id !== r.id));
+    const restart = !first || first.vendorId !== r.vendorId || first.site !== r.site;
+    if (restart && r.planMonth && r.planWeek) setPeriod({ planMonth: r.planMonth, planWeek: r.planWeek });
+    setTpoSelected(restart ? [r.id] : [...tpoSelected, r.id]);
+  };
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,6 +87,7 @@ export function CreatePlanModal({ c }: Props) {
       category,
       voucherDate: new Date().toISOString().slice(0, 10),
       justification: "",
+      ...period,
       items: isTPO
         ? selectedTpo.map((r) => ({
             tunaiPoRequestId: r.id,
@@ -157,6 +164,10 @@ export function CreatePlanModal({ c }: Props) {
               </select>
             </div>
           </div>
+
+          <Field label="Periode Pengajuan">
+            <PeriodInput value={period} onChange={setPeriod} />
+          </Field>
 
           {/* Selected Items Summary Box */}
           <div className="p-3 bg-stone-50 border border-stone-200 rounded-[3px] space-y-2">

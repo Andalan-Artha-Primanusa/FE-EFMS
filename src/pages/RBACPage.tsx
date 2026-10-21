@@ -115,6 +115,13 @@ export const OFFICIAL_ROLES_METADATA: Array<{
     scopes: ["site", "department"]
   },
   {
+    role: "SCM",
+    category: "Head Office",
+    description: "Supply Chain Management. Pengajuan Tunai PO dan kelengkapan dokumen.",
+    scopeLabel: "Head Office (Global Consolidated)",
+    scopes: ["company", "site", "department", "project"]
+  },
+  {
     role: "Admin Finance Site BGG",
     category: "Site Entity",
     description: "Administrator Keuangan Site PT Budi Gema Gempita. Transaksi operasional, BA, & invoice site BGG.",
@@ -198,7 +205,10 @@ const ALL_SYSTEM_PERMISSIONS: Array<{ module: string; action: string; descriptio
   { module: "audit_trail", action: "write", description: "Mencatat jejak audit ke sistem" },
   { module: "treasury", action: "read", description: "Melihat manajemen kas bank dan payment plan" },
   { module: "treasury", action: "write", description: "Membuat payment plan dan transaksi kas bank" },
-  { module: "treasury", action: "approve", description: "Menyetujui payment plan treasury" }
+  { module: "treasury", action: "approve", description: "Menyetujui payment plan treasury" },
+  { module: "tunai_po", action: "read", description: "Melihat pengajuan & tracking Tunai PO" },
+  { module: "tunai_po", action: "submit", description: "Mengajukan Tunai PO dan melengkapi dokumen" },
+  { module: "tunai_po", action: "verify", description: "Memverifikasi / menolak pengajuan Tunai PO" }
 ];
 
 export function RBACPage({
@@ -1660,6 +1670,7 @@ export function RBACPage({
                           <option value="Foreman Finance">Foreman Finance (Foreman / Pengawas Keuangan Lapangan)</option>
                           <option value="Admin Finance">Admin Finance (Administrator Keuangan HO)</option>
                           <option value="Finance Intern">Finance Intern (Magang Keuangan - View Only)</option>
+                          <option value="SCM">SCM (Supply Chain Management)</option>
                         </optgroup>
                         <optgroup label="📍 Site-Specific Admin Presets">
                           <option value="Admin Finance Site BGG">Admin Finance Site BGG (Site PT Budi Gema Gempita)</option>

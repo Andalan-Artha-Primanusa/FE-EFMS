@@ -4,7 +4,7 @@ import { api } from "../../../lib/api";
 import { formatCurrency } from "../../../lib/format";
 import type { useTreasuryController } from "../useTreasuryController";
 import { VOUCHER_CATEGORIES } from "../types";
-import { AmountInput, Field, Modal, btnPrimary, btnSecondary, cents, fromCents, inputCls, useAccountMappings } from "../../tunai-po/shared";
+import { AmountInput, Field, Modal, PeriodInput, btnPrimary, btnSecondary, cents, currentPeriod, fromCents, inputCls, useAccountMappings } from "../../tunai-po/shared";
 
 type Props = {
   c: ReturnType<typeof useTreasuryController>;
@@ -33,6 +33,7 @@ export function NonPOVoucherModal({ c, category, onClose }: Props) {
     justification: "",
     pphType: "",
     pphAmount: "",
+    ...currentPeriod(),
   });
   const [lines, setLines] = useState<Line[]>([{ ...emptyLine }]);
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
@@ -118,10 +119,16 @@ export function NonPOVoucherModal({ c, category, onClose }: Props) {
           </Field>
         </div>
 
-        <Field label="Keterangan">
-          <input value={form.justification} onChange={(e) => set({ justification: e.target.value })} className={inputCls} />
-        </Field>
-
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="Periode Pengajuan">
+            <PeriodInput value={form} onChange={set} />
+          </Field>
+          <div className="col-span-2">
+            <Field label="Keterangan">
+              <input value={form.justification} onChange={(e) => set({ justification: e.target.value })} className={inputCls} />
+            </Field>
+          </div>
+        </div>
         <datalist id="accurate-gl-accounts">
           {accounts.map((a) => (
             <option key={a.no} value={a.no}>
