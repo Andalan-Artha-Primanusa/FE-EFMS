@@ -3,7 +3,7 @@ import { useOutletContext } from "react-router-dom";
 import { RefreshCw, Search } from "lucide-react";
 import { api } from "../../lib/api";
 import { authorized } from "../../lib/auth";
-import { formatDate } from "../../lib/format";
+import { formatCurrency, formatDate } from "../../lib/format";
 import type { TPORequest } from "./types";
 import { DOC_SHORT, DOC_TYPES, DocToggle, OverdueBadge, StatusBadge, btnSecondary, inputCls, useAccountMappings } from "./shared";
 import { RequestDetailModal } from "./RequestDetailModal";
@@ -81,6 +81,7 @@ export function TrackingTunaiPOPage() {
               <th className="text-left p-2">No. PO</th>
               <th className="text-left p-2">Vendor</th>
               <th className="text-left p-2">Site</th>
+              <th className="text-right p-2">Total Bayar</th>
               <th className="text-left p-2">Voucher</th>
               <th className="text-left p-2">Status</th>
               <th className="text-left p-2">Tgl Bayar</th>
@@ -102,6 +103,7 @@ export function TrackingTunaiPOPage() {
                 </td>
                 <td className="p-2">{r.vendor?.name || "-"}</td>
                 <td className="p-2">{r.site}</td>
+                <td className="p-2 text-right font-mono">{formatCurrency(r.payAmount)}</td>
                 <td className="p-2">{r.voucherNo || "-"}</td>
                 <td className="p-2">
                   <StatusBadge status={r.status} />
@@ -121,7 +123,7 @@ export function TrackingTunaiPOPage() {
             ))}
             {!filtered.length && (
               <tr>
-                <td colSpan={7 + DOC_TYPES.length} className="p-6 text-center text-slate-400">
+                <td colSpan={8 + DOC_TYPES.length} className="p-6 text-center text-slate-400">
                   {loading ? "Memuat…" : "Tidak ada data"}
                 </td>
               </tr>

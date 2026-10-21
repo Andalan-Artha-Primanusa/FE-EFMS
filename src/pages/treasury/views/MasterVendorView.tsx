@@ -147,11 +147,12 @@ export function MasterVendorView({ c }: Props) {
                     </td>
 
                     <td className="p-2.5 text-right whitespace-nowrap">
-                      {v.pendingAccountNumber && canApprove && v.bankChangeRequestedBy !== user?.id && (
+                      {(v.pendingAccountNumber || (!v.bankVerifiedAt && v.accountNumber)) && canApprove && v.bankChangeRequestedBy !== user?.id && (
                         <>
                           <button
                             onClick={() => {
-                              if (window.confirm(`Aktifkan rekening ${v.pendingBankName} ${v.pendingAccountNumber} a.n. ${v.pendingAccountName} untuk ${v.name}? Pastikan sudah dikonfirmasi ke vendor (call-back).`)) {
+                              const [bank, acc, name] = v.pendingAccountNumber ? [v.pendingBankName, v.pendingAccountNumber, v.pendingAccountName] : [v.bankName, v.accountNumber, v.accountName];
+                              if (window.confirm(`Aktifkan rekening ${bank} ${acc} a.n. ${name} untuk ${v.name}? Pastikan sudah dikonfirmasi ke vendor (call-back).`)) {
                                 handleVerifyVendorBank(v.id, true);
                               }
                             }}
@@ -159,12 +160,14 @@ export function MasterVendorView({ c }: Props) {
                           >
                             Verifikasi
                           </button>
-                          <button
-                            onClick={() => handleVerifyVendorBank(v.id, false)}
-                            className="inline-flex items-center gap-1 px-2 py-1 mr-1 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded hover:bg-rose-100 transition"
-                          >
-                            Tolak
-                          </button>
+                          {v.pendingAccountNumber && (
+                            <button
+                              onClick={() => handleVerifyVendorBank(v.id, false)}
+                              className="inline-flex items-center gap-1 px-2 py-1 mr-1 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded hover:bg-rose-100 transition"
+                            >
+                              Tolak
+                            </button>
+                          )}
                         </>
                       )}
                       <button

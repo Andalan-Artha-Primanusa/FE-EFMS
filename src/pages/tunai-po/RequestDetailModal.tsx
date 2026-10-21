@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Loader2, Paperclip } from "lucide-react";
+import { ChevronRight, Loader2, Paperclip } from "lucide-react";
 import { api } from "../../lib/api";
 import { formatCurrency, formatDate } from "../../lib/format";
 import type { AccountMapping, AuditLogRow, TPODocType, TPORequest } from "./types";
 import {
+  AmountInput,
   DOC_LABEL,
   DOC_TYPES,
   Field,
@@ -11,6 +12,7 @@ import {
   OverdueBadge,
   REJECT_CATEGORIES,
   StatusBadge,
+  VendorBank,
   btnDanger,
   btnPrimary,
   btnSecondary,
@@ -23,6 +25,21 @@ import {
   saveDocument,
 } from "./shared";
 import { Info } from "./RequestFormModal";
+
+const LOG_LABEL: Record<string, string> = {
+  create: "Dibuat",
+  update: "Diubah",
+  delete: "Dihapus",
+  submit: "Diajukan",
+  verify: "Diverifikasi",
+  reject: "Ditolak",
+  document: "Dokumen",
+  in_voucher: "Masuk Voucher",
+  paid: "Dibayar",
+  posted: "Diposting",
+};
+
+const scrollIntoView = (el: HTMLElement | null) => el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
 type Props = {
   requestId: number;
@@ -130,6 +147,23 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
           <div className="col-span-2 md:col-span-4">
             <Info label="Keterangan" value={req.description || "-"} />
           </div>
+          {req.vendor && (
+            <div className="col-span-2 md:col-span-4">
+              <Info
+                label="Rekening Vendor"
+                value={
+                  <VendorBank
+                    vendor={req.vendor}
+                    userId={userId}
+                    canEdit={canDocs && req.status !== "paid" && req.status !== "posted"}
+                    canVerify={canVerify}
+                    onChanged={load}
+                    onError={onError}
+                  />
+                }
+              />
+            </div>
+          )}
         </div>
 
         <table className="w-full border border-slate-200">
@@ -162,7 +196,12 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
         </table>
 
         <div>
-          <div className="font-bold text-slate-700 mb-1">Checklist Dokumen</div>
+          <div className="font-bold text-slate-700 mb-1">
+            Checklist Dokumen{" "}
+            <span className="font-normal text-slate-400">
+              ({DOC_TYPES.filter((t) => isDocRequired(req, t) && docOf(req, t)?.checked).length}/{DOC_TYPES.filter((t) => isDocRequired(req, t)).length})
+            </span>
+          </div>
           <div className="border border-slate-200 rounded-[3px] divide-y divide-slate-200">
             {DOC_TYPES.map((t) => (
               <DocRow key={t} req={req} docType={t} canEdit={canDocs} onSaved={load} onError={onError} />
@@ -170,8 +209,12 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
           </div>
         </div>
 
-        {mode === "verify" && <VerifyForm req={req} mappings={mappings} busy={busy} onCancel={() => setMode("")} onSubmit={(body) => action("/verify", { method: "POST", body: JSON.stringify(body) })} />}
-        {mode === "reject" && <RejectForm busy={busy} onCancel={() => setMode("")} onSubmit={(body) => action("/reject", { method: "POST", body: JSON.stringify(body) })} />}
+        {mode && (
+          <div ref={scrollIntoView} key={mode}>
+            {mode === "verify" && <VerifyForm req={req} mappings={mappings} busy={busy} onCancel={() => setMode("")} onSubmit={(body) => action("/verify", { method: "POST", body: JSON.stringify(body) })} />}
+            {mode === "reject" && <RejectForm busy={busy} onCancel={() => setMode("")} onSubmit={(body) => action("/reject", { method: "POST", body: JSON.stringify(body) })} />}
+          </div>
+        )}
 
         {!mode && (
           <div className="flex flex-wrap justify-end gap-2 pt-3 border-t border-slate-200">
@@ -210,20 +253,32 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
           </div>
         )}
 
-        <div>
-          <div className="font-bold text-slate-700 mb-1">Riwayat</div>
-          <div className="border border-slate-200 rounded-[3px] divide-y divide-slate-200 max-h-48 overflow-y-auto">
+        <details className="group border border-slate-200 rounded-[3px]">
+          <summary className="flex items-center gap-2 p-2 font-bold text-slate-700 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+            <ChevronRight className="w-3.5 h-3.5 transition-transform group-open:rotate-90" />
+            Riwayat <span className="font-normal text-slate-400">({logs.length})</span>
+          </summary>
+          <div className="border-t border-slate-200 divide-y divide-slate-100 max-h-60 overflow-y-auto">
             {logs.length === 0 && <div className="p-2 text-slate-400">-</div>}
             {logs.map((l) => (
-              <div key={l.id} className="p-2 flex gap-3">
+              <div key={l.id} className="px-3 py-1.5 grid grid-cols-[130px_120px_1fr] gap-3">
                 <span className="text-slate-500 whitespace-nowrap">{new Date(l.createdAt).toLocaleString("id-ID")}</span>
-                <span className="font-semibold text-slate-800">{l.action}</span>
-                <span className="text-slate-600">{l.user}</span>
-                {l.after?.rejectReason && l.action.toLowerCase().includes("reject") && <span className="text-rose-700">{l.after.rejectReason}</span>}
+                <span className="font-semibold text-slate-800">{LOG_LABEL[l.action] || l.action}</span>
+                <span className="text-slate-600 truncate">
+                  {l.user}
+                  {l.action === "document" && l.after?.docType && (
+                    <span className="text-slate-500">
+                      {" · "}
+                      {DOC_LABEL[l.after.docType as TPODocType] || l.after.docType} {l.after.checked ? "✓" : "✗"}
+                      {l.after.file ? ` · ${l.after.file}` : ""}
+                    </span>
+                  )}
+                  {l.action === "reject" && l.after?.rejectReason && <span className="text-rose-700"> · {l.after.rejectReason}</span>}
+                </span>
               </div>
             ))}
           </div>
-        </div>
+        </details>
       </div>
     </Modal>
   );
@@ -302,7 +357,7 @@ function VerifyForm({ req, mappings, busy, onCancel, onSubmit }: { req: TPOReque
     <div className="border border-emerald-200 bg-emerald-50 rounded-[3px] p-3 space-y-3">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <Field label="DPP">
-          <input type="number" step="0.01" value={f.subtotalAmount} onChange={(e) => set({ subtotalAmount: e.target.value })} className={`${inputCls} text-right font-mono`} />
+          <AmountInput value={f.subtotalAmount} onChange={(v) => set({ subtotalAmount: v })} />
         </Field>
         <Field label="PPN">
           <div className="px-2 py-1.5 border border-slate-200 bg-white rounded-[3px] text-right font-mono">{formatCurrency(fromCents(vat))}</div>
@@ -321,7 +376,7 @@ function VerifyForm({ req, mappings, busy, onCancel, onSubmit }: { req: TPOReque
           </select>
         </Field>
         <Field label="Nominal PPh">
-          <input type="number" step="0.01" disabled={!f.pphType} value={f.pphType ? f.pphAmount : "0"} onChange={(e) => set({ pphAmount: e.target.value })} className={`${inputCls} text-right font-mono`} />
+          <AmountInput disabled={!f.pphType} value={f.pphType ? f.pphAmount : "0"} onChange={(v) => set({ pphAmount: v })} />
         </Field>
         <Field label="Total Bayar">
           <div className="px-2 py-1.5 border border-slate-200 bg-white rounded-[3px] text-right font-mono font-bold">{formatCurrency(fromCents(total - pph))}</div>
