@@ -3,7 +3,7 @@ import { Loader2, Search } from "lucide-react";
 import { api } from "../../lib/api";
 import { formatCurrency } from "../../lib/format";
 import type { AccountMapping, TPOLookup, TPOPurchaseOrder, TPORequest } from "./types";
-import { Field, Modal, btnPrimary, btnSecondary, cents, fromCents, inputCls } from "./shared";
+import { AmountInput, Field, Modal, VendorBank, btnPrimary, btnSecondary, cents, fromCents, inputCls } from "./shared";
 
 type Props = {
   editing?: TPORequest | null;
@@ -68,7 +68,6 @@ export function RequestFormModal({ editing, mappings, onClose, onSaved, onError 
   // The edited request is already counted in requestedTotal unless it was rejected.
   const remaining = lookup ? cents(lookup.remaining) + (editing && editing.status !== "rejected" ? cents(editing.totalAmount) : 0) : 0;
   const vendor = lookup?.vendor || lookup?.purchaseOrder.vendor;
-  const bankOk = !!vendor?.bankVerifiedAt && !vendor?.pendingAccountNumber;
 
   const save = async (submit: boolean) => {
     if (!lookup) return;
@@ -138,15 +137,14 @@ export function RequestFormModal({ editing, mappings, onClose, onSaved, onError 
             <Info label="Total PO" value={formatCurrency(po.totalAmount)} />
             <Info label="Sudah Diajukan" value={formatCurrency(lookup!.requestedTotal)} />
             <Info label="Sisa" value={formatCurrency(fromCents(remaining))} strong />
-            <Info
-              label="Rekening Vendor"
-              value={
-                <span className={bankOk ? "" : "text-rose-700"}>
-                  {vendor?.bankName || "-"} {vendor?.accountNumber || ""} {vendor?.accountName ? `a.n. ${vendor.accountName}` : ""}
-                  {!bankOk && <span className="ml-1 font-bold">(belum terverifikasi)</span>}
-                </span>
-              }
-            />
+            {vendor && (
+              <div className="col-span-2 md:col-span-4">
+                <Info
+                  label="Rekening Vendor"
+                  value={<VendorBank vendor={vendor} canEdit onChanged={(v) => v && setLookup((l) => l && { ...l, vendor: v })} onError={onError} />}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -171,10 +169,10 @@ export function RequestFormModal({ editing, mappings, onClose, onSaved, onError 
               </Field>
             </div>
             <Field label="DPP">
-              <input type="number" step="0.01" value={form.subtotalAmount} onChange={(e) => set({ subtotalAmount: e.target.value })} className={`${inputCls} text-right font-mono`} />
+              <AmountInput value={form.subtotalAmount} onChange={(v) => set({ subtotalAmount: v })} />
             </Field>
             <Field label="PPN">
-              <input type="number" step="0.01" value={form.vatAmount} onChange={(e) => set({ vatAmount: e.target.value })} className={`${inputCls} text-right font-mono`} />
+              <AmountInput value={form.vatAmount} onChange={(v) => set({ vatAmount: v })} />
             </Field>
             <Field label="Total">
               <div className={`px-2 py-1.5 border rounded-[3px] text-right font-mono font-bold ${total > remaining ? "border-rose-300 bg-rose-50 text-rose-700" : "border-slate-200 bg-slate-50 text-slate-900"}`}>

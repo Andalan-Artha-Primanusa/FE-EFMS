@@ -8,14 +8,19 @@ import { pendingAmount } from "./modals/PendingVolumeRecordModal";
 import { formatIDR, getBAInvoiceStatus, getBAStatusForExport, getCustomerOfficialName, parsePeriodToMonthIndex } from "./helpers";
 
 export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
+  const printWin = window.open("", "_blank", "width=1000,height=800");
+  if (!printWin) return;
+  printWin.document.write(buildInvoiceHTML(ctx, itemData));
+  printWin.document.close();
+}
+
+// HTML invoice dipakai bersama oleh preview (DetailModal) dan cetak agar tampilannya identik.
+export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { 
+  const {
     formData, rfIndexCalculated, customerContractMap, getItemEffectiveVolume,
     getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations, baRows, buildInvoiceItemsFromBA
   } = ctx;
-    const printWin = window.open("", "_blank", "width=1000,height=800");
-    if (!printWin) return;
-
     const custCode = (itemData?.customerCode || formData?.customerCode || "").toUpperCase();
     const formattedDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
     const logoUrl = `${window.location.origin}/andalan-logo.png`;
@@ -441,10 +446,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
         <div style="margin-top: 10px; margin-bottom: 6px;">
           <table class="main-table" style="margin-bottom: 0;">
             <thead>
-              <tr class="sec-hdr">
-                <th colspan="4" style="text-align: left; padding: 4px 6px;">BLOK 2: TABEL KHUSUS PENGURANG PEMBAYARAN (DENDA & BBM)</th>
-              </tr>
-              <tr style="background: #f8fafc;">
+              <tr>
                 <th width="45%" style="text-align: left;">PENGURANG PEMBAYARAN</th>
                 <th width="20%" style="text-align: center;">CLAIMED UNIT</th>
                 <th width="15%" style="text-align: right;">UNIT RATE (IDR)</th>
@@ -466,18 +468,12 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
                 <td colspan="3"><strong>TOTAL PENGURANG PEMBAYARAN</strong></td>
                 <td class="text-right font-mono font-bold">(${Math.abs(c.subtotalP).toLocaleString("id-ID")})</td>
               </tr>
+              <tr class="net-row">
+                <td colspan="3"><strong>TOTAL DIBAYAR</strong></td>
+                <td class="text-right net-val font-mono"><strong>${c.totalDibayar.toLocaleString("id-ID")}</strong></td>
+              </tr>
             </tfoot>
           </table>
-        </div>
-
-        <div style="margin-top: 6px; margin-bottom: 8px; border: 1.5px solid #0f172a; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
-          <div>
-            <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #0f172a;">BLOK 3: TOTAL DIBAYAR (KAS BERSIH DITERIMA)</div>
-            <div style="font-size: 8.5px; color: #475569;">TOTAL INVOICE (Rp ${c.totalInvoice.toLocaleString("id-ID")}) - PENGURANG PEMBAYARAN (Rp ${Math.abs(c.subtotalP).toLocaleString("id-ID")})</div>
-          </div>
-          <div style="font-size: 13px; font-weight: 900; color: #0f172a; font-family: monospace;">
-            Rp ${c.totalDibayar.toLocaleString("id-ID")}
-          </div>
         </div>
       `;
     } else {
@@ -655,10 +651,11 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
           .btn-print { background: #A57C50; color: white; border: none; padding: 7px 16px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
           .btn-print:hover { background: #8e6941; }
           @media print { .btn-print { display: none; } body { padding: 0; } .page-container { min-height: auto; } }
+          ${preview ? ".page-container { min-height: auto; }" : ""}
         </style>
       </head>
       <body>
-        <button class="btn-print" onclick="window.print()">Cetak / Simpan PDF Dokumen Official (1 Halaman A4)</button>
+        ${preview ? "" : `<button class="btn-print" onclick="window.print()">Cetak / Simpan PDF Dokumen Official (1 Halaman A4)</button>`}
 
         <div class="page-container">
           <div>
@@ -760,8 +757,7 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
       </html>
     `;
 
-    printWin.document.write(htmlContent);
-    printWin.document.close();
+    return htmlContent;
 }
 
 export function exportARBAIMonitoringExcelImpl(ctx: any) {

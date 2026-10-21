@@ -1,5 +1,5 @@
 import React from "react";
-import { TrendingUp, ShieldCheck, Calculator } from "lucide-react";
+import { TrendingUp, ShieldCheck } from "lucide-react";
 import { formatIDR } from "../helpers";
 
 interface InvoiceCommercialBreakdownProps {
@@ -7,15 +7,13 @@ interface InvoiceCommercialBreakdownProps {
   rfIndexCalculated: number;
   detailData: any;
   cCalc: any;
-  cInfo: any;
 }
 
 export const InvoiceCommercialBreakdown: React.FC<InvoiceCommercialBreakdownProps> = ({
   viewCustCode,
   rfIndexCalculated,
   detailData,
-  cCalc,
-  cInfo
+  cCalc
 }) => {
   if (viewCustCode === "BGG" || viewCustCode === "POS") {
     return (
@@ -94,14 +92,5 @@ export const InvoiceCommercialBreakdown: React.FC<InvoiceCommercialBreakdownProp
     );
   }
 
-  return (
-    <div className="pt-2 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px]">
-      <div className="font-mono text-slate-600 space-y-0.5">
-        <span className="font-bold text-slate-800 flex items-center gap-1">
-          <Calculator size={12} className="text-cyan-700" /> Parameter Acuan & Basis Tagihan:
-        </span>
-        <p className="text-[10px] text-slate-600">Site: <strong>{viewCustCode}</strong> | Basis Kontrak: <strong>{cInfo?.contractNo || "Kontrak Aktif"}</strong> | Overhaul Basis: <strong>{cInfo?.overhaulBasis || "1.000m"}</strong></p>
-      </div>
-    </div>
-  );
+  return null;
 };

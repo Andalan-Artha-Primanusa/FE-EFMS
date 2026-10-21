@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { CheckCircle2, Circle, Paperclip, X } from "lucide-react";
 import { api, API_BASE } from "../../lib/api";
 import type { AccountMapping, TPODocType, TPODocument, TPORequest, TPOStatus } from "./types";
+import type { TreasuryVendor } from "../treasury/types";
 
 export const STATUS_LABEL: Record<TPOStatus, string> = {
   draft: "Draft",
@@ -184,5 +185,132 @@ export function DocToggle({
         )
       )}
     </span>
+  );
+}
+
+// Vendor bank account (maker-checker): a change is staged and becomes active only after another user verifies it.
+export function VendorBank({
+  vendor,
+  userId,
+  canEdit,
+  canVerify,
+  onChanged,
+  onError,
+}: {
+  vendor: TreasuryVendor;
+  userId?: number;
+  canEdit: boolean;
+  canVerify?: boolean;
+  onChanged: (v?: TreasuryVendor) => void;
+  onError: (msg: string) => void;
+}) {
+  const [edit, setEdit] = useState<{ bankName: string; accountNumber: string; accountName: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const pending = !!vendor.pendingAccountNumber;
+  const verified = !!vendor.bankVerifiedAt && !pending;
+  const canApprove = !!canVerify && (pending ? vendor.bankChangeRequestedBy !== userId : !vendor.bankVerifiedAt && !!vendor.accountNumber);
+  const link = "font-bold underline cursor-pointer disabled:opacity-50";
+
+  const run = async (path: string, init: RequestInit) => {
+    setBusy(true);
+    try {
+      const r = await api<{ success: boolean; vendor?: TreasuryVendor }>(`/api/tunai-po/vendors/${vendor.id}${path}`, init);
+      setEdit(null);
+      onChanged(r.vendor);
+    } catch (e: any) {
+      onError(e.message || "Gagal memproses rekening");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const verify = (approve: boolean) => run("/verify-bank", { method: "POST", body: JSON.stringify({ approve }) });
+
+  if (edit) {
+    return (
+      <div className="grid grid-cols-3 gap-2">
+        <input value={edit.bankName} onChange={(e) => setEdit({ ...edit, bankName: e.target.value })} placeholder="Bank" className={inputCls} />
+        <input value={edit.accountNumber} onChange={(e) => setEdit({ ...edit, accountNumber: e.target.value })} placeholder="No. Rekening" className={`${inputCls} font-mono`} />
+        <input value={edit.accountName} onChange={(e) => setEdit({ ...edit, accountName: e.target.value })} placeholder="Atas Nama" className={inputCls} />
+        <div className="col-span-3 flex justify-end gap-2">
+          <button type="button" onClick={() => setEdit(null)} className={btnSecondary}>
+            Batal
+          </button>
+          <button
+            type="button"
+            disabled={busy || !edit.bankName.trim() || !edit.accountNumber.trim() || !edit.accountName.trim()}
+            onClick={() => run("/bank", { method: "PUT", body: JSON.stringify(edit) })}
+            className={btnPrimary}
+          >
+            Ajukan Perubahan
+          </button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-0.5">
+      <div className={verified ? "" : "text-rose-700"}>
+        {vendor.bankName || "-"} {vendor.accountNumber || ""} {vendor.accountName ? `a.n. ${vendor.accountName}` : ""}
+        {!vendor.bankVerifiedAt && <span className="ml-1 font-bold">(belum terverifikasi)</span>}
+      </div>
+      {pending && (
+        <div className="text-rose-700">
+          Menunggu verifikasi: {vendor.pendingBankName} {vendor.pendingAccountNumber} a.n. {vendor.pendingAccountName}
+        </div>
+      )}
+      <div className="flex gap-3 text-[10px]">
+        {canEdit && (
+          <button
+            type="button"
+            className={`${link} text-blue-700`}
+            onClick={() =>
+              setEdit({
+                bankName: vendor.pendingBankName || vendor.bankName || "",
+                accountNumber: vendor.pendingAccountNumber || vendor.accountNumber || "",
+                accountName: vendor.pendingAccountName || vendor.accountName || "",
+              })
+            }
+          >
+            Ubah
+          </button>
+        )}
+        {canApprove && (
+          <button
+            type="button"
+            disabled={busy}
+            className={`${link} text-emerald-700`}
+            onClick={() => {
+              const b = pending ? [vendor.pendingBankName, vendor.pendingAccountNumber, vendor.pendingAccountName] : [vendor.bankName, vendor.accountNumber, vendor.accountName];
+              if (window.confirm(`Verifikasi rekening ${b[0]} ${b[1]} a.n. ${b[2]} untuk ${vendor.name}? Pastikan sudah dikonfirmasi ke vendor (call-back).`)) verify(true);
+            }}
+          >
+            Verifikasi
+          </button>
+        )}
+        {canApprove && pending && (
+          <button type="button" disabled={busy} className={`${link} text-rose-700`} onClick={() => verify(false)}>
+            Tolak
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Amount input shown with id-ID separators (1.234.567,89); value and onChange use a plain "1234567.89" string.
+export function AmountInput({ value, onChange, disabled }: { value: string; onChange: (v: string) => void; disabled?: boolean }) {
+  const [int, dec] = String(value ?? "").split(".");
+  const shown = int === "" && dec === undefined ? "" : `${(Number(int) || 0).toLocaleString("id-ID")}${dec !== undefined ? `,${dec}` : ""}`;
+  return (
+    <input
+      inputMode="decimal"
+      disabled={disabled}
+      value={shown}
+      onChange={(e) => {
+        const [i, d] = e.target.value.replace(/[^\d,]/g, "").split(",");
+        onChange(d === undefined ? i : `${i}.${d.slice(0, 2)}`);
+      }}
+      className={`${inputCls} text-right font-mono`}
+    />
   );
 }
