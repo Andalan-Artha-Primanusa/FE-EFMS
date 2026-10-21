@@ -2,6 +2,8 @@ import type { TreasuryPurchaseOrder, TreasuryVendor } from "../treasury/types";
 
 export type TPOStatus = "draft" | "submitted" | "rejected" | "verified" | "in_voucher" | "paid" | "posted";
 export type TPODocType = "PO" | "PI_SOFT" | "PI_ASLI" | "FAKTUR_PAJAK" | "BAST" | "GR";
+// Fuel uses the Tunai PO flow with its own voucher type.
+export type TPOKind = "TUNAI_PO" | "FUEL";
 
 export interface TPODocument {
   id: number;
@@ -19,6 +21,7 @@ export interface TPODocument {
 export interface TPORequest {
   id: number;
   purchaseOrderId: number;
+  kind: TPOKind;
   poNo: string;
   vendorId: number;
   vendor?: TreasuryVendor;
@@ -79,7 +82,7 @@ export interface TPOLookup {
 
 export interface AccountMapping {
   id: number;
-  kind: "DP" | "PPH";
+  kind: string;
   code: string;
   name: string;
   accurateAccountNo: string;

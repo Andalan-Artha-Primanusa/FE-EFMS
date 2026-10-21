@@ -8,6 +8,7 @@ import { PaymentCustomerDetailSheet } from "./details/PaymentCustomerDetailSheet
 import { DetailPaymentTracker } from "./details/DetailPaymentTracker";
 import { DetailAuditTimeline } from "./details/DetailAuditTimeline";
 import { DetailModalActions } from "./details/DetailModalActions";
+import { AccuratePostingPanel } from "./details/AccuratePostingPanel";
 
 export function DetailModal({ c }: { c: any }) {
   const {
@@ -107,19 +108,6 @@ export function DetailModal({ c }: { c: any }) {
               )}
 
               {type === "invoice" && (
-                <InvoiceBillingPanel
-                  data={data}
-                  canEdit={can("invoice", "write")}
-                  canAlterPosted={canApproveInvoice || !INVOICE_LOCKED.has(data.status)}
-                  onNotice={onNotice}
-                  onSaved={(updated) => {
-                    setDetailViewItem({ type: "invoice", data: { ...data, ...(updated || {}) } });
-                    loadData?.();
-                  }}
-                />
-              )}
-
-              {type === "invoice" && (
                 <InvoiceDetailSheet
                   data={data}
                   baRows={baRows}
@@ -150,6 +138,32 @@ export function DetailModal({ c }: { c: any }) {
                   setPartialPaymentForm={setPartialPaymentForm}
                   handleSavePartialPayment={handleSavePartialPayment}
                   handleVerifyPartialPayment={can("payment", "verify") ? handleVerifyPartialPayment : undefined}
+                />
+              )}
+
+              {type === "invoice" && (
+                <InvoiceBillingPanel
+                  data={data}
+                  canEdit={can("invoice", "write")}
+                  canAlterPosted={canApproveInvoice || !INVOICE_LOCKED.has(data.status)}
+                  onNotice={onNotice}
+                  onSaved={(updated) => {
+                    setDetailViewItem({ type: "invoice", data: { ...data, ...(updated || {}) } });
+                    loadData?.();
+                  }}
+                />
+              )}
+
+              {((type === "ba" && (data.verifiedBy || data.accurate)) || (type === "invoice" && (INVOICE_LOCKED.has(data.status) || data.accurate))) && (
+                <AccuratePostingPanel
+                  type={type}
+                  data={data}
+                  canSync={type === "ba" ? canVerifyBA && Boolean(data.verifiedBy) : canApproveInvoice && INVOICE_LOCKED.has(data.status)}
+                  onNotice={onNotice}
+                  onSaved={(updated) => {
+                    if (updated) setDetailViewItem({ type, data: { ...data, ...updated } });
+                    loadData?.();
+                  }}
                 />
               )}
 

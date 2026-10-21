@@ -280,6 +280,22 @@ export function useTreasuryController(onNotice?: (msg: string) => void, user?: U
     }
   };
 
+  // Non-PO voucher (typed-in payee + Accurate account lines). Returns whether it was saved.
+  const handleCreateNonPO = async (body: Record<string, unknown>) => {
+    try {
+      const res = await api<{ success: boolean; message: string }>("/api/treasury/vouchers/non-po", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      onNotice?.(res.message || "Voucher dibuat");
+      fetchPlans();
+      return true;
+    } catch (e: any) {
+      onNotice?.(e.message || "Gagal membuat voucher");
+      return false;
+    }
+  };
+
   // Approve Plan. Invoices flagged as possible duplicate bills need an explicit confirmation by the approver.
   const handleApprovePlan = async (id: number, confirmDuplicates = false) => {
     try {
@@ -317,6 +333,28 @@ export function useTreasuryController(onNotice?: (msg: string) => void, user?: U
     postAction(`/api/treasury/payment-plans/${id}/review`, { note }, "Review tersimpan");
   const handlePostToAccurate = (id: number) =>
     postAction(`/api/treasury/payment-plans/${id}/post-accurate`, {}, "Pembayaran diposting ke Accurate");
+  // Posts vouchers one by one, then refreshes once and reports a single summary.
+  const handlePostManyToAccurate = async (plansToPost: PaymentPlan[]) => {
+    const failed: string[] = [];
+    for (const p of plansToPost) {
+      try {
+        await api(`/api/treasury/payment-plans/${p.id}/post-accurate`, { method: "POST", body: "{}" });
+      } catch (e: any) {
+        failed.push(`${p.voucherNo}: ${e.message || "gagal"}`);
+      }
+    }
+    onNotice?.(`${plansToPost.length - failed.length} voucher terposting${failed.length ? `, ${failed.length} gagal — ${failed.join("; ")}` : ""}`);
+    refreshAll();
+  };
+  const handleCancelPaymentProof = async (id: number) => {
+    try {
+      await api(`/api/treasury/payment-plans/${id}/payment-proof`, { method: "DELETE" });
+      onNotice?.("Bukti bayar dibatalkan");
+    } catch (e: any) {
+      onNotice?.(e.message || "Gagal membatalkan bukti bayar");
+    }
+    refreshAll();
+  };
   const handleManualMatch = (transactionId: number, planId: number, note: string) =>
     postAction("/api/treasury/reconciliation/manual-match", { transactionId, planId, note }, "Mutasi dicocokkan");
   const handleVerifyVendorBank = (id: number, approve: boolean) =>
@@ -538,6 +576,8 @@ export function useTreasuryController(onNotice?: (msg: string) => void, user?: U
     handleVoidPlan,
     handleReviewPlan,
     handlePostToAccurate,
+    handlePostManyToAccurate,
+    handleCancelPaymentProof,
     handleManualMatch,
     handleVerifyVendorBank,
     activeTab,
@@ -573,6 +613,7 @@ export function useTreasuryController(onNotice?: (msg: string) => void, user?: U
     refreshAll,
     fetchInvoices,
     handleCreatePlan,
+    handleCreateNonPO,
     handleApprovePlan,
     handleRejectPlan,
     handleExportKopra,

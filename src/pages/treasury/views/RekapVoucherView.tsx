@@ -24,7 +24,7 @@ type RekapVoucher = {
   postedAt?: string | null;
 };
 
-const TYPES = ["AP", "TPO", "NPO", "LSG", "LOAN", "OTH"];
+const TYPES = ["AP", "TPO", "FUEL", "NPO", "ASR", "INF", "LSG", "LOAN", "OTH"];
 const STATUSES = ["draft", "printed_for_signature", "approved", "exported", "reconciled", "posted", "rejected", "void"];
 
 export default function RekapVoucherView() {

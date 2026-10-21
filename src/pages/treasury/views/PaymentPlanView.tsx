@@ -18,14 +18,23 @@ import {
 } from "lucide-react";
 import { formatCurrency, formatDate } from "../../../lib/format";
 import { downloadFile, type useTreasuryController } from "../useTreasuryController";
-import type { PaymentPlan } from "../types";
+import { VOUCHER_CATEGORIES, type PaymentPlan } from "../types";
 import { VoucherPaymentOfficialPrint } from "../components/VoucherPaymentOfficialPrint";
+import { PrintableSummaryModal } from "../components/PrintableSummaryModal";
+import { NonPOVoucherModal } from "../modals/NonPOVoucherModal";
 
 type Props = {
   c: ReturnType<typeof useTreasuryController>;
+  // Set on a category menu (Tunai Non PO, Asuransi, Infrastruktur): list only that category and create its vouchers.
+  category?: string;
 };
 
-export function PaymentPlanView({ c }: Props) {
+// Paid (proof uploaded) but not yet in Accurate: what "Sync ke Accurate" posts.
+const isPostable = (p: PaymentPlan) => !!p.paidAt && ["approved", "exported", "reconciled"].includes(p.status);
+// Only verified vouchers go on the Summary Payment signed by the directors.
+const isSummarizable = (p: PaymentPlan) => !["draft", "printed_for_signature", "rejected", "void"].includes(p.status);
+
+export function PaymentPlanView({ c, category }: Props) {
   const {
     plans,
     companyBanks,
@@ -35,6 +44,8 @@ export function PaymentPlanView({ c }: Props) {
     handleVoidPlan,
     handleReviewPlan,
     handlePostToAccurate,
+    handlePostManyToAccurate,
+    handleCancelPaymentProof,
     canWrite,
     canApprove,
     isMaker,
@@ -62,6 +73,23 @@ export function PaymentPlanView({ c }: Props) {
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectModal, setShowRejectModal] = useState<number | null>(null);
   const [activePrintOfficialVoucher, setActivePrintOfficialVoucher] = useState<any | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [checkedIds, setCheckedIds] = useState<number[]>([]);
+  const [summaryPlans, setSummaryPlans] = useState<PaymentPlan[] | null>(null);
+  const [showNonPO, setShowNonPO] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  const toggleChecked = (id: number) =>
+    setCheckedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const syncTodo = plans.filter((p) => isPostable(p) && !isMaker(p) && !p.needsReview);
+  const syncToAccurate = async () => {
+    if (!syncTodo.length) return alert("Tidak ada voucher terbayar yang belum diposting.");
+    if (!window.confirm(`Posting ${syncTodo.length} voucher terbayar ke Accurate?`)) return;
+    setSyncing(true);
+    await handlePostManyToAccurate(syncTodo);
+    setSyncing(false);
+  };
 
   const handleOpenOfficialVoucherPrint = (plan: PaymentPlan, filterVendorId?: number, filterSite?: string) => {
     const items = plan.items || [];
@@ -85,13 +113,13 @@ export function PaymentPlanView({ c }: Props) {
     }>();
 
     targetItems.forEach((it) => {
-      const invSite = (it.invoice?.site || it.tunaiPoRequest?.site || "HO").trim().toUpperCase();
+      const invSite = (it.invoice?.site || it.tunaiPoRequest?.site || plan.site || "HO").trim().toUpperCase();
       const v = it.vendor || {
         id: it.vendorId,
-        name: "Vendor Tagihan",
-        bankName: "",
-        accountNumber: "",
-        accountName: "",
+        name: plan.payeeName || "Vendor Tagihan",
+        bankName: plan.payeeBankName || "",
+        accountNumber: plan.payeeAccountNumber || "",
+        accountName: plan.payeeAccountName || "",
       };
       const key = `${invSite}|${v.id || v.name}`;
 
@@ -115,9 +143,9 @@ export function PaymentPlanView({ c }: Props) {
       const invObj = it.invoice ? it.invoice : {
         id: it.invoiceId || 0,
         invoiceNo: it.remarks || `INV-${it.id}`,
-        poNo: it.remarks || "-",
+        poNo: it.accountNo ? "-" : it.remarks || "-",
         site: invSite,
-        coaName: "HUTANG USAHA",
+        coaName: it.accountNo || "HUTANG USAHA",
         itemDescription: it.remarks || "Pembayaran Tagihan",
         totalAmount: it.amountPaid,
         remainingBalance: it.amountPaid,
@@ -133,7 +161,7 @@ export function PaymentPlanView({ c }: Props) {
         voucherNo: vNo,
         voucherDate: plan.voucherDate ? formatDate(plan.voucherDate) : new Date().toISOString().slice(0, 10),
         site: grp.site,
-        category: plan.category || "ACCOUNT PAYABLE (AP)",
+        category: VOUCHER_CATEGORIES[plan.category] || plan.category || "ACCOUNT PAYABLE (AP)",
         vendor: grp.vendor,
         invoices: grp.invoices,
         totalAmount: grp.totalAmount,
@@ -146,13 +174,15 @@ export function PaymentPlanView({ c }: Props) {
   };
 
   const filteredPlans = plans.filter((p) => {
+    if ((category || categoryFilter) && p.category !== (category || categoryFilter)) return false;
     if (statusFilter && p.status !== statusFilter) return false;
     if (bankFilter && p.companyBankId !== bankFilter) return false;
     if (search) {
       const q = search.toLowerCase();
       return (
         p.voucherNo.toLowerCase().includes(q) ||
-        (p.justification && p.justification.toLowerCase().includes(q))
+        (p.justification && p.justification.toLowerCase().includes(q)) ||
+        (p.payeeName || "").toLowerCase().includes(q)
       );
     }
     return true;
@@ -163,7 +193,7 @@ export function PaymentPlanView({ c }: Props) {
       case "approved":
         return (
           <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-            Approved
+            Terverifikasi
           </span>
         );
       case "exported":
@@ -205,11 +235,15 @@ export function PaymentPlanView({ c }: Props) {
       default:
         return (
           <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-            Draft (Pending Approval)
+            Draft
           </span>
         );
     }
   };
+
+  // Summary uses only what is visible and verified, so a hidden or rejected voucher never reaches the directors.
+  const selectable = filteredPlans.filter(isSummarizable);
+  const summaryCandidates = selectable.filter((p) => checkedIds.includes(p.id));
 
   const totalPlansAmount = filteredPlans.reduce(
     (sum, p) => sum + Number(p.totalAmount || 0),
@@ -238,14 +272,29 @@ export function PaymentPlanView({ c }: Props) {
             className="text-xs border border-slate-300 rounded px-2.5 py-1.5 bg-white text-slate-700"
           >
             <option value="">Semua Status</option>
-            <option value="draft">Draft / Pending</option>
-            <option value="approved">Approved</option>
+            <option value="draft">Draft</option>
+            <option value="approved">Terverifikasi</option>
             <option value="exported">Exported Kopra</option>
             <option value="reconciled">Reconciled</option>
             <option value="posted">Posted Accurate</option>
             <option value="rejected">Rejected</option>
             <option value="void">Void</option>
           </select>
+
+          {!category && (
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="text-xs border border-slate-300 rounded px-2.5 py-1.5 bg-white text-slate-700"
+            >
+              <option value="">Semua Kategori</option>
+              {Object.entries(VOUCHER_CATEGORIES).map(([k, label]) => (
+                <option key={k} value={k}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          )}
 
           <select
             value={bankFilter}
@@ -270,12 +319,29 @@ export function PaymentPlanView({ c }: Props) {
         </div>
 
         <div className="flex items-center gap-3">
+          {summaryCandidates.length > 0 && (
+            <button
+              onClick={() => setSummaryPlans(summaryCandidates)}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-stone-800 bg-white border border-stone-300 hover:bg-stone-50 rounded-[3px] shadow-2xs transition cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5" /> Summary Payment ({summaryCandidates.length})
+            </button>
+          )}
+          {!category && canApprove && (
+            <button
+              onClick={syncToAccurate}
+              disabled={syncing}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-teal-800 bg-teal-50 border border-teal-200 hover:bg-teal-100 disabled:opacity-60 rounded-[3px] shadow-2xs transition cursor-pointer"
+            >
+              <Landmark className={`w-3.5 h-3.5 ${syncing ? "animate-pulse" : ""}`} /> Sync ke Accurate ({syncTodo.length})
+            </button>
+          )}
           {canWrite && (
             <button
-              onClick={() => setShowCreatePlanModal(true)}
+              onClick={() => (category ? setShowNonPO(true) : setShowCreatePlanModal(true))}
               className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-white bg-[#A57C50] hover:bg-[#8e6941] rounded-[3px] shadow-2xs transition cursor-pointer"
             >
-              <Plus className="w-3.5 h-3.5" /> Voucher Tunai PO
+              <Plus className="w-3.5 h-3.5" /> {category ? `Voucher ${VOUCHER_CATEGORIES[category]}` : "Voucher Tunai PO / Fuel"}
             </button>
           )}
           <div className="text-xs text-slate-500 font-medium">
@@ -290,6 +356,14 @@ export function PaymentPlanView({ c }: Props) {
           <table className="w-full text-left text-xs border-collapse">
             <thead className="sticky top-0 z-20 shadow-xs">
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold uppercase tracking-wider">
+                <th className="p-2.5 w-8">
+                  <input
+                    type="checkbox"
+                    className="accent-[#A57C50]"
+                    checked={selectable.length > 0 && selectable.every((p) => checkedIds.includes(p.id))}
+                    onChange={(e) => setCheckedIds(e.target.checked ? selectable.map((p) => p.id) : [])}
+                  />
+                </th>
                 <th className="p-2.5">No. Voucher (RAB)</th>
                 <th className="p-2.5">Tanggal</th>
                 <th className="p-2.5">Bank Sumber</th>
@@ -303,8 +377,8 @@ export function PaymentPlanView({ c }: Props) {
             <tbody className="divide-y divide-slate-100">
               {filteredPlans.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-400">
-                    Belum ada voucher pengajuan. Buat pengajuan baru dari tab AP Invoices &amp; Aging.
+                  <td colSpan={9} className="p-8 text-center text-slate-400">
+                    Belum ada voucher
                   </td>
                 </tr>
               ) : (
@@ -316,6 +390,15 @@ export function PaymentPlanView({ c }: Props) {
                   return (
                     <React.Fragment key={plan.id}>
                       <tr className={`hover:bg-slate-50/80 transition ${isExpanded ? "bg-amber-50/40" : ""}`}>
+                        <td className="p-2.5">
+                          <input
+                            type="checkbox"
+                            className="accent-[#A57C50]"
+                            checked={checkedIds.includes(plan.id)}
+                            disabled={!isSummarizable(plan)}
+                            onChange={() => toggleChecked(plan.id)}
+                          />
+                        </td>
                         {/* No Voucher with Accordion Toggle */}
                         <td className="p-2.5">
                           <div
@@ -356,8 +439,11 @@ export function PaymentPlanView({ c }: Props) {
                         <td className="p-2.5 max-w-xs">
                           <div className="flex items-center gap-1.5 flex-wrap mb-1">
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700">
-                              {plan.category}
+                              {VOUCHER_CATEGORIES[plan.category] || plan.category}
                             </span>
+                            {plan.payeeName && (
+                              <span className="text-[11px] font-semibold text-slate-800">{plan.payeeName}</span>
+                            )}
                             {plan.planMonth && (
                               <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
                                 {plan.planMonth} (W{plan.planWeek || 1})
@@ -373,7 +459,7 @@ export function PaymentPlanView({ c }: Props) {
 
                         <td className="p-2.5 text-center">
                           <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
-                            {itemCount} Tagihan ({uniqueVendors} Vendor)
+                            {plan.payeeName ? `${itemCount} Baris` : `${itemCount} Tagihan (${uniqueVendors} Vendor)`}
                           </span>
                         </td>
 
@@ -447,12 +533,12 @@ export function PaymentPlanView({ c }: Props) {
                                 onClick={() => handleApprovePlan(plan.id)}
                                 disabled={plan.needsReview}
                                 className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 disabled:opacity-50 transition"
-                                title="Approve Pengajuan"
+                                title="Verifikasi Voucher"
                               >
-                                <CheckCircle2 className="w-3 h-3" /> Approve
+                                <CheckCircle2 className="w-3 h-3" /> Verifikasi
                               </button>
                             )}
-                            {(plan.status === "draft" || plan.status === "printed_for_signature" || plan.status === "approved") && canApprove && (
+                            {(plan.status === "draft" || plan.status === "printed_for_signature" || plan.status === "approved") && !plan.paidAt && canApprove && (
                               <button
                                 onClick={() => setShowRejectModal(plan.id)}
                                 className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded hover:bg-rose-100 transition"
@@ -515,15 +601,30 @@ export function PaymentPlanView({ c }: Props) {
                               </label>
                             )}
 
-                            {/* Write-back to Accurate after bank reconciliation */}
-                            {plan.status === "reconciled" && canApprove && !isMaker(plan) && (
+                            {/* A proof uploaded by mistake (transfer failed) can be withdrawn until posted */}
+                            {isPostable(plan) && canWrite && (
                               <button
                                 onClick={() => {
-                                  if (window.confirm(`Buat Pembayaran Pembelian di Accurate untuk voucher ${plan.voucherNo}?`)) {
+                                  if (window.confirm(`Batalkan bukti bayar voucher ${plan.voucherNo}?`)) {
+                                    handleCancelPaymentProof(plan.id);
+                                  }
+                                }}
+                                disabled={syncing}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-rose-700 bg-white border border-rose-200 rounded hover:bg-rose-50 disabled:opacity-50 transition"
+                              >
+                                <XCircle className="w-3 h-3" /> Batalkan Bukti
+                              </button>
+                            )}
+
+                            {/* Write-back to Accurate once paid (payment proof uploaded) */}
+                            {isPostable(plan) && canApprove && !isMaker(plan) && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Posting voucher ${plan.voucherNo} ke Accurate?`)) {
                                     handlePostToAccurate(plan.id);
                                   }
                                 }}
-                                disabled={plan.needsReview}
+                                disabled={plan.needsReview || syncing}
                                 className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-teal-700 bg-teal-50 border border-teal-200 rounded hover:bg-teal-100 disabled:opacity-50 transition"
                                 title="Posting pelunasan ke Accurate Online"
                               >
@@ -537,7 +638,7 @@ export function PaymentPlanView({ c }: Props) {
                       {/* Expandable Voucher Items Sub-Row */}
                       {isExpanded && (
                         <tr className="bg-stone-50/70 border-b border-stone-200">
-                          <td colSpan={8} className="p-3 pl-8">
+                          <td colSpan={9} className="p-3 pl-8">
                             <div className="bg-white rounded-[4px] border border-stone-200 shadow-2xs p-3 space-y-2.5">
                               {/* Header details */}
                               <div className="flex items-center justify-between border-b border-stone-200 pb-2">
@@ -545,14 +646,19 @@ export function PaymentPlanView({ c }: Props) {
                                   <span className="font-mono font-bold text-[#A57C50] text-xs">
                                     {plan.voucherNo}
                                   </span>
-                                  {plan.items?.[0]?.invoice?.site && (
+                                  {(plan.items?.[0]?.invoice?.site || plan.site) && (
                                     <span className="px-1.5 py-0.5 rounded-[2px] bg-stone-100 border border-stone-300 font-bold text-[9px] text-stone-700">
-                                      SITE: {plan.items[0].invoice.site}
+                                      SITE: {plan.items?.[0]?.invoice?.site || plan.site}
                                     </span>
                                   )}
                                   <span className="font-bold text-stone-900 text-xs">
-                                    {plan.items?.[0]?.vendor?.name || "VENDOR"}
+                                    {plan.items?.[0]?.vendor?.name || plan.payeeName || "VENDOR"}
                                   </span>
+                                  {plan.payeeAccountNumber && (
+                                    <span className="text-[10px] text-stone-500 font-mono">
+                                      {plan.payeeBankName} {plan.payeeAccountNumber} a.n. {plan.payeeAccountName}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <button
@@ -585,10 +691,10 @@ export function PaymentPlanView({ c }: Props) {
                                           {itemIdx + 1}
                                         </td>
                                         <td className="p-1.5 font-mono font-semibold text-stone-900">
-                                          {inv?.poNo || it.tunaiPoRequest?.poNo || "-"}
+                                          {inv?.poNo || it.tunaiPoRequest?.poNo || it.accountNo || "-"}
                                         </td>
                                         <td className="p-1.5 font-mono text-stone-600">
-                                          {inv?.invoiceNo || it.tunaiPoRequest?.proformaNo || `INV-${it.id}`}
+                                          {inv?.invoiceNo || it.tunaiPoRequest?.proformaNo || (it.accountNo ? "-" : `INV-${it.id}`)}
                                           {inv?.isDownPayment && (
                                             <span className="ml-1 px-1 rounded bg-sky-100 text-sky-800 text-[9px] font-bold">DP</span>
                                           )}
@@ -636,7 +742,7 @@ export function PaymentPlanView({ c }: Props) {
             </tbody>
             <tfoot className="bg-[#1A1612] text-white font-bold border-t-2 border-amber-900/40 sticky bottom-0 z-20 text-[11px] shadow-[0_-4px_12px_rgba(0,0,0,0.3)]">
               <tr className="bg-[#1A1612]">
-                <td colSpan={5} className="p-2.5 text-right font-black uppercase tracking-wider text-stone-300 bg-[#1A1612]">
+                <td colSpan={6} className="p-2.5 text-right font-black uppercase tracking-wider text-stone-300 bg-[#1A1612]">
                   Grand Total ({filteredPlans.length} Pengajuan):
                 </td>
                 <td className="p-2.5 text-right font-mono font-black text-amber-400 text-xs pr-4 whitespace-nowrap bg-[#1A1612]">
@@ -688,7 +794,7 @@ export function PaymentPlanView({ c }: Props) {
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {selectedPlanDetail.items?.map((item, idx) => {
-                    const invSite = item.invoice?.site || item.tunaiPoRequest?.site || "HO";
+                    const invSite = item.invoice?.site || item.tunaiPoRequest?.site || selectedPlanDetail.site || "HO";
                     return (
                       <tr key={item.id} className="hover:bg-slate-50">
                         <td className="p-2 text-slate-500">{idx + 1}</td>
@@ -697,15 +803,15 @@ export function PaymentPlanView({ c }: Props) {
                             {invSite}
                           </span>
                         </td>
-                        <td className="p-2 font-semibold text-slate-800">{item.vendor?.name || "-"}</td>
+                        <td className="p-2 font-semibold text-slate-800">{item.vendor?.name || selectedPlanDetail.payeeName || "-"}</td>
                         <td className="p-2 font-mono">
                           <div>PO: {item.invoice?.poNo || item.tunaiPoRequest?.poNo || "-"}</div>
                           <div className="text-slate-500 text-[10px]">Inv: {item.invoice?.invoiceNo || "-"}</div>
                         </td>
                         <td className="p-2">
-                          <div>{item.vendor?.bankName || "-"}</div>
-                          <div className="font-mono text-[11px] text-slate-600">{item.vendor?.accountNumber}</div>
-                          <div className="text-[10px] text-slate-400">{item.vendor?.accountName}</div>
+                          <div>{item.vendor?.bankName || selectedPlanDetail.payeeBankName || "-"}</div>
+                          <div className="font-mono text-[11px] text-slate-600">{item.vendor?.accountNumber || selectedPlanDetail.payeeAccountNumber}</div>
+                          <div className="text-[10px] text-slate-400">{item.vendor?.accountName || selectedPlanDetail.payeeAccountName}</div>
                         </td>
                         <td className="p-2 text-right text-slate-700 font-medium">
                           {formatCurrency(Number(item.invoice?.totalAmount || item.amountPaid))}
@@ -820,6 +926,9 @@ export function PaymentPlanView({ c }: Props) {
           </div>
         </div>
       )}
+      {summaryPlans && <PrintableSummaryModal plans={summaryPlans} onClose={() => setSummaryPlans(null)} />}
+      {showNonPO && category && <NonPOVoucherModal c={c} category={category} onClose={() => setShowNonPO(false)} />}
+
       {/* 5. Official Voucher Payment Printable Modal */}
       {activePrintOfficialVoucher && (
         <VoucherPaymentOfficialPrint

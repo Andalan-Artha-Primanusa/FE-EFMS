@@ -364,6 +364,13 @@ export function WeeklyPlanningExcelView({ c }: Props) {
             <Calendar className="w-3.5 h-3.5 text-[#A57C50]" /> Set Week (1–4)
           </button>
 
+          <button
+            onClick={() => c.setActiveTab("vendors")}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[3px] border border-stone-300 bg-white hover:bg-stone-50 text-stone-700 font-bold text-xs transition cursor-pointer"
+          >
+            Master Vendor
+          </button>
+
           {/* Create Plan / Voucher */}
           <button
             disabled={selectedInvoiceIds.length === 0}

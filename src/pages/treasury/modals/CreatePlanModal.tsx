@@ -26,10 +26,10 @@ export function CreatePlanModal({ c }: Props) {
     companyBanks[0]?.id || 1
   );
   const [category, setCategory] = useState<string>("AP");
-  // Tunai PO vouchers pay verified requests instead of invoices.
+  // Tunai PO / Fuel vouchers pay verified requests of their kind instead of invoices.
   const [tpoRequests, setTpoRequests] = useState<TunaiPORequest[]>([]);
   const [tpoSelected, setTpoSelected] = useState<number[]>([]);
-  const isTPO = category === "TUNAI_PO";
+  const isTPO = category === "TUNAI_PO" || category === "FUEL";
 
   useEffect(() => {
     if (!showCreatePlanModal) return;
@@ -40,10 +40,11 @@ export function CreatePlanModal({ c }: Props) {
 
   useEffect(() => {
     if (!showCreatePlanModal || !isTPO) return;
-    api<{ success: boolean; requests: TunaiPORequest[] }>("/api/tunai-po/requests?status=verified")
+    setTpoSelected([]);
+    api<{ success: boolean; requests: TunaiPORequest[] }>(`/api/tunai-po/requests?status=verified&kind=${category}`)
       .then((res) => setTpoRequests(res.requests || []))
       .catch(() => setTpoRequests([]));
-  }, [showCreatePlanModal, isTPO]);
+  }, [showCreatePlanModal, isTPO, category]);
 
   if (!showCreatePlanModal) return null;
 
@@ -151,11 +152,8 @@ export function CreatePlanModal({ c }: Props) {
                 className="w-full p-2 border border-stone-300 rounded-[3px] font-semibold text-stone-900 bg-white focus:ring-1 focus:ring-[#A57C50] focus:border-[#A57C50] focus:outline-none text-xs"
               >
                 <option value="AP">AP (Regular Account Payable)</option>
-                <option value="TUNAI_PO">TUNAI PO (Pembayaran Tunai PO)</option>
-                <option value="TUNAI_NON_PO">TUNAI NON PO (Operasional Non-PO)</option>
-                <option value="SOLAR">SOLAR / FUEL</option>
-                <option value="LEASING">LEASING (Cicilan Alat Berat)</option>
-                <option value="PETTY_CASH">PETTY CASH (Kas Kecil)</option>
+                <option value="TUNAI_PO">TUNAI PO</option>
+                <option value="FUEL">FUEL</option>
               </select>
             </div>
           </div>
@@ -164,12 +162,12 @@ export function CreatePlanModal({ c }: Props) {
           <div className="p-3 bg-stone-50 border border-stone-200 rounded-[3px] space-y-2">
             <div className="font-semibold text-stone-700">
               {isTPO
-                ? `Tunai PO Terverifikasi (${selectedTpo.length}/${tpoRequests.length}):`
+                ? `${category === "FUEL" ? "Fuel" : "Tunai PO"} Terverifikasi (${selectedTpo.length}/${tpoRequests.length}):`
                 : `Ringkasan Tagihan Terpilih (${selectedInvoices.length} Item):`}
             </div>
             <div className="max-h-56 overflow-y-auto space-y-1">
               {isTPO && tpoRequests.length === 0 && (
-                <div className="text-[11px] text-stone-400 p-1.5">Tidak ada Tunai PO terverifikasi.</div>
+                <div className="text-[11px] text-stone-400 p-1.5">Tidak ada pengajuan terverifikasi.</div>
               )}
               {isTPO && tpoRequests.map((r) => (
                 <label

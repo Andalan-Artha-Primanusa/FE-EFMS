@@ -4,16 +4,16 @@ import { Plus, RefreshCw, Search, Settings } from "lucide-react";
 import { api } from "../../lib/api";
 import { authorized } from "../../lib/auth";
 import { formatCurrency, formatDate } from "../../lib/format";
-import type { AccountMapping, POSyncStatus, TPORequest, TPOStatus } from "./types";
-import { Modal, OverdueBadge, STATUS_LABEL, StatusBadge, btnPrimary, btnSecondary, inputCls, useAccountMappings } from "./shared";
+import type { POSyncStatus, TPOKind, TPORequest, TPOStatus } from "./types";
+import { MappingsModal, OverdueBadge, STATUS_LABEL, StatusBadge, btnPrimary, btnSecondary, cents, fromCents, inputCls, useAccountMappings } from "./shared";
 import { RequestFormModal } from "./RequestFormModal";
 import { RequestDetailModal } from "./RequestDetailModal";
 
 const TABS = Object.keys(STATUS_LABEL) as TPOStatus[];
 
-export function TunaiPOPage() {
+export function TunaiPOPage({ kind = "TUNAI_PO" }: { kind?: TPOKind }) {
   const { user, setNotice } = useOutletContext<any>();
-  const canSubmit = authorized(user, "tunai_po", "submit");
+  const canSubmit = kind === "FUEL" ? authorized(user, "payment", "write") : authorized(user, "tunai_po", "submit");
   const canVerify = authorized(user, "tunai_po", "verify");
   const { mappings, reload: reloadMappings } = useAccountMappings();
 
@@ -30,14 +30,14 @@ export function TunaiPOPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await api<{ success: boolean; requests: TPORequest[] }>("/api/tunai-po/requests");
+      const r = await api<{ success: boolean; requests: TPORequest[] }>(`/api/tunai-po/requests?kind=${kind}`);
       setRows(r.requests || []);
     } catch (e: any) {
-      setNotice(e.message || "Gagal memuat Tunai PO");
+      setNotice(e.message || "Gagal memuat pengajuan");
     } finally {
       setLoading(false);
     }
-  }, [setNotice]);
+  }, [setNotice, kind]);
   useEffect(() => {
     load();
   }, [load]);
@@ -80,31 +80,36 @@ export function TunaiPOPage() {
     return true;
   });
 
+  const sumTotal = fromCents(filtered.reduce((s, r) => s + cents(r.totalAmount), 0));
+  const sumPay = fromCents(filtered.reduce((s, r) => s + cents(r.payAmount), 0));
+
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] max-w-[1600px] mx-auto p-2 gap-2 overflow-hidden">
-      <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-2 shrink-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative w-64">
-            <Search className="w-4 h-4 absolute left-2.5 top-2 text-slate-400" />
+    <div className="flex flex-col h-[calc(100vh-100px)] max-w-[1600px] mx-auto p-2 gap-2 overflow-hidden text-xs">
+      <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-72">
+            <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="PO / Vendor / Proforma" className={`${inputCls} pl-8`} />
           </div>
-          <select value={site} onChange={(e) => setSite(e.target.value)} className={`${inputCls} w-40`}>
-            <option value="">Semua Site</option>
-            {sites.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+          <div className="w-44">
+            <select value={site} onChange={(e) => setSite(e.target.value)} className={inputCls}>
+              <option value="">Semua Site</option>
+              {sites.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
           <button onClick={load} className={btnSecondary} title="Refresh">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
           </button>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {(canSubmit || canVerify) && (
             <>
               <span className="text-[10px] text-slate-500 whitespace-nowrap" title={sync?.lastError || undefined}>
-                {sync?.running ? "Sync berjalan…" : sync?.last?.endedAt ? `Sync PO: ${new Date(sync.last.endedAt).toLocaleString("id-ID")}` : ""}
+                {sync?.running ? "Sync berjalan…" : sync?.last?.endedAt ? `Sync terakhir ${new Date(sync.last.endedAt).toLocaleString("id-ID")}` : ""}
                 {sync?.lastError && <span className="text-rose-600 font-bold"> (gagal)</span>}
               </span>
               <button onClick={startSync} disabled={!!sync?.running} className={btnSecondary}>
@@ -113,7 +118,7 @@ export function TunaiPOPage() {
             </>
           )}
           {canVerify && (
-            <button onClick={() => setShowSettings(true)} className={btnSecondary} title="Akun Uang Muka & PPh">
+            <button onClick={() => setShowSettings(true)} className={btnSecondary} title="Pemetaan Akun Accurate">
               <Settings className="w-3.5 h-3.5" />
             </button>
           )}
@@ -125,66 +130,88 @@ export function TunaiPOPage() {
         </div>
       </div>
 
-      <div className="bg-white p-1 rounded-lg border border-slate-200 flex gap-1 overflow-x-auto shrink-0">
-        {(["", ...TABS] as (TPOStatus | "")[]).map((t) => (
-          <button
-            key={t || "all"}
-            onClick={() => setTab(t)}
-            className={`px-3 py-1.5 text-xs font-bold rounded-md whitespace-nowrap transition cursor-pointer ${tab === t ? "bg-[#A57C50] text-white" : "text-slate-600 hover:bg-slate-100"}`}
-          >
-            {t ? STATUS_LABEL[t] : "Semua"} <span className="opacity-70">({t ? counts[t] || 0 : rows.length})</span>
-          </button>
-        ))}
-      </div>
+      <div className="flex-1 min-h-0 flex flex-col bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+        <div className="flex gap-1 overflow-x-auto border-b border-slate-200 px-2 shrink-0">
+          {(["", ...TABS] as (TPOStatus | "")[]).map((t) => (
+            <button
+              key={t || "all"}
+              onClick={() => setTab(t)}
+              className={`-mb-px px-3 py-2.5 border-b-2 font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition cursor-pointer ${
+                tab === t ? "border-[#A57C50] text-[#A57C50]" : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              {t ? STATUS_LABEL[t] : "Semua"}
+              <span className={`min-w-[20px] px-1.5 rounded-full text-[10px] font-bold text-center ${tab === t ? "bg-[#A57C50] text-white" : "bg-slate-100 text-slate-600"}`}>
+                {t ? counts[t] || 0 : rows.length}
+              </span>
+            </button>
+          ))}
+        </div>
 
-      <div className="flex-1 min-h-0 overflow-auto bg-white rounded-lg border border-slate-200 shadow-sm">
-        <table className="w-full text-xs">
-          <thead className="bg-slate-50 text-slate-600 sticky top-0">
-            <tr>
-              <th className="text-left p-2">No. PO</th>
-              <th className="text-left p-2">Vendor</th>
-              <th className="text-left p-2">Site</th>
-              <th className="text-left p-2">Proforma</th>
-              <th className="text-right p-2">Total</th>
-              <th className="text-right p-2">Total Bayar</th>
-              <th className="text-left p-2">Status</th>
-              <th className="text-left p-2">Voucher</th>
-              <th className="text-left p-2">Diajukan</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((r) => (
-              <tr key={r.id} onClick={() => setDetailId(r.id)} className="border-t border-slate-100 hover:bg-slate-50 cursor-pointer">
-                <td className="p-2 font-semibold text-slate-900">{r.poNo}</td>
-                <td className="p-2">{r.vendor?.name || "-"}</td>
-                <td className="p-2">{r.site}</td>
-                <td className="p-2">{r.proformaNo || "-"}</td>
-                <td className="p-2 text-right font-mono">{formatCurrency(r.totalAmount)}</td>
-                <td className="p-2 text-right font-mono">{formatCurrency(r.payAmount)}</td>
-                <td className="p-2">
-                  <span className="inline-flex items-center gap-1">
-                    <StatusBadge status={r.status} />
-                    {r.rejectCount > 0 && r.status === "rejected" && <span className="text-[10px] text-rose-700 font-bold">{r.rejectCount}x</span>}
-                    {r.docsOverdue && <OverdueBadge />}
-                  </span>
-                </td>
-                <td className="p-2">{r.voucherNo || "-"}</td>
-                <td className="p-2">{formatDate(r.submittedAt)}</td>
+        <div className="flex-1 min-h-0 overflow-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                <th className="p-2.5 whitespace-nowrap">No. PO</th>
+                <th className="p-2.5">Vendor</th>
+                <th className="p-2.5">Site</th>
+                <th className="p-2.5">Proforma</th>
+                <th className="p-2.5 text-right">Total</th>
+                <th className="p-2.5 text-right whitespace-nowrap">Total Bayar</th>
+                <th className="p-2.5 text-center">Status</th>
+                <th className="p-2.5">Voucher</th>
+                <th className="p-2.5">Diajukan</th>
               </tr>
-            ))}
-            {!filtered.length && (
-              <tr>
-                <td colSpan={9} className="p-6 text-center text-slate-400">
-                  {loading ? "Memuat…" : "Tidak ada data"}
-                </td>
-              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filtered.map((r) => (
+                <tr key={r.id} onClick={() => setDetailId(r.id)} className="hover:bg-slate-50 cursor-pointer">
+                  <td className="p-2.5 font-mono font-bold text-blue-700 whitespace-nowrap">{r.poNo}</td>
+                  <td className="p-2.5 font-semibold text-slate-800">{r.vendor?.name || "-"}</td>
+                  <td className="p-2.5">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700">{r.site}</span>
+                  </td>
+                  <td className="p-2.5 font-mono text-slate-600">{r.proformaNo || "-"}</td>
+                  <td className="p-2.5 text-right font-mono text-slate-600 whitespace-nowrap">{formatCurrency(r.totalAmount)}</td>
+                  <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">{formatCurrency(r.payAmount)}</td>
+                  <td className="p-2.5 text-center">
+                    <span className="inline-flex items-center gap-1">
+                      <StatusBadge status={r.status} />
+                      {r.rejectCount > 0 && r.status === "rejected" && <span className="text-[10px] text-rose-700 font-bold">{r.rejectCount}x</span>}
+                      {r.docsOverdue && <OverdueBadge />}
+                    </span>
+                  </td>
+                  <td className="p-2.5 font-mono whitespace-nowrap">{r.voucherNo || "-"}</td>
+                  <td className="p-2.5 whitespace-nowrap">{formatDate(r.submittedAt)}</td>
+                </tr>
+              ))}
+              {!filtered.length && (
+                <tr>
+                  <td colSpan={9} className="p-10 text-center text-slate-400">
+                    {loading ? "Memuat…" : "Tidak ada data"}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+            {filtered.length > 0 && (
+              <tfoot className="sticky bottom-0">
+                <tr className="bg-slate-50 border-t border-slate-200 font-bold text-slate-900">
+                  <td colSpan={4} className="p-2.5 text-slate-600">
+                    {filtered.length} pengajuan
+                  </td>
+                  <td className="p-2.5 text-right font-mono whitespace-nowrap">{formatCurrency(sumTotal)}</td>
+                  <td className="p-2.5 text-right font-mono whitespace-nowrap">{formatCurrency(sumPay)}</td>
+                  <td colSpan={3} />
+                </tr>
+              </tfoot>
             )}
-          </tbody>
-        </table>
+          </table>
+        </div>
       </div>
 
       {form && (
         <RequestFormModal
+          kind={kind}
           editing={form.editing}
           mappings={mappings}
           onClose={() => setForm(null)}
@@ -209,65 +236,7 @@ export function TunaiPOPage() {
           onError={setNotice}
         />
       )}
-      {showSettings && <MappingsModal mappings={mappings} onClose={() => setShowSettings(false)} onSaved={reloadMappings} onError={setNotice} />}
+      {showSettings && <MappingsModal kinds={["DP", "PPH", "TAX"]} onClose={() => setShowSettings(false)} onSaved={reloadMappings} onError={setNotice} />}
     </div>
-  );
-}
-
-function MappingsModal({ mappings, onClose, onSaved, onError }: { mappings: AccountMapping[]; onClose: () => void; onSaved: () => void; onError: (m: string) => void }) {
-  const [edits, setEdits] = useState<Record<number, { name: string; accurateAccountNo: string }>>({});
-  const [busy, setBusy] = useState(false);
-  const val = (m: AccountMapping) => edits[m.id] || { name: m.name, accurateAccountNo: m.accurateAccountNo };
-
-  const save = async () => {
-    setBusy(true);
-    try {
-      for (const [id, body] of Object.entries(edits)) {
-        await api(`/api/tunai-po/account-mappings/${id}`, { method: "PUT", body: JSON.stringify(body) });
-      }
-      onSaved();
-      onClose();
-    } catch (e: any) {
-      onError(e.message || "Gagal menyimpan akun");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Modal title="Akun Uang Muka & PPh" onClose={onClose}>
-      <table className="w-full">
-        <thead className="text-slate-600">
-          <tr>
-            <th className="text-left p-1">Jenis</th>
-            <th className="text-left p-1">Kode</th>
-            <th className="text-left p-1">Nama</th>
-            <th className="text-left p-1">Akun Accurate</th>
-          </tr>
-        </thead>
-        <tbody>
-          {mappings.map((m) => (
-            <tr key={m.id} className="border-t border-slate-100">
-              <td className="p-1 font-semibold">{m.kind === "DP" ? "Uang Muka" : "PPh"}</td>
-              <td className="p-1 font-mono">{m.code}</td>
-              <td className="p-1">
-                <input value={val(m).name} onChange={(e) => setEdits((x) => ({ ...x, [m.id]: { ...val(m), name: e.target.value } }))} className={inputCls} />
-              </td>
-              <td className="p-1">
-                <input value={val(m).accurateAccountNo} onChange={(e) => setEdits((x) => ({ ...x, [m.id]: { ...val(m), accurateAccountNo: e.target.value } }))} className={`${inputCls} font-mono`} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="pt-3 mt-3 border-t border-slate-200 flex justify-end gap-2">
-        <button onClick={onClose} className={btnSecondary}>
-          Batal
-        </button>
-        <button onClick={save} disabled={busy || !Object.keys(edits).length} className={btnPrimary}>
-          Simpan
-        </button>
-      </div>
-    </Modal>
   );
 }

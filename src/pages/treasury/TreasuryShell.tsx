@@ -111,6 +111,9 @@ export function TreasuryShell({
         {activeTab === "pivot" && <PivotAgingPlanningView c={c} />}
         {activeTab === "planning" && <WeeklyPlanningExcelView c={c} />}
         {activeTab === "voucher" && <PaymentPlanView c={c} />}
+        {activeTab === "npo" && <PaymentPlanView key="npo" c={c} category="TUNAI_NON_PO" />}
+        {activeTab === "asr" && <PaymentPlanView key="asr" c={c} category="ASURANSI" />}
+        {activeTab === "inf" && <PaymentPlanView key="inf" c={c} category="INFRASTRUKTUR" />}
         {activeTab === "assign" && <FinanceVoucherView c={c} />}
         {activeTab === "kopra" && <KopraExportView c={c} />}
         {activeTab === "reconcile" && <ReconciliationView c={c} />}

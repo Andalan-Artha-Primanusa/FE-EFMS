@@ -1,12 +1,13 @@
 import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Truck, Loader2, StickyNote } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Truck, Loader2, StickyNote, Settings } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, getFinanceTemplates, User as UserType } from "../../lib/api";
 import { BANotesUpdateModal } from "./modals/BANotesUpdateModal";
 import { pendingAmount } from "./modals/PendingVolumeRecordModal";
 import { companyScopeOf } from "../../lib/auth";
+import { MappingsModal } from "../tunai-po/shared";
 
 import {
   resolveDocumentUrl, formatIDR, parseNumber, formatThousand, formatDateInput,
@@ -33,12 +34,13 @@ export function BATrackerView({ c }: { c: any }) {
     showInputBADropdown, setShowInputBADropdown, baRowActionDropdownId, setBaRowActionDropdownId, setDetailViewItem,
     exportBAOnlyExcel, exportBAOnlyPDF, createInvoiceFromBA, openBAModal, openCreateModal,
     handleGenerateInvoiceFromBA, handleDelete, handleVerifyBA, handleApproveBA, query = "", onNotice, handleAccrueBA, accountingJournals: rawAccountingJournals,
-    deletingKey, actionLoadingKey, loadData, user, can = () => false
+    deletingKey, actionLoadingKey, loadData, user, can = () => false, canVerifyBA, canApproveInvoice
   } = (c || {}) as Record<string, any>;
   // Site yang boleh dibuatkan BA mengikuti scope RBAC user (SITE hanya site miliknya).
   const siteScope = user ? companyScopeOf(user) : { all: false, codes: [] as string[] };
   const baSiteOptions = BA_SITES.filter((s) => siteScope.all || siteScope.codes.includes(s.code));
   const [quickNoteModalItem, setQuickNoteModalItem] = useState<any | null>(null);
+  const [showMappings, setShowMappings] = useState(false);
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
   const pendingVolumeLedgers: any[] = Array.isArray(rawPendingVolumeLedgers) ? rawPendingVolumeLedgers : [];
@@ -174,6 +176,17 @@ export function BATrackerView({ c }: { c: any }) {
                       </>
                     )}
                   </div>
+
+                  {(canVerifyBA || canApproveInvoice) && (
+                    <button
+                      type="button"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-[3px] bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer shrink-0"
+                      onClick={() => setShowMappings(true)}
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                      <span>Akun Accurate</span>
+                    </button>
+                  )}
 
                   {/* Input / Tambah BA: user SITE hanya site miliknya (tanpa dropdown), HO semua site */}
                   {!can("ba_tracker", "write") ? null : !siteScope.all ? (
@@ -1025,6 +1038,7 @@ export function BATrackerView({ c }: { c: any }) {
               }}
               onNotice={onNotice}
             />
+            {showMappings && <MappingsModal kinds={["ITEM", "CUSTOMER", "PROJECT", "KONTRAK", "SALES"]} base="/api/finance" onClose={() => setShowMappings(false)} onError={onNotice} />}
           </>
         );
 }

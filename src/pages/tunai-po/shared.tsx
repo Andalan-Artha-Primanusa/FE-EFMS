@@ -91,17 +91,79 @@ export function Field({ label, children }: { label: string; children: React.Reac
   );
 }
 
-// Account mappings (kind DP = Jenis Uang Muka, kind PPH = Jenis PPh).
-export function useAccountMappings() {
+// Account mappings: DP/PPH/TAX (Tunai PO) dan ITEM/CUSTOMER/PROJECT/KONTRAK/SALES (posting revenue). Kode bisa sama antar kind.
+export function useAccountMappings(base = "/api/tunai-po") {
   const [mappings, setMappings] = useState<AccountMapping[]>([]);
   const reload = () =>
-    api<{ success: boolean; mappings: AccountMapping[] }>("/api/tunai-po/account-mappings")
+    api<{ success: boolean; mappings: AccountMapping[] }>(`${base}/account-mappings`)
       .then((r) => setMappings(r.mappings || []))
       .catch(() => setMappings([]));
   useEffect(() => {
     reload();
   }, []);
   return { mappings, reload };
+}
+
+const MAPPING_KIND: Record<string, string> = { DP: "Uang Muka", PPH: "PPh", TAX: "Pajak", ITEM: "Item Penjualan", CUSTOMER: "Pelanggan", PROJECT: "Proyek", KONTRAK: "Aset Kontrak", SALES: "Penjualan" };
+
+export function MappingsModal({ kinds, base = "/api/tunai-po", onClose, onSaved, onError }: { kinds?: string[]; base?: string; onClose: () => void; onSaved?: () => void; onError: (m: string) => void }) {
+  const { mappings } = useAccountMappings(base);
+  const [edits, setEdits] = useState<Record<number, { name: string; accurateAccountNo: string }>>({});
+  const [busy, setBusy] = useState(false);
+  const val = (m: AccountMapping) => edits[m.id] || { name: m.name || "", accurateAccountNo: m.accurateAccountNo || "" };
+  const rows = kinds ? mappings.filter((m) => kinds.includes(m.kind)) : mappings;
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      for (const [id, body] of Object.entries(edits)) {
+        await api(`${base}/account-mappings/${id}`, { method: "PUT", body: JSON.stringify(body) });
+      }
+      onSaved?.();
+      onClose();
+    } catch (e: any) {
+      onError(e.message || "Gagal menyimpan akun");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal title="Pemetaan Akun Accurate" onClose={onClose}>
+      <table className="w-full">
+        <thead className="sticky top-0 bg-white text-slate-600">
+          <tr>
+            <th className="text-left p-1">Jenis</th>
+            <th className="text-left p-1">Kode</th>
+            <th className="text-left p-1">Nama</th>
+            <th className="text-left p-1">Kode Accurate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((m) => (
+            <tr key={m.id} className="border-t border-slate-100">
+              <td className="p-1 font-semibold">{MAPPING_KIND[m.kind] || m.kind}</td>
+              <td className="p-1 font-mono">{m.code}</td>
+              <td className="p-1">
+                <input value={val(m).name} onChange={(e) => setEdits((x) => ({ ...x, [m.id]: { ...val(m), name: e.target.value } }))} className={inputCls} />
+              </td>
+              <td className="p-1">
+                <input value={val(m).accurateAccountNo} onChange={(e) => setEdits((x) => ({ ...x, [m.id]: { ...val(m), accurateAccountNo: e.target.value } }))} className={`${inputCls} font-mono`} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="pt-3 mt-3 border-t border-slate-200 flex justify-end gap-2">
+        <button onClick={onClose} className={btnSecondary}>
+          Batal
+        </button>
+        <button onClick={save} disabled={busy || !Object.keys(edits).length} className={btnPrimary}>
+          Simpan
+        </button>
+      </div>
+    </Modal>
+  );
 }
 
 export const isDocRequired = (r: TPORequest, docType: TPODocType) => docType !== "FAKTUR_PAJAK" || r.isPkp;
