@@ -47,6 +47,7 @@ export function RequestFormModal({ editing, mappings, onClose, onSaved, onError 
     try {
       const r = await api<{ success: boolean } & TPOLookup>(`/api/tunai-po/purchase-orders/lookup?poNo=${encodeURIComponent(no.trim())}`);
       setLookup(r);
+      setPoNo(r.purchaseOrder.poNo);
       if (!editing) {
         set({ subtotalAmount: String(r.purchaseOrder.subtotalAmount ?? ""), vatAmount: String(r.purchaseOrder.vatAmount ?? ""), isPkp: r.suggestedPkp });
       }
