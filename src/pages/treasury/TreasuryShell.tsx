@@ -5,7 +5,6 @@ import type { TreasuryTab } from "../../data/navigation";
 import { PivotAgingPlanningView } from "./views/PivotAgingPlanningView";
 import { WeeklyPlanningExcelView } from "./views/WeeklyPlanningExcelView";
 import { PaymentPlanView } from "./views/PaymentPlanView";
-import { FinanceVoucherView } from "./views/FinanceVoucherView";
 import { KopraExportView } from "./views/KopraExportView";
 import { ReconciliationView } from "./views/ReconciliationView";
 import { RekapAapView } from "./views/RekapAapView";
@@ -14,7 +13,6 @@ import { CreatePlanModal } from "./modals/CreatePlanModal";
 import { ImportAccurateModal } from "./modals/ImportAccurateModal";
 import { ImportKopraCsvModal } from "./modals/ImportKopraCsvModal";
 import { AccurateBankMapModal } from "./modals/AccurateBankMapModal";
-import { PrintableVendorSlipModal } from "./components/PrintableVendorSlipModal";
 
 export function TreasuryShell({
   viewTitle = "Treasury Management",
@@ -29,12 +27,7 @@ export function TreasuryShell({
   user?: any;
 }) {
   const c = useTreasuryController(onNotice, user, tab);
-  const {
-    activeTab,
-    setActiveTab,
-    selectedVendorForSlip,
-    setSelectedVendorForSlip,
-  } = c;
+  const { activeTab, setActiveTab } = c;
 
   const pendingBanks = c.vendors.filter((v) => v.pendingAccountNumber).length;
   const unmappedBanks = c.companyBanks.filter((b) => !b.accurateBankNo).length;
@@ -72,7 +65,6 @@ export function TreasuryShell({
             <button
               onClick={() => setShowBankMap(true)}
               className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition cursor-pointer shadow-2xs whitespace-nowrap"
-              title="Petakan rekening sumber FEAST ke akun Kas/Bank Accurate (wajib untuk Posting ke Accurate)"
             >
               <Landmark className="w-3.5 h-3.5 text-slate-500" /> Akun Bank Accurate
               {unmappedBanks > 0 && (
@@ -85,7 +77,6 @@ export function TreasuryShell({
               onClick={() => c.handleSyncAccurate()}
               disabled={!!c.syncState?.running}
               className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-[#A57C50] hover:bg-[#8e6941] disabled:opacity-60 disabled:cursor-wait rounded-lg transition cursor-pointer shadow-2xs whitespace-nowrap"
-              title="Tarik Faktur Pembelian terbaru dari Accurate Online (data disimpan di FEAST)"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${c.syncState?.running ? "animate-spin" : ""}`} /> Sync dari Accurate
             </button>
@@ -93,7 +84,6 @@ export function TreasuryShell({
           <button
             onClick={() => c.setShowImportAccurateModal(true)}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#8e6941] bg-white border border-[#A57C50]/40 hover:bg-amber-50 rounded-lg transition cursor-pointer shadow-2xs whitespace-nowrap"
-            title="Cadangan bila Accurate tidak dapat diakses"
           >
             <FileSpreadsheet className="w-3.5 h-3.5" /> Import Excel
           </button>
@@ -114,7 +104,6 @@ export function TreasuryShell({
         {activeTab === "npo" && <PaymentPlanView key="npo" c={c} category="TUNAI_NON_PO" />}
         {activeTab === "asr" && <PaymentPlanView key="asr" c={c} category="ASURANSI" />}
         {activeTab === "inf" && <PaymentPlanView key="inf" c={c} category="INFRASTRUKTUR" />}
-        {activeTab === "assign" && <FinanceVoucherView c={c} />}
         {activeTab === "kopra" && <KopraExportView c={c} />}
         {activeTab === "reconcile" && <ReconciliationView c={c} />}
         {activeTab === "rekap" && <RekapAapView c={c} />}
@@ -126,10 +115,6 @@ export function TreasuryShell({
       <ImportAccurateModal c={c} />
       <ImportKopraCsvModal c={c} />
       <AccurateBankMapModal c={c} isOpen={showBankMap} onClose={() => setShowBankMap(false)} />
-      <PrintableVendorSlipModal
-        data={selectedVendorForSlip}
-        onClose={() => setSelectedVendorForSlip(null)}
-      />
     </div>
   );
 }

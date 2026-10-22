@@ -36,7 +36,7 @@ const LOG_LABEL: Record<string, string> = {
   reject: "Ditolak",
   document: "Dokumen",
   in_voucher: "Masuk Voucher",
-  paid: "Dibayar",
+  paid: "Lunas",
   posted: "Diposting",
 };
 
@@ -105,7 +105,7 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
 
   const isOwner = !!userId && req.createdBy === userId;
   const ownerEditable = canSubmit && isOwner && (req.status === "draft" || req.status === "rejected");
-  const canDocs = canSubmit || canVerify;
+  const canDocs = canVerify || (canSubmit && isOwner);
   const dpName = (code?: string) => mappings.find((m) => m.kind === "DP" && m.code === code)?.name || code || "-";
 
   const accTotal = cents(req.accSubtotal) + cents(req.accVat);
@@ -206,7 +206,7 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
           </div>
           <div className="border border-slate-200 rounded-[3px] divide-y divide-slate-200">
             {DOC_TYPES.map((t) => (
-              <DocRow key={t} req={req} docType={t} canEdit={canDocs} onSaved={load} onError={onError} />
+              <DocRow key={t} req={req} docType={t} canEdit={canDocs} onSaved={() => { load(); onChanged(); }} onError={onError} />
             ))}
           </div>
         </div>
@@ -220,12 +220,12 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
 
         {!mode && (
           <div className="flex flex-wrap justify-end gap-2 pt-3 border-t border-slate-200">
-            {ownerEditable && req.status === "draft" && (
+            {ownerEditable && (
               <button
                 disabled={busy}
                 className={btnDanger}
                 onClick={async () => {
-                  if (!window.confirm("Hapus draft ini?")) return;
+                  if (!window.confirm("Hapus pengajuan ini?")) return;
                   if (await action("", { method: "DELETE" })) onClose();
                 }}
               >
@@ -250,6 +250,19 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
             {canVerify && req.status === "submitted" && (
               <button disabled={busy} className={btnPrimary} onClick={() => setMode("verify")}>
                 Verifikasi
+              </button>
+            )}
+            {canVerify && req.status === "in_voucher" && req.voucherHasProof && (
+              <button
+                disabled={busy}
+                className={btnPrimary}
+                onClick={() => {
+                  // Marks the whole voucher paid; the transfer date is posted to Accurate.
+                  const d = window.prompt(`Tanggal transfer ${req.voucherNo || ""} (YYYY-MM-DD):`, new Date().toLocaleDateString("sv-SE"))?.trim();
+                  if (d) action("/paid", { method: "POST", body: JSON.stringify({ paidDate: d }) });
+                }}
+              >
+                Tandai Lunas
               </button>
             )}
           </div>
@@ -344,14 +357,15 @@ function DocRow({ req, docType, canEdit, onSaved, onError }: { req: TPORequest; 
 function VerifyForm({ req, mappings, busy, onCancel, onSubmit }: { req: TPORequest; mappings: AccountMapping[]; busy: boolean; onCancel: () => void; onSubmit: (body: object) => void }) {
   const [f, setF] = useState({
     subtotalAmount: req.subtotalAmount,
+    vatAmount: req.vatAmount,
     pphType: req.pphType || "",
     pphAmount: req.pphAmount || "0",
     dpType: req.dpType || "",
     isPkp: req.isPkp,
   });
   const set = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }));
-  // Accurate computes the Uang Muka PPN itself: 11% of DPP (DPP nilai lain 11/12 × 12%), none when non-PKP.
-  const vat = f.isPkp ? Math.round(cents(f.subtotalAmount) * 0.11 / 100) * 100 : 0;
+  // Adjustable PPN, none when non-PKP. Accurate computes the Uang Muka PPN itself (11% DPP); a differing total stops posting.
+  const vat = f.isPkp ? cents(f.vatAmount) : 0;
   const total = cents(f.subtotalAmount) + vat;
   const pph = f.pphType ? cents(f.pphAmount) : 0;
 
@@ -362,7 +376,7 @@ function VerifyForm({ req, mappings, busy, onCancel, onSubmit }: { req: TPOReque
           <AmountInput value={f.subtotalAmount} onChange={(v) => set({ subtotalAmount: v })} />
         </Field>
         <Field label="PPN">
-          <div className="px-2 py-1.5 border border-slate-200 bg-white rounded-[3px] text-right font-mono">{formatCurrency(fromCents(vat))}</div>
+          <AmountInput disabled={!f.isPkp} value={f.isPkp ? f.vatAmount : "0"} onChange={(v) => set({ vatAmount: v })} />
         </Field>
         <Field label="Total">
           <div className="px-2 py-1.5 border border-slate-200 bg-white rounded-[3px] text-right font-mono">{formatCurrency(fromCents(total))}</div>
@@ -407,7 +421,7 @@ function VerifyForm({ req, mappings, busy, onCancel, onSubmit }: { req: TPOReque
           onClick={() => {
             // A non-STOK Uang Muka account must be listed on the Accurate vendor, else posting fails after the transfer.
             const dp = mappings.find((m) => m.kind === "DP" && m.code === f.dpType);
-            if (f.dpType !== "STOK" && !window.confirm(`Akun Uang Muka ${dp?.name || f.dpType} (${dp?.accurateAccountNo || "-"}) sudah terdaftar di Accurate › Pemasok ${req.vendor?.name || ""} › Akun Uang Muka?`)) return;
+            if (f.dpType !== "STOK" && !window.confirm(`Akun Uang Muka ${dp?.name || f.dpType} (${dp?.accurateAccountNo || "-"}) terdaftar di Pemasok ${req.vendor?.name || ""}?`)) return;
             onSubmit({
               subtotalAmount: fromCents(cents(f.subtotalAmount)),
               vatAmount: fromCents(vat),

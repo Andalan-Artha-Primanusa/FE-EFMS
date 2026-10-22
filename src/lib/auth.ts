@@ -126,9 +126,9 @@ export function canAccessMenu(item: string, role: string, permissions: Permissio
   if (isSuperAdminRole(role)) return true;
 
   // Tunai PO pages (and Fuel, same flow) are permission-only (no T-Code), so SCM reaches them without any treasury grant.
-  // Fuel is entered by Finance Admin (payment:write).
+  // Fuel is entered by SCM or Finance Admin (payment:write), who also tracks its documents.
   if (item === "Pengajuan Tunai PO" || item === "Tracking Tunai PO" || item === "Fuel") {
-    return ["read", "submit", "verify"].some((action) => hasPermission(permissions, "tunai_po", action)) || (item === "Fuel" && hasPermission(permissions, "payment", "write"));
+    return ["read", "submit", "verify"].some((action) => hasPermission(permissions, "tunai_po", action)) || (item !== "Pengajuan Tunai PO" && hasPermission(permissions, "payment", "write"));
   }
 
   // Site-specific Master Data restrictions:

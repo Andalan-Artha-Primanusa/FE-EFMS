@@ -72,7 +72,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
 
   async function refreshNotifications() {
     try {
-      getUnreadNotificationCount().then((r) => setUnreadCount(Number(r?.count ?? 0))).catch(() => {});
+      refreshUnread();
       if (!canViewAuditTrail({ ...user, permissions, tcodes })) {
         setNotifications([]);
         return;
@@ -124,10 +124,14 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
     }
   }
 
+  const refreshUnread = () => getUnreadNotificationCount().then((r) => setUnreadCount(Number(r?.count ?? 0))).catch(() => {});
+
   useEffect(() => {
     refresh();
     refreshNotifications();
     refreshAccess();
+    const timer = setInterval(refreshUnread, 60_000);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -267,7 +271,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
           )}
         </ErrorBoundary>
       </main>
-      <NotificationPanel open={notificationOpen} onClose={() => setNotificationOpen(false)} />
+      <NotificationPanel open={notificationOpen} onClose={() => setNotificationOpen(false)} onChange={refreshUnread} />
       {notice && (
         <div
           key={notice.id}

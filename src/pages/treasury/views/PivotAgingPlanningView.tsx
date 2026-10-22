@@ -39,6 +39,12 @@ interface VendorGroup {
 // Open balance, not the gross invoice total (partial payments and consumed DP are already deducted).
 const outstandingOf = (inv: TreasuryInvoice) => Number(inv.remainingBalance ?? inv.totalAmount ?? 0);
 
+// Frozen left columns (#, PILIH, VENDOR, SITE); sticky cells need an opaque bg.
+const FZ_NO = "sticky left-0 z-10 w-[40px] min-w-[40px] max-w-[40px]";
+const FZ_PICK = "sticky left-[40px] z-10 w-[48px] min-w-[48px] max-w-[48px]";
+const FZ_VENDOR = "sticky left-[88px] z-10 w-[340px] min-w-[340px] max-w-[340px]";
+const FZ_SITE = "sticky left-[428px] z-10 w-[64px] min-w-[64px] max-w-[64px] shadow-[inset_-1px_0_0_#d6d3d1]";
+
 // Invoices whose PO was paid via Tunai PO but consumed no DP cannot go into a voucher.
 export const DP_NOT_DEDUCTED_TIP = "PO sudah dibayar Tunai PO, invoice belum memotong DP";
 export const DpNotDeductedBadge = () => (
@@ -386,10 +392,10 @@ export function PivotAgingPlanningView({ c }: Props) {
           <table className="w-full text-left border-collapse text-[11px]">
             <thead className="sticky top-0 z-20 shadow-xs">
               <tr className="bg-[#1A1612] text-white font-bold uppercase tracking-wider border-b border-amber-900/30 text-[10px]">
-                <th className="p-2.5 w-8 text-center">#</th>
-                <th className="p-2.5 w-8 text-center">PILIH</th>
-                <th className="p-2.5 min-w-[200px]">VENDOR &amp; REKENING</th>
-                <th className="p-2.5 w-16 text-center">SITE</th>
+                <th className={`${FZ_NO} bg-[#1A1612] p-2.5 text-center`}>#</th>
+                <th className={`${FZ_PICK} bg-[#1A1612] p-2.5 text-center`}>PILIH</th>
+                <th className={`${FZ_VENDOR} bg-[#1A1612] p-2.5`}>VENDOR &amp; REKENING</th>
+                <th className={`${FZ_SITE} bg-[#1A1612] p-2.5 text-center`}>SITE</th>
                 {dueMonthColumns.map((col) => (
                   <th
                     key={col}
@@ -428,7 +434,7 @@ export function PivotAgingPlanningView({ c }: Props) {
                       {/* Vendor Header Row */}
                       <tr className="hover:bg-stone-50 transition bg-stone-50/50 font-semibold">
                         <td
-                          className="p-2.5 text-center cursor-pointer text-stone-500 hover:text-stone-900"
+                          className={`${FZ_NO} bg-stone-50 p-2.5 text-center cursor-pointer text-stone-500 hover:text-stone-900`}
                           onClick={() => toggleExpand(grp.key)}
                         >
                           {isExpanded ? (
@@ -437,7 +443,7 @@ export function PivotAgingPlanningView({ c }: Props) {
                             <ChevronRight className="w-4 h-4 mx-auto text-stone-400" />
                           )}
                         </td>
-                        <td className="p-2.5 text-center">
+                        <td className={`${FZ_PICK} bg-stone-50 p-2.5 text-center`}>
                           <button
                             type="button"
                             onClick={() => toggleVendorSelection(grp)}
@@ -454,7 +460,7 @@ export function PivotAgingPlanningView({ c }: Props) {
                             )}
                           </button>
                         </td>
-                        <td className="p-2.5 cursor-pointer" onClick={() => toggleExpand(grp.key)}>
+                        <td className={`${FZ_VENDOR} bg-stone-50 p-2.5 cursor-pointer`} onClick={() => toggleExpand(grp.key)}>
                           <div className="font-bold text-stone-900 uppercase">
                             {grp.vendorName}
                           </div>
@@ -483,7 +489,7 @@ export function PivotAgingPlanningView({ c }: Props) {
                             );
                           })()}
                         </td>
-                        <td className="p-2.5 text-center">
+                        <td className={`${FZ_SITE} bg-stone-50 p-2.5 text-center`}>
                           <div className="flex flex-wrap items-center justify-center gap-1">
                             {grp.sites.map((s) => (
                               <span
@@ -538,16 +544,16 @@ export function PivotAgingPlanningView({ c }: Props) {
                         <>
                           {/* Sub-header row */}
                           <tr className="bg-stone-100/80 border-b border-stone-200">
-                            <td colSpan={2} className="p-1.5 pl-10 text-[9px] font-bold text-stone-500 uppercase tracking-wider">
+                            <td colSpan={2} className="sticky left-0 z-10 bg-stone-100 p-1.5 text-center text-[9px] font-bold text-stone-500 uppercase tracking-wider">
                               #
                             </td>
-                            <td className="p-1.5 text-[9px] font-bold text-stone-500 uppercase tracking-wider">
+                            <td className={`${FZ_VENDOR} bg-stone-100 p-1.5 text-[9px] font-bold text-stone-500 uppercase tracking-wider`}>
                               Rincian {grp.items.length} PO — {grp.vendorName}
                               <span className="ml-2 font-mono text-blue-900">
                                 Total: {formatCurrency(grp.totalUnpaid)}
                               </span>
                             </td>
-                            <td className="p-1.5 text-center text-[9px] font-bold text-stone-500 uppercase">SITE</td>
+                            <td className={`${FZ_SITE} bg-stone-100 p-1.5 text-center text-[9px] font-bold text-stone-500 uppercase`}>SITE</td>
                             {dueMonthColumns.map((col) => (
                               <td key={col} className="p-1.5 text-right text-[9px] font-bold text-stone-400 uppercase whitespace-nowrap">
                                 {formatMonthHeader(col)}
@@ -559,6 +565,7 @@ export function PivotAgingPlanningView({ c }: Props) {
                           {grp.items.map((inv, idx) => {
                             const isInvSelected = selectedInvoiceIds.includes(inv.id);
                             const amt = outstandingOf(inv);
+                            const fzBg = isInvSelected ? "bg-amber-50" : "bg-white";
 
                             // Determine which month column this invoice belongs to
                             let invMonthKey = "BLANK";
@@ -578,12 +585,12 @@ export function PivotAgingPlanningView({ c }: Props) {
                                 onClick={() => toggleInvoiceSelection(inv)}
                               >
                                 {/* # — indent to align under vendor */}
-                                <td className="p-1.5 text-center text-stone-400 pl-10 w-8">
+                                <td className={`${FZ_NO} ${fzBg} p-1.5 text-center text-stone-400`}>
                                   {idx + 1}
                                 </td>
                                 {/* Checkbox */}
                                 <td
-                                  className="p-1.5 text-center w-8"
+                                  className={`${FZ_PICK} ${fzBg} p-1.5 text-center`}
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <input
@@ -596,7 +603,7 @@ export function PivotAgingPlanningView({ c }: Props) {
                                   />
                                 </td>
                                 {/* PO + Invoice + Description (merged into VENDOR column) */}
-                                <td className="p-1.5">
+                                <td className={`${FZ_VENDOR} ${fzBg} p-1.5`}>
                                   <span className="font-bold text-blue-900 font-mono">{inv.poNo || "-"}</span>
                                   <span className="mx-1 text-stone-300">|</span>
                                   <span className="font-mono text-stone-500">{inv.invoiceNo}</span>
@@ -621,7 +628,7 @@ export function PivotAgingPlanningView({ c }: Props) {
                                   </span>
                                 </td>
                                 {/* SITE — aligned with parent SITE column */}
-                                <td className="p-1.5 text-center">
+                                <td className={`${FZ_SITE} ${fzBg} p-1.5 text-center`}>
                                   <span className="px-1.5 py-0.5 rounded-[2px] bg-stone-100 border border-stone-200 text-stone-700 font-bold text-[9px]">
                                     {inv.site || "HO"}
                                   </span>
@@ -669,7 +676,7 @@ export function PivotAgingPlanningView({ c }: Props) {
               <tr className="bg-[#1A1612]">
                 <td
                   colSpan={4}
-                  className="p-2.5 text-right font-black uppercase tracking-wider text-stone-300 bg-[#1A1612]"
+                  className="sticky left-0 z-10 p-2.5 text-right font-black uppercase tracking-wider text-stone-300 bg-[#1A1612]"
                 >
                   Grand Total:
                 </td>

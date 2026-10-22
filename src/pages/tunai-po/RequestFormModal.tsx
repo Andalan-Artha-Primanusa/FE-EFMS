@@ -2,19 +2,19 @@ import React, { useEffect, useState } from "react";
 import { Loader2, Search } from "lucide-react";
 import { api } from "../../lib/api";
 import { formatCurrency } from "../../lib/format";
-import type { AccountMapping, TPOKind, TPOLookup, TPOPurchaseOrder, TPORequest } from "./types";
+import type { TPOKind, TPOLookup, TPOPurchaseOrder, TPORequest } from "./types";
 import { AmountInput, Field, Modal, PeriodInput, VendorBank, btnPrimary, btnSecondary, cents, currentPeriod, fromCents, inputCls } from "./shared";
 
 type Props = {
   kind: TPOKind;
   editing?: TPORequest | null;
-  mappings: AccountMapping[];
   onClose: () => void;
   onSaved: (req: TPORequest) => void;
   onError: (msg: string) => void;
 };
 
-export function RequestFormModal({ kind, editing, mappings, onClose, onSaved, onError }: Props) {
+// Jenis Uang Muka and PKP are set by finance at verification.
+export function RequestFormModal({ kind, editing, onClose, onSaved, onError }: Props) {
   const [poNo, setPoNo] = useState(editing?.poNo || "");
   const [options, setOptions] = useState<TPOPurchaseOrder[]>([]);
   const [lookup, setLookup] = useState<TPOLookup | null>(null);
@@ -25,13 +25,10 @@ export function RequestFormModal({ kind, editing, mappings, onClose, onSaved, on
     description: editing?.description || "",
     subtotalAmount: editing?.subtotalAmount || "",
     vatAmount: editing?.vatAmount || "",
-    dpType: editing?.dpType || (kind === "FUEL" ? "SOLAR" : ""),
-    isPkp: editing?.isPkp ?? false,
   });
   const [period, setPeriod] = useState(editing?.planMonth ? { planMonth: editing.planMonth, planWeek: editing.planWeek || 0 } : currentPeriod());
   const hasPeriod = !!period.planMonth && period.planWeek > 0;
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
-  const dpTypes = mappings.filter((m) => m.kind === "DP");
 
   // PO picker: native datalist fed by the PO search endpoint.
   useEffect(() => {
@@ -52,7 +49,7 @@ export function RequestFormModal({ kind, editing, mappings, onClose, onSaved, on
       setLookup(r);
       setPoNo(r.purchaseOrder.poNo);
       if (!editing) {
-        set({ subtotalAmount: String(r.purchaseOrder.subtotalAmount ?? ""), vatAmount: String(r.purchaseOrder.vatAmount ?? ""), isPkp: r.suggestedPkp });
+        set({ subtotalAmount: String(r.purchaseOrder.subtotalAmount ?? ""), vatAmount: String(r.purchaseOrder.vatAmount ?? "") });
       }
     } catch (e: any) {
       setLookup(null);
@@ -72,7 +69,7 @@ export function RequestFormModal({ kind, editing, mappings, onClose, onSaved, on
   const remaining = lookup ? cents(lookup.remaining) + (editing && editing.status !== "rejected" ? cents(editing.totalAmount) : 0) : 0;
   const vendor = lookup?.vendor || lookup?.purchaseOrder.vendor;
 
-  const save = async (submit: boolean) => {
+  const save = async () => {
     if (!lookup) return;
     setSaving(true);
     try {
@@ -83,14 +80,11 @@ export function RequestFormModal({ kind, editing, mappings, onClose, onSaved, on
         description: form.description.trim(),
         subtotalAmount: fromCents(cents(form.subtotalAmount)),
         vatAmount: fromCents(cents(form.vatAmount)),
-        dpType: form.dpType,
-        isPkp: form.isPkp,
         ...period,
       });
-      let res = editing
+      const res = editing
         ? await api<{ success: boolean; request: TPORequest }>(`/api/tunai-po/requests/${editing.id}`, { method: "PUT", body })
         : await api<{ success: boolean; request: TPORequest }>("/api/tunai-po/requests", { method: "POST", body });
-      if (submit) res = await api<{ success: boolean; request: TPORequest }>(`/api/tunai-po/requests/${res.request.id}/submit`, { method: "POST" });
       onSaved(res.request);
     } catch (e: any) {
       onError(e.message || "Gagal menyimpan pengajuan");
@@ -163,16 +157,6 @@ export function RequestFormModal({ kind, editing, mappings, onClose, onSaved, on
             <Field label="No. Proforma">
               <input value={form.proformaNo} onChange={(e) => set({ proformaNo: e.target.value })} className={inputCls} />
             </Field>
-            <Field label="Jenis Uang Muka">
-              <select value={form.dpType} onChange={(e) => set({ dpType: e.target.value })} className={inputCls}>
-                <option value="">—</option>
-                {dpTypes.map((m) => (
-                  <option key={m.id} value={m.code}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
             <div className="col-span-2">
               <Field label="Keterangan">
                 <textarea rows={2} value={form.description} onChange={(e) => set({ description: e.target.value })} className={inputCls} />
@@ -189,9 +173,6 @@ export function RequestFormModal({ kind, editing, mappings, onClose, onSaved, on
                 {formatCurrency(fromCents(total))}
               </div>
             </Field>
-            <label className="flex items-center gap-2 mt-5 font-semibold text-slate-700">
-              <input type="checkbox" checked={form.isPkp} onChange={(e) => set({ isPkp: e.target.checked })} /> PKP
-            </label>
           </div>
         )}
 
@@ -199,14 +180,9 @@ export function RequestFormModal({ kind, editing, mappings, onClose, onSaved, on
           <button type="button" onClick={onClose} className={btnSecondary}>
             Batal
           </button>
-          <button type="button" disabled={!po || saving || !hasPeriod} onClick={() => save(false)} className={btnSecondary}>
-            {editing && editing.status !== "draft" ? "Simpan" : "Simpan Draft"}
+          <button type="button" disabled={!po || saving || total <= 0 || total > remaining || !hasPeriod} onClick={save} className={btnPrimary}>
+            {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />} {editing && editing.status !== "draft" ? "Simpan" : "Simpan Draft"}
           </button>
-          {(!editing || editing.status === "draft" || editing.status === "rejected") && (
-            <button type="button" disabled={!po || saving || total <= 0 || !hasPeriod} onClick={() => save(true)} className={btnPrimary}>
-              {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Ajukan
-            </button>
-          )}
         </div>
       </div>
     </Modal>

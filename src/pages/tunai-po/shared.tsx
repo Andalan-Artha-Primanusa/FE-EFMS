@@ -10,7 +10,7 @@ export const STATUS_LABEL: Record<TPOStatus, string> = {
   rejected: "Ditolak",
   verified: "Terverifikasi",
   in_voucher: "Di Voucher",
-  paid: "Dibayar",
+  paid: "Lunas",
   posted: "Diposting",
 };
 
@@ -28,7 +28,7 @@ export const DOC_TYPES: TPODocType[] = ["PO", "PI_SOFT", "PI_ASLI", "FAKTUR_PAJA
 export const DOC_LABEL: Record<TPODocType, string> = {
   PO: "PO",
   PI_SOFT: "PI Soft",
-  PI_ASLI: "PI Asli",
+  PI_ASLI: "Invoice Asli",
   FAKTUR_PAJAK: "Faktur Pajak",
   BAST: "BAST",
   GR: "GR",
