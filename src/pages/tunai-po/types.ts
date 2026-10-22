@@ -57,10 +57,13 @@ export interface TPORequest {
   updatedAt: string;
   purchaseOrder?: TreasuryPurchaseOrder;
   voucherNo?: string;
+  voucherHasProof?: boolean;
   docsDueAt?: string | null;
   docsOverdue?: boolean;
   docsComplete?: boolean;
   missingDocs?: TPODocType[];
+  poRemaining?: string;
+  poSettled?: boolean;
 }
 
 export type TPOPurchaseOrder = TreasuryPurchaseOrder & {
@@ -78,7 +81,6 @@ export interface TPOLookup {
   vendor?: TreasuryVendor;
   requestedTotal: string;
   remaining: string;
-  suggestedPkp: boolean;
   requests: TPORequest[];
 }
 

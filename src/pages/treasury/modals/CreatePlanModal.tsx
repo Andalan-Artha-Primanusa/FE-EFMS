@@ -60,6 +60,8 @@ export function CreatePlanModal({ c }: Props) {
   const selectedTpo = isTPO ? tpoRequests.filter((r) => tpoSelected.includes(r.id)) : [];
   const blocked = selectedInvoices.some((inv) => inv.dpNotDeducted);
   const itemCount = isTPO ? selectedTpo.length : selectedInvoices.length;
+  // One voucher per vendor + site.
+  const voucherCount = new Set([...selectedTpo, ...selectedInvoices].map((x) => `${x.vendorId}|${(x.site || "").trim() || "HO"}`)).size;
 
   const totalCalculated = isTPO
     ? selectedTpo.reduce((sum, r) => sum + Number(r.payAmount || 0), 0)
@@ -108,10 +110,10 @@ export function CreatePlanModal({ c }: Props) {
             <Plus className="w-5 h-5 text-[#A57C50]" />
             <div>
               <h3 className="text-sm font-bold tracking-wide uppercase">
-                Buat Pengajuan Rencana Bayar (RAB / Voucher)
+                Buat Voucher
               </h3>
               <p className="text-[11px] text-stone-400">
-                {itemCount} item terpilih
+                {itemCount} item · {voucherCount} voucher
               </p>
             </div>
           </div>
@@ -251,7 +253,7 @@ export function CreatePlanModal({ c }: Props) {
               disabled={itemCount === 0 || blocked}
               className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-extrabold text-white bg-[#A57C50] hover:bg-[#8e6941] rounded-[3px] shadow-sm transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <ShieldCheck className="w-4 h-4" /> Simpan &amp; Kunci Jadwal Voucher
+              <ShieldCheck className="w-4 h-4" /> Simpan
             </button>
           </div>
         </form>

@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Printer } from "lucide-react";
 import { formatCurrency, formatDate } from "../../../lib/format";
 import { VOUCHER_CATEGORIES, type PaymentPlan } from "../types";
+import { printElement } from "./VoucherPaymentOfficialPrint";
 
 type Props = {
   plans: PaymentPlan[];
@@ -22,6 +23,7 @@ const siteOf = (p: PaymentPlan) => p.site || p.items?.map((i) => i.invoice?.site
 
 // Summary Payment: the selected vouchers on one sheet, signed as the reference for director approval.
 export function PrintableSummaryModal({ plans, onClose }: Props) {
+  const sheetRef = useRef<HTMLDivElement>(null);
   const total = plans.reduce((s, p) => s + Number(p.totalAmount || 0), 0);
 
   return (
@@ -31,7 +33,7 @@ export function PrintableSummaryModal({ plans, onClose }: Props) {
           <div className="text-sm font-bold text-slate-800">Summary Payment</div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => window.print()}
+              onClick={() => printElement(sheetRef.current, "Summary Payment", "A4 landscape")}
               className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded shadow-md transition cursor-pointer"
             >
               <Printer className="w-4 h-4" /> Cetak
@@ -42,7 +44,7 @@ export function PrintableSummaryModal({ plans, onClose }: Props) {
           </div>
         </div>
 
-        <div className="p-8 space-y-6 text-slate-900 font-sans print:p-4 text-xs">
+        <div ref={sheetRef} className="p-8 space-y-6 text-slate-900 font-sans print:p-0 text-xs bg-white">
           <div className="flex items-start justify-between border-b-2 border-slate-800 pb-4">
             <div>
               <h1 className="text-base font-black tracking-wider uppercase">PT ANDALAN ARTHA PRIMANUSA</h1>
@@ -97,7 +99,7 @@ export function PrintableSummaryModal({ plans, onClose }: Props) {
             </tfoot>
           </table>
 
-          <div className="pt-4 grid grid-cols-4 gap-4 text-center border-t border-slate-300">
+          <div className="sig pt-4 grid grid-cols-4 gap-4 text-center border-t border-slate-300">
             {[
               ["Dibuat Oleh,", "Admin Finance"],
               ["Diperiksa Oleh,", "Manager FATB"],

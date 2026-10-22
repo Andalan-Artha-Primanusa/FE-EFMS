@@ -17,11 +17,13 @@ export function TrackingTunaiPOPage() {
   const { user, setNotice } = useOutletContext<any>();
   const canSubmit = authorized(user, "tunai_po", "submit");
   const canVerify = authorized(user, "tunai_po", "verify");
+  const canFuel = canSubmit || authorized(user, "payment", "write");
+  // FUEL is entered by SCM or Finance Admin (payment:write), TUNAI_PO by SCM (tunai_po:submit); BE lets only the owner or finance edit docs.
+  const submitOf = (r?: TPORequest) => (r?.kind === "FUEL" ? canFuel : canSubmit);
   const { mappings } = useAccountMappings();
 
   const [rows, setRows] = useState<TPORequest[]>([]);
   const [loading, setLoading] = useState(false);
-  const [all, setAll] = useState(false);
   const [overdue, setOverdue] = useState(false);
   const [search, setSearch] = useState("");
   const [site, setSite] = useState("");
@@ -30,14 +32,14 @@ export function TrackingTunaiPOPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await api<{ success: boolean; requests: TPORequest[] }>(`/api/tunai-po/requests${all ? "" : "?status=paid,posted"}`);
+      const r = await api<{ success: boolean; requests: TPORequest[] }>("/api/tunai-po/requests?status=paid,posted");
       setRows(r.requests || []);
     } catch (e: any) {
       setNotice(e.message || "Gagal memuat tracking");
     } finally {
       setLoading(false);
     }
-  }, [all, setNotice]);
+  }, [setNotice]);
   useEffect(() => {
     load();
   }, [load]);
@@ -101,9 +103,6 @@ export function TrackingTunaiPOPage() {
           Terlambat
           <span className={`px-1.5 rounded-full text-[10px] font-bold ${overdue ? "bg-rose-600 text-white" : "bg-slate-100 text-slate-600"}`}>{overdueCount}</span>
         </button>
-        <button onClick={() => setAll(!all)} className={chip(all, "border-[#A57C50] bg-[#A57C50] text-white")}>
-          Semua Status
-        </button>
         <button onClick={load} className={btnSecondary} title="Refresh">
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
         </button>
@@ -111,7 +110,7 @@ export function TrackingTunaiPOPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-6 gap-2 shrink-0">
         <div className="bg-[#1A1612] rounded-lg p-2.5">
-          <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Total PO</div>
+          <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Total Pengajuan</div>
           <div className="text-lg font-bold text-white leading-tight">{stats.total}</div>
           <div className="font-mono font-bold text-amber-400">{formatCurrency(fromCents(stats.pay))}</div>
         </div>
@@ -157,6 +156,7 @@ export function TrackingTunaiPOPage() {
               <th rowSpan={2} className="p-2.5 border-b border-slate-200">Site</th>
               <th rowSpan={2} className="p-2.5 border-b border-slate-200">Periode</th>
               <th rowSpan={2} className="p-2.5 text-right whitespace-nowrap border-b border-slate-200">Total Bayar</th>
+              <th rowSpan={2} className="p-2.5 text-right whitespace-nowrap border-b border-slate-200">Sisa PO</th>
               <th rowSpan={2} className="p-2.5 border-b border-slate-200">Voucher</th>
               <th rowSpan={2} className="p-2.5 text-center border-b border-slate-200">Status</th>
               <th rowSpan={2} className="p-2.5 whitespace-nowrap border-b border-slate-200">Tgl Bayar</th>
@@ -191,6 +191,9 @@ export function TrackingTunaiPOPage() {
                   </td>
                   <td className="p-2.5 whitespace-nowrap">{periodLabel(r)}</td>
                   <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">{formatCurrency(r.payAmount)}</td>
+                  <td className="p-2.5 text-right font-mono whitespace-nowrap">
+                    {r.poSettled ? <span className="px-1.5 py-0.5 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] font-bold">PO Lunas</span> : formatCurrency(r.poRemaining)}
+                  </td>
                   <td className="p-2.5 font-mono whitespace-nowrap">{r.voucherNo || "-"}</td>
                   <td className="p-2.5 text-center">
                     <StatusBadge status={r.status} />
@@ -203,7 +206,7 @@ export function TrackingTunaiPOPage() {
                   </td>
                   {DOC_TYPES.map((t, i) => (
                     <td key={t} className={`p-2 text-center ${i ? "" : "border-l border-slate-100"}`}>
-                      <DocToggle request={r} docType={t} canEdit={canSubmit || canVerify} onSaved={load} onError={setNotice} />
+                      <DocToggle request={r} docType={t} canEdit={canVerify || (submitOf(r) && r.createdBy === user?.id)} onSaved={load} onError={setNotice} />
                     </td>
                   ))}
                   <td className="p-2 text-center">
@@ -218,7 +221,7 @@ export function TrackingTunaiPOPage() {
             })}
             {!filtered.length && (
               <tr>
-                <td colSpan={10 + DOC_TYPES.length} className="p-10 text-center text-slate-400">
+                <td colSpan={11 + DOC_TYPES.length} className="p-10 text-center text-slate-400">
                   {loading ? "Memuat…" : "Tidak ada data"}
                 </td>
               </tr>
@@ -228,10 +231,10 @@ export function TrackingTunaiPOPage() {
             <tfoot className="sticky bottom-0">
               <tr className="bg-slate-50 border-t border-slate-200 font-bold text-slate-900">
                 <td colSpan={4} className="p-2.5 text-slate-600">
-                  {filtered.length} PO
+                  {filtered.length} pengajuan
                 </td>
                 <td className="p-2.5 text-right font-mono whitespace-nowrap">{formatCurrency(sumPay)}</td>
-                <td colSpan={5 + DOC_TYPES.length} />
+                <td colSpan={6 + DOC_TYPES.length} />
               </tr>
             </tfoot>
           )}
@@ -242,7 +245,7 @@ export function TrackingTunaiPOPage() {
         <RequestDetailModal
           requestId={detailId}
           userId={user?.id}
-          canSubmit={canSubmit}
+          canSubmit={submitOf(rows.find((r) => r.id === detailId))}
           canVerify={canVerify}
           mappings={mappings}
           onClose={() => setDetailId(null)}

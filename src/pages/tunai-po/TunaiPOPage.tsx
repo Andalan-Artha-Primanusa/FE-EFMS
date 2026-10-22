@@ -9,11 +9,12 @@ import { MappingsModal, OverdueBadge, STATUS_LABEL, StatusBadge, btnPrimary, btn
 import { RequestFormModal } from "./RequestFormModal";
 import { RequestDetailModal } from "./RequestDetailModal";
 
-const TABS = Object.keys(STATUS_LABEL) as TPOStatus[];
+// Paid/posted requests live in Tracking Tunai PO.
+const TABS: TPOStatus[] = ["draft", "submitted", "rejected", "verified", "in_voucher"];
 
 export function TunaiPOPage({ kind = "TUNAI_PO" }: { kind?: TPOKind }) {
   const { user, setNotice } = useOutletContext<any>();
-  const canSubmit = kind === "FUEL" ? authorized(user, "payment", "write") : authorized(user, "tunai_po", "submit");
+  const canSubmit = authorized(user, "tunai_po", "submit") || (kind === "FUEL" && authorized(user, "payment", "write"));
   const canVerify = authorized(user, "tunai_po", "verify");
   const { mappings, reload: reloadMappings } = useAccountMappings();
 
@@ -30,7 +31,7 @@ export function TunaiPOPage({ kind = "TUNAI_PO" }: { kind?: TPOKind }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await api<{ success: boolean; requests: TPORequest[] }>(`/api/tunai-po/requests?kind=${kind}`);
+      const r = await api<{ success: boolean; requests: TPORequest[] }>(`/api/tunai-po/requests?kind=${kind}&status=${TABS.join(",")}`);
       setRows(r.requests || []);
     } catch (e: any) {
       setNotice(e.message || "Gagal memuat pengajuan");
@@ -215,7 +216,6 @@ export function TunaiPOPage({ kind = "TUNAI_PO" }: { kind?: TPOKind }) {
         <RequestFormModal
           kind={kind}
           editing={form.editing}
-          mappings={mappings}
           onClose={() => setForm(null)}
           onError={setNotice}
           onSaved={(req) => {

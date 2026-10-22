@@ -1,14 +1,32 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Bell, BellRing, CheckCheck, X } from "lucide-react";
 import { getNotifications, markAllNotificationsRead, markNotificationRead, type Notification } from "../lib/api";
+import { viewPath } from "../data/navigation";
+
+// Halaman tujuan per jenis dokumen notifikasi (refType dari backend).
+const refView: Record<string, string> = {
+  ba: "Berita Acara (BA) Tracker",
+  invoice: "Invoice Management",
+  tunai_po: "Tracking Tunai PO",
+  voucher: "Voucher Payment",
+  vendor_bank: "Master Vendor"
+};
+
+// vendor_bank dari modul tunai_po diverifikasi di detail Tunai PO, bukan Master Vendor.
+export const notificationView = (n: Notification): string | undefined =>
+  n.refType === "vendor_bank" && n.module === "tunai_po" ? "Tracking Tunai PO" : refView[n.refType ?? ""];
 
 export function NotificationPanel({
   open,
-  onClose
+  onClose,
+  onChange
 }: {
   open: boolean;
   onClose: () => void;
+  onChange?: () => void;
 }) {
+  const navigate = useNavigate();
   const [items, setItems] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -24,10 +42,16 @@ export function NotificationPanel({
   const unread = items.filter((n) => !n.isRead).length;
 
   async function read(n: Notification) {
+    const view = notificationView(n);
+    if (view) {
+      navigate(viewPath(view));
+      onClose();
+    }
     if (n.isRead) return;
     try {
       await markNotificationRead(n.id);
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, isRead: true } : x)));
+      onChange?.();
     } catch { /* ignore */ }
   }
 
@@ -35,6 +59,7 @@ export function NotificationPanel({
     try {
       await markAllNotificationsRead();
       setItems((prev) => prev.map((x) => ({ ...x, isRead: true })));
+      onChange?.();
     } catch { /* ignore */ }
   }
 
@@ -53,7 +78,7 @@ export function NotificationPanel({
       {!loading && items.slice(0, 20).map((item) => (
         <button key={item.id} className={`notification-item ${!item.isRead ? "unread" : ""}`} onClick={() => read(item)}>
           <strong>{item.title}</strong>
-          <span>{item.body}</span>
+          {item.body && <span>{item.body}</span>}
           <small>{new Date(item.createdAt).toLocaleString("id-ID")}</small>
         </button>
       ))}

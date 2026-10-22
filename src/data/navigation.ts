@@ -37,7 +37,7 @@ export const hiddenMenuItems = new Set(
 );
 
 // Treasury sub-menus are steps of one page; access follows the "Treasury Management" grant.
-// Assign Voucher, Kopra Export, Rekonsiliasi Bank and Rekap AAP are off the sidebar (Kopra is a voucher button).
+// Kopra Export, Rekonsiliasi Bank and Rekap AAP are off the sidebar (Kopra is a voucher button).
 export const treasuryTabs = {
   "Pivot Hutang": "pivot",
   "Plan AP": "planning",
@@ -45,7 +45,6 @@ export const treasuryTabs = {
   "Asuransi": "asr",
   "Infrastruktur": "inf",
   "Voucher Payment": "voucher",
-  "Assign Voucher": "assign",
   "Kopra Export": "kopra",
   "Rekonsiliasi Bank": "reconcile",
   "Rekap AAP": "rekap",
@@ -229,7 +228,7 @@ export const menuPermissionMap: Record<string, string[]> = {
   "Invoice Management": ["invoice:read", "operational_transaction:read"],
   "Payment & Receipt Log": ["payment:read", "operational_transaction:read"],
   "Pengajuan Tunai PO": ["tunai_po:read", "tunai_po:submit", "tunai_po:verify"],
-  "Tracking Tunai PO": ["tunai_po:read", "tunai_po:submit", "tunai_po:verify"],
+  "Tracking Tunai PO": ["tunai_po:read", "tunai_po:submit", "tunai_po:verify", "payment:write"],
   "Fuel": ["tunai_po:read", "tunai_po:submit", "tunai_po:verify", "payment:write"],
   "Rekap Voucher": ["treasury:read"],
   "Purchase to Pay AP": ["operational_transaction:read"],

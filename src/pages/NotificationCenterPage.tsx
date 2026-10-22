@@ -2,8 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { Bell, BellRing, CheckCheck, MailOpen, RefreshCw } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import { getNotifications, markAllNotificationsRead, markNotificationRead, type Notification } from "../lib/api";
+import { useNavigate } from "react-router-dom";
+import { notificationView } from "../components/NotificationPanel";
+import { viewPath } from "../data/navigation";
 
 export function NotificationCenterPage({ onNotice }: { onNotice?: (m: string) => void }) {
+  const navigate = useNavigate();
   const [items, setItems] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [unreadOnly, setUnreadOnly] = useState(false);
@@ -25,11 +29,10 @@ export function NotificationCenterPage({ onNotice }: { onNotice?: (m: string) =>
   const unread = items.filter((n) => !n.isRead).length;
 
   async function read(n: Notification) {
-    if (n.isRead) return;
-    try {
-      await markNotificationRead(n.id);
-      await load();
-    } catch { /* ignore */ }
+    const view = notificationView(n);
+    if (!n.isRead) await markNotificationRead(n.id).catch(() => {});
+    if (view) navigate(viewPath(view));
+    else if (!n.isRead) await load();
   }
 
   async function readAll() {

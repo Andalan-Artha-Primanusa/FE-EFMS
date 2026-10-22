@@ -65,8 +65,6 @@ export function useTreasuryController(onNotice?: (msg: string) => void, user?: U
   const [showImportAccurateModal, setShowImportAccurateModal] = useState(false);
   const [showImportKopraCsvModal, setShowImportKopraCsvModal] = useState(false);
   const [showCreatePlanModal, setShowCreatePlanModal] = useState(false);
-  const [selectedPlanForPrint, setSelectedPlanForPrint] = useState<PaymentPlan | null>(null);
-  const [selectedVendorForSlip, setSelectedVendorForSlip] = useState<{ plan: PaymentPlan; vendor: TreasuryVendor } | null>(null);
 
   // Fetch Invoices
   const fetchInvoices = useCallback(async () => {
@@ -327,6 +325,8 @@ export function useTreasuryController(onNotice?: (msg: string) => void, user?: U
     }
   };
 
+  const handleMarkPlanPaid = (id: number, paidDate: string) =>
+    postAction(`/api/treasury/payment-plans/${id}/paid`, { paidDate }, "Voucher ditandai lunas");
   const handleVoidPlan = (id: number, reason: string) =>
     postAction(`/api/treasury/payment-plans/${id}/void`, { reason }, "Voucher di-void");
   const handleReviewPlan = (id: number, note: string) =>
@@ -499,60 +499,6 @@ export function useTreasuryController(onNotice?: (msg: string) => void, user?: U
     }
   };
 
-  // Assign Voucher to Invoices (Strictly 1 Site + 1 Vendor)
-  // Empty voucherNo = new server-assigned number; an existing number adds the invoices to that voucher.
-  const handleAssignVoucher = async (invoiceIds: number[], voucherNo: string, voucherDate?: string, voucherType = "AP") => {
-    try {
-      const res = await api<{ success: boolean; message: string }>("/api/treasury/invoices/assign-voucher", {
-        method: "POST",
-        body: JSON.stringify({
-          invoiceIds,
-          voucherNo,
-          voucherDate,
-          voucherType,
-        }),
-      });
-      onNotice?.(res.message || "Nomor voucher berhasil diterapkan dan disimpan");
-      fetchInvoices();
-      fetchAllUnpaidInvoices();
-      return true;
-    } catch (e: any) {
-      onNotice?.(e.message || "Gagal menerapkan nomor voucher");
-      return false;
-    }
-  };
-
-  // Remove Voucher from Invoices
-  const handleRemoveVoucher = async (invoiceIds: number[]) => {
-    try {
-      const res = await api<{ success: boolean; message: string }>("/api/treasury/invoices/remove-voucher", {
-        method: "POST",
-        body: JSON.stringify({
-          invoiceIds,
-        }),
-      });
-      onNotice?.(res.message || "Nomor voucher berhasil dilepas");
-      fetchInvoices();
-      fetchAllUnpaidInvoices();
-      return true;
-    } catch (e: any) {
-      onNotice?.(e.message || "Gagal melepas nomor voucher");
-      return false;
-    }
-  };
-
-  // Preview (not reserved) of the next number from the shared yearly sequence.
-  const fetchNextVoucherNo = useCallback(async (type = "AP"): Promise<string> => {
-    try {
-      const res = await api<{ success: boolean; nextVoucher: string }>(
-        `/api/treasury/invoices/next-voucher-no?type=${encodeURIComponent(type)}`
-      );
-      return res.nextVoucher || "";
-    } catch (e) {
-      return "";
-    }
-  }, []);
-
   const handleUploadPaymentProof = async (planId: number, file: File) => {
     try {
       const form = new FormData();
@@ -578,6 +524,7 @@ export function useTreasuryController(onNotice?: (msg: string) => void, user?: U
     handlePostToAccurate,
     handlePostManyToAccurate,
     handleCancelPaymentProof,
+    handleMarkPlanPaid,
     handleManualMatch,
     handleVerifyVendorBank,
     activeTab,
@@ -606,10 +553,6 @@ export function useTreasuryController(onNotice?: (msg: string) => void, user?: U
     setShowImportKopraCsvModal,
     showCreatePlanModal,
     setShowCreatePlanModal,
-    selectedPlanForPrint,
-    setSelectedPlanForPrint,
-    selectedVendorForSlip,
-    setSelectedVendorForSlip,
     refreshAll,
     fetchInvoices,
     handleCreatePlan,
@@ -621,9 +564,6 @@ export function useTreasuryController(onNotice?: (msg: string) => void, user?: U
     handleAutoMatch,
     handleUpdateVendor,
     handleAssignPlan,
-    handleAssignVoucher,
-    handleRemoveVoucher,
-    fetchNextVoucherNo,
     handleUploadPaymentProof,
   };
 }
