@@ -133,7 +133,7 @@ export function useFinanceController({
       return;
     }
     // BGG: pilih pending volume BA lain (terverifikasi, belum ditagih) untuk ikut ditagih.
-    const pendingRows = customerKind(ba.customerCode) === "BGG" ? baRows.filter((r) => customerKind(r.customerCode) === "BGG" && isUnbilledPending(r) && r.verifiedBy && r.id !== ba.id && r.pendingVolume.period !== ba.workPeriod) : [];
+    const pendingRows = customerKind(ba.customerCode) === "BGG" ? baRows.filter((r) => customerKind(r.customerCode) === "BGG" && isUnbilledPending(r) && r.id !== ba.id && r.pendingVolume.period !== ba.workPeriod) : [];
     if (pendingRows.length) { setModalType("none"); setInvoicePick({ ba, category, rows: pendingRows, ids: [] }); return; }
     if (!window.confirm(`Terbitkan Draft Invoice${category ? ` [${category}]` : ""} dari BA ${ba.baNumber}?`)) return;
     setModalType("none");

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, Edit2, CheckCircle2, Loader2 } from "lucide-react";
 import { renderBAStatusBadge, formatIDR } from "../helpers";
-import { getBAAuditLogs } from "../../../lib/api";
+import { getBAAuditLogs, verifyBATracker } from "../../../lib/api";
 import {
   isDistanceItem,
   getBAEffectiveVolume,
@@ -65,6 +65,7 @@ export function BATrackerModal({ c }: { c: any }) {
     getSowMasterRate,
     openBAModal,
     handleDeletePendingVolume,
+    loadData,
   } = c || {};
 
   const [auditTab, setAuditTab] = useState<"flow" | "activity">("flow");
@@ -116,6 +117,15 @@ export function BATrackerModal({ c }: { c: any }) {
     else handleSave(e);
   };
   const saveAnswer = (openPending: boolean) => { setAskPending(false); handleSave(undefined, openPending); };
+  const actPending = async (action: "verify_pending" | "reject_pending", note: string) => {
+    try {
+      const updated = await verifyBATracker(editItem.id, action, note);
+      await loadData?.();
+      openBAModal(updated, false, true);
+    } catch (err: any) {
+      alert(err?.message || "Gagal memproses Pending Volume");
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-1.5 sm:p-3">
@@ -280,6 +290,40 @@ export function BATrackerModal({ c }: { c: any }) {
                       <tr className="bg-slate-50"><td className="p-2 font-black text-slate-900">Total JV Akrual</td><td className="p-2 text-right font-mono font-black">{formatIDR(Number(editItem?.workAmount || 0) + Number(pv.amount || 0))}</td></tr>
                     </tbody>
                   </table>
+                )}
+
+                {/* Verifikasi Pending Volume: Finance Specialist saja, tanpa approval Manager */}
+                {pending && pv && !isInlineEditingBA && (
+                  <div className="max-w-md p-3 rounded-[4px] border border-slate-200 space-y-2">
+                    <div className="flex justify-between gap-2 font-bold">
+                      <span className="text-[11px] font-black uppercase tracking-wider text-slate-700">Verifikator: Finance Specialist</span>
+                      <span className={pv.verifiedBy ? "text-[#A57C50]" : pv.rejectNote ? "text-rose-700" : "text-amber-700"}>
+                        {pv.verifiedBy ? `${pv.verifiedBy} · ${new Date(pv.verifiedAt).toLocaleString("id-ID")}` : pv.rejectNote ? "Revisi" : "Menunggu Verifikasi"}
+                      </span>
+                    </div>
+                    {pv.rejectNote && <div className="text-rose-700">{pv.rejectNote}</div>}
+                    {canVerifyBA && !pv.verifiedBy && !pv.billedInvoiceId && (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => actPending("verify_pending", "Verifikasi Pending Volume oleh Finance Specialist")}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs transition cursor-pointer"
+                        >
+                          <CheckCircle2 size={14} /> Verifikasi Pending Volume
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const note = window.prompt("Alasan Reject");
+                            if (note) actPending("reject_pending", note);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-[3px] transition cursor-pointer"
+                        >
+                          <X size={14} /> Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 

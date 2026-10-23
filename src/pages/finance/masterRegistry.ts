@@ -54,7 +54,7 @@ export function contractParams(code?: string) {
   };
 }
 
-export const BGG_DEFAULT_OD_DISCOUNT_PCT = 20;
+export const BGG_DEFAULT_OD_DISCOUNT_PCT = 25;
 
 /** Diskon OD BGG (%) untuk volume periode asal `period`: bulan di jadwal Master Customer, selain itu default (sama dengan BE odDiscountPctFor). */
 export function odDiscountPctFor(code?: string, period?: string): number {

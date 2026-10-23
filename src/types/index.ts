@@ -309,7 +309,7 @@ export interface BATracker {
   verifiedAt?: string | null;
   approvedBy?: string;
   approvedAt?: string | null;
-  pendingVolume?: { period: string; items: BAItem[]; amount: number; billedInvoiceId?: number; billedInvoiceNo?: string } | null;
+  pendingVolume?: { period: string; items: BAItem[]; amount: number; billedInvoiceId?: number; billedInvoiceNo?: string; verifiedBy?: string; verifiedAt?: string; rejectNote?: string } | null;
   createdAt: string;
 }
 

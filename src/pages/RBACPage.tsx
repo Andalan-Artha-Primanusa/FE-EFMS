@@ -25,12 +25,14 @@ import {
   Briefcase,
   Plus,
   Hash,
+  Mail,
   Layers,
   Receipt,
   DollarSign,
   FileCheck
 } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
+import { EmailSettingsPanel } from "../components/EmailSettingsPanel";
 import {
   getUsers,
   createUser,
@@ -224,11 +226,11 @@ export function RBACPage({
   roles: RoleAccess[];
   myPermissions: Permission[];
   myTcodes?: TCode[];
-  initialTab?: "users" | "matrix" | "simulate" | "tcodes";
+  initialTab?: "users" | "matrix" | "simulate" | "tcodes" | "email";
   pageTitle?: string;
   onNotice?: (msg: string) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<"users" | "matrix" | "simulate" | "tcodes">(initialTab);
+  const [activeTab, setActiveTab] = useState<"users" | "matrix" | "simulate" | "tcodes" | "email">(initialTab);
   const [userList, setUserList] = useState<UserType[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [companyList, setCompanyList] = useState<Company[]>([]);
@@ -883,7 +885,21 @@ export function RBACPage({
             <Hash size={16} /> T-Codes ({tcodesList.length})
           </button>
         )}
+        {userScopeType(user) === "GLOBAL" && (
+          <button
+            onClick={() => setActiveTab("email")}
+            className={`pb-3 font-bold border-b-2 flex items-center gap-2 transition ${
+              activeTab === "email"
+                ? "border-[#a57c50] text-[#1e2b4d]"
+                : "border-transparent text-[#6B6055] hover:text-[#1A1612]"
+            }`}
+          >
+            <Mail size={16} /> Email Notifikasi
+          </button>
+        )}
       </div>
+
+      {activeTab === "email" && userScopeType(user) === "GLOBAL" && <EmailSettingsPanel notify={showToast} />}
 
       {/* TAB 1: USER MANAGEMENT */}
       {activeTab === "users" && (

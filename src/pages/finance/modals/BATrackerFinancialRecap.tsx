@@ -49,7 +49,7 @@ export function BATrackerFinancialRecap({
   const isPOS = customerKind(formData.customerCode || editItem?.customerCode) === "POS";
   const step3InvStatus = getBAInvoiceStatus(editItem || formData, invoiceRows);
   const isLinked = Boolean(formData.invoiceNoLinked || editItem?.invoiceNoLinked) || step3InvStatus.isFullyInvoiced;
-  // Verifikasi/Reject/Approve hanya di pratinjau BA; satu aksi berlaku untuk BA utama + pending volume.
+  // Verifikasi/Reject/Approve hanya di pratinjau BA; pending volume diverifikasi terpisah (tab Pending Volume).
   const act = async (call: () => Promise<any>) => {
     try {
       const updated: any = await call();
