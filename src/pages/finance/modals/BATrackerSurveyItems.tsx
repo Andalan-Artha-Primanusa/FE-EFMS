@@ -4,8 +4,9 @@ import { formatIDR, FormattedNumberInput, matchPeriod } from "../helpers";
 import { BAOperatingTable } from "./BAOperatingTable";
 import { BAMDOTable } from "./BAMDOTable";
 import { BADeductionTable } from "./BADeductionTable";
-import { calculateBACommercialBreakdown, resolveHOMasterLaborAndCurrency, calculateTripleFactorRF, customerKind } from "../ba_calculations";
+import { calcIDR, resolveHOMasterLaborAndCurrency, calculateTripleFactorRF, customerKind, isPOSMDOBA } from "../ba_calculations";
 import { computeRFIndex, rfMasterFor, rfTemplateFor, ptroContractRates } from "../masterRegistry";
+import type { BACalc } from "../../../types";
 
 interface BATrackerSurveyItemsProps {
   formData: any;
@@ -22,8 +23,7 @@ interface BATrackerSurveyItemsProps {
   allBAItems: any[];
   isDistanceItem: (item: any) => boolean;
   getBAEffectiveVolume: (item: any, allItems: any[], isSurvey: boolean) => number;
-  getBAItemSubtotal: (item: any, volume: number) => number;
-  sumInitial: number;
+  calc?: BACalc;
   setActiveBAStep: (step: number) => void;
   rfIndexCalculated?: number;
   latestKursBI?: number;
@@ -49,8 +49,7 @@ export function BATrackerSurveyItems({
   allBAItems,
   isDistanceItem,
   getBAEffectiveVolume,
-  getBAItemSubtotal,
-  sumInitial,
+  calc,
   setActiveBAStep,
   rfIndexCalculated = 1.0,
   latestKursBI,
@@ -65,6 +64,7 @@ export function BATrackerSurveyItems({
   const isPTRO = isCustomerDBK;
   const isBGG = kind === "BGG";
   const isPOS = kind === "POS";
+  const isPOSMDO = isPOSMDOBA(formData);
   const isSBS = kind === "SBS";
 
   // Discover all distinct periods from items
@@ -384,51 +384,6 @@ export function BATrackerSurveyItems({
 
   const handlePOSParamChange = (field: string, val: number) => {
     if (!setFormData) return;
-    const newKurs = field === "actualMRateXn" ? val : 0;
-    if (field === "actualMRateXn" && newKurs > 0) {
-      if (setBaOperatingItems) {
-        setBaOperatingItems((prev) =>
-          prev.map((it) => {
-            if (it.isUSD || (it.rateUSD && it.rateUSD > 0)) {
-              const rUSD = Number(it.rateUSD || 0);
-              if (rUSD > 0) {
-                const newIDRRate = rUSD * newKurs;
-                const effVol = getBAEffectiveVolume(it, prev, false);
-                return {
-                  ...it,
-                  rate: newIDRRate,
-                  subtotalInitial: getBAItemSubtotal({ ...it, rate: newIDRRate }, effVol),
-                  subtotalAdjusted: getBAItemSubtotal({ ...it, rate: newIDRRate }, getBAEffectiveVolume(it, prev, true)),
-                };
-              }
-            }
-            return it;
-          })
-        );
-      }
-      if (setBaMDOItems) {
-        setBaMDOItems((prev) =>
-          prev.map((it) => {
-            if (it.isUSD || (it.rateUSD && it.rateUSD > 0)) {
-              const rUSD = Number(it.rateUSD || 0);
-              if (rUSD > 0) {
-                const newIDRRate = rUSD * newKurs;
-                const initVol = Number(it.initialVolume || 0);
-                const adjVol = Number(it.adjustedVolume || 0);
-                return {
-                  ...it,
-                  rate: newIDRRate,
-                  subtotalInitial: initVol * newIDRRate,
-                  subtotalAdjusted: adjVol * newIDRRate,
-                };
-              }
-            }
-            return it;
-          })
-        );
-      }
-    }
-
     setFormData((prev: any) => {
       const curPOS = prev.posData || {};
       const curPeriods = { ...(curPOS.fuelPeriods || {}) };
@@ -676,35 +631,6 @@ export function BATrackerSurveyItems({
 
   const handlePTROParamChange = (field: string, val: number) => {
     if (!setFormData) return;
-    const newKurs = field === "actualMRate" ? val : 0;
-
-    // Live update rates in baOperatingItems for USD-linked items
-    if (field === "actualMRate" && newKurs > 0 && setBaOperatingItems) {
-      setBaOperatingItems((prev) =>
-        prev.map((it) => {
-          if (it.isUSD || (it.rateUSD && it.rateUSD > 0)) {
-            const rUSD = Number(
-              it.rateUSD ||
-                ((it.material || "").toLowerCase().includes("coal")
-                  ? ptroContractRates(formData.customerCode).cgRateUSD
-                  : (it.material || "").toLowerCase().includes("overhaul") || (it.material || "").toLowerCase().includes("over distance")
-                  ? ptroContractRates(formData.customerCode).odObRateUSD
-                  : ptroContractRates(formData.customerCode).obRateUSD)
-            );
-            const newIDRRate = Math.round(rUSD * newKurs);
-            const effVol = getBAEffectiveVolume(it, prev, false);
-            return {
-              ...it,
-              rate: newIDRRate,
-              subtotalInitial: getBAItemSubtotal({ ...it, rate: newIDRRate }, effVol),
-              subtotalAdjusted: getBAItemSubtotal({ ...it, rate: newIDRRate }, getBAEffectiveVolume(it, prev, true)),
-            };
-          }
-          return it;
-        })
-      );
-    }
-
     setFormData((prev: any) => {
       const curPTRO = prev.ptroData || {};
       const curPeriods = { ...(curPTRO.fuelPeriods || {}) };
@@ -785,12 +711,7 @@ export function BATrackerSurveyItems({
         else if (field === "dendaBBMLoader" && m.includes("loader")) newRate = val;
         else if (field === "dendaBBMHauler" && m.includes("hauler")) newRate = val;
         else if (field === "dendaVolume" && m.includes("volume")) newRate = val;
-        return {
-          ...it,
-          rate: newRate,
-          subtotalInitial: -Math.abs(newRate),
-          subtotalAdjusted: -Math.abs(newRate),
-        };
+        return { ...it, rate: newRate };
       })
     );
 
@@ -800,20 +721,10 @@ export function BATrackerSurveyItems({
     });
   };
 
-  const currentAllBAItems = [...baOperatingItems, ...(baMDOItems || []), ...(baDeductionItems || [])];
-  const sumAdjusted = currentAllBAItems.reduce((acc, it) => acc + getBAItemSubtotal(it, getBAEffectiveVolume(it, currentAllBAItems, true)), 0);
-  const breakdown = calculateBACommercialBreakdown(
-    formData.customerCode,
-    currentAllBAItems,
-    effectiveRF,
-    isCustomerDBK,
-    false,
-    isBGG ? bggData.fuelPeriods : isPOS ? posData.fuelPeriods : isPTRO ? ptroData.fuelPeriods : sbsData.fuelPeriods
-  );
-
   return (
     <div className="space-y-4">
       {/* Tabel 1: Operating & Mining */}
+      {!isPOSMDO && (
       <BAOperatingTable
         formData={formData}
         baOperatingItems={baOperatingItems}
@@ -828,14 +739,15 @@ export function BATrackerSurveyItems({
         allBAItems={allBAItems}
         isDistanceItem={isDistanceItem}
         getBAEffectiveVolume={getBAEffectiveVolume}
-        getBAItemSubtotal={getBAItemSubtotal}
+        calc={calc}
         reorderBAItems={reorderBAItems}
         moveBAItem={moveBAItem}
         getSowMasterRate={getSowMasterRate}
-        rfIndexCalculated={effectiveRF}
       />
+      )}
 
-      {/* Tabel 2: MDO / Support (POS & SBS) */}
+      {/* Tabel 2: MDO / Support (POS & SBS); BA Operation POS tanpa tabel MDO kecuali BA lama gabungan */}
+      {(!isPOS || isPOSMDO || (baMDOItems || []).length > 0) && (
       <BAMDOTable
         formData={formData}
         baMDOItems={baMDOItems}
@@ -843,10 +755,11 @@ export function BATrackerSurveyItems({
         isInlineEditingBA={isInlineEditingBA}
         activeSOWCatalog={activeSOWCatalog}
         mRate={mRate}
-        allBAItems={currentAllBAItems}
-        rfIndexCalculated={effectiveRF}
+        allBAItems={allBAItems}
+        calc={calc}
         getSowMasterRate={getSowMasterRate}
       />
+      )}
 
       {/* Rekapitulasi Tagihan Gross & Pajak / Summary Table (Invoice Equivalent) */}
       {!isPOS ? (
@@ -858,7 +771,7 @@ export function BATrackerSurveyItems({
                   TOTAL
                 </td>
                 <td className="p-2 text-right font-bold text-slate-900 w-44 sm:w-56">
-                  {formatIDR(breakdown.totalGross > 0 ? breakdown.totalGross : (sumAdjusted > 0 ? sumAdjusted : sumInitial))}
+                  {calcIDR(calc?.total.gross)}
                 </td>
               </tr>
               <tr className="border-b border-slate-200 hover:bg-slate-50/60">
@@ -866,7 +779,7 @@ export function BATrackerSurveyItems({
                   DPP PPN 11/12
                 </td>
                 <td className="p-2 text-right font-medium text-slate-800 w-44 sm:w-56">
-                  {formatIDR(breakdown.dpp11_12)}
+                  {calcIDR(calc?.total.dpp11_12)}
                 </td>
               </tr>
               <tr className="border-b border-slate-200 hover:bg-slate-50/60">
@@ -874,7 +787,7 @@ export function BATrackerSurveyItems({
                   VAT ( 12%)
                 </td>
                 <td className="p-2 text-right font-medium text-slate-800 w-44 sm:w-56">
-                  {formatIDR(breakdown.vat12)}
+                  {calcIDR(calc?.total.vat12)}
                 </td>
               </tr>
               <tr className="border-b border-slate-200 hover:bg-slate-50/60">
@@ -882,7 +795,7 @@ export function BATrackerSurveyItems({
                   WITH HOLDING TAX ART 23 (2%)
                 </td>
                 <td className="p-2 text-right font-medium text-slate-800 w-44 sm:w-56">
-                  ({formatIDR(breakdown.pph23Amount)})
+                  ({calcIDR(calc?.total.pph23)})
                 </td>
               </tr>
               <tr className="bg-slate-100/80 font-black text-slate-900 border-t border-slate-300">
@@ -890,20 +803,20 @@ export function BATrackerSurveyItems({
                   TOTAL INVOICE
                 </td>
                 <td className="p-2 text-right font-black text-slate-950 w-44 sm:w-56 text-sm">
-                  {formatIDR(breakdown.netTotalInvoice > 0 ? breakdown.netTotalInvoice : (sumAdjusted > 0 ? sumAdjusted : sumInitial))}
+                  {calcIDR(calc?.total.totalInvoice)}
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
       ) : (
-        (baMDOItems || []).some((it) => Number(it.initialVolume || 0) > 0) && (
+        !isPOSMDO && (baMDOItems || []).some((it) => Number(it.initialVolume || 0) > 0) && (
           <div className="overflow-x-auto rounded-[4px] border border-[#A57C50]/40 shadow-xs bg-amber-50/30 px-3.5 py-2.5 flex items-center justify-between">
             <span className="font-extrabold text-xs text-[#1A1612] uppercase tracking-wider">
               GRAND TOTAL GABUNGAN INVOICE POS (OPERATING + MDO):
             </span>
             <span className="font-mono font-black text-sm text-[#A57C50]">
-              {formatIDR(breakdown.netTotalInvoice)}
+              {calcIDR(calc?.total.totalInvoice)}
             </span>
           </div>
         )
@@ -916,6 +829,7 @@ export function BATrackerSurveyItems({
         setBaDeductionItems={setBaDeductionItems}
         isInlineEditingBA={isInlineEditingBA}
         activeSOWCatalog={activeSOWCatalog}
+        calc={calc}
       />
 
       {/* TOTAL DIBAYAR (Khusus SBS Setelah Pengurang Pembayaran) */}
@@ -928,7 +842,7 @@ export function BATrackerSurveyItems({
                   <span>TOTAL DIBAYAR</span>
                 </td>
                 <td className="p-2.5 text-right font-black text-emerald-900 w-44 sm:w-56 text-sm">
-                  {formatIDR(breakdown.totalDibayar || breakdown.netTotalInvoice)}
+                  {calcIDR(calc?.total.totalDibayar)}
                 </td>
               </tr>
             </tbody>

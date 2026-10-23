@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { Pickaxe, Trash2, GripVertical, ChevronUp, ChevronDown } from "lucide-react";
 import { formatIDR, FormattedNumberInput } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { BAAddRowDropdown } from "./BAAddRowDropdown";
-import { isDistanceParent, isLandClearingItem, removeBAItem, invoiceTaxes, getItemDistanceM } from "../ba_calculations";
+import { isLandClearingItem, removeBAItem, getItemDistanceM, getBaseDistance, calcIDR, calcItemsAmount, calcItemLines } from "../ba_calculations";
+import type { BACalc } from "../../../types";
 
 interface BAPOSTableProps {
   formData: any;
@@ -19,11 +20,10 @@ interface BAPOSTableProps {
   allBAItems: any[];
   isDistanceItem: (item: any) => boolean;
   getBAEffectiveVolume: (item: any, allItems: any[], isSurvey: boolean) => number;
-  getBAItemSubtotal: (item: any, volume: number, isCustomerDBK?: boolean, customerCode?: string) => number;
+  calc?: BACalc;
   reorderBAItems?: (startIndex: number, endIndex: number, listType?: "operating" | "mdo" | "deduction") => void;
   moveBAItem?: (id: string, dir: "up" | "down", listType?: "operating" | "mdo" | "deduction") => void;
   getSowMasterRate?: (cust: string, name: string, fb: number, isUSD?: boolean, period?: string) => number;
-  rfIndexCalculated?: number;
 }
 
 export function BAPOSTable({
@@ -40,17 +40,13 @@ export function BAPOSTable({
   allBAItems,
   isDistanceItem,
   getBAEffectiveVolume,
-  getBAItemSubtotal,
+  calc,
   reorderBAItems,
   moveBAItem,
   getSowMasterRate,
-  rfIndexCalculated = 1.0,
 }: BAPOSTableProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
-
-  const effectiveRF = Number(rfIndexCalculated || formData.posData?.posRfIndex || formData.rfIndexCalculated || 1.0);
-  const rfFactor = effectiveRF - 1.0;
 
   const handleMoveRow = (id: string, dir: "up" | "down") => {
     if (moveBAItem) {
@@ -114,148 +110,23 @@ export function BAPOSTable({
   const lcItems = baOperatingItems.filter((it) => isLandClearingItem(it) && !isDPFuelItem(it));
   const dpFuelItems = baOperatingItems.filter((it) => isDPFuelItem(it));
 
-  const getDynamicItemBaseIDR = (it: any, isDistance: boolean = false) => {
-    let usdRate = Number(it.rateUSD ?? it.baseRateUSD ?? 0);
-    if (usdRate === 0 && getSowMasterRate) {
-      usdRate = getSowMasterRate("POS", it.material, 0, true);
-    }
-    // Sama dengan BE RecalculateBA: USD x kurs periode bila keduanya ada, selain itu tarif IDR baris.
-    const currentMRate = Number(mRate || formData?.posData?.actualMRateXn || 0);
-    if (usdRate > 0 && currentMRate > 0) {
-      return usdRate * currentMRate;
-    }
-    return Number(it.rate || 0);
-  };
-
-  const subtotalA = prodItems.reduce((acc, it) => {
-    const vol = getBAEffectiveVolume(it, allBAItems, false);
-    const r = getDynamicItemBaseIDR(it, false);
-    return acc + vol * r;
-  }, 0);
-
-  const subtotalB = distItems.reduce((acc, it) => {
-    const vol = getBAEffectiveVolume(it, allBAItems, false);
-    const actualDist = getItemDistanceM(it);
-    const deltaDist = actualDist - 1000;
-    const r = getDynamicItemBaseIDR(it, true);
-    return acc + Math.round((vol * r * deltaDist) / 1000);
-  }, 0);
-
-  const subtotalC = lcItems.reduce((acc, it) => {
-    const vol = getBAEffectiveVolume(it, allBAItems, false);
-    const r = getDynamicItemBaseIDR(it, false);
-    return acc + vol * r;
-  }, 0);
-
-  // Auto-calculated Section D (Raise & Fall's Factor) rows
-  const rfRows = useMemo(() => {
-    const rows: any[] = [];
-    let counter = 1;
-    // Satu baris over/underhaul hanya dipasangkan ke satu baris produksi (cegah RF dobel).
-    const usedDist = new Set<string>();
-
-    // Production items RF
-    prodItems.forEach((it) => {
-      const vol = getBAEffectiveVolume(it, allBAItems, false);
-      const rawBaseIDR = getDynamicItemBaseIDR(it, false);
-      const rawRfRate = rfFactor * rawBaseIDR;
-      const rfRate = rawRfRate;
-      const subtotal = vol * rfRate;
-
-      rows.push({
-        id: `rf_op_prod_${it.id}`,
-        code: `D${counter++}.`,
-        area: it.area || "WM1",
-        name: it.material,
-        unit: it.unit || "Bcm",
-        volume: vol,
-        distance: null,
-        deltaDist: null,
-        rawRfRate,
-        rfRate,
-        subtotal,
-      });
-
-      // Matching overhaul item for this specific production item (match by area + material)
-      const matchedDist = distItems.find((d) => !usedDist.has(d.id) && isDistanceParent(d, it));
-
-      if (matchedDist) {
-        usedDist.add(matchedDist.id);
-        const dVol = getBAEffectiveVolume(matchedDist, allBAItems, false);
-        const actualDist = getItemDistanceM(matchedDist);
-        const deltaDist = actualDist - 1000;
-        const dBaseIDR = getDynamicItemBaseIDR(matchedDist, true);
-        const rawDRfRate = rfFactor * dBaseIDR;
-        const dRfRate = rawDRfRate;
-        const dSubtotal = Math.round((dVol * dRfRate * deltaDist) / 1000);
-
-        rows.push({
-          id: `rf_op_dist_${matchedDist.id}`,
-          code: `D${counter++}.`,
-          area: matchedDist.area || it.area || "WM1",
-          name: `Over/Underhaul For ${it.material}`,
-          unit: matchedDist.unit || "Bcm",
-          volume: dVol,
-          distance: actualDist,
-          deltaDist,
-          rawRfRate: rawDRfRate,
-          rfRate: dRfRate,
-          subtotal: dSubtotal,
-        });
-      }
-    });
-
-    // Land Clearing RF
-    lcItems.forEach((it) => {
-      const vol = getBAEffectiveVolume(it, allBAItems, false);
-      const lcBaseIDR = getDynamicItemBaseIDR(it, false);
-      const rawRfRate = rfFactor * lcBaseIDR;
-      const rfRate = rawRfRate;
-      const subtotal = vol * rfRate;
-
-      rows.push({
-        id: `rf_op_lc_${it.id}`,
-        code: `D${counter++}.`,
-        area: it.area || "-",
-        name: it.material,
-        unit: it.unit || "m2",
-        volume: vol,
-        distance: null,
-        deltaDist: null,
-        rawRfRate,
-        rfRate,
-        subtotal,
-      });
-    });
-
-    return rows;
-  }, [prodItems, distItems, lcItems, allBAItems, rfFactor, mRate, formData?.posData?.mRate]);
-
-  const subtotalD = rfRows.reduce((acc, r) => acc + r.subtotal, 0);
-
-  // Seksi E: DP Fuel & Transport Subtotal
-  // Seksi E non-BGG: hanya baris manual (Tambah Baris), nominal final — tidak ditarik dari refill survey.
-  const subtotalDP = dpFuelItems.reduce(
-    (acc, it) => acc + Math.abs(Number(it.rate || it.subtotalInitial || it.subtotalAdjusted || it.amount || 0)),
-    0
-  );
-
-  // Kategori 1 Rekapitulasi Pajak
-  const totalGrossOpBeforeDP = subtotalA + subtotalB + subtotalC + subtotalD;
-  const totalGrossOp = Math.max(0, totalGrossOpBeforeDP - subtotalDP);
-  const { dpp11_12: dppOp, vat12: vatOp, pph23: whtOp, total: netTotalInvoiceOp } = invoiceTaxes(totalGrossOp);
+  const op = calc?.byCategory["Operation & Mining"];
+  const rfRows = (calc?.lines || []).filter((l) => l.section === "D" && l.category === "Operation & Mining");
+  const subtotalA = calcItemsAmount(calc, prodItems);
+  const subtotalB = calcItemsAmount(calc, distItems);
+  const subtotalC = calcItemsAmount(calc, lcItems);
+  const subtotalD = calc ? rfRows.reduce((a, l) => a + l.amount, 0) : undefined;
+  const subtotalDP = calcItemsAmount(calc, dpFuelItems);
+  const grossBeforeDP = op && subtotalDP !== undefined ? op.gross - subtotalDP : undefined;
+  const paren = (v: number | undefined) => (v !== undefined && v < 0 ? `(${formatIDR(-v)})` : calcIDR(v));
 
   const renderItemRow = (item: any, idx: number) => {
     const isDist = isDistanceItem(item);
     const effVol = getBAEffectiveVolume(item, allBAItems, false);
     const actualDist = getItemDistanceM(item);
-    const deltaDist = actualDist - 1000;
-    const effRate = getDynamicItemBaseIDR(item, isDist);
-    const subtotal = isDPFuelItem(item)
-      ? -Math.abs(Math.round(effVol * effRate))
-      : isDist
-      ? Math.round((effVol * effRate * deltaDist) / 1000)
-      : effVol * effRate;
+    const deltaDist = actualDist - getBaseDistance(item, formData.customerCode);
+    const calcRate = calcItemLines(calc, [item])[0]?.rate;
+    const subtotal = calcItemsAmount(calc, [item]);
 
     return (
       <tr
@@ -469,15 +340,15 @@ export function BAPOSTable({
         <td className="p-2 text-right font-mono align-top font-bold text-slate-800">
           {!isInlineEditingBA ? (
             <span className="pt-1 block">
-              {formatIDR(Math.round(effRate))}
+              {calcIDR(calcRate)}
             </span>
           ) : (
             <FormattedNumberInput
               allowDecimals
               maxDecimals={0}
               className="w-20 sm:w-24 border rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs bg-slate-50 border-slate-300 focus:border-[#A57C50] outline-none"
-              value={effRate || ""}
-              placeholder={Math.round(effRate).toLocaleString("id-ID")}
+              value={item.rate || ""}
+              placeholder={calcRate ? Math.round(calcRate).toLocaleString("id-ID") : "0"}
               onChange={(val) => {
                 const updated = [...baOperatingItems];
                 const targetIdx = updated.findIndex((it) => it.id === item.id);
@@ -490,8 +361,8 @@ export function BAPOSTable({
           )}
         </td>
         <td className="p-2 text-right font-mono font-extrabold align-top">
-          <div className={`pt-1 ${subtotal < 0 ? "text-rose-700 font-black" : "text-[#1A1612]"}`}>
-            {subtotal < 0 ? `(${formatIDR(Math.abs(subtotal))})` : formatIDR(subtotal)}
+          <div className={`pt-1 ${(subtotal || 0) < 0 ? "text-rose-700 font-black" : "text-[#1A1612]"}`}>
+            {paren(subtotal)}
           </div>
         </td>
       </tr>
@@ -551,7 +422,7 @@ export function BAPOSTable({
                 A. PRODUCTION
               </td>
               <td className="p-2 text-right font-mono text-slate-900 font-extrabold">
-                {formatIDR(subtotalA)}
+                {calcIDR(subtotalA)}
               </td>
             </tr>
             {prodItems.map((item, idx) => renderItemRow(item, idx))}
@@ -563,7 +434,7 @@ export function BAPOSTable({
                 B. OVER DISTANCE
               </td>
               <td className="p-2 text-right font-mono font-extrabold text-slate-900">
-                {subtotalB < 0 ? `(${formatIDR(Math.abs(subtotalB))})` : formatIDR(subtotalB)}
+                {paren(subtotalB)}
               </td>
             </tr>
             {distItems.map((item, idx) => renderItemRow(item, idx))}
@@ -577,7 +448,7 @@ export function BAPOSTable({
                     C. LAND CLEARING
                   </td>
                   <td className="p-2 text-right font-mono text-slate-900 font-extrabold">
-                    {formatIDR(subtotalC)}
+                    {calcIDR(subtotalC)}
                   </td>
                 </tr>
                 {lcItems.map((item, idx) => renderItemRow(item, idx))}
@@ -588,38 +459,29 @@ export function BAPOSTable({
             <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
               {isInlineEditingBA && <td className="p-2 text-center text-slate-400">#</td>}
               <td colSpan={6} className="p-2 uppercase font-extrabold tracking-wider">
-                D. RAISE & FALL'S FACTOR (RF: {effectiveRF.toFixed(3)}x)
+                D. RAISE & FALL'S FACTOR (RF: {calc ? calc.rfIndex.toFixed(3) : "-"}x)
               </td>
               <td className="p-2 text-right font-mono text-slate-900 font-extrabold">
-                {formatIDR(subtotalD)}
+                {paren(subtotalD)}
               </td>
             </tr>
             {rfRows.map((item, i) => (
-              <tr key={`${item.id}_${i}`} className="hover:bg-slate-50/80 transition bg-slate-50/30">
+              <tr key={i} className="hover:bg-slate-50/80 transition bg-slate-50/30">
                 {isInlineEditingBA && <td className="p-2 text-center text-slate-300 font-mono text-[10px]">{item.code}</td>}
-                <td className="p-2 font-bold text-slate-800 align-top">{item.area || "-"}</td>
+                <td className="p-2 font-bold text-slate-800 align-top">{item.subSection || "-"}</td>
                 <td className="p-2 font-medium text-slate-900 align-top">
-                  <div>
-                    <span className="font-bold text-slate-900">{item.name}</span>
-                    {item.deltaDist !== null && (
-                      <span className="text-[10px] text-slate-500 font-mono ml-2">
-                        ({item.deltaDist < 0 ? `(${Math.abs(item.deltaDist)}m)` : `+${item.deltaDist}m`})
-                      </span>
-                    )}
-                  </div>
+                  <span className="font-bold text-slate-900">{item.description}</span>
                 </td>
                 <td className="p-2 text-center align-top font-mono text-slate-600 font-bold">{item.unit}</td>
                 <td className="p-2 text-right font-mono align-top font-bold">
                   {item.volume > 0 ? Number(item.volume).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-"}
                 </td>
-                <td className="p-2 text-right font-mono align-top bg-slate-50/50 border-x border-slate-100 text-slate-600 font-mono">
-                  {item.distance ? `${item.distance}m` : "-"}
-                </td>
+                <td className="p-2 text-right font-mono align-top bg-slate-50/50 border-x border-slate-100 text-slate-600 font-mono">-</td>
                 <td className="p-2 text-right font-mono align-top font-bold text-slate-900">
-                  {formatIDR(item.rfRate)}
+                  {formatIDR(item.rate)}
                 </td>
                 <td className="p-2 text-right font-mono font-extrabold align-top text-slate-900">
-                  {item.subtotal < 0 ? `(${formatIDR(Math.abs(item.subtotal))})` : formatIDR(item.subtotal)}
+                  {paren(item.amount)}
                 </td>
               </tr>
             ))}
@@ -639,7 +501,7 @@ export function BAPOSTable({
                 </div>
               </td>
               <td className="p-2 text-right font-mono text-rose-700 font-extrabold">
-                {subtotalDP > 0 ? `(${formatIDR(subtotalDP)})` : formatIDR(0)}
+                {paren(subtotalDP)}
               </td>
             </tr>
             {dpFuelItems.map((item, idx) => renderItemRow(item, idx))}
@@ -663,16 +525,16 @@ export function BAPOSTable({
                 TOTAL GROSS
               </td>
               <td className="p-2 text-right font-extrabold text-slate-950 w-48 sm:w-56 pr-3">
-                {formatIDR(totalGrossOpBeforeDP)}
+                {calcIDR(grossBeforeDP)}
               </td>
             </tr>
-            {subtotalDP > 0 && (
+            {!!subtotalDP && (
               <tr className="border-b border-slate-200 hover:bg-slate-100/60 font-bold text-rose-700">
                 <td className="p-2 uppercase tracking-wider pl-3 flex items-center justify-between">
                   <span>POTONGAN DP FUEL &amp; TRANSPORT</span>
                 </td>
                 <td className="p-2 text-right font-extrabold text-rose-700 w-48 sm:w-56 pr-3">
-                  ({formatIDR(subtotalDP)})
+                  {paren(subtotalDP)}
                 </td>
               </tr>
             )}
@@ -681,7 +543,7 @@ export function BAPOSTable({
                 TOTAL NETTO
               </td>
               <td className="p-2 text-right font-extrabold text-slate-950 w-48 sm:w-56 pr-3">
-                {formatIDR(totalGrossOp)}
+                {calcIDR(op?.gross)}
               </td>
             </tr>
             <tr className="border-b border-slate-200 hover:bg-slate-100/60">
@@ -689,7 +551,7 @@ export function BAPOSTable({
                 DPP PPN 11/12
               </td>
               <td className="p-2 text-right font-semibold text-slate-800 w-48 sm:w-56 pr-3">
-                {formatIDR(dppOp)}
+                {calcIDR(op?.dpp11_12)}
               </td>
             </tr>
             <tr className="border-b border-slate-200 hover:bg-slate-100/60">
@@ -697,7 +559,7 @@ export function BAPOSTable({
                 VAT (12%)
               </td>
               <td className="p-2 text-right font-semibold text-slate-800 w-48 sm:w-56 pr-3">
-                {formatIDR(vatOp)}
+                {calcIDR(op?.vat12)}
               </td>
             </tr>
             <tr className="border-b border-slate-200 hover:bg-slate-100/60">
@@ -705,7 +567,7 @@ export function BAPOSTable({
                 WITH HOLDING TAX ART 23 (2%)
               </td>
               <td className="p-2 text-right font-semibold text-rose-700 w-48 sm:w-56 pr-3">
-                ({formatIDR(whtOp)})
+                ({calcIDR(op?.pph23)})
               </td>
             </tr>
             <tr className="bg-[#1A1612] text-white font-black">
@@ -713,7 +575,7 @@ export function BAPOSTable({
                 TOTAL INVOICE OPERATING & MINING
               </td>
               <td className="p-2.5 text-right font-black text-white w-48 sm:w-56 pr-3 text-sm">
-                {formatIDR(netTotalInvoiceOp)}
+                {calcIDR(op?.totalInvoice)}
               </td>
             </tr>
           </tbody>

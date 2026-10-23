@@ -4,6 +4,7 @@ import { ArrowLeft, FileSpreadsheet, Plus, Trash2, RefreshCw, Sparkles, DollarSi
 import { api } from "../lib/api";
 import { latestPeriodMRate, loadSOWCustomerSites, normalizeSOWSiteCode, sowModel, SOW_MODEL_LABELS } from "./VariableSOWPage";
 import { FormattedNumberInput, formatIDR } from "./finance/helpers";
+import { isRentalAlatSOW } from "./finance/masterRegistry";
 import { routes } from "../router/routes";
 
 // Nama item dicocokkan seperti BE (sowFor): huruf/angka saja, persis lalu saling memuat.
@@ -149,11 +150,13 @@ export function VariableSOWFormPage() {
         splitPercentage: Number(item.splitPercentage || 100),
         baseDistanceMeters: Number(item.baseDistanceMeters || 0),
         maxDistanceMeters: Number(item.maxDistanceMeters || 0),
+        fuelLtrPerHour: Number(item.fuelLtrPerHour || 0),
         unit: item.unit || "BCM",
         customer: headerForm.companyCode,
         customerCode: headerForm.companyCode,
         contractNo: headerForm.contractNo,
-        description: `Contract ${headerForm.contractNo}`,
+        // Rental Alat: Description = kode rate kontrak.
+        description: isRentalAlatSOW(item) && item.description ? item.description : `Contract ${headerForm.contractNo}`,
         status: item.status || "Active",
         createdAt: item.createdAt
       }));
@@ -577,12 +580,14 @@ export function VariableSOWFormPage() {
                     <th className="p-3 border-r border-slate-800 text-center w-28">SATUAN</th>
                     <th className="p-3 border-r border-slate-800 text-right bg-amber-950 text-amber-300 w-40">RATE (USD)</th>
                     <th className="p-3 border-r border-slate-800 text-right bg-emerald-950 text-emerald-300 w-48">KONVERSI IDR (M-RATE)</th>
+                    <th className="p-3 border-r border-slate-800 text-right w-28">FUEL (LTR/JAM)</th>
                     <th className="p-3 pr-4 text-center w-28">STATUS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
                   {itemsGrid.map((item, idx) => {
                     const idrConverted = (Number(item.rateUSD) || 0) * mrateBi;
+                    const isRentalRow = isRentalAlatSOW(item);
                     return (
                       <tr key={idx} className="hover:bg-amber-50/30 transition">
                         <td className="p-2 pl-4 border-r border-slate-200">
@@ -597,7 +602,8 @@ export function VariableSOWFormPage() {
                             <option value="Operation & Mining">Operation & Mining</option>
                             <option value="Rehabilitation">Rehabilitation</option>
                             <option value="Mine Development (MDO)">Mine Development (MDO)</option>
-                            {item.category && !["Operation & Mining", "Rehabilitation", "Mine Development (MDO)"].includes(item.category) && (
+                            <option value="Rental Alat">Rental Alat</option>
+                            {item.category && !["Operation & Mining", "Rehabilitation", "Mine Development (MDO)", "Rental Alat"].includes(item.category) && (
                               <option value={item.category}>{item.category}</option>
                             )}
                           </select>
@@ -669,6 +675,13 @@ export function VariableSOWFormPage() {
                           />
                         </td>
                         <td className="p-2 border-r border-slate-200 text-right">
+                          {isRentalRow ? (
+                            <FormattedNumberInput
+                              className="w-full text-right font-mono font-black text-slate-950 bg-cyan-50 border border-cyan-300 rounded px-2 py-1 outline-none text-xs"
+                              value={item.rateIDR === 0 ? "" : (item.rateIDR ?? "")}
+                              onChange={(val) => handleFieldChange(idx, "rateIDR", val)}
+                            />
+                          ) : (
                           <input
                             type="number"
                             step="0.001"
@@ -677,9 +690,21 @@ export function VariableSOWFormPage() {
                             onChange={(e) => handleFieldChange(idx, "rateUSD", parseFloat(e.target.value) || 0)}
                             required
                           />
+                          )}
                         </td>
                         <td className="p-2 border-r border-slate-200 text-right font-mono font-black text-emerald-800 bg-emerald-50/20">
-                          {formatIDR(idrConverted)}
+                          {formatIDR(isRentalRow ? item.rateIDR : idrConverted)}
+                        </td>
+                        <td className="p-2 border-r border-slate-200 text-right">
+                          {isRentalRow ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="w-full text-right font-mono font-bold text-slate-950 bg-white border border-slate-300 rounded px-2 py-1 outline-none text-xs"
+                              value={item.fuelLtrPerHour ?? ""}
+                              onChange={(e) => handleFieldChange(idx, "fuelLtrPerHour", parseFloat(e.target.value) || 0)}
+                            />
+                          ) : "-"}
                         </td>
                         <td className="p-2 pr-4 text-center">
                           {rowActions(idx)}

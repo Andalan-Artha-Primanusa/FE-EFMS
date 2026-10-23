@@ -2,7 +2,8 @@ import React from "react";
 import { Building2, Plus, Trash2 } from "lucide-react";
 import { formatIDR, FormattedNumberInput, parsePeriodToMonthIndex } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
-import { isDistanceItem, getBAEffectiveVolume, getBAItemSubtotal, customerKind, removeBAItem } from "../ba_calculations";
+import { isDistanceItem, getBAEffectiveVolume, customerKind, removeBAItem, calcIDR, calcItemsAmount } from "../ba_calculations";
+import type { BACalc } from "../../../types";
 import { BAPOSMDOTable } from "./BAPOSMDOTable";
 
 interface BAMDOTableProps {
@@ -13,7 +14,7 @@ interface BAMDOTableProps {
   activeSOWCatalog: any[];
   mRate: number;
   allBAItems?: any[];
-  rfIndexCalculated?: number;
+  calc?: BACalc;
   getSowMasterRate?: (customer: string, itemName: string, fallbackRate: number, isUSD?: boolean, period?: string) => number;
 }
 
@@ -25,7 +26,7 @@ export function BAMDOTable({
   activeSOWCatalog,
   mRate,
   allBAItems = [],
-  rfIndexCalculated = 1.0,
+  calc,
   getSowMasterRate,
 }: BAMDOTableProps) {
   const isCustomerSBS = customerKind(formData.customerCode) === "SBS";
@@ -43,20 +44,12 @@ export function BAMDOTable({
         activeSOWCatalog={activeSOWCatalog}
         mRate={mRate}
         allBAItems={allBAItems}
-        rfIndexCalculated={rfIndexCalculated}
+        calc={calc}
         getSowMasterRate={getSowMasterRate}
       />
     );
   }
 
-  const totalMDO = baMDOItems.reduce((acc, it) => {
-    const isDist = isDistanceItem(it);
-    const effVol = isDist ? getBAEffectiveVolume(it, allBAItems.length > 0 ? allBAItems : baMDOItems, false) : Number(it.initialVolume || 0);
-    const sub = isDist
-      ? getBAItemSubtotal(it, effVol, false, formData.customerCode)
-      : Math.round(effVol * Number(it.rate || 0));
-    return acc + sub;
-  }, 0);
 
   return (
     <div className="space-y-2 pt-2">
@@ -117,9 +110,7 @@ export function BAMDOTable({
             {baMDOItems.map((item, idx) => {
               const isDist = isDistanceItem(item);
               const effVol = isDist ? getBAEffectiveVolume(item, allBAItems.length > 0 ? allBAItems : baMDOItems, false) : Number(item.initialVolume || 0);
-              const rowSubtotal = isDist
-                ? getBAItemSubtotal(item, effVol, false, formData.customerCode)
-                : Math.round(Number(item.initialVolume || 0) * Number(item.rate || 0));
+              const rowSubtotal = calcItemsAmount(calc, [item]);
 
               return (
               <tr key={item.id || idx} className="hover:bg-slate-50/80 transition">
@@ -192,10 +183,6 @@ export function BAMDOTable({
                               updated[idx].parentMaterial = sow.parentMaterial;
                             }
                           }
-                          const vol = Number(updated[idx].initialVolume || 0);
-                          const r = Number(updated[idx].rate || 0);
-                          updated[idx].subtotalInitial = Math.round(vol * r);
-                          updated[idx].subtotalAdjusted = Math.round(Number(updated[idx].adjustedVolume || vol) * r);
                           setBaMDOItems(updated);
                         }}
                       />
@@ -234,9 +221,6 @@ export function BAMDOTable({
                         if (updated[idx].unit === "Month" && next === "Days") updated[idx].rate = Math.round((r / days) * 1000) / 1000;
                         if (updated[idx].unit === "Days" && next === "Month") updated[idx].rate = Math.round(r * days);
                         updated[idx].unit = next;
-                        const vol = Number(updated[idx].initialVolume || 0);
-                        updated[idx].subtotalInitial = Math.round(vol * Number(updated[idx].rate || 0));
-                        updated[idx].subtotalAdjusted = Math.round(Number(updated[idx].adjustedVolume || vol) * Number(updated[idx].rate || 0));
                         setBaMDOItems(updated);
                       }}
                     >
@@ -277,9 +261,6 @@ export function BAMDOTable({
                         const updated = [...baMDOItems];
                         updated[idx].initialVolume = val;
                         updated[idx].adjustedVolume = val;
-                        const r = Number(updated[idx].rate || 0);
-                        updated[idx].subtotalInitial = Math.round(val * r);
-                        updated[idx].subtotalAdjusted = Math.round(val * r);
                         setBaMDOItems(updated);
                       }}
                     />
@@ -325,16 +306,13 @@ export function BAMDOTable({
                       onChange={(r) => {
                         const updated = [...baMDOItems];
                         updated[idx].rate = r;
-                        const vol = Number(updated[idx].initialVolume || 0);
-                        updated[idx].subtotalInitial = Math.round(vol * r);
-                        updated[idx].subtotalAdjusted = Math.round(Number(updated[idx].adjustedVolume || vol) * r);
                         setBaMDOItems(updated);
                       }}
                     />
                   )}
                 </td>
                 <td className="p-2 text-right font-mono font-extrabold text-slate-900">
-                  {formatIDR(rowSubtotal)}
+                  {calcIDR(rowSubtotal)}
                 </td>
               </tr>
               );
@@ -355,7 +333,7 @@ export function BAMDOTable({
                   {isCustomerSBS ? "Subtotal Jasa Penunjang (Rental Alat)" : "Subtotal MDO"}
                 </td>
                 <td className="p-2 text-right font-mono font-extrabold text-slate-950">
-                  {formatIDR(totalMDO)}
+                  {calcIDR(calcItemsAmount(calc, baMDOItems))}
                 </td>
               </tr>
             </tfoot>

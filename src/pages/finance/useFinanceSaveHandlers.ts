@@ -1,7 +1,7 @@
 import React from "react";
 import { api, saveSBSPenalty, deleteSBSPenalty, SBSPenaltyItem } from "../../lib/api";
 import { draftKey } from "./helpers";
-import { getBAEffectiveVolume, getBAItemSubtotal, calculateBACommercialBreakdown, customerKind, dropEmptyDPFuel, withPendingVolume } from "./ba_calculations";
+import { customerKind, dropEmptyDPFuel, withPendingVolume } from "./ba_calculations";
 
 interface UseFinanceSaveHandlersProps {
   isSaving: boolean;
@@ -19,7 +19,7 @@ interface UseFinanceSaveHandlersProps {
   loadData: (showLoading?: boolean) => Promise<void>;
   reloadMasterData?: () => Promise<void>;
   onNotice: (msg: string) => void;
-  rfIndexCalculated: number;
+  rfIndexCalculated?: number;
   detailViewItem: any;
   setDetailViewItem: (val: any) => void;
   partialPaymentForm: any;
@@ -38,6 +38,62 @@ interface UseFinanceSaveHandlersProps {
   openBAModal: (item: any, isEditMode?: boolean, pending?: boolean) => void;
 }
 
+const DATE_KEYS = ["workEndDate", "baSubmittedDate", "baSentDate", "internalRoutingDate", "baSignedDate", "invoiceIssuedDate", "baDate", "invoiceDate", "paymentDate", "verifiedAt", "approvedAt", "dueDate", "invoiceSubmissionDate", "taxReportedDate"];
+function toISODates(payload: any) {
+  DATE_KEYS.forEach((key) => {
+    if (payload[key] && typeof payload[key] === "string" && payload[key].trim() !== "") {
+      try { payload[key] = new Date(payload[key]).toISOString(); } catch { payload[key] = null; }
+    } else if (payload[key] === "" || payload[key] === undefined) { payload[key] = null; }
+  });
+  return payload;
+}
+
+// Payload BA mentah (item & form) untuk simpan dan /ba-trackers/calculate; nilai uang dihitung BE.
+export function buildBAPayload(formData: any, editItem: any, items: any[]) {
+  const isBGG = customerKind(formData.customerCode) === "BGG";
+  let rawList = items;
+  if (isBGG) {
+    // Remove POS residue items
+    rawList = rawList.filter((i: any) => {
+      const m = (i.material || "").toLowerCase();
+      const id = (i.id || "").toLowerCase();
+      if (id.startsWith("ba_op") || id.startsWith("ba_mdo") || id.startsWith("ba_dist")) return false;
+      if (m.includes("limonite") || m.includes("saprolite") || m.includes("topsoil") || m.includes("cut or fill") || m.includes("land clearing")) {
+        return false;
+      }
+      return true;
+    });
+
+    // DP Fuel bisa 4-6 kali per bulan: semua baris bernominal disimpan; baris kosong dibuang bila ada yang bernominal.
+    rawList = dropEmptyDPFuel(rawList);
+  }
+  const allItems = rawList.map((it) => {
+    const c = (it.category || "").toLowerCase();
+    const m = (it.material || "").toLowerCase();
+    const isDist = it.isDistanceVar || c.includes("distance") || m.includes("distance") || m.includes("overhaul");
+    const d = Number(it.distanceM ?? it.distance ?? it.distanceWeightAvg ?? 0);
+    return isDist && d > 0 ? { ...it, distanceM: d, distance: d, distanceWeightAvg: d } : it;
+  });
+
+  // Mode pending: form yang sama, tersimpan sebagai pendingVolume pada BA induk.
+  if (formData.pendingMode) return toISODates(withPendingVolume(editItem, { period: formData.workPeriod, items: allItems }));
+  return toISODates({
+    ...formData,
+    customerCode: formData.customerCode || "",
+    picAAP: formData.picAAP || "Operations / Site Engineer",
+    items: allItems,
+    step1Locked: true,
+    bggData: isBGG ? {
+      ...(formData.bggData || {}),
+      agreedSurveyVolume: Number(formData.bggTotalTerbongkar ?? formData.bggData?.agreedSurveyVolume ?? 0),
+      coalVolumeBCM: Number(formData.bggCoalVolumeBCM ?? formData.bggData?.coalVolumeBCM ?? 0),
+      coalVolumeTon: Number(formData.bggCoalVolumeTon ?? formData.bggData?.coalVolumeTon ?? 0),
+      nettOBVolume: Number(formData.bggNettOB ?? formData.bggData?.nettOBVolume ?? 0),
+      obOverDistanceHm: Number(formData.bggOBDistanceHm ?? formData.bggData?.obOverDistanceHm ?? 0),
+    } : formData.bggData,
+  });
+}
+
 export function useFinanceSaveHandlers({
   isSaving,
   setIsSaving,
@@ -54,7 +110,6 @@ export function useFinanceSaveHandlers({
   loadData,
   reloadMasterData,
   onNotice,
-  rfIndexCalculated,
   detailViewItem,
   setDetailViewItem,
   partialPaymentForm,
@@ -123,92 +178,11 @@ export function useFinanceSaveHandlers({
       let payload: any = { ...formData };
       if (modalType === "ba") {
         endpoint = "/api/finance/ba-trackers";
-        const kind = customerKind(formData.customerCode);
-        const isBGG = kind === "BGG";
-        const isPOS = kind === "POS";
-        const isPTRO = kind === "PTRO";
-        const isSBS = kind === "SBS";
-        const isCustomerDBK = isPTRO;
-        let rawList = [...baOperatingItems, ...baMDOItems, ...baDeductionItems];
-        if (isBGG) {
-          // Remove POS residue items
-          rawList = rawList.filter((i: any) => {
-            const m = (i.material || "").toLowerCase();
-            const id = (i.id || "").toLowerCase();
-            if (id.startsWith("ba_op") || id.startsWith("ba_mdo") || id.startsWith("ba_dist")) return false;
-            if (m.includes("limonite") || m.includes("saprolite") || m.includes("topsoil") || m.includes("cut or fill") || m.includes("land clearing")) {
-              return false;
-            }
-            return true;
-          });
-
-          // DP Fuel bisa 4-6 kali per bulan: semua baris bernominal disimpan; baris kosong dibuang bila ada yang bernominal.
-          rawList = dropEmptyDPFuel(rawList);
-        }
-        const allRawItems = rawList;
-        const allItems = allRawItems.map((it) => {
-          const initVol = getBAEffectiveVolume(it, allRawItems, false);
-          const adjVol = getBAEffectiveVolume(it, allRawItems, true);
-          const c = (it.category || "").toLowerCase();
-          const m = (it.material || "").toLowerCase();
-          const isDist = it.isDistanceVar || c.includes("distance") || m.includes("distance") || m.includes("overhaul");
-          let distProps = {};
-          if (isDist) {
-            const d = Number(it.distanceM ?? it.distance ?? it.distanceWeightAvg ?? 0);
-            if (d > 0) {
-              distProps = { distanceM: d, distance: d, distanceWeightAvg: d };
-            }
-          }
-          return {
-            ...it,
-            ...distProps,
-            subtotalInitial: getBAItemSubtotal(it, initVol, isCustomerDBK, formData.customerCode),
-            subtotalAdjusted: getBAItemSubtotal(it, adjVol, isCustomerDBK, formData.customerCode),
-          };
-        });
-        const initSum = allItems.reduce((acc, item) => acc + Number(item.subtotalInitial || 0), 0);
-        const adjSum = allItems.reduce((acc, item) => acc + Number(item.subtotalAdjusted || 0), 0);
-        const hasAdjusted = allItems.some((it) => !it.isDeduction && it.category !== "DP Fuel" && Number(it.adjustedVolume || 0) > 0);
-        const activeFuelPeriods = formData.bggData?.fuelPeriods || formData.posData?.fuelPeriods || formData.ptroData?.fuelPeriods || formData.sbsData?.fuelPeriods;
-        const breakdownInit = calculateBACommercialBreakdown(formData.customerCode, allItems, rfIndexCalculated, isCustomerDBK, false, activeFuelPeriods);
-        const breakdownAdj = calculateBACommercialBreakdown(formData.customerCode, allItems, rfIndexCalculated, isCustomerDBK, true, activeFuelPeriods);
-        const finalInitialWorkAmount = breakdownInit.totalGross > 0 ? breakdownInit.totalGross : initSum;
-        const finalAdjustedWorkAmount = breakdownAdj.totalGross > 0 ? breakdownAdj.totalGross : adjSum;
-        const finalWorkAmount = (hasAdjusted && finalAdjustedWorkAmount > 0) ? finalAdjustedWorkAmount : (finalInitialWorkAmount > 0 ? finalInitialWorkAmount : Number(formData.workAmount || 0));
-
-        payload = {
-          ...formData,
-          customerCode: formData.customerCode || "",
-          picAAP: formData.picAAP || "Operations / Site Engineer",
-          items: allItems,
-          initialWorkAmount: finalInitialWorkAmount,
-          adjustedWorkAmount: finalAdjustedWorkAmount,
-          workAmount: finalWorkAmount,
-          rfIndexCalculated: rfIndexCalculated || formData.rfIndexCalculated || 1.0,
-          step1Locked: true,
-          bggData: isBGG ? {
-            ...(formData.bggData || {}),
-            agreedSurveyVolume: Number(formData.bggTotalTerbongkar ?? formData.bggData?.agreedSurveyVolume ?? 0),
-            coalVolumeBCM: Number(formData.bggCoalVolumeBCM ?? formData.bggData?.coalVolumeBCM ?? 0),
-            coalVolumeTon: Number(formData.bggCoalVolumeTon ?? formData.bggData?.coalVolumeTon ?? 0),
-            nettOBVolume: Number(formData.bggNettOB ?? formData.bggData?.nettOBVolume ?? 0),
-            obOverDistanceHm: Number(formData.bggOBDistanceHm ?? formData.bggData?.obOverDistanceHm ?? 0),
-          } : formData.bggData,
-          posData: isPOS ? { ...(formData.posData || {}) } : formData.posData,
-          ptroData: isPTRO ? { ...(formData.ptroData || {}) } : formData.ptroData,
-          sbsData: isSBS ? { ...(formData.sbsData || {}) } : formData.sbsData,
-        };
-        // Mode pending: form yang sama, tersimpan sebagai pendingVolume pada BA induk.
-        if (formData.pendingMode) payload = withPendingVolume(editItem, { period: formData.workPeriod, items: allItems });
+        payload = buildBAPayload(formData, editItem, [...baOperatingItems, ...baMDOItems, ...baDeductionItems]);
       } else if (modalType === "payment") endpoint = "/api/finance/payments";
       else if (modalType === "customer") endpoint = "/api/finance/customers";
 
-      const dateKeys = ["workEndDate", "baSubmittedDate", "baSentDate", "internalRoutingDate", "baSignedDate", "invoiceIssuedDate", "baDate", "invoiceDate", "paymentDate", "verifiedAt", "approvedAt", "dueDate", "invoiceSubmissionDate", "taxReportedDate"];
-      dateKeys.forEach((key) => {
-        if (payload[key] && typeof payload[key] === "string" && payload[key].trim() !== "") {
-          try { payload[key] = new Date(payload[key]).toISOString(); } catch { payload[key] = null; }
-        } else if (payload[key] === "" || payload[key] === undefined) { payload[key] = null; }
-      });
+      toISODates(payload);
 
       let savedRes: any = null;
       if (editItem?.id) {

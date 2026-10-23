@@ -4,13 +4,12 @@ import { BarChart3, Eye, RefreshCw } from "lucide-react";
 import { Panel } from "../../components/Panel";
 import { FinanceShell } from "./FinanceShell";
 import { compactMoney } from "../../lib/api";
-import { formatIDR, getBAInvoiceStatus, renderBAStatusBadge, renderInvoiceStatusBadge, indonesianMonths, INVOICE_LOCKED as ISSUED } from "./helpers";
+import { baCalc, baUninvoicedCalc, formatIDR, invoiceOutstanding, isBAUninvoiced, renderBAStatusBadge, renderInvoiceStatusBadge, indonesianMonths, INVOICE_LOCKED as ISSUED } from "./helpers";
 import { customerKind } from "./masterRegistry";
 
 const BA_STAGES = ["Submit", "Revisi", "Ready to Invoice", "Approved", "Arsip"];
-const baValue = (ba: any) => Number(ba.adjustedWorkAmount || ba.workAmount || 0);
-// Total Receipt = tagihan setelah potongan (SBS); basis outstanding di BE.
-const billed = (i: any) => Number(i.totalReceipt || i.totalInvoice || 0);
+const baValue = (ba: any) => baCalc(ba).gross;
+const billed = (i: any) => Number(i.totalInvoice || 0);
 const isVerified = (p: any) => !p.verificationStatus || p.verificationStatus === "Verified";
 const monthKey = (d: any) => (d ? String(d).slice(0, 7) : "");
 const validDate = (v: any) => String(v || "").slice(0, 10) > "1900";
@@ -50,14 +49,13 @@ export function ARDashboardView({ c }: { c: any }) {
     const today = new Date().toISOString().slice(0, 10);
     const issued = invoices.filter((i: any) => ISSUED.has(String(i.status || "").trim()));
     const sum = (rows: any[], f: (r: any) => number) => rows.reduce((s, r) => s + (f(r) || 0), 0);
-    const uninvoicedBA = bas.filter((b: any) => (b.statusBA === "Ready to Invoice" || b.statusBA === "Approved") && !getBAInvoiceStatus(b, invoiceRows).isFullyInvoiced);
-    // POS: 1 BA = 2 invoice (Mining + MDO); bila baru terbit satu, sisa = separuh nilai BA.
-    const unbilledValue = (b: any) => (site(b) === "POS" && getBAInvoiceStatus(b, invoiceRows).isPartiallyInvoiced ? Math.round(baValue(b) / 2) : baValue(b));
+    const uninvoicedBA = bas.filter((b: any) => isBAUninvoiced(b, invoiceRows));
+    const unbilledValue = (b: any) => baUninvoicedCalc(b, invoiceRows).totalInvoice;
     const pastDue = (i: any) => (validDate(i.dueDate) ? daysBetween(i.dueDate, today) : 0);
-    const open = issued.filter((i: any) => Number(i.outstanding) > 0);
+    const open = issued.filter((i: any) => invoiceOutstanding(i) > 0);
     const overdue = open.filter((i: any) => pastDue(i) > 0);
     const validPayments = payments.filter(isVerified);
-    const aging = AGING.map((b) => ({ ...b, value: sum(open.filter((i: any) => pastDue(i) >= b.min && pastDue(i) <= b.max), (i) => Number(i.outstanding)) }));
+    const aging = AGING.map((b) => ({ ...b, value: sum(open.filter((i: any) => pastDue(i) >= b.min && pastDue(i) <= b.max), invoiceOutstanding) }));
     const payDelays = validPayments
       .map((p: any) => { const inv = invoiceOf(p); return inv && validDate(inv.dueDate) && validDate(p.paymentDate) ? daysBetween(inv.dueDate, p.paymentDate) : null; })
       .filter((x: number | null): x is number => x !== null);
@@ -87,15 +85,15 @@ export function ARDashboardView({ c }: { c: any }) {
           invCount: inv.length,
           invoiced,
           paid,
-          outstanding: sum(inv, (i) => Number(i.outstanding)),
-          overdue: sum(overdue.filter((i: any) => site(i) === code), (i) => Number(i.outstanding)),
+          outstanding: sum(inv, invoiceOutstanding),
+          overdue: sum(overdue.filter((i: any) => site(i) === code), invoiceOutstanding),
           rate: pct(paid, invoiced),
         };
       });
 
     const invoicedTotal = sum(issued, billed);
-    const outstandingTotal = sum(issued, (i) => Number(i.outstanding));
-    const overdueTotal = sum(overdue, (i) => Number(i.outstanding));
+    const outstandingTotal = sum(issued, invoiceOutstanding);
+    const overdueTotal = sum(overdue, invoiceOutstanding);
     const uninvoicedTotal = sum(uninvoicedBA, unbilledValue);
     const pendingPayments = payments.filter((p: any) => !isVerified(p) && p.verificationStatus !== "Rejected").length;
     const collectionRate = pct(sum(issued, (i) => Number(i.totalPaid)), invoicedTotal);
@@ -118,9 +116,9 @@ export function ARDashboardView({ c }: { c: any }) {
   }, [bas, invoices, payments, invoiceRows, customers, customer]);
 
   const kpis = [
-    { label: "Nilai BA", value: formatIDR(d.baTotal), note: `${bas.length} BA`, tone: "" },
-    { label: "BA Belum Invoice", value: formatIDR(d.uninvoicedTotal), note: `${d.uninvoicedBA.length} BA`, tone: d.uninvoicedBA.length ? "warning" : "" },
-    { label: "Invoice Terbit", value: formatIDR(d.invoicedTotal), note: `${d.issued.length} invoice · ${d.draftInvoices} draft`, tone: "" },
+    { label: "Nilai BA (DPP/Gross)", value: formatIDR(d.baTotal), note: `${bas.length} BA`, tone: "" },
+    { label: "BA Belum Invoice (Total Invoice)", value: formatIDR(d.uninvoicedTotal), note: `${d.uninvoicedBA.length} BA`, tone: d.uninvoicedBA.length ? "warning" : "" },
+    { label: "Invoice Terbit (Total Invoice)", value: formatIDR(d.invoicedTotal), note: `${d.issued.length} invoice · ${d.draftInvoices} draft`, tone: "" },
     { label: "Pembayaran Diterima", value: formatIDR(d.collectedTotal), note: `${d.pendingPayments} pending verifikasi`, tone: d.pendingPayments ? "warning" : "" },
     { label: "Outstanding AR", value: formatIDR(d.outstandingTotal), note: `Overdue ${formatIDR(d.overdueTotal)} (${d.overdue.length})`, tone: d.overdue.length ? "critical" : "" },
   ];
@@ -214,7 +212,7 @@ export function ARDashboardView({ c }: { c: any }) {
                   <span className="text-[11px] px-2 py-0.5 rounded-[3px] font-bold bg-slate-200/80 text-slate-700">{rows.length} BA</span>
                 </div>
                 <div className="text-xs text-slate-600 flex justify-between pt-1 font-medium">
-                  <span>Nilai</span>
+                  <span>Nilai BA (DPP/Gross)</span>
                   <span className="font-bold text-slate-800 tabular-nums">{formatIDR(rows.reduce((s: number, b: any) => s + baValue(b), 0))}</span>
                 </div>
               </div>
@@ -230,9 +228,9 @@ export function ARDashboardView({ c }: { c: any }) {
               <tr className={theadRow}>
                 <th className={th}>Customer</th>
                 <th className={`${th} text-center`}>BA</th>
-                <th className={`${th} text-right`}>Nilai BA</th>
+                <th className={`${th} text-right`}>Nilai BA (DPP/Gross)</th>
                 <th className={`${th} text-center`}>Invoice</th>
-                <th className={`${th} text-right`}>Nilai Invoice</th>
+                <th className={`${th} text-right`}>Total Invoice</th>
                 <th className={`${th} text-right`}>Dibayar</th>
                 <th className={`${th} text-right`}>Outstanding</th>
                 <th className={`${th} text-right`}>Overdue</th>
@@ -270,7 +268,7 @@ export function ARDashboardView({ c }: { c: any }) {
                   <th className={th}>No. BA</th>
                   <th className={th}>Customer</th>
                   <th className={th}>Periode</th>
-                  <th className={`${th} text-right`}>Nilai</th>
+                  <th className={`${th} text-right`}>Total Invoice</th>
                   <th className={th}>Status</th>
                 </tr>
               </thead>
@@ -310,7 +308,7 @@ export function ARDashboardView({ c }: { c: any }) {
                     <td className={`${th} font-bold text-slate-900`}>{inv.invoiceNo}</td>
                     <td className={th}>{site(inv)}</td>
                     <td className={`${th} tabular-nums text-amber-700 font-semibold`}>{String(inv.dueDate).slice(0, 10)} · {daysBetween(inv.dueDate, new Date().toISOString())} hari</td>
-                    <td className={`${th} text-right tabular-nums font-bold text-rose-700`}>{formatIDR(inv.outstanding)}</td>
+                    <td className={`${th} text-right tabular-nums font-bold text-rose-700`}>{formatIDR(invoiceOutstanding(inv))}</td>
                     <td className={`${th} text-right`}>
                       <button className="p-1 rounded-[3px] border border-slate-200 bg-white text-slate-600 hover:text-[#A57C50] hover:border-[#A57C50]/40 transition cursor-pointer" onClick={() => setDetailViewItem({ type: "invoice", data: inv })} title="Lihat Detail">
                         <Eye size={14} />

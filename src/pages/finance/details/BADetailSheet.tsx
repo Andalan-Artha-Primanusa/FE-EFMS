@@ -1,6 +1,6 @@
 import React from "react";
 import { Archive, ExternalLink, CheckCircle2, Zap, FileText, Upload, CheckCircle } from "lucide-react";
-import { formatIDR, renderBAStatusBadge, getBAInvoiceStatus, resolveDocumentUrl, isBAApproved } from "../helpers";
+import { baCalc, formatIDR, renderBAStatusBadge, getBAInvoiceStatus, resolveDocumentUrl, isBAApproved } from "../helpers";
 
 interface BADetailSheetProps {
   data: any;
@@ -80,9 +80,9 @@ export const BADetailSheet: React.FC<BADetailSheetProps> = ({
           <div><span className="text-slate-500 block font-bold">Tgl TTD BA:</span> <strong>{data.baSignedDate ? new Date(data.baSignedDate).toLocaleDateString("id-ID") : "-"}</strong></div>
         </div>
         <div className="p-3 bg-white border border-slate-200 rounded-[4px]">
-          <span className="text-[10px] text-slate-500 font-bold block uppercase tracking-wider">Nominal Pekerjaan (Nilai Klaim BA)</span>
+          <span className="text-[10px] text-slate-500 font-bold block uppercase tracking-wider">Nilai BA (DPP/Gross)</span>
           <div className="flex flex-wrap items-baseline gap-2">
-            <span className="text-xl font-black text-[#1A1612] font-mono">{formatIDR(data.workAmount || 0)}</span>
+            <span className="text-xl font-black text-[#1A1612] font-mono">{formatIDR(baCalc(data).gross)}</span>
             {data.initialWorkAmount && data.adjustedWorkAmount && data.initialWorkAmount !== data.adjustedWorkAmount && (() => {
               const diffVal = data.adjustedWorkAmount - data.initialWorkAmount;
               const devPct = data.initialWorkAmount > 0 ? (Math.abs(diffVal) / data.initialWorkAmount) * 100 : 0;

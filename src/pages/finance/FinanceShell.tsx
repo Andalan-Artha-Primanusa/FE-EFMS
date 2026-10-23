@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useFinanceController } from "./useFinanceController";
 import { DetailModal } from "./DetailModal";
 import { FormModals } from "./FormModals";
-import { formatIDR } from "./helpers";
+import { formatIDR, pendingCalc } from "./helpers";
 
 type ShellProps = {
   viewTitle: string;
@@ -24,7 +24,7 @@ function InvoicePendingPick({ c }: { c: any }) {
         <table className="w-full border border-slate-200">
           <caption className="text-left font-black uppercase tracking-wider text-slate-700 pb-1.5">Pending Volume</caption>
           <thead className="bg-slate-100 text-[10px] uppercase font-extrabold text-slate-700">
-            <tr><th className="p-2 w-8" /><th className="p-2 text-left">Periode</th><th className="p-2 text-left">Ref. BA</th><th className="p-2 text-right">Amount (IDR)</th></tr>
+            <tr><th className="p-2 w-8" /><th className="p-2 text-left">Periode</th><th className="p-2 text-left">Ref. BA</th><th className="p-2 text-right">DPP (IDR)</th></tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {pick.rows.map((r: any) => {
@@ -35,13 +35,13 @@ function InvoicePendingPick({ c }: { c: any }) {
                   <td className="p-2 text-center"><input type="checkbox" checked={on} disabled={clash} onChange={() => toggle(r.id)} /></td>
                   <td className="p-2 font-bold">{r.pendingVolume.period}</td>
                   <td className="p-2 font-mono">{r.baNumber}</td>
-                  <td className="p-2 text-right font-mono font-bold">{formatIDR(r.pendingVolume.amount || 0)}</td>
+                  <td className="p-2 text-right font-mono font-bold">{formatIDR(pendingCalc(r).gross)}</td>
                 </tr>
               );
             })}
           </tbody>
           <tfoot>
-            <tr className="bg-slate-50 font-black"><td colSpan={3} className="p-2">Total</td><td className="p-2 text-right font-mono">{formatIDR(selected.reduce((s: number, r: any) => s + Number(r.pendingVolume.amount || 0), 0))}</td></tr>
+            <tr className="bg-slate-50 font-black"><td colSpan={3} className="p-2">Total</td><td className="p-2 text-right font-mono">{formatIDR(selected.reduce((s: number, r: any) => s + pendingCalc(r).gross, 0))}</td></tr>
           </tfoot>
         </table>
         <div className="flex justify-end gap-2">

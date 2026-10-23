@@ -1,6 +1,7 @@
 import React from "react";
 import { FileText, CheckCircle, ExternalLink, ShieldCheck, History, X, Clock, Upload } from "lucide-react";
-import { invoiceTaxes } from "../ba_calculations";
+import { isRentalBA, calcIDR } from "../ba_calculations";
+import type { BACalc } from "../../../types";
 import { formatIDR, resolveDocumentUrl, renderBAStatusBadge, generateAuditTimeline, isBAApproved } from "../helpers";
 
 const BA_FIELD_LABELS: Record<string, string> = {
@@ -57,9 +58,7 @@ interface BATrackerSidebarProps {
   formData: any;
   editItem: any;
   invoiceRows: any[];
-  sumInitial: number;
-  sumAdjusted: number;
-  netTotalInvoice?: number;
+  calc?: BACalc;
   auditTab: "flow" | "activity";
   setAuditTab: (tab: "flow" | "activity") => void;
   baAuditLogs: any[];
@@ -71,9 +70,7 @@ export function BATrackerSidebar({
   formData,
   editItem,
   invoiceRows,
-  sumInitial,
-  sumAdjusted,
-  netTotalInvoice,
+  calc,
   auditTab,
   setAuditTab,
   baAuditLogs,
@@ -81,6 +78,8 @@ export function BATrackerSidebar({
   handleFileUpload,
 }: BATrackerSidebarProps) {
   const canUpload = !!isInlineEditingBA && !!handleFileUpload;
+  // BA Rental POS: slot draft = Surat Permintaan Pekerjaan Tambahan (Kontrak Ps 5 ayat 2g).
+  const draftLabel = isRentalBA(formData) ? "Surat Permintaan Pekerjaan Tambahan" : "Draft BA PDF";
   const pdfInput = (field: string) => (
     <input type="file" accept="application/pdf" className="hidden" onChange={(e) => { handleFileUpload?.(e, field); e.target.value = ""; }} />
   );
@@ -101,12 +100,6 @@ export function BATrackerSidebar({
       {idleText}
     </div>
   );
-  const effectiveClaim = sumAdjusted > 0 ? sumAdjusted : (sumInitial > 0 ? sumInitial : (Number(formData.workAmount) || 0));
-  const effectiveNet = netTotalInvoice && netTotalInvoice > 0
-    ? netTotalInvoice
-    : effectiveClaim > 0
-      ? invoiceTaxes(effectiveClaim).total
-      : 0;
 
   return (
     <div className="xl:col-span-3 2xl:col-span-3 space-y-4">
@@ -120,16 +113,14 @@ export function BATrackerSidebar({
         <div className="space-y-2 text-xs">
           <div className="flex justify-between">
             <span className="text-slate-500 font-bold">Total Nilai Klaim BA:</span>
-            <span className="font-mono font-black text-emerald-800 text-sm">{formatIDR(effectiveClaim)}</span>
+            <span className="font-mono font-black text-emerald-800 text-sm">{calcIDR(calc?.total.gross)}</span>
           </div>
-          {effectiveClaim > 0 && (
-            <div className="flex justify-between text-[11px] pt-0.5 border-t border-slate-200/60">
-              <span className="text-slate-500">Prediksi Netto (Inv):</span>
-              <span className="font-mono font-bold text-emerald-700">
-                {formatIDR(effectiveNet)}
-              </span>
-            </div>
-          )}
+          <div className="flex justify-between text-[11px] pt-0.5 border-t border-slate-200/60">
+            <span className="text-slate-500">Prediksi Netto (Inv):</span>
+            <span className="font-mono font-bold text-emerald-700">
+              {calcIDR(calc?.total.totalInvoice)}
+            </span>
+          </div>
           <div className="flex justify-between">
             <span className="text-slate-500 font-bold">Status BA:</span>
             <span>{renderBAStatusBadge(formData.statusBA || "Submit", formData.invoiceNoLinked, undefined, editItem || formData, invoiceRows)}</span>
@@ -159,7 +150,7 @@ export function BATrackerSidebar({
         <div className="p-3 bg-[#1A1612] text-white rounded-[4px] border border-amber-900/30 space-y-2.5 shadow-sm">
           <div className="flex justify-between items-center">
             <span className="text-xs font-bold text-amber-200 flex items-center gap-1.5">
-              <FileText size={13} className="text-[#A57C50]" /> Draft BA PDF (Internal Routing)
+              <FileText size={13} className="text-[#A57C50]" /> {isRentalBA(formData) ? draftLabel : "Draft BA PDF (Internal Routing)"}
             </span>
             {formData.draftBAPath ? (
               <div className="flex items-center gap-1.5">
@@ -193,7 +184,7 @@ export function BATrackerSidebar({
                 </div>
               </div>
             </div>
-          ) : emptyDropzone("draftBAPath", "Draft BA PDF belum diunggah.")}
+          ) : emptyDropzone("draftBAPath", `${draftLabel} belum diunggah.`)}
         </div>
 
         {/* Final Signed BA Card */}
@@ -277,7 +268,7 @@ export function BATrackerSidebar({
                 </span>
               </div>
               <p className="text-slate-600 text-[11px] leading-relaxed">
-                Dibuat oleh <strong>{formData.picAAP || "Operations / Site Engineer"}</strong> ({formatIDR(effectiveClaim)}).
+                Dibuat oleh <strong>{formData.picAAP || "Operations / Site Engineer"}</strong> ({calcIDR(calc?.total.gross)}).
               </p>
             </div>
 

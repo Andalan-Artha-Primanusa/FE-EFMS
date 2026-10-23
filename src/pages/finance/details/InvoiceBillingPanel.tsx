@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Save, Loader2, FileText, Edit2, Lock } from "lucide-react";
 import { api } from "../../../lib/api";
-import { formatIDR, formatDateInput, getCustomerOfficialName, RupiahInput } from "../helpers";
+import { formatIDR, formatDateInput, getCustomerOfficialName, invoiceOutstanding, RupiahInput } from "../helpers";
 
 interface InvoiceBillingPanelProps {
   data: any;
@@ -31,7 +31,7 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
   const [saving, setSaving] = useState(false);
   useEffect(() => { setF(init()); setEditing(false); }, [data]);
 
-  const outstanding = Number(data.outstanding ?? (Number(data.totalInvoice || 0) - Number(data.totalPaid || 0)));
+  const outstanding = invoiceOutstanding(data);
   const set = (key: keyof Form, val: any) => setF((prev) => ({ ...prev, [key]: val }));
   const dirty = JSON.stringify(f) !== JSON.stringify(init());
   // No. Invoice & Invoice Date invoice yang sudah dijurnal hanya oleh Manager FATB.
@@ -100,7 +100,7 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
-        {tile("Amount", Number(data.totalInvoice || 0))}
+        {tile("Total Invoice", Number(data.totalInvoice || 0))}
         {tile("Outstanding Receivable", outstanding)}
         {editing ? (
           <div className="p-2.5 rounded-[4px] shadow-xs border bg-white border-[#A57C50] [&_label]:hidden">

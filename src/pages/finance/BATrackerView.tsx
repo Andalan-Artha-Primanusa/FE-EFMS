@@ -5,7 +5,7 @@ import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, getFinanceTemplates, User as UserType } from "../../lib/api";
 import { BANotesUpdateModal } from "./modals/BANotesUpdateModal";
-import { isUnbilledPending, canEditPending } from "./ba_calculations";
+import { isUnbilledPending, canEditPending, isRentalBA, isPOSMDOBA } from "./ba_calculations";
 import { companyScopeOf } from "../../lib/auth";
 import { MappingsModal } from "../tunai-po/shared";
 
@@ -13,9 +13,9 @@ import {
   resolveDocumentUrl, formatIDR, parseNumber, formatThousand, formatDateInput,
   indonesianMonths, formatMonthLabel, formatMonthInput, getRomanMonth,
   generateBANumberPreview, generateInvoiceNumberPreview, getYearFromPeriod,
-  generateInvoiceNumber, getBAInvoiceStatus, renderBAStatusBadge,
+  generateInvoiceNumber, getBAInvoiceStatus, isPOSDualBA, renderBAStatusBadge,
   getBAStatusForExport, renderInvoiceStatusBadge, parsePeriodToMonthIndex,
-  RupiahInput, generateAuditTimeline, getCustomerOfficialName, isBAApproved, INVOICE_LOCKED
+  RupiahInput, generateAuditTimeline, getCustomerOfficialName, isBAApproved, INVOICE_LOCKED, baCalc, pendingCalc
 } from "./helpers";
 
 const BA_SITES = [
@@ -39,6 +39,8 @@ export function BATrackerView({ c }: { c: any }) {
   // Site yang boleh dibuatkan BA mengikuti scope RBAC user (SITE hanya site miliknya).
   const siteScope = user ? companyScopeOf(user) : { all: false, codes: [] as string[] };
   const baSiteOptions = BA_SITES.filter((s) => siteScope.all || siteScope.codes.includes(s.code));
+  const openRentalBA = () => openCreateModal("ba", { customerCode: "POS", posData: { rental: { avgFuelPrice: 0, fuelLogs: [] } } });
+  const openMDOBA = () => openCreateModal("ba", { customerCode: "POS", posData: { mdo: true } });
   const [quickNoteModalItem, setQuickNoteModalItem] = useState<any | null>(null);
   const [showMappings, setShowMappings] = useState(false);
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
@@ -61,26 +63,26 @@ export function BATrackerView({ c }: { c: any }) {
         // Stage 2: diajukan (Submit) s.d. menunggu approval Manager
         const isStageVerif = (r: any) => (r.statusBA || "").startsWith("Submit") || r.statusBA === "Pending Berita Acara" || r.statusBA === "Pending" || r.statusBA === "Pending BAI" || r.statusBA === "Verified" || (r.statusBA === "Ready to Invoice" && !isBAInvoiced(r));
         const stageDraftRows = periodRows.filter(isStageDraft);
-        const stageDraftNominal = stageDraftRows.reduce((sum, r) => sum + (r.workAmount || 0), 0);
+        const stageDraftNominal = stageDraftRows.reduce((sum, r) => sum + baCalc(r).gross, 0);
 
         // Stage 2: Verifikasi Internal SPV
         const stageVerifRows = periodRows.filter(isStageVerif);
-        const stageVerifNominal = stageVerifRows.reduce((sum, r) => sum + (r.workAmount || 0), 0);
+        const stageVerifNominal = stageVerifRows.reduce((sum, r) => sum + baCalc(r).gross, 0);
 
         // Stage 3: Revisi / Tertahan
         const stageRevisiRows = periodRows.filter((r) => r.statusBA === "Revisi" || (r.statusBA || "").startsWith("Reject"));
-        const stageRevisiNominal = stageRevisiRows.reduce((sum, r) => sum + (r.workAmount || 0), 0);
+        const stageRevisiNominal = stageRevisiRows.reduce((sum, r) => sum + baCalc(r).gross, 0);
 
         // Stage 4: Siap Terbit Invoice (HANYA YANG BELUM TERBIT INVOICE)
         const stageReadyRows = periodRows.filter((r) => isBAApproved(r) && !isBAInvoiced(r));
-        const stageReadyNominal = stageReadyRows.reduce((sum, r) => sum + (r.workAmount || 0), 0);
+        const stageReadyNominal = stageReadyRows.reduce((sum, r) => sum + baCalc(r).gross, 0);
 
         // Stage 5: Arsip (HANYA YANG BENAR-BENAR SUDAH ADA INVOICENYA)
         const stageArsipRows = periodRows.filter((r) => (r.statusBA === "Ready to Invoice" || r.statusBA === "Approved" || r.statusBA === "Invoiced" || r.statusBA === "Arsip") && isBAInvoiced(r));
-        const stageArsipNominal = stageArsipRows.reduce((sum, r) => sum + (r.workAmount || 0), 0);
+        const stageArsipNominal = stageArsipRows.reduce((sum, r) => sum + baCalc(r).gross, 0);
 
         // Summary cards: posisi saat ini, tanpa filter periode
-        const sumAmount = (rows: any[]) => rows.reduce((acc, r) => acc + (r.workAmount || 0), 0);
+        const sumAmount = (rows: any[]) => rows.reduce((acc, r) => acc + baCalc(r).gross, 0);
         const cardPendingRows = safeBaRows.filter((r) => !r.verifiedBy && !r.approvedBy && !isBAInvoiced(r));
         const cardSiapRows = safeBaRows.filter((r) => r.verifiedBy && !r.approvedBy && !isBAInvoiced(r) && !(r.statusBA || "").startsWith("Arsip"));
         // Routing keluar saat semua invoice terkirim / FP terlapor / lunas
@@ -94,11 +96,11 @@ export function BATrackerView({ c }: { c: any }) {
         const periodLabel = periodFilter === "All" ? "Semua Periode" : periodFilter;
         const invPeriodTotal = invoiceRows
           .filter((i) => (periodFilter === "All" || i.workPeriod === periodFilter) && INVOICE_LOCKED.has(i.status))
-          .reduce((acc, i) => acc + Number(i.subTotalDPP || 0), 0);
+          .reduce((acc, i) => acc + Number(i.totalInvoice || 0), 0);
         const estRevenuePeriod = sumAmount(periodRows.filter((r) => r.statusBA !== "Revisi" && !(r.statusBA || "").startsWith("Reject")));
         // Pending Volume BGG: periode pending sendiri, hanya yang belum ditagih.
         const isPendingInPeriod = (r: any) => isUnbilledPending(r) && (periodFilter === "All" || r.pendingVolume.period === periodFilter);
-        const pendingNominal = safeBaRows.filter(isPendingInPeriod).reduce((acc, r) => acc + Number(r.pendingVolume.amount || 0), 0);
+        const pendingNominal = safeBaRows.filter(isPendingInPeriod).reduce((acc, r) => acc + pendingCalc(r).gross, 0);
 
         const nominalApprovedPeriod = stageReadyNominal;
         const baOnProgressNominal = stageDraftNominal + stageVerifNominal + stageRevisiNominal;
@@ -217,9 +219,31 @@ export function BATrackerView({ c }: { c: any }) {
                           onClick={() => openCreateModal("ba", { customerCode: s.code })}
                         >
                           <Plus className="w-3.5 h-3.5" />
-                          <span>Buat BA {s.code}</span>
+                          <span>Buat BA {s.code}{s.code === "POS" ? " Operation" : ""}</span>
                         </button>
                       ))}
+                      {baSiteOptions.some((s) => s.code === "POS") && (
+                        <button
+                          type="button"
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:brightness-95 shrink-0 cursor-pointer"
+                          style={{ background: "#A57C50", borderRadius: 3 }}
+                          onClick={openMDOBA}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Buat BA MDO POS</span>
+                        </button>
+                      )}
+                      {baSiteOptions.some((s) => s.code === "POS") && (
+                        <button
+                          type="button"
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:brightness-95 shrink-0 cursor-pointer"
+                          style={{ background: "#A57C50", borderRadius: 3 }}
+                          onClick={openRentalBA}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Buat BA Rental POS</span>
+                        </button>
+                      )}
                     </div>
                   ) : (
                   <div className="relative">
@@ -240,8 +264,8 @@ export function BATrackerView({ c }: { c: any }) {
                         <div className="fixed inset-0 z-10" onClick={() => setShowInputBADropdown(false)} />
                         <div className="absolute right-0 mt-1 w-64 bg-white rounded-[4px] shadow-lg border border-slate-200 py-1 z-20 text-xs font-semibold divide-y divide-slate-100">
                           {baSiteOptions.map((s) => (
+                            <Fragment key={s.code}>
                             <button
-                              key={s.code}
                               type="button"
                               className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
                               onClick={() => {
@@ -250,8 +274,35 @@ export function BATrackerView({ c }: { c: any }) {
                               }}
                             >
                               <Building2 className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
-                              <span>Buat BA {s.label}</span>
+                              <span>Buat BA {s.label}{s.code === "POS" ? " Operation" : ""}</span>
                             </button>
+                            {s.code === "POS" && (
+                              <button
+                                type="button"
+                                className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
+                                onClick={() => {
+                                  openMDOBA();
+                                  setShowInputBADropdown(false);
+                                }}
+                              >
+                                <Pickaxe className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
+                                <span>Buat BA MDO POS</span>
+                              </button>
+                            )}
+                            {s.code === "POS" && (
+                              <button
+                                type="button"
+                                className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
+                                onClick={() => {
+                                  openRentalBA();
+                                  setShowInputBADropdown(false);
+                                }}
+                              >
+                                <Truck className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
+                                <span>Buat BA Rental POS (Daywork)</span>
+                              </button>
+                            )}
+                            </Fragment>
                           ))}
                         </div>
                       </>
@@ -288,7 +339,7 @@ export function BATrackerView({ c }: { c: any }) {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="p-4 bg-white border border-slate-200 shadow-sm space-y-1" style={{ borderRadius: 4 }}>
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
-                    <Receipt className="w-3.5 h-3.5 text-purple-700" /> Total Inv {periodLabel}
+                    <Receipt className="w-3.5 h-3.5 text-purple-700" /> Total Invoice {periodLabel}
                   </span>
                   <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
                     {formatIDR(invPeriodTotal)}
@@ -300,7 +351,7 @@ export function BATrackerView({ c }: { c: any }) {
                   style={{ borderRadius: 4 }}
                 >
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
-                    <Scale className="w-3.5 h-3.5 text-slate-600" /> Pending Volume {periodLabel}
+                    <Scale className="w-3.5 h-3.5 text-slate-600" /> Pending Volume (DPP) {periodLabel}
                   </span>
                   <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
                     {formatIDR(pendingNominal)}
@@ -308,7 +359,7 @@ export function BATrackerView({ c }: { c: any }) {
                 </div>
                 <div className="p-4 bg-white border border-slate-200 shadow-sm space-y-1" style={{ borderRadius: 4 }}>
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
-                    <TrendingUp className="w-3.5 h-3.5 text-[#A57C50]" /> Est. Pendapatan {periodLabel}
+                    <TrendingUp className="w-3.5 h-3.5 text-[#A57C50]" /> Est. Pendapatan (DPP/Gross) {periodLabel}
                   </span>
                   <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
                     {formatIDR(estRevenuePeriod)}
@@ -487,7 +538,7 @@ export function BATrackerView({ c }: { c: any }) {
                     <tr className="bg-slate-100 text-slate-800 font-bold text-[10px] uppercase tracking-wider border-b border-slate-300">
                       <th className="p-2 whitespace-nowrap min-w-[190px]">Identitas BA & Customer</th>
                       <th className="p-2 whitespace-nowrap min-w-[95px]">Periode & SOW</th>
-                      <th className="p-2 text-right whitespace-nowrap min-w-[135px]">Nilai Klaim (Rp)</th>
+                      <th className="p-2 text-right whitespace-nowrap min-w-[135px]">Nilai BA (DPP/Gross)</th>
                       <th className="p-2 whitespace-nowrap min-w-[140px]">Alur Tanggal & Lead Time</th>
                       <th className="p-2 text-center whitespace-nowrap min-w-[140px]">Status Siklus BA</th>
                       <th className="p-2 whitespace-nowrap min-w-[100px]">Berkas PDF</th>
@@ -499,7 +550,7 @@ export function BATrackerView({ c }: { c: any }) {
                     {groupedCustomers.map((custCode) => {
                       const custRows = filteredBARows.filter((r) => (r.customerCode || "OTHER") === custCode)
                         .sort((a, b) => parsePeriodToMonthIndex(b.workPeriod || "") - parsePeriodToMonthIndex(a.workPeriod || ""));
-                      const custSubtotal = custRows.reduce((sum, r) => sum + (r.workAmount || 0), 0);
+                      const custSubtotal = custRows.reduce((sum, r) => sum + baCalc(r).gross, 0);
 
                       return (
                         <Fragment key={custCode}>
@@ -523,6 +574,9 @@ export function BATrackerView({ c }: { c: any }) {
                             const isReady = isBAApproved(row) && !isInvoiced;
                             const linkedInvoice = invStatus.createdMiningInv || invStatus.createdMDOInv || invStatus.createdInvoices[0] || null;
                             const isDropdownOpen = baRowActionDropdownId === row.id;
+                            const isRental = isRentalBA(row);
+                            // BA POS lama gabungan: 2 invoice (Mining & MDO); BA Operation, MDO & Rental POS: 1 invoice.
+                            const isPOSMining = isPOSDualBA(row);
 
                             const pv = row.pendingVolume;
                             return (
@@ -538,6 +592,12 @@ export function BATrackerView({ c }: { c: any }) {
                                       <span className="px-1.5 py-0.2 rounded bg-cyan-100 text-cyan-900 font-bold text-[9px]" title={getCustomerOfficialName(row.customerCode)}>
                                         {row.customerCode || "—"} • {getCustomerOfficialName(row.customerCode)}
                                       </span>
+                                      {isRental && (
+                                        <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-bold text-[9px]">Rental</span>
+                                      )}
+                                      {isPOSMDOBA(row) && (
+                                        <span className="px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-900 font-bold text-[9px]">MDO</span>
+                                      )}
                                       <span className="px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 font-medium text-[9px]">
                                         {row.dataSource || "Joint Survey"}
                                       </span>
@@ -560,14 +620,16 @@ export function BATrackerView({ c }: { c: any }) {
                                 <td className="p-2 text-slate-700 whitespace-nowrap">
                                   <div className="font-bold text-slate-900 text-xs">{row.workPeriod || "-"}</div>
                                   <div className="text-[10px] text-slate-500">
-                                    {row.items?.length ? `${row.items.length} Rincian Item` : "Operasional"}
+                                    {isRental
+                                      ? `${(row.items || []).filter((it: any) => it.unit === "Hrs").reduce((a: number, it: any) => a + Number(it.adjustedVolume || it.initialVolume || 0), 0).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Hrs`
+                                      : row.items?.length ? `${row.items.length} Rincian Item` : "Operasional"}
                                   </div>
                                 </td>
 
                                 {/* Kolom 3: Nilai Klaim (Rp) */}
                                 <td className="p-2 text-right whitespace-nowrap">
                                   <div className="font-mono font-bold text-emerald-700 text-xs">
-                                    {formatIDR(row.workAmount || 0)}
+                                    {formatIDR(baCalc(row).gross)}
                                   </div>
                                   {row.initialWorkAmount && row.adjustedWorkAmount && row.initialWorkAmount !== row.adjustedWorkAmount && (() => {
                                     const diffVal = row.adjustedWorkAmount - row.initialWorkAmount;
@@ -634,7 +696,7 @@ export function BATrackerView({ c }: { c: any }) {
                                         className="inline-flex items-center gap-1 text-cyan-700 hover:text-cyan-900 hover:underline font-bold transition cursor-pointer"
                                         title="Buka Draft PDF BA (New Tab)"
                                       >
-                                        <FileText size={11} /> Draft PDF
+                                        <FileText size={11} /> {isRentalBA(row) ? "Surat Permintaan" : "Draft PDF"}
                                       </a>
                                     )}
                                     {row.finalBAPath && (
@@ -673,7 +735,7 @@ export function BATrackerView({ c }: { c: any }) {
                                 <td className={`p-2 text-right whitespace-nowrap bg-white group-hover:bg-slate-50 ${isDropdownOpen ? "relative z-30" : ""}`}>
                                   <div className="flex items-center justify-end gap-1.5">
                                     {/* POS: Kondisi 1 dari 2 Invoice Terbit (Parsial) */}
-                                    {row.customerCode === "POS" && invStatus.isPartiallyInvoiced && (
+                                    {isPOSMining && invStatus.isPartiallyInvoiced && (
                                       <div className="flex items-center gap-1">
                                         {/* Tombol Terbitkan Sisa Invoice */}
                                         {!can("invoice", "write") ? null : invStatus.createdMiningInv ? (
@@ -719,7 +781,7 @@ export function BATrackerView({ c }: { c: any }) {
                                     )}
 
                                     {/* POS: Kondisi Belum Ada Invoice Sama Sekali (0 dari 2) */}
-                                    {can("invoice", "write") && row.customerCode === "POS" && isReady && !invStatus.isPartiallyInvoiced && (
+                                    {can("invoice", "write") && isPOSMining && isReady && !invStatus.isPartiallyInvoiced && (
                                       <div className="relative inline-block text-left">
                                         <button
                                           type="button"
@@ -788,7 +850,7 @@ export function BATrackerView({ c }: { c: any }) {
                                      })()}
 
                                     {/* Non-POS: Ready to Invoice (1-Click) */}
-                                    {can("invoice", "write") && row.customerCode !== "POS" && isReady && (
+                                    {can("invoice", "write") && !isPOSMining && isReady && (
                                       <button
                                         type="button"
                                         className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] shadow-xs flex items-center gap-1 transition cursor-pointer"
@@ -803,7 +865,7 @@ export function BATrackerView({ c }: { c: any }) {
                                     {/* Selesai Semua (Arsip 2/2 untuk POS atau 1/1 untuk non-POS) */}
                                     {invStatus.isFullyInvoiced && (
                                       <div className="relative inline-block text-left">
-                                        {row.customerCode === "POS" ? (
+                                        {isPOSMining ? (
                                           <>
                                             <button
                                               type="button"
@@ -938,7 +1000,7 @@ export function BATrackerView({ c }: { c: any }) {
                                     <div className="font-bold text-slate-900 text-xs">{pv.period}</div>
                                     <div className="text-[10px] text-slate-500">{pv.items?.length || 0} Rincian Item</div>
                                   </td>
-                                  <td className="p-2 text-right whitespace-nowrap font-mono font-bold text-amber-800 text-xs">{formatIDR(pv.amount || 0)}</td>
+                                  <td className="p-2 text-right whitespace-nowrap font-mono font-bold text-amber-800 text-xs">{formatIDR(pendingCalc(row).gross)}</td>
                                   <td className="p-2 text-[10px] text-slate-700 whitespace-nowrap">
                                     <span className="text-slate-400 font-medium">Diverifikasi: </span>
                                     <span className="font-semibold">{pv.verifiedAt ? new Date(pv.verifiedAt).toLocaleDateString("id-ID") : "-"}</span>
@@ -1011,7 +1073,7 @@ export function BATrackerView({ c }: { c: any }) {
                         TOTAL KLAIM BA {periodFilter === "All" ? "SEMUA PERIODE" : periodFilter} — ALL SITE
                       </td>
                       <td className="p-3 text-right font-mono text-sm text-slate-900 font-black">
-                        {formatIDR(nominalApprovedPeriod + baOnProgressNominal)}
+                        {formatIDR(sumAmount(filteredBARows))}
                       </td>
                       <td colSpan={5} className="p-3 text-right">
                         <div className="flex justify-end items-center gap-4 font-mono text-xs">

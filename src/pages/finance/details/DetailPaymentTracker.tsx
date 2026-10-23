@@ -1,6 +1,6 @@
 import React from "react";
 import { Receipt, Plus, DollarSign, CheckCircle2 } from "lucide-react";
-import { formatIDR } from "../helpers";
+import { formatIDR, invoiceOutstanding } from "../helpers";
 
 interface DetailPaymentTrackerProps {
   detailData: any;
@@ -25,7 +25,7 @@ export const DetailPaymentTracker: React.FC<DetailPaymentTrackerProps> = ({
 }) => {
   const totalInv = detailData.totalReceipt || detailData.totalInvoice || 1;
   const paid = detailData.totalPaid || 0;
-  const outstanding = detailData.outstanding !== undefined ? detailData.outstanding : (totalInv - paid);
+  const outstanding = invoiceOutstanding(detailData);
   const percent = Math.min(100, Math.round((paid / totalInv) * 100));
 
   const linkedPayments = paymentRows.filter((p: any) => p.invoiceNo === detailData.invoiceNo);

@@ -4,11 +4,18 @@
 // Authoritative calculation helpers for Berita Acara (BA) Tracker
 // =============================================================
 
-import { matchPeriod, parsePeriodToMonthIndex } from "./helpers";
+import { matchPeriod, parsePeriodToMonthIndex, formatIDR } from "./helpers";
+import type { BACalc, BACalcLine } from "../../types";
 
 import { customerKind, customerByCode, baseDistanceFor, rfMasterFor, rfTemplateFor, computeRFIndex, forexRatio, minWageFor, kursForPeriod, masterRegistry, obSplitSOWs, odDiscountPctFor, bggTierRate } from "./masterRegistry";
 
 export { customerKind };
+
+/** BA Rental POS (Daywork): posData.rental terisi (sama dengan BE isRentalBA). */
+export const isRentalBA = (ba: any): boolean => Boolean(ba?.posData?.rental);
+
+/** BA MDO POS: posData.mdo terisi; BA Operation POS = BA POS tanpa penanda. */
+export const isPOSMDOBA = (ba: any): boolean => Boolean(ba?.posData?.mdo);
 
 // "OB" harus berdiri sendiri (OB, OB1, (OB)) agar "Mobilisasi" / "Job" tidak terbaca sebagai Overburden.
 const OB_MATERIAL_RE = /\bob(?![a-z])|overburden|over burden|waste/i;
@@ -206,6 +213,18 @@ export const canEditPending = (ba: any) => !ba?.pendingVolume?.billedInvoiceId &
 // Hanya pending terverifikasi (sudah terakrual) yang dihitung di kartu, export & checklist penagihan.
 export const isUnbilledPending = (ba: any) => Boolean(ba?.pendingVolume?.verifiedBy) && !ba.pendingVolume.billedInvoiceId && !isBARejected(ba);
 
+// Uang BA dari BE (calc); undefined = respons kalkulasi belum datang -> "-".
+export const calcIDR = (v: number | undefined) => (v === undefined ? "-" : formatIDR(v));
+export const calcSum = (calc: BACalc | undefined, pick: (l: BACalcLine) => boolean) =>
+  calc ? calc.lines.reduce((a, l) => (pick(l) ? a + l.amount : a), 0) : undefined;
+// Baris calc milik item (tanpa baris turunan R&F seksi D).
+export const calcItemLines = (calc: BACalc | undefined, items: any[]) => {
+  const ids = new Set(items.map((it) => String(it.id)));
+  return (calc?.lines || []).filter((l) => ids.has(l.itemId) && l.section !== "D");
+};
+export const calcItemsAmount = (calc: BACalc | undefined, items: any[]) =>
+  calc ? calcItemLines(calc, items).reduce((a, l) => a + l.amount, 0) : undefined;
+
 export function dropEmptyDPFuel<T>(items: T[]): T[] {
   const dp = items.filter(isDPFuelRow);
   const filled = dp.filter(dpFuelAmount);
@@ -221,12 +240,12 @@ export function invoiceTaxes(dpp: number) {
 }
 
 /**
- * Excel invoice: POS baris non-jarak & OB BGG = Vol x Rate tanpa ROUND; baris lain ROUND(...,0)
+ * Excel invoice: semua baris PTRO, POS baris non-jarak & OB BGG = Vol x Rate tanpa ROUND; baris lain ROUND(...,0)
  * (sama dengan BE excelExactLine).
  */
 export function excelLineAmount(value: number, customerCode: string | undefined, isDist: boolean, isCoal: boolean = false): number {
   const kind = customerKind(customerCode);
-  const exact = !isDist && (kind === "POS" || (kind === "BGG" && !isCoal));
+  const exact = (kind === "PTRO" && !/DBK/i.test(customerCode || "")) || (!isDist && (kind === "POS" || (kind === "BGG" && !isCoal)));
   return exact ? value : Math.round(value);
 }
 
@@ -244,8 +263,10 @@ export function getBAItemSubtotal(item: any, volume: number, isCustomerDBK: bool
     return -Math.abs(vol === 1 ? amt : vol * amt);
   }
   if (isDistanceItem(item)) {
-    return Math.round(volume * getDistanceFactor(item, customerCode, isCustomerDBK) * r);
+    return excelLineAmount(volume * getDistanceFactor(item, customerCode, isCustomerDBK) * r, customerCode || item.customerCode, true);
   }
+  // Rental POS: sewa = ROUND(jam x tarif), BBM = ROUND(liter x harga solar).
+  if (item.category === "Rental") return Math.round(volume * r);
   const mLow = (item.material || item.sowDescription || "").toLowerCase();
   return excelLineAmount(volume * r, customerCode || item.customerCode, false, mLow.includes("coal") || mLow.includes("batubara"));
 }
@@ -379,7 +400,7 @@ export function calculateBACommercialBreakdown(
     }
 
     const isDed = cat === "DP Fuel" || it.isDeduction || mLow.includes("dp fuel") || mLow.includes("pengurang solar");
-    if (isPOS && !isDed && effectiveRF !== 1.0) {
+    if (isPOS && !isDed && cat !== "Rental" && effectiveRF !== 1.0) {
       posRF += isDistanceItem(it)
         ? Math.round(vol * getDistanceFactor(it, customerCode, isCustomerDBK) * Number(it.rate || 0) * (effectiveRF - 1.0))
         : subtotal * (effectiveRF - 1.0);
@@ -389,7 +410,7 @@ export function calculateBACommercialBreakdown(
     } else if (isDistanceItem(it)) {
       overdistanceGross += subtotal; // Note: for POS underhaul, this can be negative
       if (isCoalMat) overdistanceCoalGross += subtotal;
-    } else if (cat === "MDO" || cat === "Support" || cat === "Equipment Rental" || cat === "Penunjang" || cat === "Land Clearing" || mLow.includes("clearing")) {
+    } else if (cat === "Rental" || cat === "MDO" || cat === "Support" || cat === "Equipment Rental" || cat === "Penunjang" || cat === "Land Clearing" || mLow.includes("clearing")) {
       mdoGross += subtotal;
     } else if (isOBMaterial(mLow)) {
       obAmount += subtotal;
@@ -463,8 +484,35 @@ export interface GLJournalLinePreview {
   note: string;
 }
 
+// Akun pendapatan baris calc BE (pemetaan sama dengan accurateItemKey / jurnal akrual BE).
+const GL_REVENUE: [string, string, string][] = [
+  ["4199.000", "Potongan Pendapatan / Denda & BBM", "Pengurang Biaya / Denda / Diskon OD"],
+  ["4101.000", "Pendapatan Over Burden (OB)", "Pendapatan OB penambangan"],
+  ["4102.000", "Pendapatan Coal Winning", "Pendapatan batubara / coal winning"],
+  ["4104.000", "Pendapatan Rental", "Pendapatan rental alat berat penunjang"],
+  ["4105.000", "Pendapatan Under/Over Distance OB", "Pendapatan over distance OB"],
+  ["4106.000", "Pendapatan Under/Over Distance CG", "Pendapatan over distance batubara"],
+  ["4107.000", "Pendapatan Limonite", "Pendapatan jasa penambangan limonite"],
+  ["4108.000", "Pendapatan Saprolite", "Pendapatan jasa penambangan saprolite"],
+  ["4109.000", "Pendapatan Top Soil", "Pendapatan jasa topsoil"],
+  ["4120.000", "Pendapatan Eskalasi / Penyesuaian Harga (Raise & Fall)", "RF kontrak"],
+];
+function glRevenueAccount(l: BACalcLine, cust: string): string {
+  const s = `${l.description} ${l.subSection}`.toLowerCase();
+  const coal = s.includes("coal") || s.includes("batubara") || (l.section === "B" && (cust === "BGG" || cust === "PTRO"));
+  const dist = /distance|overhaul|underhaul|jarak/.test(s) || (l.section === "C" && (cust === "BGG" || cust === "PTRO")) || (l.section === "B" && cust !== "SBS" && cust !== "BGG" && cust !== "PTRO");
+  if (l.section === "E" || l.section === "F" || l.section === "P" || /dp fuel|pengurang solar|potongan solar/.test(s)) return "4199.000";
+  if (l.section === "D") return "4120.000";
+  if (l.category === "MDO" || l.category === "Rental") return "4104.000";
+  if (dist) return coal ? "4106.000" : "4105.000";
+  if (s.includes("top soil") || s.includes("topsoil")) return "4109.000";
+  if (s.includes("saprolit")) return "4108.000";
+  if (s.includes("limonite")) return "4107.000";
+  return coal ? "4102.000" : "4101.000";
+}
+
 export function generateBAGLJournalPreview(
-  breakdown: BACommercialBreakdown,
+  calc: BACalc,
   customerCode: string
 ): { lines: GLJournalLinePreview[]; totalDebit: number; totalCredit: number; isBalanced: boolean } {
   const lines: GLJournalLinePreview[] = [];
@@ -474,28 +522,22 @@ export function generateBAGLJournalPreview(
     lines.push({ accountNo, accountName, debit: amount > 0 ? amount : 0, credit: amount < 0 ? -amount : 0, note });
   };
 
-  // Akun & nama sama dengan jurnal akrual BE (buildUnifiedJournalLines / appendRevenueCreditLines).
-  const nickel = breakdown.limoniteAmount + breakdown.saproliteAmount + breakdown.topSoilAmount;
-  post("1103.101", `Piutang Usaha (PT ${customerCode || "Customer"})`, breakdown.netAR, "Piutang atas Berita Acara");
-  post("1108.002", "PPh 23 Dibayar Dimuka", breakdown.pph23Amount, "Potongan PPh 23 (2%)");
-  post("4199.000", "Potongan Pendapatan / Denda & BBM", breakdown.totalDeductions, "Pengurang Biaya / Denda / Diskon OD");
-  post("4101.000", "Pendapatan Over Burden (OB)", -(breakdown.obAmount - nickel), "Pendapatan OB penambangan");
-  post("4102.000", "Pendapatan Coal Winning", -breakdown.coalAmount, "Pendapatan batubara / coal winning");
-  post("4104.000", "Pendapatan Rental", -breakdown.mdoGross, "Pendapatan rental alat berat penunjang");
-  post("4105.000", "Pendapatan Under/Over Distance OB", -(breakdown.overdistanceGross - breakdown.overdistanceCoalGross), "Pendapatan over distance OB");
-  post("4106.000", "Pendapatan Under/Over Distance CG", -breakdown.overdistanceCoalGross, "Pendapatan over distance batubara");
-  post("4107.000", "Pendapatan Limonite", -breakdown.limoniteAmount, "Pendapatan jasa penambangan limonite");
-  post("4108.000", "Pendapatan Saprolite", -breakdown.saproliteAmount, "Pendapatan jasa penambangan saprolite");
-  post("4109.000", "Pendapatan Top Soil", -breakdown.topSoilAmount, "Pendapatan jasa topsoil");
-  post("4120.000", "Pendapatan Eskalasi / Penyesuaian Harga (Raise & Fall)", -breakdown.rfAmount, `RF kontrak (${(breakdown.rfRateFactor || 1).toFixed(3)}x)`);
-  post("2102.100", "Hutang PPN Keluaran", -breakdown.ppnAmount, "PPN Keluaran atas Berita Acara");
+  const cust = customerKind(customerCode);
+  const byAccount: Record<string, number> = {};
+  for (const l of calc.lines) {
+    const acc = glRevenueAccount(l, cust);
+    byAccount[acc] = (byAccount[acc] || 0) + l.amount;
+  }
+  post("1103.101", `Piutang Usaha (PT ${customerCode || "Customer"})`, calc.total.totalDibayar, "Piutang atas Berita Acara");
+  post("1108.002", "PPh 23 Dibayar Dimuka", calc.total.pph23, "Potongan PPh 23 (2%)");
+  for (const [no, name, note] of GL_REVENUE) post(no, name, -Math.round(byAccount[no] || 0), no === "4120.000" ? `${note} (${calc.rfIndex.toFixed(3)}x)` : note);
+  post("2102.100", "Hutang PPN Keluaran", -calc.total.vat12, "PPN Keluaran atas Berita Acara");
 
   // Tidak ada "plug" selisih pembulatan: bila tidak balance, preview harus menampilkannya apa adanya.
   const totalDebit = lines.reduce((acc, l) => acc + l.debit, 0);
   const totalCredit = lines.reduce((acc, l) => acc + l.credit, 0);
-  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
 
-  return { lines, totalDebit, totalCredit, isBalanced };
+  return { lines, totalDebit, totalCredit, isBalanced: totalDebit === totalCredit };
 }
 
 export interface BGGComputedLineItem {

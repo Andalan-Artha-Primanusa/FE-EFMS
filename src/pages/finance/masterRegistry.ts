@@ -185,6 +185,9 @@ export function sowFor(code?: string, itemName?: string): any | undefined {
     || rows.find((s) => sowNamePartialMatch(normName(s.itemName || s.name), name));
 }
 
+/** SOW tarif BA Rental POS (Daywork); tidak ikut katalog BA mining. */
+export const isRentalAlatSOW = (s: any): boolean => /^rental alat$/i.test((s?.category || "").trim());
+
 /**
  * Baris default BA dari Master Variable SOW customer (volume 0), dipisah Operating vs MDO / Penunjang.
  * Tarif IDR = rateIDR master, atau USD x kurs periode (0 bila kurs periode belum ada).
@@ -192,7 +195,7 @@ export function sowFor(code?: string, itemName?: string): any | undefined {
 export function baItemsFromSOW(code?: string, period?: string): { operating: any[]; mdo: any[] } {
   const kurs = kursForPeriod(period);
   const rows = masterRegistry.sows
-    .filter((s) => sameCustomer(s.customerCode || s.customer, code) && !(Number(s.maxDistanceMeters) > 0) && !/pengurang|denda/i.test(`${s.category} ${s.itemName}`))
+    .filter((s) => sameCustomer(s.customerCode || s.customer, code) && !(Number(s.maxDistanceMeters) > 0) && !/pengurang|denda/i.test(`${s.category} ${s.itemName}`) && !isRentalAlatSOW(s))
     .map((s, i) => {
       const usd = Number(s.rateUSD || 0);
       const base = Number(s.baseDistanceMeters || 0);

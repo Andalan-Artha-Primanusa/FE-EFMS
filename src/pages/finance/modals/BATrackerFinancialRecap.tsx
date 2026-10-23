@@ -1,9 +1,10 @@
 import React from "react";
 import { UserCheck, CheckCircle, Clock, CheckCircle2, ExternalLink, Pickaxe, Building2, Zap, XCircle } from "lucide-react";
-import { getBAInvoiceStatus, generateAuditTimeline, isBAApproved } from "../helpers";
-import { customerKind } from "../ba_calculations";
+import { getBAInvoiceStatus, generateAuditTimeline, isBAApproved, isPOSDualBA } from "../helpers";
+import { isRentalBA } from "../ba_calculations";
 import { BAGLJournalPreview } from "./BAGLJournalPreview";
 import { verifyBATracker, approveBATracker } from "../../../lib/api";
+import type { BACalc } from "../../../types";
 
 interface BATrackerFinancialRecapProps {
   formData: any;
@@ -21,9 +22,7 @@ interface BATrackerFinancialRecapProps {
   baAuditLogs: any[];
   auditTab: "flow" | "activity";
   setAuditTab: (tab: "flow" | "activity") => void;
-  allBAItems?: any[];
-  rfIndexCalculated?: number;
-  latestKursBI?: number;
+  calc?: BACalc;
 }
 
 export function BATrackerFinancialRecap({
@@ -42,11 +41,10 @@ export function BATrackerFinancialRecap({
   baAuditLogs = [],
   auditTab,
   setAuditTab,
-  allBAItems = [],
-  rfIndexCalculated = 1.0,
-  latestKursBI = 0,
+  calc,
 }: BATrackerFinancialRecapProps) {
-  const isPOS = customerKind(formData.customerCode || editItem?.customerCode) === "POS";
+  const isRental = isRentalBA(formData) || isRentalBA(editItem);
+  const isPOS = isPOSDualBA(editItem || formData);
   const step3InvStatus = getBAInvoiceStatus(editItem || formData, invoiceRows);
   const isLinked = Boolean(formData.invoiceNoLinked || editItem?.invoiceNoLinked) || step3InvStatus.isFullyInvoiced;
   // Verifikasi/Reject/Approve hanya di pratinjau BA; pending volume diverifikasi terpisah (tab Pending Volume).
@@ -181,16 +179,7 @@ export function BATrackerFinancialRecap({
       {/* Symmetric GL Journal Entry Preview */}
       <BAGLJournalPreview
         customerCode={formData.customerCode || editItem?.customerCode || ""}
-        allBAItems={allBAItems}
-        rfIndexCalculated={Number(
-          (customerKind(formData.customerCode) === "BGG" && (formData.bggData?.bggRfIndex || formData.bggRfIndex)) ||
-          (customerKind(formData.customerCode) === "POS" && (formData.posData?.posRfIndex || formData.posRfIndex)) ||
-          formData.rfIndexCalculated ||
-          rfIndexCalculated ||
-          1.0
-        )}
-        isCustomerDBK={customerKind(formData.customerCode) === "PTRO"}
-        fuelPeriods={formData.bggData?.fuelPeriods || formData.posData?.fuelPeriods || formData.ptroData?.fuelPeriods || formData.sbsData?.fuelPeriods}
+        calc={calc}
       />
 
       {/* Invoice Generation & Linked Status */}
@@ -266,10 +255,10 @@ export function BATrackerFinancialRecap({
       <div className="flex justify-start items-center pt-2">
         <button
           type="button"
-          onClick={() => setActiveBAStep(2)}
+          onClick={() => setActiveBAStep(isRental ? 1 : 2)}
           className="px-3.5 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold rounded-[3px] transition text-xs cursor-pointer"
         >
-          Kembali ke Step 2
+          Kembali ke Step {isRental ? 1 : 2}
         </button>
       </div>
     </div>

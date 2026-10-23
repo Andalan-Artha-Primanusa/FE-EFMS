@@ -309,8 +309,33 @@ export interface BATracker {
   verifiedAt?: string | null;
   approvedBy?: string;
   approvedAt?: string | null;
-  pendingVolume?: { period: string; items: BAItem[]; amount: number; billedInvoiceId?: number; billedInvoiceNo?: string; verifiedBy?: string; verifiedAt?: string; rejectNote?: string } | null;
+  pendingVolume?: { period: string; items: BAItem[]; amount: number; billedInvoiceId?: number; billedInvoiceNo?: string; verifiedBy?: string; verifiedAt?: string; rejectNote?: string; calc?: BACalc } | null;
+  calc?: BACalc;
   createdAt: string;
+}
+
+export interface BACalcTotals { gross: number; dpp11_12: number; vat12: number; pph23: number; totalInvoice: number; sectionP: number; totalDibayar: number }
+
+export interface BACalcLine {
+  itemId: string;
+  category: "Operation & Mining" | "MDO" | "Rental";
+  section: "A" | "B" | "C" | "D" | "E" | "F" | "P";
+  code: string;
+  description: string;
+  subSection: string;
+  period: string;
+  unit: string;
+  volume: number;
+  rate: number;
+  amount: number;
+}
+
+export interface BACalc {
+  isSurvey: boolean;
+  rfIndex: number;
+  lines: BACalcLine[];
+  byCategory: Record<string, BACalcTotals>;
+  total: BACalcTotals;
 }
 
 // â”€â”€â”€ Finance â€” Invoice â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

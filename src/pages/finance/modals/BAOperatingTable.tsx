@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { Pickaxe, Trash2, GripVertical, ChevronUp, ChevronDown, Plus } from "lucide-react";
 import { formatIDR, FormattedNumberInput, MonthPickerInput } from "../helpers";
 import { getSBSTarifByDistance } from "../calculations";
-import { getBGGComputedInvoiceLines, getDistanceFactor, isOBMaterial, customerKind, removeBAItem } from "../ba_calculations";
+import { isOBMaterial, customerKind, removeBAItem, calcIDR, calcSum, calcItemsAmount } from "../ba_calculations";
+import type { BACalc } from "../../../types";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { BAAddRowDropdown } from "./BAAddRowDropdown";
 import { BAPOSTable } from "./BAPOSTable";
@@ -22,11 +23,10 @@ interface BAOperatingTableProps {
   allBAItems: any[];
   isDistanceItem: (item: any) => boolean;
   getBAEffectiveVolume: (item: any, allItems: any[], isSurvey: boolean) => number;
-  getBAItemSubtotal: (item: any, volume: number, isCustomerDBK?: boolean, customerCode?: string) => number;
+  calc?: BACalc;
   reorderBAItems?: (startIndex: number, endIndex: number, listType?: "operating" | "mdo" | "deduction") => void;
   moveBAItem?: (id: string, dir: "up" | "down", listType?: "operating" | "mdo" | "deduction") => void;
   getSowMasterRate?: (cust: string, name: string, fb: number, isUSD?: boolean, period?: string) => number;
-  rfIndexCalculated?: number;
 }
 
 export function BAOperatingTable({
@@ -43,11 +43,10 @@ export function BAOperatingTable({
   allBAItems,
   isDistanceItem,
   getBAEffectiveVolume,
-  getBAItemSubtotal,
+  calc,
   reorderBAItems,
   moveBAItem,
   getSowMasterRate,
-  rfIndexCalculated = 1.0,
 }: BAOperatingTableProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -57,8 +56,6 @@ export function BAOperatingTable({
   const isCustomerSBS = kind === "SBS";
   const isCustomerDBK = kind === "PTRO";
   const isCustomerPOS = kind === "POS";
-
-  const effectiveRF = Number(rfIndexCalculated || formData.bggData?.bggRfIndex || formData.posData?.posRfIndex || formData.rfIndexCalculated || 1.0);
 
   // BGG: tarif baris = tier Coal Index periode baris di Master SOW (tabel tarif Kungkilan), bukan input manual.
   const bggRateOf = (it: any) => (it.isCustom || it.isDeduction || it.category === "DP Fuel" ? 0 : bggTierRate(it.material, it.period || formData.workPeriod));
@@ -89,25 +86,20 @@ export function BAOperatingTable({
         allBAItems={allBAItems}
         isDistanceItem={isDistanceItem}
         getBAEffectiveVolume={getBAEffectiveVolume}
-        getBAItemSubtotal={getBAItemSubtotal}
+        calc={calc}
         reorderBAItems={reorderBAItems}
         moveBAItem={moveBAItem}
         getSowMasterRate={getSowMasterRate}
-        rfIndexCalculated={effectiveRF}
       />
     );
   }
 
-  const computedLines = isCustomerBGG
-    ? getBGGComputedInvoiceLines(allBAItems, effectiveRF, false, formData.bggData?.fuelPeriods)
-    : { sectionDItems: [], sectionEItems: [], subtotalD: 0, subtotalE: 0 };
-
-  const billedSubtotal = (it: any) => getBAItemSubtotal(it, getBAEffectiveVolume(it, allBAItems, false), isCustomerDBK, formData.customerCode);
+  const sectionLines = (sec: string) => (calc?.lines || []).filter((l) => l.section === sec);
+  const sectionTotal = (sec: string) => calcSum(calc, (l) => l.section === sec);
 
   const updateItem = (id: string, patch: Record<string, any>) =>
     setBaOperatingItems(baOperatingItems.map((it) => (it.id === id ? { ...it, ...patch } : it)));
 
-  const subtotalNonBGG = baOperatingItems.reduce((acc, it) => acc + billedSubtotal(it), 0);
 
   // Tukar dengan baris tetangga di seksi yang sama (BGG mengelompokkan baris per seksi A-F).
   const handleMoveRow = (id: string, dir: "up" | "down", siblings: any[]) => {
@@ -173,16 +165,12 @@ export function BAOperatingTable({
     }
   );
 
-  const subtotalA = obItems.reduce((acc, it) => acc + billedSubtotal(it), 0);
-  const subtotalB = coalItems.reduce((acc, it) => acc + billedSubtotal(it), 0);
-  const subtotalC = distanceItems.reduce((acc, it) => acc + billedSubtotal(it), 0);
-  const subtotalF = dpFuelItems.reduce((acc, it) => acc + getBAItemSubtotal(it, 1, isCustomerDBK, formData.customerCode), 0);
 
   const renderItemRow = (item: any, idx: number, siblings: any[] = baOperatingItems) => {
     const isDistance = isDistanceItem(item);
     const isDPFuel = item.category === "DP Fuel" || item.isDeduction || (item.material || "").toLowerCase().includes("dp fuel");
-    const effVol = getBAEffectiveVolume(item, allBAItems, false);
-    const subtotal = billedSubtotal(item);
+    const effVol = getBAEffectiveVolume(item, allBAItems, true);
+    const subtotal = calcItemsAmount(calc, [item]);
 
     return (
       <tr
@@ -404,19 +392,8 @@ export function BAOperatingTable({
         </td>
         <td className="p-2 text-right font-mono align-top">
           {(() => {
-            const effDistanceRate = isDistance
-              ? Number(item.rate || 0) * getDistanceFactor(item, formData.customerCode, isCustomerDBK)
-              : Number(item.rate || 0);
-
-            // Baris jarak: tampilkan tarif efektif Rupiah (tarif SOW x selisih jarak) seperti Excel; input hanya bila tarif belum ada.
             if (!isInlineEditingBA || (isDistance && Number(item.rate || 0) !== 0) || (isCustomerBGG && bggRateOf(item) > 0)) {
-              return (
-                <span className="pt-1 block font-mono font-bold">
-                  {isDistance && effDistanceRate !== 0
-                    ? formatIDR(effDistanceRate)
-                    : formatIDR(item.rate)}
-                </span>
-              );
+              return <span className="pt-1 block font-mono font-bold">{formatIDR(item.rate)}</span>;
             }
 
             return (
@@ -434,7 +411,7 @@ export function BAOperatingTable({
           })()}
         </td>
         <td className="p-2 text-right font-mono font-extrabold align-top">
-          <div className={`pt-1 ${subtotal < 0 ? "text-rose-700 font-black" : "text-[#1A1612]"}`}>{formatIDR(subtotal)}</div>
+          <div className={`pt-1 ${(subtotal || 0) < 0 ? "text-rose-700 font-black" : "text-[#1A1612]"}`}>{calcIDR(subtotal)}</div>
         </td>
       </tr>
     );
@@ -500,7 +477,7 @@ export function BAOperatingTable({
                     A. OB REMOVAL (Pit Kungkilan)
                   </td>
                   <td className="p-2 text-right font-mono text-slate-900 font-extrabold">
-                    {formatIDR(subtotalA)}
+                    {calcIDR(sectionTotal("A"))}
                   </td>
                 </tr>
                 {obItems.map((item, idx) => renderItemRow(item, idx, obItems))}
@@ -513,7 +490,7 @@ export function BAOperatingTable({
                     B. COAL WINNING (Pit Kungkilan)
                   </td>
                   <td className="p-2 text-right font-mono text-slate-900 font-extrabold">
-                    {formatIDR(subtotalB)}
+                    {calcIDR(sectionTotal("B"))}
                   </td>
                 </tr>
                 {coalItems.map((item, idx) => renderItemRow(item, idx, coalItems))}
@@ -526,7 +503,7 @@ export function BAOperatingTable({
                     C. OVER DISTANCE
                   </td>
                   <td className="p-2 text-right font-mono text-slate-900 font-extrabold">
-                    {formatIDR(subtotalC)}
+                    {calcIDR(sectionTotal("C"))}
                   </td>
                 </tr>
                 {distanceItems.map((item, idx) => renderItemRow(item, idx, distanceItems))}
@@ -538,15 +515,15 @@ export function BAOperatingTable({
                     D. RAISE & FALL'S FACTOR
                   </td>
                   <td className="p-2 text-right font-mono text-slate-900 font-extrabold">
-                    {formatIDR(computedLines.subtotalD)}
+                    {calcIDR(sectionTotal("D"))}
                   </td>
                 </tr>
-                {computedLines.sectionDItems.map((item, i, arr) => (
-                  <React.Fragment key={item.id}>
-                  {item.group !== arr[i - 1]?.group && (
+                {sectionLines("D").map((item, i, arr) => (
+                  <React.Fragment key={i}>
+                  {item.subSection !== arr[i - 1]?.subSection && (
                     <tr className="bg-slate-50 font-bold text-slate-800">
                       {isInlineEditingBA && <td className="p-1.5" />}
-                      <td colSpan={8} className="px-2 py-1.5 text-[11px] font-extrabold">{item.group}</td>
+                      <td colSpan={8} className="px-2 py-1.5 text-[11px] font-extrabold">{item.subSection}</td>
                     </tr>
                   )}
                   <tr className="hover:bg-slate-50/80 transition bg-slate-50/20">
@@ -565,7 +542,7 @@ export function BAOperatingTable({
                       {formatIDR(item.rate)}
                     </td>
                     <td className="p-2 text-right font-mono font-extrabold align-top text-slate-900">
-                      {formatIDR(item.subtotal)}
+                      {formatIDR(item.amount)}
                     </td>
                   </tr>
                   </React.Fragment>
@@ -578,11 +555,11 @@ export function BAOperatingTable({
                     E. DISCOUNT ON OVERDISTANCE
                   </td>
                   <td className="p-2 text-right font-mono text-rose-700 font-extrabold">
-                    {formatIDR(computedLines.subtotalE)}
+                    {calcIDR(sectionTotal("E"))}
                   </td>
                 </tr>
-                {computedLines.sectionEItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/80 transition bg-slate-50/20">
+                {sectionLines("E").map((item, i) => (
+                  <tr key={i} className="hover:bg-slate-50/80 transition bg-slate-50/20">
                     {isInlineEditingBA && <td className="p-2 text-center text-slate-300">-</td>}
                     <td className="p-2 font-bold text-slate-800 align-top">Pit KKL</td>
                     <td colSpan={4} className="p-2 font-medium text-slate-900 align-top">
@@ -593,7 +570,7 @@ export function BAOperatingTable({
                       -
                     </td>
                     <td className="p-2 text-right font-mono font-extrabold align-top text-rose-700">
-                      {formatIDR(item.subtotal)}
+                      {formatIDR(item.amount)}
                     </td>
                   </tr>
                 ))}
@@ -640,7 +617,7 @@ export function BAOperatingTable({
                     </div>
                   </td>
                   <td className="p-2 text-right font-mono text-rose-700 font-extrabold">
-                    {subtotalF !== 0 ? formatIDR(-Math.abs(subtotalF)) : "Rp 0"}
+                    {calcIDR(sectionTotal("F"))}
                   </td>
                 </tr>
                 {dpFuelItems.map((item, idx) => {
@@ -710,13 +687,13 @@ export function BAOperatingTable({
                             placeholder="0"
                             onChange={(val) => {
                               const numVal = Math.abs(Number(val) || 0);
-                              updateItem(item.id, { rate: numVal, subtotalInitial: -numVal, subtotalAdjusted: -numVal });
+                              updateItem(item.id, { rate: numVal });
                             }}
                           />
                         )}
                       </td>
                       <td className="p-2 text-right font-mono font-extrabold align-top text-rose-700">
-                        {formatIDR(-Math.abs(currentVal))}
+                        {calcIDR(calcItemsAmount(calc, [item]))}
                       </td>
                     </tr>
                   );
@@ -783,7 +760,7 @@ export function BAOperatingTable({
                   {isCustomerSBS ? "Subtotal Kategori 1: Operating & Mining (OB)" : "Subtotal Kategori 1: Operating & Mining"}
                 </td>
                 <td className="p-2 text-right font-mono font-extrabold text-slate-950">
-                  {formatIDR(subtotalNonBGG)}
+                  {calcIDR(calcItemsAmount(calc, baOperatingItems))}
                 </td>
               </tr>
             </tfoot>
