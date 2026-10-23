@@ -5,7 +5,7 @@ import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, getFinanceTemplates, User as UserType } from "../../lib/api";
 import { BANotesUpdateModal } from "./modals/BANotesUpdateModal";
-import { isUnbilledPending } from "./ba_calculations";
+import { isUnbilledPending, canEditPending } from "./ba_calculations";
 import { companyScopeOf } from "../../lib/auth";
 import { MappingsModal } from "../tunai-po/shared";
 
@@ -524,8 +524,10 @@ export function BATrackerView({ c }: { c: any }) {
                             const linkedInvoice = invStatus.createdMiningInv || invStatus.createdMDOInv || invStatus.createdInvoices[0] || null;
                             const isDropdownOpen = baRowActionDropdownId === row.id;
 
+                            const pv = row.pendingVolume;
                             return (
-                              <tr key={row.id} className={`hover:bg-slate-50/90 transition group ${isDropdownOpen ? "relative z-30" : ""}`}>
+                              <Fragment key={row.id}>
+                              <tr className={`hover:bg-slate-50/90 transition group ${isDropdownOpen ? "relative z-30" : ""}`}>
                                 {/* Kolom 1: Identitas BA & Customer */}
                                 <td className="p-2">
                                   <div className="space-y-0.5">
@@ -567,11 +569,6 @@ export function BATrackerView({ c }: { c: any }) {
                                   <div className="font-mono font-bold text-emerald-700 text-xs">
                                     {formatIDR(row.workAmount || 0)}
                                   </div>
-                                  {row.pendingVolume && (
-                                    <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold font-mono bg-amber-50 text-amber-800 border border-amber-200">
-                                      {row.pendingVolume.billedInvoiceId ? `Pending ditagih ${row.pendingVolume.billedInvoiceNo || ""}` : `Pending ${formatIDR(row.pendingVolume.amount || 0)}`}
-                                    </span>
-                                  )}
                                   {row.initialWorkAmount && row.adjustedWorkAmount && row.initialWorkAmount !== row.adjustedWorkAmount && (() => {
                                     const diffVal = row.adjustedWorkAmount - row.initialWorkAmount;
                                     const devPct = row.initialWorkAmount > 0 ? (Math.abs(diffVal) / row.initialWorkAmount) * 100 : 0;
@@ -930,6 +927,55 @@ export function BATrackerView({ c }: { c: any }) {
                                   </div>
                                 </td>
                               </tr>
+                              {/* Pending Volume BGG: verifikasi sendiri, tanpa approval Manager & tanpa invoice */}
+                              {pv && (
+                                <tr className="bg-amber-50/40 hover:bg-amber-50/80 transition">
+                                  <td className="p-2 pl-6">
+                                    <div className="font-mono font-bold text-slate-900 text-xs">{row.baNumber}</div>
+                                    <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-bold text-[9px]">Pending Volume</span>
+                                  </td>
+                                  <td className="p-2 text-slate-700 whitespace-nowrap">
+                                    <div className="font-bold text-slate-900 text-xs">{pv.period}</div>
+                                    <div className="text-[10px] text-slate-500">{pv.items?.length || 0} Rincian Item</div>
+                                  </td>
+                                  <td className="p-2 text-right whitespace-nowrap font-mono font-bold text-amber-800 text-xs">{formatIDR(pv.amount || 0)}</td>
+                                  <td className="p-2 text-[10px] text-slate-700 whitespace-nowrap">
+                                    <span className="text-slate-400 font-medium">Diverifikasi: </span>
+                                    <span className="font-semibold">{pv.verifiedAt ? new Date(pv.verifiedAt).toLocaleDateString("id-ID") : "-"}</span>
+                                  </td>
+                                  <td className="p-2 text-center whitespace-nowrap">
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${pv.billedInvoiceId ? "bg-purple-50 text-purple-900 border-purple-300" : pv.verifiedBy ? "bg-emerald-50 text-emerald-800 border-emerald-300" : pv.rejectNote ? "bg-rose-50 text-rose-700 border-rose-300" : "bg-slate-100 text-slate-600 border-slate-300"}`}>
+                                      {pv.billedInvoiceId ? `Ditagih ${pv.billedInvoiceNo || ""}` : pv.verifiedBy ? "Verified" : pv.rejectNote ? "Revisi" : "Submit"}
+                                    </span>
+                                  </td>
+                                  <td className="p-2" />
+                                  <td className="p-2 text-[10px] text-slate-600">{pv.rejectNote || "-"}</td>
+                                  <td className="p-2 text-right whitespace-nowrap">
+                                    <div className="flex items-center justify-end gap-1.5">
+                                      {!pv.verifiedBy && (
+                                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Menunggu Verifikasi</span>
+                                      )}
+                                      <button
+                                        className="p-1.5 rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 transition cursor-pointer"
+                                        onClick={() => openBAModal(row, false, true)}
+                                        title="View Pending Volume"
+                                      >
+                                        <Eye size={14} />
+                                      </button>
+                                      {can("ba_tracker", "write") && canEditPending(row) && (
+                                        <button
+                                          className="p-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                                          onClick={() => openBAModal(row, true, true)}
+                                          title="Edit Pending Volume"
+                                        >
+                                          <Edit2 size={14} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                              </Fragment>
                             );
                           })}
 

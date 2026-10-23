@@ -202,8 +202,9 @@ const dpFuelAmount = (it: any) => Math.abs(Number(it.rate || 0)) || Math.abs(Num
 // Pending Volume BGG: disimpan di BA induk (pendingVolume = null menghapus); amount dihitung BE.
 export const withPendingVolume = (ba: any, pendingVolume: { period: string; items: any[] } | null) => ({ ...ba, pendingVolume });
 const isBARejected = (ba: any) => (ba?.statusBA || "").startsWith("Reject");
-export const canEditPending = (ba: any) => !ba?.pendingVolume?.billedInvoiceId && (!ba?.verifiedBy || isBARejected(ba));
-export const isUnbilledPending = (ba: any) => Boolean(ba?.pendingVolume) && !ba.pendingVolume.billedInvoiceId && !isBARejected(ba);
+export const canEditPending = (ba: any) => !ba?.pendingVolume?.billedInvoiceId && !(ba?.pendingVolume?.verifiedBy && (ba.invoiceId || ba.invoiceNoLinked));
+// Hanya pending terverifikasi (sudah terakrual) yang dihitung di kartu, export & checklist penagihan.
+export const isUnbilledPending = (ba: any) => Boolean(ba?.pendingVolume?.verifiedBy) && !ba.pendingVolume.billedInvoiceId && !isBARejected(ba);
 
 export function dropEmptyDPFuel<T>(items: T[]): T[] {
   const dp = items.filter(isDPFuelRow);

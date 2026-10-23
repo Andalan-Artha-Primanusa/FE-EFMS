@@ -251,7 +251,7 @@ export function closePeriod(period: string) {
   return api("/api/closing-periods/close", { method: "POST", body: JSON.stringify({ period }) });
 }
 
-export function verifyBATracker(id: number, action: "verify" | "reject", note: string) {
+export function verifyBATracker(id: number, action: "verify" | "reject" | "verify_pending" | "reject_pending", note: string) {
   return api(`/api/finance/ba-trackers/${id}/verify`, { method: "POST", body: JSON.stringify({ action, note }) });
 }
 
@@ -584,12 +584,19 @@ export function generateJournalFromPayment(id: number) {
   return api<any>(`/api/accounting/generate-from-payment/${id}`, { method: "POST" });
 }
 
-export function getSystemSettings() {
-  return api<any[]>("/api/system-settings");
+// SMTP email notifikasi; password tidak pernah dikirim balik (kosong saat simpan = tetap).
+export type EmailSettings = { host: string; port: string; user: string; password?: string; hasPassword?: boolean; appUrl: string };
+
+export function getEmailSettings() {
+  return api<EmailSettings>("/api/settings/email");
 }
 
-export function saveSystemSetting(setting: any) {
-  return api<any>("/api/system-settings", { method: "POST", body: JSON.stringify(setting) });
+export function saveEmailSettings(settings: EmailSettings) {
+  return api<EmailSettings>("/api/settings/email", { method: "PUT", body: JSON.stringify(settings) });
+}
+
+export function testEmailSettings() {
+  return api<{ sentTo: string }>("/api/settings/email/test", { method: "POST" });
 }
 
 export function getAccountingRuns() {

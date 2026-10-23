@@ -7,6 +7,7 @@ import { viewPath } from "../data/navigation";
 // Halaman tujuan per jenis dokumen notifikasi (refType dari backend).
 const refView: Record<string, string> = {
   ba: "Berita Acara (BA) Tracker",
+  ba_pending: "Berita Acara (BA) Tracker",
   invoice: "Invoice Management",
   tunai_po: "Tracking Tunai PO",
   voucher: "Voucher Payment",
