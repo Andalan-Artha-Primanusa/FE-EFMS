@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { api, getFinanceTemplates } from "../../lib/api";
 import { matchPeriod } from "./helpers";
 import { isOBMaterial, isDistanceItem } from "./ba_calculations";
-import { setMasterData, rfMasterFor, kursForPeriod, customerKind, baseDistanceFor, sowNamePartialMatch } from "./masterRegistry";
+import { setMasterData, rfMasterFor, kursForPeriod, customerKind, baseDistanceFor, sowNamePartialMatch, isRentalAlatSOW } from "./masterRegistry";
 import { getSBSTarifByDistance } from "./distance_tiers";
 
 // Master data finance dari BE. RF & kurs mengikuti customer + periode dokumen (BA / Invoice) yang sedang dibuka.
@@ -26,6 +26,8 @@ const mapSowRow = (d: any) => ({
   splitPercentage: d.splitPercentage || 0,
   baseDistanceMeters: d.baseDistanceMeters || 0,
   maxDistanceMeters: d.maxDistanceMeters || 0,
+  fuelLtrPerHour: d.fuelLtrPerHour || 0,
+  description: d.description || "",
   status: d.status,
   isDistanceVar: d.category === "Over Distance" || d.category === "Distance" || (d.unit || "").toLowerCase().includes("100 m") || (d.unit || "").toLowerCase().includes("1km") || (d.itemName || "").toLowerCase().includes("overhaul") || (d.itemName || "").toLowerCase().includes("over distance"),
 });
@@ -341,6 +343,7 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
       const custUpper = (customerCode || "").toUpperCase();
       const filtered = catalog.filter((s: any) => {
         const sCust = (s.customer || s.customerCode || "").toUpperCase();
+        if (isRentalAlatSOW(s)) return false;
         return !sCust || sCust === custUpper || ((custUpper === "POS" || custUpper === "IBP" || custUpper === "BBA") && (!sCust || sCust === "POS"));
       // Baris milik customer didahulukan: dropdown SOW memakai baris pertama per nama, jangan sampai baris generik menang.
       }).sort((a: any, b: any) => ((b.customer || b.customerCode) ? 1 : 0) - ((a.customer || a.customerCode) ? 1 : 0));
@@ -492,7 +495,8 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
   const syncBARatesWithMasterData = useCallback((items: any[], cust: string, period?: string): any[] => {
     return (items || []).map((it) => {
       const mat = it.material || it.name || it.description || "";
-      if (!mat || it.isCustom) return it;
+      // Baris Rental POS: tarif sewa & harga solar diatur tabel rental (baris BBM bermaterial sama dengan sewa).
+      if (!mat || it.isCustom || it.category === "Rental") return it;
       // OB SBS tanpa tarif: ambil dari rentang Tarif Jarak Angkut (aturan sama dengan BE).
       const dist = Number(it.distanceM || it.distance || it.distanceWeightAvg || 0);
       if (customerKind(cust) === "SBS" && !it.isDeduction && !Number(it.rate) && dist > 0) {

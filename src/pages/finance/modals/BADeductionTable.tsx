@@ -2,6 +2,8 @@ import React from "react";
 import { TrendingDown, Plus, Trash2 } from "lucide-react";
 import { formatIDR, FormattedNumberInput } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
+import { isRentalBA, calcIDR, calcItemsAmount } from "../ba_calculations";
+import type { BACalc } from "../../../types";
 
 interface BADeductionTableProps {
   formData: any;
@@ -9,6 +11,7 @@ interface BADeductionTableProps {
   setBaDeductionItems: React.Dispatch<React.SetStateAction<any[]>>;
   isInlineEditingBA: boolean;
   activeSOWCatalog: any[];
+  calc?: BACalc;
 }
 
 export function BADeductionTable({
@@ -17,31 +20,32 @@ export function BADeductionTable({
   setBaDeductionItems,
   isInlineEditingBA,
   activeSOWCatalog,
+  calc,
 }: BADeductionTableProps) {
   const isCustomerSBS = formData.customerCode === "SBS";
-  if (!isCustomerSBS) return null;
+  const isRental = isRentalBA(formData);
+  if (!isCustomerSBS && !isRental) return null;
 
-  const totalDeduction = (baDeductionItems || []).reduce((acc: number, it: any) => {
-    return acc + Math.abs(Number(it.rate || it.subtotalInitial || 0));
-  }, 0);
+  const paren = (v: number | undefined) => (v !== undefined && v < 0 ? `(${formatIDR(-v)})` : calcIDR(v));
 
   return (
     <div className="space-y-2 pt-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-black uppercase text-[#1A1612] flex items-center gap-1.5">
           <TrendingDown size={14} className="text-rose-700" />
-          Pengurang Pembayaran (Section P / Denda Operasional SBS)
+          {isRental ? "C. Potongan" : "Pengurang Pembayaran (Section P / Denda Operasional SBS)"}
         </span>
         {isInlineEditingBA && (
           <button
             type="button"
             onClick={() => {
               const newDed = {
-                id: `sbs_ded_${Date.now()}`,
+                id: `${isRental ? "rental" : "sbs"}_ded_${Date.now()}`,
                 category: "Pengurang Biaya",
-                area: "Pit E",
+                section: isRental ? "C" : undefined,
+                area: isRental ? "" : "Pit E",
                 material: "",
-                unit: "Hours",
+                unit: isRental ? "" : "Hours",
                 initialVolume: 1,
                 adjustedVolume: 1,
                 rate: 0,
@@ -97,7 +101,7 @@ export function BADeductionTable({
                     <div className="space-y-1">
                       <SOWSelectDropdown
                         value={item.isCustom ? "Lainnya" : (item.material || "")}
-                        customerCode="SBS"
+                        customerCode={formData.customerCode || "SBS"}
                         activeSOWCatalog={activeSOWCatalog}
                         categoryFilter="Pengurang Biaya"
                         className="w-full bg-slate-50 hover:bg-white focus:bg-white border border-slate-300 focus:border-[#A57C50] rounded-[3px] px-2 py-1 text-xs font-bold text-slate-900 outline-none transition cursor-pointer"
@@ -171,15 +175,13 @@ export function BADeductionTable({
                         updated[idx].rate = absVal;
                         updated[idx].initialVolume = 1;
                         updated[idx].adjustedVolume = 1;
-                        updated[idx].subtotalInitial = -absVal;
-                        updated[idx].subtotalAdjusted = -absVal;
                         setBaDeductionItems(updated);
                       }}
                     />
                   )}
                 </td>
                 <td className="p-2 text-right font-mono font-extrabold text-rose-700">
-                  ({formatIDR(Math.abs(Number(item.rate) || 0))})
+                  {paren(calcItemsAmount(calc, [item]))}
                 </td>
               </tr>
             ))}
@@ -199,7 +201,7 @@ export function BADeductionTable({
                   Total Pengurang Pembayaran
                 </td>
                 <td className="p-2 text-right font-mono font-extrabold text-rose-700">
-                  ({formatIDR(totalDeduction)})
+                  {paren(calcItemsAmount(calc, baDeductionItems || []))}
                 </td>
               </tr>
             </tfoot>

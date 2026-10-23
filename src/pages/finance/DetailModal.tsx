@@ -14,9 +14,7 @@ export function DetailModal({ c }: { c: any }) {
   const {
     isSuper, canVerifyBA, canVerifyInvoice, canApproveInvoice, canApproveBA, invoiceRows: rawInvoiceRows, paymentRows: rawPaymentRows, baRows: rawBaRows,
     detailViewItem, setDetailViewItem, showAddPartialPayment, setShowAddPartialPayment, partialPaymentForm,
-    setPartialPaymentForm, rfIndexCalculated, buildInvoiceItemsFromBA, customerContractMap, getItemEffectiveVolume,
-    getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations,
-    exportPaymentDetailPDF,
+    setPartialPaymentForm, customerContractMap, exportPaymentDetailPDF,
     handleSavePartialPayment, handleVerifyPartialPayment, createInvoiceFromBA, handleVerifyBA, handleApproveBA,
     handleApproveInvoice, openEditModal, onNotice, loadData, can = () => false
   } = (c || {}) as Record<string, any>;
@@ -111,13 +109,7 @@ export function DetailModal({ c }: { c: any }) {
                 <InvoiceDetailSheet
                   data={data}
                   baRows={baRows}
-                  buildInvoiceItemsFromBA={buildInvoiceItemsFromBA}
                   customerContractMap={customerContractMap}
-                  getItemEffectiveVolume={getItemEffectiveVolume}
-                  getItemEffectiveOverhaulMtr={getItemEffectiveOverhaulMtr}
-                  calculateItemRateAndAmount={calculateItemRateAndAmount}
-                  getCustomerCalculations={getCustomerCalculations}
-                  rfIndexCalculated={rfIndexCalculated}
                 />
               )}
 

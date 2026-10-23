@@ -1,38 +1,17 @@
 import React from "react";
 import { BookOpen, CheckCircle2, AlertCircle } from "lucide-react";
 import { formatIDR } from "../helpers";
-import {
-  calculateBACommercialBreakdown,
-  generateBAGLJournalPreview,
-} from "../ba_calculations";
+import { generateBAGLJournalPreview } from "../ba_calculations";
+import type { BACalc } from "../../../types";
 
 interface BAGLJournalPreviewProps {
   customerCode: string;
-  allBAItems?: any[];
-  rfIndexCalculated?: number;
-  isCustomerDBK?: boolean;
-  fuelPeriods?: Record<string, any>;
+  calc?: BACalc;
 }
 
-export function BAGLJournalPreview({
-  customerCode,
-  allBAItems = [],
-  rfIndexCalculated = 1.0,
-  isCustomerDBK = false,
-  fuelPeriods,
-}: BAGLJournalPreviewProps) {
-  const breakdown = calculateBACommercialBreakdown(
-    customerCode,
-    allBAItems,
-    rfIndexCalculated,
-    isCustomerDBK,
-    false,
-    fuelPeriods
-  );
-  const { lines, totalDebit, totalCredit, isBalanced } = generateBAGLJournalPreview(
-    breakdown,
-    customerCode
-  );
+export function BAGLJournalPreview({ customerCode, calc }: BAGLJournalPreviewProps) {
+  if (!calc) return null;
+  const { lines, totalDebit, totalCredit, isBalanced } = generateBAGLJournalPreview(calc, customerCode);
 
   if (lines.length === 0) return null;
 

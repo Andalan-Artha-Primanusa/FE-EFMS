@@ -1,9 +1,10 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { Building2, Trash2 } from "lucide-react";
 import { formatIDR, FormattedNumberInput } from "../helpers";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { BAAddRowDropdown } from "./BAAddRowDropdown";
-import { isDistanceItem, isDistanceParent, isLandClearingItem, removeBAItem, getBAEffectiveVolume, getBAItemSubtotal, isOBMaterial, invoiceTaxes, getItemDistanceM } from "../ba_calculations";
+import { isDistanceItem, isLandClearingItem, removeBAItem, getBAEffectiveVolume, isOBMaterial, getItemDistanceM, getBaseDistance, calcIDR, calcItemsAmount, calcItemLines } from "../ba_calculations";
+import type { BACalc } from "../../../types";
 
 interface BAPOSMDOTableProps {
   formData: any;
@@ -13,7 +14,7 @@ interface BAPOSMDOTableProps {
   activeSOWCatalog: any[];
   mRate: number;
   allBAItems?: any[];
-  rfIndexCalculated?: number;
+  calc?: BACalc;
   getSowMasterRate?: (customer: string, itemName: string, fallbackRate: number, isUSD?: boolean, period?: string) => number;
 }
 
@@ -25,129 +26,21 @@ export function BAPOSMDOTable({
   activeSOWCatalog,
   mRate,
   allBAItems = [],
-  rfIndexCalculated = 1.0,
+  calc,
   getSowMasterRate,
 }: BAPOSMDOTableProps) {
-  const effectiveRF = Number(rfIndexCalculated || formData.posData?.posRfIndex || formData.rfIndexCalculated || 1.0);
-  const rfFactor = effectiveRF - 1.0;
-
-  const getDynamicMDOItemBaseIDR = (it: any, isDistance: boolean = false) => {
-    let usdRate = Number(it.rateUSD ?? it.baseRateUSD ?? 0);
-    if (usdRate === 0 && getSowMasterRate) {
-      usdRate = getSowMasterRate("POS", it.material, 0, true);
-    }
-    // Sama dengan BE RecalculateBA: USD x kurs periode bila keduanya ada, selain itu tarif IDR baris.
-    const currentMRate = Number(mRate || formData?.posData?.actualMRateXn || 0);
-    if (usdRate > 0 && currentMRate > 0) {
-      return usdRate * currentMRate;
-    }
-    return Number(it.rate || 0);
-  };
-
   // Group into Production, Over Distance and Land Clearing
   const prodItems = baMDOItems.filter((it) => !isDistanceItem(it) && !isLandClearingItem(it));
   const distItems = baMDOItems.filter((it) => isDistanceItem(it));
   const lcItems = baMDOItems.filter((it) => isLandClearingItem(it));
 
-  const subtotalA = prodItems.reduce((acc, it) => {
-    const vol = Number(it.initialVolume || 0);
-    const r = getDynamicMDOItemBaseIDR(it, false);
-    return acc + vol * r;
-  }, 0);
-
-  const subtotalB = distItems.reduce((acc, it) => {
-    const effVol = getBAEffectiveVolume(it, allBAItems.length > 0 ? allBAItems : baMDOItems, false);
-    const actualDist = getItemDistanceM(it);
-    const deltaDist = actualDist - 1000;
-    const r = getDynamicMDOItemBaseIDR(it, true);
-    return acc + Math.round((effVol * r * deltaDist) / 1000);
-  }, 0);
-
-  const subtotalC = lcItems.reduce((acc, it) => acc + Number(it.initialVolume || 0) * getDynamicMDOItemBaseIDR(it, false), 0);
-
-  // Auto-calculated Section D (Raise & Fall's Factor) rows for MDO
-  const rfRows = useMemo(() => {
-    const rows: any[] = [];
-    let counter = 1;
-    // Satu baris over/underhaul hanya dipasangkan ke satu baris produksi (cegah RF dobel).
-    const usedDist = new Set<string>();
-
-    prodItems.forEach((it) => {
-      const vol = Number(it.initialVolume || 0);
-      const rawBaseIDR = getDynamicMDOItemBaseIDR(it, false);
-      const rawRfRate = rfFactor * rawBaseIDR;
-      const rfRate = rawRfRate;
-      const subtotal = vol * rfRate;
-
-      rows.push({
-        id: `rf_mdo_prod_${it.id}`,
-        code: `D${counter++}.`,
-        area: it.area || "Site POS",
-        name: it.material,
-        unit: it.unit || "Bcm",
-        volume: vol,
-        distance: null,
-        deltaDist: null,
-        rawRfRate,
-        rfRate,
-        subtotal,
-      });
-
-      // Match overhaul item (matcher yang sama dengan sumber volume Seksi B)
-      const matchedDist = distItems.find((d) => !usedDist.has(d.id) && isDistanceParent(d, it));
-
-      if (matchedDist) {
-        usedDist.add(matchedDist.id);
-        const dVol = getBAEffectiveVolume(matchedDist, allBAItems.length > 0 ? allBAItems : baMDOItems, false);
-        const actualDist = getItemDistanceM(matchedDist);
-        const deltaDist = actualDist - 1000;
-        const dBaseIDR = getDynamicMDOItemBaseIDR(matchedDist, true);
-        const rawDRfRate = rfFactor * dBaseIDR;
-        const dRfRate = rawDRfRate;
-        const dSubtotal = Math.round((dVol * dRfRate * deltaDist) / 1000);
-
-        rows.push({
-          id: `rf_mdo_dist_${matchedDist.id}`,
-          code: `D${counter++}.`,
-          area: matchedDist.area || it.area || "Site POS",
-          name: `Over/Underhaul For ${it.material}`,
-          unit: matchedDist.unit || "Bcm",
-          volume: dVol,
-          distance: actualDist,
-          deltaDist,
-          rawRfRate: rawDRfRate,
-          rfRate: dRfRate,
-          subtotal: dSubtotal,
-        });
-      }
-    });
-
-    lcItems.forEach((it) => {
-      const vol = Number(it.initialVolume || 0);
-      const rfRate = rfFactor * getDynamicMDOItemBaseIDR(it, false);
-      rows.push({
-        id: `rf_mdo_lc_${it.id}`,
-        code: `D${counter++}.`,
-        area: it.area || "Site POS",
-        name: it.material,
-        unit: it.unit || "Ha",
-        volume: vol,
-        distance: null,
-        deltaDist: null,
-        rawRfRate: rfRate,
-        rfRate,
-        subtotal: vol * rfRate,
-      });
-    });
-
-    return rows;
-  }, [prodItems, distItems, lcItems, allBAItems, baMDOItems, rfFactor, mRate, formData?.posData?.mRate]);
-
-  const subtotalD = rfRows.reduce((acc, r) => acc + r.subtotal, 0);
-
-  // Kategori 2 Rekapitulasi Pajak
-  const totalGrossMDO = subtotalA + subtotalB + subtotalC + subtotalD;
-  const { dpp11_12: dppMDO, vat12: vatMDO, pph23: whtMDO, total: netTotalInvoiceMDO } = invoiceTaxes(totalGrossMDO);
+  const mdo = calc?.byCategory["MDO"];
+  const rfRows = (calc?.lines || []).filter((l) => l.section === "D" && l.category === "MDO");
+  const subtotalA = calcItemsAmount(calc, prodItems);
+  const subtotalB = calcItemsAmount(calc, distItems);
+  const subtotalC = calcItemsAmount(calc, lcItems);
+  const subtotalD = calc ? rfRows.reduce((a, l) => a + l.amount, 0) : undefined;
+  const paren = (v: number | undefined) => (v !== undefined && v < 0 ? `(${formatIDR(-v)})` : calcIDR(v));
 
   const renderMDORow = (item: any, idx: number) => {
     const isDist = isDistanceItem(item);
@@ -155,11 +48,8 @@ export function BAPOSMDOTable({
       ? getBAEffectiveVolume(item, allBAItems.length > 0 ? allBAItems : baMDOItems, false)
       : Number(item.initialVolume || 0);
     const actualDist = getItemDistanceM(item);
-    const deltaDist = actualDist - 1000;
-    const dynamicRate = getDynamicMDOItemBaseIDR(item, isDist);
-    const rowSubtotal = isDist
-      ? Math.round((effVol * dynamicRate * deltaDist) / 1000)
-      : effVol * dynamicRate;
+    const deltaDist = actualDist - getBaseDistance(item, formData.customerCode);
+    const rowSubtotal = calcItemsAmount(calc, [item]);
 
     return (
       <tr key={item.id || idx} className={`hover:bg-slate-50/80 transition ${isDist ? "bg-amber-50/20" : ""}`}>
@@ -329,7 +219,7 @@ export function BAPOSMDOTable({
         </td>
         <td className="p-2 text-right font-mono align-top font-bold text-slate-800">
           {!isInlineEditingBA ? (
-            <span className="pt-1 block">{formatIDR(dynamicRate || item.rate || 0)}</span>
+            <span className="pt-1 block">{calcIDR(calcItemLines(calc, [item])[0]?.rate)}</span>
           ) : (
             <FormattedNumberInput
               allowDecimals
@@ -349,8 +239,8 @@ export function BAPOSMDOTable({
           )}
         </td>
         <td className="p-2 text-right font-mono font-extrabold align-top text-slate-900">
-          <div className={`pt-1 ${rowSubtotal < 0 ? "text-rose-700 font-black" : "text-[#1A1612]"}`}>
-            {rowSubtotal < 0 ? `(${formatIDR(Math.abs(rowSubtotal))})` : formatIDR(rowSubtotal)}
+          <div className={`pt-1 ${(rowSubtotal || 0) < 0 ? "text-rose-700 font-black" : "text-[#1A1612]"}`}>
+            {paren(rowSubtotal)}
           </div>
         </td>
       </tr>
@@ -401,7 +291,7 @@ export function BAPOSMDOTable({
                 A. PRODUCTION
               </td>
               <td className="p-2 text-right font-mono text-slate-900 font-extrabold">
-                {formatIDR(subtotalA)}
+                {calcIDR(subtotalA)}
               </td>
             </tr>
             {prodItems.map((item, idx) => renderMDORow(item, idx))}
@@ -413,7 +303,7 @@ export function BAPOSMDOTable({
                 B. OVER DISTANCE
               </td>
               <td className="p-2 text-right font-mono font-extrabold text-slate-900">
-                {subtotalB < 0 ? `(${formatIDR(Math.abs(subtotalB))})` : formatIDR(subtotalB)}
+                {paren(subtotalB)}
               </td>
             </tr>
             {distItems.map((item, idx) => renderMDORow(item, idx))}
@@ -427,7 +317,7 @@ export function BAPOSMDOTable({
                     C. LAND CLEARING
                   </td>
                   <td className="p-2 text-right font-mono text-slate-900 font-extrabold">
-                    {formatIDR(subtotalC)}
+                    {calcIDR(subtotalC)}
                   </td>
                 </tr>
                 {lcItems.map((item, idx) => renderMDORow(item, idx))}
@@ -438,38 +328,29 @@ export function BAPOSMDOTable({
             <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
               {isInlineEditingBA && <td className="p-2 text-center text-slate-400">#</td>}
               <td colSpan={6} className="p-2 uppercase font-extrabold tracking-wider">
-                D. RAISE & FALL'S FACTOR (RF: {effectiveRF.toFixed(3)}x)
+                D. RAISE & FALL'S FACTOR (RF: {calc ? calc.rfIndex.toFixed(3) : "-"}x)
               </td>
               <td className="p-2 text-right font-mono text-slate-900 font-extrabold">
-                {formatIDR(subtotalD)}
+                {paren(subtotalD)}
               </td>
             </tr>
             {rfRows.map((item, i) => (
-              <tr key={`${item.id}_${i}`} className="hover:bg-slate-50/80 transition bg-slate-50/30">
+              <tr key={i} className="hover:bg-slate-50/80 transition bg-slate-50/30">
                 {isInlineEditingBA && <td className="p-2 text-center text-slate-300 font-mono text-[10px]">{item.code}</td>}
-                <td className="p-2 font-bold text-slate-800 align-top">{item.area || "Site POS"}</td>
+                <td className="p-2 font-bold text-slate-800 align-top">{item.subSection || "Site POS"}</td>
                 <td className="p-2 font-medium text-slate-900 align-top">
-                  <div>
-                    <span className="font-bold text-slate-900">{item.name}</span>
-                    {item.deltaDist !== null && (
-                      <span className="text-[10px] text-slate-500 font-mono ml-2">
-                        {item.deltaDist < 0 ? `(${Math.abs(item.deltaDist)}m)` : `+${item.deltaDist}m`}
-                      </span>
-                    )}
-                  </div>
+                  <span className="font-bold text-slate-900">{item.description}</span>
                 </td>
                 <td className="p-2 text-center align-top font-mono text-slate-600 font-bold">{item.unit}</td>
                 <td className="p-2 text-right font-mono align-top font-bold">
                   {item.volume > 0 ? Number(item.volume).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-"}
                 </td>
-                <td className="p-2 text-right font-mono align-top bg-slate-50/50 border-x border-slate-100 text-slate-600 font-mono">
-                  {item.distance ? `${item.distance}m` : "-"}
-                </td>
+                <td className="p-2 text-right font-mono align-top bg-slate-50/50 border-x border-slate-100 text-slate-600 font-mono">-</td>
                 <td className="p-2 text-right font-mono align-top font-bold text-slate-900">
-                  {formatIDR(item.rfRate)}
+                  {formatIDR(item.rate)}
                 </td>
                 <td className="p-2 text-right font-mono font-extrabold align-top text-slate-900">
-                  {item.subtotal < 0 ? `(${formatIDR(Math.abs(item.subtotal))})` : formatIDR(item.subtotal)}
+                  {paren(item.amount)}
                 </td>
               </tr>
             ))}
@@ -493,7 +374,7 @@ export function BAPOSMDOTable({
                 TOTAL
               </td>
               <td className="p-2 text-right font-extrabold text-slate-950 w-48 sm:w-56 pr-3">
-                {formatIDR(totalGrossMDO)}
+                {calcIDR(mdo?.gross)}
               </td>
             </tr>
             <tr className="border-b border-slate-200 hover:bg-slate-100/60">
@@ -501,7 +382,7 @@ export function BAPOSMDOTable({
                 DPP PPN 11/12
               </td>
               <td className="p-2 text-right font-semibold text-slate-800 w-48 sm:w-56 pr-3">
-                {formatIDR(dppMDO)}
+                {calcIDR(mdo?.dpp11_12)}
               </td>
             </tr>
             <tr className="border-b border-slate-200 hover:bg-slate-100/60">
@@ -509,7 +390,7 @@ export function BAPOSMDOTable({
                 VAT (12%)
               </td>
               <td className="p-2 text-right font-semibold text-slate-800 w-48 sm:w-56 pr-3">
-                {formatIDR(vatMDO)}
+                {calcIDR(mdo?.vat12)}
               </td>
             </tr>
             <tr className="border-b border-slate-200 hover:bg-slate-100/60">
@@ -517,7 +398,7 @@ export function BAPOSMDOTable({
                 WITH HOLDING TAX ART 23 (2%)
               </td>
               <td className="p-2 text-right font-semibold text-rose-700 w-48 sm:w-56 pr-3">
-                ({formatIDR(whtMDO)})
+                ({calcIDR(mdo?.pph23)})
               </td>
             </tr>
             <tr className="bg-[#1A1612] text-white font-black">
@@ -525,7 +406,7 @@ export function BAPOSMDOTable({
                 TOTAL INVOICE MDO
               </td>
               <td className="p-2.5 text-right font-black text-white w-48 sm:w-56 pr-3 text-sm">
-                {formatIDR(netTotalInvoiceMDO)}
+                {calcIDR(mdo?.totalInvoice)}
               </td>
             </tr>
           </tbody>

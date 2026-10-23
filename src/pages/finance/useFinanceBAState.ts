@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { api, verifyBATracker, approveBATracker, generateJournalFromBA } from "../../lib/api";
 import { formatDateInput, draftKey } from "./helpers";
 import { customerKind, baseDistanceFor } from "./masterRegistry";
-import { dropEmptyDPFuel, withPendingVolume } from "./ba_calculations";
+import { dropEmptyDPFuel, withPendingVolume, isRentalBA, isPOSMDOBA } from "./ba_calculations";
 
 interface UseFinanceBAStateProps {
   setEditItem: (item: any) => void;
@@ -52,11 +52,12 @@ export function useFinanceBAState({
   // Item awal BA: item tersimpan; BA tanpa item memakai template customer dari BE (volume nol).
   const getInitialBAItemsForRecord = (item: any): any[] => {
     if (Array.isArray(item?.items) && item.items.length > 0) return item.items;
+    if (isRentalBA(item)) return [];
     switch (customerKind(item?.customerCode)) {
       case "BGG": return zeroVolumes(defaultBGGBAItems);
       case "PTRO": return zeroVolumes(defaultPTROBAItems?.length ? defaultPTROBAItems : defaultDBKBAItems);
       case "SBS": return zeroVolumes(defaultSBSBAOperatingItems).map((it) => ({ ...it, distance: 0, distanceWeightAvg: 0, rate: 0 }));
-      default: return zeroVolumes([...(defaultPOSBAOperatingItems || []), ...(defaultPOSBAMDOItems || [])]);
+      default: return zeroVolumes((isPOSMDOBA(item) ? defaultPOSBAMDOItems : defaultPOSBAOperatingItems) || []);
     }
   };
   const [baOperatingItems, setBaOperatingItems] = useState<any[]>(() => zeroVolumes(defaultPOSBAOperatingItems));

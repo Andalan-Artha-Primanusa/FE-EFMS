@@ -4,13 +4,7 @@ import { buildInvoiceHTML } from "../exporters";
 interface InvoiceDetailSheetProps {
   data: any;
   baRows: any[];
-  buildInvoiceItemsFromBA: (ba: any, custCode: string, cat?: string) => any[];
   customerContractMap: Record<string, any>;
-  getItemEffectiveVolume: (item: any, currentList?: any[]) => number;
-  getItemEffectiveOverhaulMtr: (item: any) => number;
-  calculateItemRateAndAmount: (item: any, custCode: string, currentList?: any[]) => { unitRate: number; amount: number };
-  getCustomerCalculations: (items: any[], custCode: string) => any;
-  rfIndexCalculated: number;
 }
 
 // Preview memakai HTML yang sama dengan cetak, jadi format/warna/garis selalu identik.

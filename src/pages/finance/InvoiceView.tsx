@@ -12,7 +12,8 @@ import {
   generateBANumberPreview, generateInvoiceNumberPreview, getYearFromPeriod,
   generateInvoiceNumber, getBAInvoiceStatus, renderBAStatusBadge,
   getBAStatusForExport, renderInvoiceStatusBadge, parsePeriodToMonthIndex,
-  RupiahInput, MonthPickerInput, generateAuditTimeline, getCustomerOfficialName
+  RupiahInput, MonthPickerInput, generateAuditTimeline, getCustomerOfficialName,
+  baUninvoicedCalc, invoiceOutstanding, isAROpen, isBAUninvoiced
 } from "./helpers";
 
 export function InvoiceView({ c }: { c: any }) {
@@ -37,15 +38,10 @@ export function InvoiceView({ c }: { c: any }) {
         <div className="space-y-6">
           {(() => {
             const targetPeriodIndex = parsePeriodToMonthIndex(invPeriodFilter);
-            const outstandingOf = (r: any) => r?.outstanding ?? ((r?.totalInvoice || 0) - (r?.totalPaid || 0));
-            const periodFilteredUnpaidInvoices = safeInvoiceRows.filter((r) => {
-              if (invPeriodFilter !== "All") {
-                const rowPeriodIndex = parsePeriodToMonthIndex(r?.workPeriod || "");
-                if (rowPeriodIndex > targetPeriodIndex) return false;
-              }
-              if (outstandingOf(r) <= 0 || r?.status === "Paid") return false;
-              return true;
-            });
+            const outstandingOf = invoiceOutstanding;
+            const periodFilteredUnpaidInvoices = safeInvoiceRows.filter((r) =>
+              isAROpen(r) && (invPeriodFilter === "All" || parsePeriodToMonthIndex(r?.workPeriod || "") <= targetPeriodIndex)
+            );
             const totalARAndalan = periodFilteredUnpaidInvoices.reduce((acc, r) => acc + outstandingOf(r), 0);
             const totalBackcharge = periodFilteredUnpaidInvoices.reduce((acc, r) => acc + Number(r?.otherDeduction || 0), 0);
 
@@ -85,14 +81,12 @@ export function InvoiceView({ c }: { c: any }) {
                   const rowPeriodIndex = parsePeriodToMonthIndex(ba?.workPeriod || "");
                   if (rowPeriodIndex > targetPeriodIndex) return false;
                 }
-                const invStatus = getBAInvoiceStatus(ba, safeInvoiceRows);
-                return !invStatus.isFullyInvoiced;
+                return isBAUninvoiced(ba, safeInvoiceRows);
               })
               .map((ba) => {
                 const invStatus = getBAInvoiceStatus(ba, safeInvoiceRows);
-                const totalWork = Number(ba.workAmount || 0);
-                const isPart = ba.customerCode === "POS" && invStatus.isPartiallyInvoiced;
-                const stiAmount = isPart ? Math.round(totalWork / 2) : totalWork;
+                const isPart = invStatus.isPartiallyInvoiced;
+                const stiAmount = baUninvoicedCalc(ba, safeInvoiceRows).totalInvoice;
                 return {
                   id: `sti-ba-${ba.id}`,
                   customerCode: (ba.customerCode || "POS").toUpperCase(),
@@ -301,7 +295,7 @@ export function InvoiceView({ c }: { c: any }) {
 
 
                 {/* Table Sajian Terkelompok Per Client */}
-                <Panel title={invCardTab === "AR_ANDALAN" ? "Tabel Outstandings AR — Total AR Andalan (Per Klien)" : invCardTab === "PENALTY_UNCUT" ? "Tabel Progress Penalti Belum Terpotong — Eksklusif PT SBS (Section P)" : "Tabel Subject To Invoice — BA Ready To Invoice (Per Klien)"}>
+                <Panel title={invCardTab === "AR_ANDALAN" ? "Tabel Outstandings AR — Total AR Andalan (Per Klien)" : invCardTab === "PENALTY_UNCUT" ? "Tabel Progress Penalti Belum Terpotong — Eksklusif PT SBS (Section P)" : "Tabel Subject To Invoice — BA Belum Terbit Invoice (Per Klien)"}>
                   <div className="table-wrapper overflow-x-auto rounded-lg border border-slate-200 shadow-2xs">
                     <table className="data-table w-full min-w-[1500px] text-xs text-left border-collapse">
                       <thead>
@@ -310,7 +304,7 @@ export function InvoiceView({ c }: { c: any }) {
                           <th className="p-2.5 whitespace-nowrap min-w-[110px]">Inv. Progress</th>
                           <th className="p-2.5 whitespace-nowrap min-w-[180px]">No. Invoice</th>
                           <th className="p-2.5 whitespace-nowrap min-w-[180px]">Remarks</th>
-                          <th className="p-2.5 text-right font-bold whitespace-nowrap min-w-[140px]">Amount</th>
+                          <th className="p-2.5 text-right font-bold whitespace-nowrap min-w-[140px]">Total Invoice</th>
                           <th className="p-2.5 whitespace-nowrap min-w-[110px]">Invoice Date</th>
                           <th className="p-2.5 whitespace-nowrap min-w-[130px]">Invoice Submission</th>
                           <th className="p-2.5 whitespace-nowrap min-w-[110px]">Due Date</th>

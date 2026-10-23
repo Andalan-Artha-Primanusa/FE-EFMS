@@ -302,6 +302,16 @@ export function generateInvoiceNumber(customerCode: string, workPeriod: string, 
 // Sama dengan isInvoiceLocked BE: piutang & jurnal diakui sejak approval Manager FATB; nilai & tanggal invoice beku.
 export const INVOICE_LOCKED = new Set(["Approved", "Tax_Reported", "Faktur Pajak Terlapor", "Paid", "Lunas"]);
 
+// Item BA kategori Mine Development (MDO); sama dengan isMDOItem di BE.
+export const isMDOItem = (bi: any) =>
+  [bi?.category, bi?.material].some((s) => /mdo|mine dev/i.test(s || ""));
+
+/** BA POS lama (Operation + MDO dalam satu BA) = 2 invoice; BA Operation, MDO & Rental POS = 1 invoice. */
+export const isPOSDualBA = (ba: any): boolean => {
+  const items = ba?.items || [];
+  return (ba?.customerCode || "").trim().toUpperCase() === "POS" && !ba?.posData?.rental && !ba?.posData?.mdo && items.some(isMDOItem) && items.some((it: any) => !isMDOItem(it));
+};
+
 export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
   if (!ba) {
     return {
@@ -339,7 +349,7 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
     return false;
   });
 
-  const isPOS = custCode === "POS";
+  const isPOS = isPOSDualBA(ba);
 
   if (isPOS) {
     const createdMiningInv = matchedInvoices.find((inv) => 
@@ -382,7 +392,7 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
 export function renderBAStatusBadge(status: string, invoiceNoLinked?: string, isInvoiced?: boolean, baRow?: any, allInvoices?: any[]) {
   const s = (status || "").trim();
   const linked = (invoiceNoLinked || baRow?.invoiceNoLinked || "").trim();
-  const isPOS = baRow?.customerCode === "POS";
+  const isPOS = isPOSDualBA(baRow);
 
   if (allInvoices && baRow) {
     const invStatus = getBAInvoiceStatus(baRow, allInvoices);
@@ -486,7 +496,7 @@ export const isBAApproved = (ba: any): boolean => ba?.statusBA === "Approved" &&
 export function getBAStatusForExport(ba: any, allInvoices: any[]) {
   const invStatus = getBAInvoiceStatus(ba, allInvoices);
   const s = (ba?.statusBA || "Submit").trim();
-  const isPOS = (ba?.customerCode || "") === "POS";
+  const isPOS = isPOSDualBA(ba);
 
   if (isPOS) {
     if (invStatus.isFullyInvoiced) {
@@ -524,6 +534,28 @@ export function getBAStatusForExport(ba: any, allInvoices: any[]) {
   }
   return { label: "ON PROGRESS", badgeClass: "bg-amber", subtext: "" };
 }
+
+// Angka BA = calc dari BE; FE hanya menampilkan.
+const CALC_ZERO = { gross: 0, dpp11_12: 0, vat12: 0, pph23: 0, totalInvoice: 0, sectionP: 0, totalDibayar: 0 };
+export const calcCategory = (cat?: string) => (cat === "MDO" || cat === "Rental" ? cat : "Operation & Mining");
+export const baCalc = (ba: any, cat?: string): typeof CALC_ZERO => ({ ...CALC_ZERO, ...(cat ? ba?.calc?.byCategory?.[calcCategory(cat)] : ba?.calc?.total) });
+export const pendingCalc = (ba: any): typeof CALC_ZERO => ({ ...CALC_ZERO, ...ba?.pendingVolume?.calc?.total });
+export const invoiceCalc = (inv: any): typeof CALC_ZERO => ({
+  gross: Number(inv?.revenueGross || 0),
+  dpp11_12: Number(inv?.dpp11_12 || inv?.subTotalDPP || 0),
+  vat12: Number(inv?.ppn12 || inv?.ppn11 || 0),
+  pph23: Number(inv?.pph23 || 0),
+  totalInvoice: Number(inv?.totalInvoice || 0),
+  sectionP: Number(inv?.subtotalP || 0),
+  totalDibayar: Number(inv?.totalDibayar || inv?.totalReceipt || 0),
+});
+export const isBAUninvoiced =(ba: any, invoices: any[]) => !getBAStatusForExport(ba, invoices).label.startsWith("ARSIP");
+export const baUninvoicedCalc = (ba: any, invoices: any[]) => {
+  const st = getBAInvoiceStatus(ba, invoices);
+  return baCalc(ba, st.isPartiallyInvoiced ? (st.createdMiningInv ? "MDO" : "Operation & Mining") : undefined);
+};
+export const invoiceOutstanding = (inv: any) => Number(inv?.outstanding ?? (Number(inv?.totalReceipt || 0) - Number(inv?.totalPaid || 0)));
+export const isAROpen = (inv: any) => INVOICE_LOCKED.has(String(inv?.status || "").trim()) && invoiceOutstanding(inv) > 0;
 
 export function renderInvoiceStatusBadge(status: string) {
   const s = (status || "").trim();
@@ -869,7 +901,7 @@ export const generateAuditTimeline = (type: string, item: any) => {
 
   if (type === "invoice") {
     const isApproved = Boolean(item.approvedManagerBy || ["Approved", "Approved_Tier1", "Approved_Tier2", "Issued", "Paid"].includes(item.status));
-    const isPaid = item.status === "Paid" || (item.totalPaid && item.totalPaid >= item.totalInvoice);
+    const isPaid = item.status === "Paid" || (item.totalPaid && invoiceOutstanding(item) <= 0);
     const isRejected = item.status === "Rejected";
 
     return [
@@ -902,7 +934,7 @@ export const generateAuditTimeline = (type: string, item: any) => {
         status: isPaid ? "completed" : (isApproved ? "active" : "pending"),
         desc: isPaid
           ? `Pembayaran piutang lunas terverifikasi di mutasi rekening koran.`
-          : `Saldo tagihan berjalan: ${formatIDR(item.outstanding || item.totalInvoice)}.`
+          : `Saldo tagihan berjalan: ${formatIDR(invoiceOutstanding(item))}.`
       }
     ];
   }

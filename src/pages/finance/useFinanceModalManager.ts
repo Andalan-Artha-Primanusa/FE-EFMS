@@ -104,7 +104,7 @@ export function useFinanceModalManager({
             }
           };
         }
-      } else if (!posDataInit && customerKind(cust) === "POS") {
+      } else if (!posDataInit?.rental && customerKind(cust) === "POS") {
         const matched = rfMasterFor(cust, defaultPeriod);
         const hoResolved = resolveHOMasterLaborAndCurrency({
           customerCode: cust,
@@ -120,6 +120,7 @@ export function useFinanceModalManager({
         const { rfIndex: rf } = calculateTripleFactorRF(fn, ln, xn, cust, defaultPeriod);
         matchedRfIndex = rf;
         posDataInit = {
+          ...posDataInit,
           actualFuelFn: fn,
           actualLaborLn: ln,
           actualMRateXn: xn,
@@ -157,15 +158,18 @@ export function useFinanceModalManager({
         bggCoalVolumeBCM: initialData.bggCoalVolumeBCM ?? "", bggCoalVolumeTon: initialData.bggCoalVolumeTon ?? "",
         bggOBDistanceHm: initialData.bggOBDistanceHm ?? 0, bggNettOB: 0,
         bggData: bggDataInit,
-        posData: posDataInit,
         ptroData: ptroDataInit,
         sbsData: sbsDataInit,
         rfIndexCalculated: matchedRfIndex,
         ...initialData,
+        posData: posDataInit,
       });
       // POS & customer lain: baris default langsung dari Master Variable SOW; template BE hanya cadangan.
       const sowRows = baItemsFromSOW(cust, defaultPeriod);
-      setBaOperatingItems(
+      // BA Rental POS: baris diisi di tabel rental; BA MDO POS hanya baris MDO, BA Operation POS tanpa baris MDO.
+      const isRental = Boolean(posDataInit?.rental);
+      const isPOSMDO = Boolean(posDataInit?.mdo);
+      setBaOperatingItems(isRental || isPOSMDO ? [] :
         (cust === "BGG" || cust === "PT BGG" ? createBlankBGGBAItems(defaultPeriod)
         : (cust === "PTRO" || cust === "PT Petrosea") ? (defaultPTROBAItems || defaultDBKBAItems || []).map((it: any) => ({ ...it, period: defaultPeriod, notes: "", keterangan: "" }))
         : cust === "DBK" ? (defaultDBKBAItems || []).map((it: any) => ({ ...it, period: defaultPeriod, notes: "", keterangan: "" }))
@@ -174,7 +178,7 @@ export function useFinanceModalManager({
         : defaultPOSBAOperatingItems.map(it => ({ ...it, area: "", period: defaultPeriod, notes: "", keterangan: "" }))
         ).map((it: any) => ({ ...it, initialVolume: 0, adjustedVolume: 0, subtotalInitial: 0, subtotalAdjusted: 0 }))
       );
-      setBaMDOItems(
+      setBaMDOItems(isRental || (customerKind(cust) === "POS" && !isPOSMDO) ? [] :
         (cust === "SBS" ? (defaultSBSBAMDOItems || []).map((it: any) => ({ ...it, area: "Pit E", period: defaultPeriod, notes: "", keterangan: "" }))
         : (cust === "BGG" || cust === "DBK" || cust === "PTRO" || cust === "PT Petrosea") ? []
         : sowRows.mdo.length ? sowRows.mdo

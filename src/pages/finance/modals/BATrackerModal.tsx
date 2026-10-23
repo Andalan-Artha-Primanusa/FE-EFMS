@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { X, Edit2, CheckCircle2, Loader2 } from "lucide-react";
 import { renderBAStatusBadge, formatIDR } from "../helpers";
 import { getBAAuditLogs, verifyBATracker } from "../../../lib/api";
@@ -6,10 +6,14 @@ import {
   isDistanceItem,
   getBAEffectiveVolume,
   getBAItemSubtotal,
-  calculateBACommercialBreakdown,
   customerKind,
   canEditPending,
+  isRentalBA,
 } from "../ba_calculations";
+import { fetchServerBACalculation } from "../calculations";
+import { buildBAPayload } from "../useFinanceSaveHandlers";
+import type { BACalc } from "../../../types";
+import { BAPOSRentalTable } from "./BAPOSRentalTable";
 import { BATrackerHeaderForm } from "./BATrackerHeaderForm";
 import { BATrackerSurveyItems } from "./BATrackerSurveyItems";
 import { BATrackerSurveyMatrix } from "./BATrackerSurveyMatrix";
@@ -77,6 +81,7 @@ export function BATrackerModal({ c }: { c: any }) {
   const isCustomerPOS = kind === "POS";
   const isCustomerDBK = kind === "PTRO";
   const pending = Boolean(formData.pendingMode);
+  const isRental = isRentalBA(formData);
   const pv = editItem?.pendingVolume;
   const pendingEditable = canEditPending(editItem);
   const allBAItems = [...baOperatingItems, ...baMDOItems, ...(baDeductionItems || [])];
@@ -89,27 +94,21 @@ export function BATrackerModal({ c }: { c: any }) {
       .catch(() => {});
   }, [formData?.id, editItem?.id]);
 
+  // Uang BA dihitung BE (/ba-trackers/calculate, tanpa simpan); respons usang diabaikan.
+  const [calc, setCalc] = useState<BACalc | undefined>(pending ? pv?.calc : editItem?.calc);
+  const calcSeq = useRef(0);
+  useEffect(() => setCalc(pending ? pv?.calc : editItem?.calc), [pending, editItem]);
+  const calcInput = JSON.stringify(buildBAPayload(formData, editItem, allBAItems));
+  useEffect(() => {
+    const seq = ++calcSeq.current;
+    const t = setTimeout(async () => {
+      const res = await fetchServerBACalculation(JSON.parse(calcInput));
+      if (res && seq === calcSeq.current) setCalc(pending ? res.pendingVolume?.calc : res.calc);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [calcInput, pending]);
+
   const calcSubtotal = (it: any, vol: number) => getBAItemSubtotal(it, vol, isCustomerDBK, formData.customerCode);
-  const sumInitial = allBAItems.reduce((acc, it) => acc + calcSubtotal(it, getBAEffectiveVolume(it, allBAItems, false)), 0);
-  const sumAdjusted = allBAItems.reduce((acc, it) => acc + calcSubtotal(it, getBAEffectiveVolume(it, allBAItems, true)), 0);
-  const deltaAmount = sumAdjusted - sumInitial;
-
-  const activeFuelPeriods = formData.bggData?.fuelPeriods || formData.posData?.fuelPeriods || formData.ptroData?.fuelPeriods || formData.sbsData?.fuelPeriods;
-  const effectiveRF = Number(
-    (isCustomerBGG && (formData.bggData?.bggRfIndex || formData.bggRfIndex)) ||
-    (isCustomerPOS && (formData.posData?.posRfIndex || formData.posRfIndex)) ||
-    formData.rfIndexCalculated ||
-    rfIndexCalculated ||
-    1.0
-  );
-  const hasAdjusted = allBAItems.some((it) => !it.isDeduction && it.category !== "DP Fuel" && Number(it.adjustedVolume || 0) > 0);
-
-  const breakdownInitial = calculateBACommercialBreakdown(formData.customerCode, allBAItems, effectiveRF, isCustomerDBK, false, activeFuelPeriods);
-  const breakdownAdjusted = calculateBACommercialBreakdown(formData.customerCode, allBAItems, effectiveRF, isCustomerDBK, true, activeFuelPeriods);
-  const activeBreakdown = (hasAdjusted && breakdownAdjusted.totalGross > 0) ? breakdownAdjusted : breakdownInitial;
-
-  const totalClaimInitial = breakdownInitial.totalGross > 0 ? breakdownInitial.totalGross : sumInitial;
-  const totalClaimAdjusted = (hasAdjusted && breakdownAdjusted.totalGross > 0) ? breakdownAdjusted.totalGross : totalClaimInitial;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,7 +205,22 @@ export function BATrackerModal({ c }: { c: any }) {
                   getBGGActiveCoalTier={getBGGActiveCoalTier}
                 />
 
-                {activeBAStep === 1 && (
+                {activeBAStep === 1 && isRental && (
+                  <BAPOSRentalTable
+                    formData={formData}
+                    setFormData={setFormData}
+                    baOperatingItems={baOperatingItems}
+                    setBaOperatingItems={setBaOperatingItems}
+                    baDeductionItems={baDeductionItems}
+                    setBaDeductionItems={setBaDeductionItems}
+                    isInlineEditingBA={isInlineEditingBA}
+                    activeSOWCatalog={activeSOWCatalog}
+                    setActiveBAStep={setActiveBAStep}
+                    calc={calc}
+                  />
+                )}
+
+                {activeBAStep === 1 && !isRental && (
                   <BATrackerSurveyItems
                     formData={formData}
                     setFormData={setFormData}
@@ -222,8 +236,7 @@ export function BATrackerModal({ c }: { c: any }) {
                     allBAItems={allBAItems}
                     isDistanceItem={isDistanceItem}
                     getBAEffectiveVolume={getBAEffectiveVolume}
-                    getBAItemSubtotal={calcSubtotal}
-                    sumInitial={sumInitial}
+                    calc={calc}
                     setActiveBAStep={setActiveBAStep}
                     rfIndexCalculated={rfIndexCalculated}
                     latestKursBI={latestKursBI}
@@ -235,7 +248,7 @@ export function BATrackerModal({ c }: { c: any }) {
                   />
                 )}
 
-                {activeBAStep === 2 && (
+                {activeBAStep === 2 && !isRental && (
                   <BATrackerSurveyMatrix
                     allBAItems={allBAItems}
                     baOperatingItems={baOperatingItems}
@@ -250,11 +263,6 @@ export function BATrackerModal({ c }: { c: any }) {
                     isDistanceItem={isDistanceItem}
                     getBAEffectiveVolume={getBAEffectiveVolume}
                     getBAItemSubtotal={calcSubtotal}
-                    sumInitial={sumInitial}
-                    sumAdjusted={sumAdjusted}
-                    deltaAmount={deltaAmount}
-                    totalClaimInitial={totalClaimInitial}
-                    totalClaimAdjusted={totalClaimAdjusted}
                     setActiveBAStep={setActiveBAStep}
                   />
                 )}
@@ -276,9 +284,7 @@ export function BATrackerModal({ c }: { c: any }) {
                     baAuditLogs={baAuditLogs}
                     auditTab={auditTab}
                     setAuditTab={setAuditTab}
-                    allBAItems={allBAItems}
-                    rfIndexCalculated={rfIndexCalculated}
-                    latestKursBI={latestKursBI}
+                    calc={calc}
                   />
                 )}
 
@@ -332,9 +338,7 @@ export function BATrackerModal({ c }: { c: any }) {
                 formData={formData}
                 editItem={editItem}
                 invoiceRows={invoiceRows}
-                sumInitial={totalClaimInitial}
-                sumAdjusted={totalClaimAdjusted}
-                netTotalInvoice={activeBreakdown.netTotalInvoice}
+                calc={calc}
                 auditTab={auditTab}
                 setAuditTab={setAuditTab}
                 baAuditLogs={baAuditLogs}

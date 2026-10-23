@@ -260,7 +260,7 @@ export function approveBATracker(id: number, action: "approve" | "reject", note:
 }
 
 // pendingBaIds: BA BGG lain yang pending volume-nya ikut ditagih di invoice ini.
-export function generateInvoiceFromBA(id: number, category?: "Operation & Mining" | "MDO", pendingBaIds: number[] = []) {
+export function generateInvoiceFromBA(id: number, category?: "Operation & Mining" | "MDO" | "Rental", pendingBaIds: number[] = []) {
   const q = [category && `category=${encodeURIComponent(category)}`, pendingBaIds.length && `pendingBaIds=${pendingBaIds.join(",")}`].filter(Boolean).join("&");
   return api(`/api/finance/ba-trackers/${id}/generate-invoice${q ? `?${q}` : ""}`, { method: "POST" });
 }

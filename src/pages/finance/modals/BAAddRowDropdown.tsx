@@ -73,6 +73,10 @@ export function BAAddRowDropdown({
     return !c || c === rawCust || ((rawCust === "POS" || rawCust === "IBP" || rawCust === "BBA") && (!c || c === "POS"));
   });
 
+  // BA Operation POS baru: SOW MDO tidak ditawarkan (BA MDO terpisah); BA gabungan lama tetap.
+  const posOpOnly = targetSection === "operating" && rawCust === "POS" && !formData.posData?.rental && !formData.posData?.mdo && !(baMDOItems || []).length;
+  const menuSowItems = posOpOnly ? siteSowItems.filter((s) => !/mdo|mine dev|development/i.test(`${s.category || ""} ${s.name || s.itemName || ""}`)) : siteSowItems;
+
   const buildSowItem = (sow: any, id: string) => {
     const nameLow = (sow.name || sow.itemName || "").toLowerCase();
     const isDist = Boolean(sow.isDistanceVar) || (sow.category || "").toLowerCase().includes("distance") || nameLow.includes("distance") || nameLow.includes("overhaul") || nameLow.includes("underhaul");
@@ -118,7 +122,7 @@ export function BAAddRowDropdown({
     setShowDropdown(false);
     const ts = Date.now();
     const { newItem, isMDO, isPenunjang } = buildSowItem(sow, `sow_dyn_${ts}`);
-    const toMDO = (targetSection === "mdo" || isMDO) && setBaMDOItems;
+    const toMDO = (targetSection === "mdo" || (isMDO && !posOpOnly)) && setBaMDOItems;
 
     // Baris produksi otomatis membawa over/underhaul pasangannya dari Master SOW.
     // SBS tidak punya baris overhaul: jarak hanya menentukan tarif di baris produksinya sendiri.
@@ -430,13 +434,13 @@ export function BAAddRowDropdown({
           </div>
 
           {/* Dynamic Master SOW Items from Master Data */}
-          {siteSowItems.length > 0 && (
+          {menuSowItems.length > 0 && (
             <div className="py-1 max-h-56 overflow-y-auto divide-y divide-slate-50">
               <div className="px-3.5 py-1 text-[10px] font-extrabold text-[#A57C50] uppercase tracking-wider bg-amber-50/50 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-xs z-10 border-b border-amber-100/50">
                 <span>Variabel SOW Master ({rawCust})</span>
-                <span className="text-[9px] text-slate-400 font-normal">{siteSowItems.length} Item</span>
+                <span className="text-[9px] text-slate-400 font-normal">{menuSowItems.length} Item</span>
               </div>
-              {siteSowItems.map((sow: any, idx: number) => {
+              {menuSowItems.map((sow: any, idx: number) => {
                 const sName = sow.name || sow.itemName;
                 const nameLow = (sName || "").toLowerCase();
                 const isDist = Boolean(sow.isDistanceVar) || nameLow.includes("distance") || nameLow.includes("overhaul");

@@ -3,9 +3,8 @@ import { draftKey, isBAApproved } from "./helpers";
 import { Clock } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { SBSPenaltyItem, User as UserType } from "../../lib/api";
-import { createFinanceCalculations, getSBSTarifByDistance } from "./calculations";
+import { getSBSTarifByDistance } from "./calculations";
 import { createFinanceExporters } from "./exporters";
-import { buildInvoiceItemsFromBA } from "./invoiceItemGenerator";
 import { useFinanceMasterData } from "./useFinanceMasterData";
 import { useFinanceBAState } from "./useFinanceBAState";
 import { useFinanceInvoiceState } from "./useFinanceInvoiceState";
@@ -13,7 +12,7 @@ import { useFinanceModalManager } from "./useFinanceModalManager";
 import { useFinanceSaveHandlers } from "./useFinanceSaveHandlers";
 import { useFinanceDataLoader } from "./useFinanceDataLoader";
 import { useFinanceUIState } from "./useFinanceUIState";
-import { customerKind, isUnbilledPending } from "./ba_calculations";
+import { customerKind, isUnbilledPending, isRentalBA, isPOSMDOBA } from "./ba_calculations";
 
 export function useFinanceController({
   viewTitle,
@@ -59,9 +58,7 @@ export function useFinanceController({
     latestKursBI, coalIndexMaster, sowCatalog, getBGGActiveCoalTier, getSowMasterRate,
     financeTemplates, setFinanceTemplates, templatesLoaded, setTemplatesLoaded, templateRows, masterBankAccounts,
     rfIndexCalculated, defaultMasterVariableOptions, masterVariableOptions, activeSOWCatalog,
-    customerContractMap, applyRateLookup, blankPOSItems, demoPOSItems, blankBGGItems, demoBGGItems,
-    blankPTROItems, blankDBKItems, demoPTROItems, demoDBKItems, blankSBSItems, demoSBSItems,
-    defaultPOSBAOperatingItems, defaultPOSBAMDOItems, defaultBGGBAItems, defaultPTROBAItems, defaultDBKBAItems,
+    customerContractMap, applyRateLookup, defaultPOSBAOperatingItems, defaultPOSBAMDOItems, defaultBGGBAItems, defaultPTROBAItems, defaultDBKBAItems,
     defaultSBSBAOperatingItems, defaultSBSBAMDOItems, defaultSBSBADeductionItems, syncBARatesWithMasterData, reloadMasterData,
     raiseFallMasters, raiseFallMaster, minWageMasters
   } = masterData;
@@ -89,25 +86,9 @@ export function useFinanceController({
     handleGenerateInvoiceFromBA, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1
   } = invoiceState;
 
-  // Invoice calculations via calculations.tsx
-  const {
-    getItemEffectiveVolume, getItemEffectiveOverhaulMtr,
-    calculateItemRateAndAmount, getCustomerCalculations,
-  } = createFinanceCalculations({ formData, rfIndexCalculated, getSowMasterRate, mRate });
-
-  // Generator Adapter
-  const buildInvItems = (ba: any, custCode?: string, category: "Operation & Mining" | "MDO" = "Operation & Mining") => {
-    return buildInvoiceItemsFromBA(ba, custCode, category, {
-      baRows, baMDOItems, latestKursBI, rfIndexCalculated, demoBGGItems, demoPTROItems, demoDBKItems, blankSBSItems, demoSBSItems,
-      blankBGGItems, blankPTROItems, blankPOSItems
-    });
-  };
-
   // Exporters Snapshot
   const exportCtx = {
-    baRows, buildInvoiceItemsFromBA: buildInvItems, calculateItemRateAndAmount, customerContractMap,
-    formData, getCustomerCalculations, getItemEffectiveOverhaulMtr, getItemEffectiveVolume,
-    invoiceRows, invPeriodFilter, onNotice, periodFilter, query, rfIndexCalculated, sbsPenalties
+    baRows, customerContractMap, customerRows, invoiceRows, invPeriodFilter, onNotice, query, sbsPenalties
   };
   const {
     exportPaymentDetailPDF, exportARBAIMonitoringExcel, exportARBAIMonitoringPDF,
@@ -127,7 +108,8 @@ export function useFinanceController({
   });
 
   // Invoice hanya diterbitkan backend dari BA yang sudah di-approve; nilainya tidak diinput manual.
-  const createInvoiceFromBA = async (ba: any, category?: "Operation & Mining" | "MDO") => {
+  const createInvoiceFromBA = async (ba: any, cat?: "Operation & Mining" | "MDO" | "Rental") => {
+    const category = cat || (isRentalBA(ba) ? "Rental" : isPOSMDOBA(ba) ? "MDO" : undefined);
     if (!isBAApproved(ba)) {
       onNotice("Berita Acara belum disetujui Manager. Invoice hanya dapat diterbitkan setelah BA diverifikasi Finance Specialist dan di-approve Manager.");
       return;
@@ -225,16 +207,6 @@ export function useFinanceController({
     );
   }
 
-  // Previews & Matrix
-  const volPreview = Number(formData.volume || 0);
-  const ratePreview = Number(formData.rate || 0);
-  const grossPreview = volPreview * ratePreview;
-  const solarPreview = Number(formData.solarDeduction || 0);
-  const subtotalDPPPreview = grossPreview - solarPreview;
-  const ppn11Preview = subtotalDPPPreview * 0.11;
-  const pph23Preview = subtotalDPPPreview * 0.02;
-  const totalNetInvoicePreview = subtotalDPPPreview + ppn11Preview - pph23Preview;
-
   const totalAgingMatrix = (dashboardData?.agingMatrix ?? []).reduce(
     (acc: any, row: any) => ({
       notDue: acc.notDue + (row.notDue || 0),
@@ -266,23 +238,19 @@ export function useFinanceController({
     setDynamicSowOptions, bankAccountOptions, setBankAccountOptions, getSowMasterRate, financeTemplates,
     setFinanceTemplates, templatesLoaded, setTemplatesLoaded, templateRows, masterBankAccounts,
     rfIndexCalculated, defaultMasterVariableOptions, masterVariableOptions, activeSOWCatalog,
-    applyRateLookup, blankPOSItems, demoPOSItems, blankBGGItems, demoBGGItems, blankPTROItems,
-    blankDBKItems, demoPTROItems, demoDBKItems, blankSBSItems, demoSBSItems, defaultPOSBAOperatingItems,
+    applyRateLookup, defaultPOSBAOperatingItems,
     defaultPOSBAMDOItems, defaultBGGBAItems, defaultPTROBAItems, defaultDBKBAItems, defaultSBSBAOperatingItems,
     defaultSBSBAMDOItems, defaultSBSBADeductionItems, latestKursBI, coalIndexMaster, sowCatalog, getBGGActiveCoalTier,
     baOperatingItems, setBaOperatingItems, baMDOItems, setBaMDOItems, baDeductionItems, setBaDeductionItems,
     reorderBAItems, moveBAItem, activeBAStep, setActiveBAStep, showAddRowDropdown, setShowAddRowDropdown,
-    customerContractMap, getItemEffectiveVolume,
-    getItemEffectiveOverhaulMtr, calculateItemRateAndAmount, getCustomerCalculations,
-    getSBSTarifByDistance, exportPaymentDetailPDF,
+    customerContractMap, getSBSTarifByDistance, exportPaymentDetailPDF,
     exportARBAIMonitoringExcel, exportARBAIMonitoringPDF, exportBAOnlyExcel, exportBAOnlyPDF,
     exportAROnlyExcel, exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV, loadData, reloadMasterData,
-    handleSavePartialPayment, handleVerifyPartialPayment, buildInvoiceItemsFromBA: buildInvItems,
+    handleSavePartialPayment, handleVerifyPartialPayment,
     createInvoiceFromBA, invoicePick, setInvoicePick, openBAModal, openCreateModal, openEditModal, handleFileUpload,
     handleSave, handleVerifyBA, handleApproveBA, handleAccrueBA, handleSaveBGGBA, handleDeletePendingVolume,
     handleGenerateInvoiceFromBA, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1,
-    handleDelete, volPreview, ratePreview, grossPreview, solarPreview,
-    subtotalDPPPreview, ppn11Preview, pph23Preview, totalNetInvoicePreview, totalAgingMatrix, viewTitle,
+    handleDelete, totalAgingMatrix, viewTitle,
     query, onNotice, user, accountingJournals, deletingKey, setDeletingKey, actionLoadingKey, setActionLoadingKey,
     raiseFallMasters, raiseFallMaster, minWageMasters
   };

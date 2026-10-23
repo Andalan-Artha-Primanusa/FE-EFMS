@@ -16,11 +16,6 @@ interface BATrackerSurveyMatrixProps {
   isDistanceItem: (item: any) => boolean;
   getBAEffectiveVolume: (item: any, allItems: any[], isSurvey: boolean) => number;
   getBAItemSubtotal: (item: any, volume: number) => number;
-  sumInitial: number;
-  sumAdjusted: number;
-  deltaAmount: number;
-  totalClaimInitial?: number;
-  totalClaimAdjusted?: number;
   setActiveBAStep: (step: number) => void;
 }
 
@@ -38,11 +33,6 @@ export function BATrackerSurveyMatrix({
   isDistanceItem,
   getBAEffectiveVolume,
   getBAItemSubtotal,
-  sumInitial,
-  sumAdjusted,
-  deltaAmount,
-  totalClaimInitial,
-  totalClaimAdjusted,
   setActiveBAStep,
 }: BATrackerSurveyMatrixProps) {
   return (
@@ -184,34 +174,24 @@ export function BATrackerSurveyMatrix({
 
       {/* Delta Summary Box */}
       {(() => {
-        const hasCommercial = totalClaimInitial && totalClaimInitial > 0 && totalClaimInitial !== sumInitial;
-        const dispInit = hasCommercial ? (totalClaimInitial || sumInitial) : sumInitial;
-        const dispAdj = hasCommercial ? (totalClaimAdjusted || sumAdjusted) : sumAdjusted;
+        const sumOf = (survey: boolean) => allBAItems.reduce((acc, it) => acc + getBAItemSubtotal(it, getBAEffectiveVolume(it, allBAItems, survey)), 0);
+        const dispInit = sumOf(false);
+        const dispAdj = sumOf(true);
         const dispDelta = dispAdj - dispInit;
 
         return (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-3 bg-white rounded-[4px] border border-slate-200 shadow-xs">
               <span className="text-[10px] font-bold uppercase text-slate-500 block">
-                {hasCommercial ? "Total Klaim BA (Awal)" : "Total Awal (Site)"}
+                Total Awal (Site)
               </span>
               <span className="text-sm font-black font-mono text-slate-800">{formatIDR(dispInit)}</span>
-              {hasCommercial && (
-                <span className="text-[10px] font-mono text-slate-400 block mt-0.5">
-                  Base SOW: {formatIDR(sumInitial)}
-                </span>
-              )}
             </div>
             <div className="p-3 bg-[#A57C50]/5 rounded-[4px] border border-[#A57C50]/30 shadow-xs">
               <span className="text-[10px] font-bold uppercase text-[#A57C50] block">
-                {hasCommercial ? "Total Klaim BA (Hasil Survey)" : "Total Survey Bersama"}
+                Total Survey Bersama
               </span>
               <span className="text-sm font-black font-mono text-[#1A1612]">{formatIDR(dispAdj)}</span>
-              {hasCommercial && (
-                <span className="text-[10px] font-mono text-[#A57C50]/70 block mt-0.5">
-                  Base SOW: {formatIDR(sumAdjusted)}
-                </span>
-              )}
             </div>
             <div className={`p-3 rounded-[4px] border shadow-xs ${dispDelta >= 0 ? "bg-emerald-50/50 border-emerald-300" : "bg-rose-50/50 border-rose-300"}`}>
               <span className={`text-[10px] font-bold uppercase block ${dispDelta >= 0 ? "text-emerald-800" : "text-rose-800"}`}>
@@ -220,11 +200,6 @@ export function BATrackerSurveyMatrix({
               <span className={`text-sm font-black font-mono ${dispDelta >= 0 ? "text-emerald-900" : "text-rose-900"}`}>
                 {dispDelta >= 0 ? `+${formatIDR(dispDelta)}` : `-${formatIDR(Math.abs(dispDelta))}`}
               </span>
-              {hasCommercial && (
-                <span className="text-[10px] font-mono text-slate-500 block mt-0.5">
-                  Delta Base: {deltaAmount >= 0 ? `+${formatIDR(deltaAmount)}` : `-${formatIDR(Math.abs(deltaAmount))}`}
-                </span>
-              )}
             </div>
           </div>
         );
