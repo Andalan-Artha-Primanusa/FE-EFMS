@@ -1,7 +1,7 @@
 import React from "react";
 import { api, saveSBSPenalty, deleteSBSPenalty, SBSPenaltyItem } from "../../lib/api";
 import { draftKey } from "./helpers";
-import { getBAEffectiveVolume, getBAItemSubtotal, calculateBACommercialBreakdown, customerKind, dropEmptyDPFuel } from "./ba_calculations";
+import { getBAEffectiveVolume, getBAItemSubtotal, calculateBACommercialBreakdown, customerKind, dropEmptyDPFuel, withPendingVolume } from "./ba_calculations";
 
 interface UseFinanceSaveHandlersProps {
   isSaving: boolean;
@@ -19,7 +19,6 @@ interface UseFinanceSaveHandlersProps {
   loadData: (showLoading?: boolean) => Promise<void>;
   reloadMasterData?: () => Promise<void>;
   onNotice: (msg: string) => void;
-  setShowPendingVolumeDrawer: (val: boolean) => void;
   rfIndexCalculated: number;
   detailViewItem: any;
   setDetailViewItem: (val: any) => void;
@@ -29,7 +28,6 @@ interface UseFinanceSaveHandlersProps {
   setInvoiceRows: (rows: any[] | ((prev: any[]) => any[])) => void;
   setPaymentRows: (rows: any[] | ((prev: any[]) => any[])) => void;
   setCustomerRows?: (rows: any[] | ((prev: any[]) => any[])) => void;
-  setPendingVolumeLedgers?: (rows: any[] | ((prev: any[]) => any[])) => void;
   setSbsPenalties?: (rows: SBSPenaltyItem[] | ((prev: SBSPenaltyItem[]) => SBSPenaltyItem[])) => void;
   setSbsPenaltyModalOpen: (val: boolean) => void;
   setSbsPenaltyEditItem: (val: any) => void;
@@ -37,6 +35,7 @@ interface UseFinanceSaveHandlersProps {
   setDeletingKey?: (key: string | null) => void;
   actionLoadingKey?: string | null;
   setActionLoadingKey?: (key: string | null) => void;
+  openBAModal: (item: any, isEditMode?: boolean, pending?: boolean) => void;
 }
 
 export function useFinanceSaveHandlers({
@@ -55,7 +54,6 @@ export function useFinanceSaveHandlers({
   loadData,
   reloadMasterData,
   onNotice,
-  setShowPendingVolumeDrawer,
   rfIndexCalculated,
   detailViewItem,
   setDetailViewItem,
@@ -65,14 +63,14 @@ export function useFinanceSaveHandlers({
   setInvoiceRows,
   setPaymentRows,
   setCustomerRows,
-  setPendingVolumeLedgers,
   setSbsPenalties,
   setSbsPenaltyModalOpen,
   setSbsPenaltyEditItem,
   deletingKey,
   setDeletingKey,
   actionLoadingKey,
-  setActionLoadingKey
+  setActionLoadingKey,
+  openBAModal
 }: UseFinanceSaveHandlersProps) {
   const handleSavePartialPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,8 +113,9 @@ export function useFinanceSaveHandlers({
     } catch (err: any) { onNotice(err?.message || "Gagal memverifikasi cicilan"); }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // openPending: BA BGG tersimpan lalu langsung dibuka di form pending volume.
+  const handleSave = async (e?: React.FormEvent, openPending = false) => {
+    e?.preventDefault();
     if (isSaving) return;
     setIsSaving(true);
     try {
@@ -199,16 +198,8 @@ export function useFinanceSaveHandlers({
           ptroData: isPTRO ? { ...(formData.ptroData || {}) } : formData.ptroData,
           sbsData: isSBS ? { ...(formData.sbsData || {}) } : formData.sbsData,
         };
-      } else if (modalType === "pending_volume") {
-        endpoint = "/api/finance/pending-volumes";
-        const vol = Number(formData.originalOBVolume || 0);
-        if (vol <= 0) { onNotice("Claimed Volume wajib diisi > 0"); setIsSaving(false); return; }
-        const sourcePeriod = formData.sourcePeriod || "";
-        if (!formData.customerCode || !sourcePeriod) { onNotice("Customer dan Period wajib diisi"); setIsSaving(false); return; }
-        payload = {
-          customerCode: formData.customerCode, sourcePeriod, sourceBARef: formData.sourceBARef || "",
-          originalOBVolume: vol, ob1Rate: Number(formData.ob1Rate || 0), ob2Rate: Number(formData.ob2Rate || 0), notes: formData.notes || ""
-        };
+        // Mode pending: form yang sama, tersimpan sebagai pendingVolume pada BA induk.
+        if (formData.pendingMode) payload = withPendingVolume(editItem, { period: formData.workPeriod, items: allItems });
       } else if (modalType === "payment") endpoint = "/api/finance/payments";
       else if (modalType === "customer") endpoint = "/api/finance/customers";
 
@@ -251,12 +242,6 @@ export function useFinanceSaveHandlers({
         } else {
           setCustomerRows((prev) => [finalItem, ...prev]);
         }
-      } else if (modalType === "pending_volume" && setPendingVolumeLedgers) {
-        if (editItem?.id) {
-          setPendingVolumeLedgers((prev) => prev.map((r) => r.id === editItem.id ? { ...r, ...finalItem } : r));
-        } else {
-          setPendingVolumeLedgers((prev) => [finalItem, ...prev]);
-        }
       }
 
       if (detailViewItem && (detailViewItem.data?.id === effectiveId || detailViewItem.id === effectiveId)) {
@@ -265,13 +250,12 @@ export function useFinanceSaveHandlers({
 
       // Tautan BA <-> invoice (status Arsip) disinkronkan server saat invoice disimpan; loadData() di bawah memuat hasilnya.
 
-      const savedModalType = modalType;
       localStorage.removeItem(draftKey(modalType, editItem?.id));
       setModalType("none");
       setEditItem(null);
       await loadData();
       if (reloadMasterData) await reloadMasterData();
-      if (savedModalType === "pending_volume") setShowPendingVolumeDrawer(true);
+      if (openPending) openBAModal(finalItem, true, true);
     } catch (err: any) { onNotice(err?.message || "Gagal menyimpan data"); } finally { setIsSaving(false); }
   };
 
@@ -290,8 +274,6 @@ export function useFinanceSaveHandlers({
       setPaymentRows((prev) => prev.filter((r) => r.id !== id));
     } else if (type === "customer" && setCustomerRows) {
       setCustomerRows((prev) => prev.filter((r) => r.id !== id));
-    } else if (type === "pending_volume" && setPendingVolumeLedgers) {
-      setPendingVolumeLedgers((prev) => prev.filter((r) => r.id !== id));
     }
 
     if (detailViewItem?.data?.id === id || detailViewItem?.id === id) {
@@ -304,7 +286,6 @@ export function useFinanceSaveHandlers({
       else if (type === "invoice") endpoint = `/api/finance/invoices/${id}`;
       else if (type === "payment") endpoint = `/api/finance/payments/${id}`;
       else if (type === "customer") endpoint = `/api/finance/customers/${id}`;
-      else if (type === "pending_volume") endpoint = `/api/finance/pending-volumes/${id}`;
       await api(endpoint, { method: "DELETE" });
       onNotice("✅ Data berhasil dihapus!");
       await loadData();

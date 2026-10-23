@@ -6,7 +6,6 @@ export const FinanceService = {
   getInvoices: () => api<any[]>("/api/finance/invoices"),
   getPayments: () => api<any[]>("/api/finance/payments"),
   getCustomers: () => api<any[]>("/api/finance/customers"),
-  getPendingVolumes: () => api<any[]>("/api/finance/pending-volumes"),
   getRaiseFall: () => api<any[]>("/api/master-data/raise-fall"),
   getVariableSOW: () => api<any[]>("/api/master-data/variable-sow"),
   getBankAccounts: () => api<any[]>("/api/master-data/bank-accounts"),

@@ -71,7 +71,7 @@ export function BATrackerHeaderForm({
   return (
     <div className="space-y-3">
       {/* Stepper Navigation Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-[4px] border border-slate-200 text-xs font-bold">
+      {!formData.pendingMode && <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-slate-100 p-1.5 rounded-[4px] border border-slate-200 text-xs font-bold">
         <button
           type="button"
           onClick={() => setActiveBAStep(1)}
@@ -98,7 +98,7 @@ export function BATrackerHeaderForm({
           <UserCheck size={13} />
           <span>3. Tanda Tangan & Final</span>
         </button>
-      </div>
+      </div>}
 
       {/* Header Info Strip: Customer, Periode, PIC */}
       <div className="p-3 bg-slate-50 border border-slate-200 rounded-[4px]">
@@ -109,7 +109,7 @@ export function BATrackerHeaderForm({
                 Customer / Project <span className="text-rose-600">*</span>
               </label>
               <select
-                disabled={!(user && isHeadOfficeUser(user))}
+                disabled={formData.pendingMode || !(user && isHeadOfficeUser(user))}
                 title={user && isHeadOfficeUser(user) ? undefined : "Akun site hanya dapat membuat BA untuk site sendiri"}
                 className="w-full bg-white border border-slate-300 rounded-[3px] p-2 text-slate-900 font-bold focus:border-[#A57C50] outline-none"
                 value={formData.customerCode || ""}

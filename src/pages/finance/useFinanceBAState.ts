@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { api, verifyBATracker, approveBATracker, generateJournalFromBA } from "../../lib/api";
 import { formatDateInput, draftKey } from "./helpers";
 import { customerKind, baseDistanceFor } from "./masterRegistry";
-import { dropEmptyDPFuel } from "./ba_calculations";
+import { dropEmptyDPFuel, withPendingVolume } from "./ba_calculations";
 
 interface UseFinanceBAStateProps {
   setEditItem: (item: any) => void;
@@ -109,8 +109,15 @@ export function useFinanceBAState({
     [getCurrentMonthPeriod, defaultSBSBAOperatingItems, getSowMasterRate]
   );
 
-  const openBAModal = (item: any, isEditMode: boolean = false) => {
-    setEditItem(item);
+  // pending = form BGG yang sama untuk pendingVolume BA induk (hanya baris overburden, periode sendiri).
+  const openBAModal = (parent: any, isEditMode: boolean = false, pending: boolean = false) => {
+    setEditItem(parent);
+    const pv = parent.pendingVolume;
+    const pvPeriod = pv?.period || parent.workPeriod;
+    const item = !pending ? parent : {
+      ...parent, workPeriod: pvPeriod,
+      items: pv?.items?.length ? pv.items : createBlankBGGBAItems(pvPeriod).filter((it) => it.section === "A" || it.material === "Over Distance For OB Removal"),
+    };
     setIsInlineEditingBA(isEditMode);
     const bggData = item.bggData || {};
     const posData = item.posData || {};
@@ -142,6 +149,7 @@ export function useFinanceBAState({
       baDate: formatDateInput(item.baDate),
       invoiceDate: formatDateInput(item.invoiceDate),
       paymentDate: formatDateInput(item.paymentDate),
+      pendingMode: pending,
     });
     const initialItems = getInitialBAItemsForRecord(item);
     const syncedInitialItems = syncBARatesWithMasterData
@@ -270,6 +278,18 @@ export function useFinanceBAState({
     }
   };
 
+  const handleDeletePendingVolume = async (ba: any) => {
+    if (!window.confirm("Hapus Pending Volume?")) return;
+    try {
+      await api(`/api/finance/ba-trackers/${ba.id}`, { method: "PUT", body: JSON.stringify(withPendingVolume(ba, null)) });
+      onNotice("Pending Volume dihapus.");
+      setModalType("none");
+      await loadData();
+    } catch (err: any) {
+      onNotice(err?.message || "Gagal menghapus Pending Volume");
+    }
+  };
+
   const handleSaveBGGBA = async (baPayload: any, isSubmit = false) => {
     try {
       let saved: any = null;
@@ -336,6 +356,7 @@ export function useFinanceBAState({
     handleApproveBA,
     handleAccrueBA,
     handleSaveBGGBA,
+    handleDeletePendingVolume,
     reorderBAItems,
     moveBAItem,
     createBlankBGGBAItems,

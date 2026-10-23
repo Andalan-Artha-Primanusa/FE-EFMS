@@ -328,7 +328,8 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
 
   // Find all invoices that reference this BA or whose invoiceNo matches linkedNo OR matches baID
   const matchedInvoices = (allInvoices || []).filter((inv) => {
-    if (inv.baID && ba.id && Number(inv.baID) === Number(ba.id)) return true;
+    const invBaId = inv.baId ?? inv.baID;
+    if (invBaId && ba.id && Number(invBaId) === Number(ba.id)) return true;
     const invCust = (inv.customerCode || "").trim().toUpperCase();
     if (custCode && invCust && !isCustMatch(custCode, invCust)) return false;
     const invRef = (inv.baNoReference || "").trim().toLowerCase();

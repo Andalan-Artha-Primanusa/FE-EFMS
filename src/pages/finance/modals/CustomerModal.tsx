@@ -1,6 +1,6 @@
 import React from "react";
 import { RupiahInput, formatMonthInput, formatMonthLabel } from "../helpers";
-import { masterRegistry, RF_SCHEME_LABELS, hasJointSurveyQuota } from "../masterRegistry";
+import { masterRegistry, RF_SCHEME_LABELS, hasJointSurveyQuota, BGG_DEFAULT_OD_DISCOUNT_PCT } from "../masterRegistry";
 import { SOW_MODEL_LABELS } from "../../VariableSOWPage";
 
 interface CustomerModalProps {
@@ -206,12 +206,6 @@ export function CustomerModal({ formData, setFormData }: CustomerModalProps) {
               <option value="PER_100M">Per 100 m</option>
             </select>
           </div>
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Diskon Overdistance (%)</label>
-            <input type="number" step="any" min={0} max={100} className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 focus:border-cyan-700 focus:bg-white outline-none" value={formData.overDistanceDiscountPct ?? ""}
-              onChange={(e) => setFormData({ ...formData, overDistanceDiscountPct: Number(e.target.value) })} />
-            <span className="text-[10px] text-slate-500">0 = tidak ada diskon; berlaku untuk periode sebelum jadwal diskon di bawah</span>
-          </div>
           {hasJointSurveyQuota(formData.code) ? (
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Toleransi Joint Survey (%)</label>
@@ -224,13 +218,8 @@ export function CustomerModal({ formData, setFormData }: CustomerModalProps) {
               Toleransi Joint Survey hanya berlaku pada BA joint survey BGG.
             </div>
           )}
-          <label className="sm:col-span-2 flex items-center gap-2 text-xs font-bold text-slate-700">
-            <input type="checkbox" checked={Boolean(formData.pendingVolumeEligible)}
-              onChange={(e) => setFormData({ ...formData, pendingVolumeEligible: e.target.checked })} />
-            Boleh dicatat di Kartu Pending Volume
-          </label>
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Jadwal Diskon Overdistance (per Periode Asal Volume)</label>
+          {hasJointSurveyQuota(formData.code) && <div className="sm:col-span-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Jadwal Diskon Overdistance (per Bulan Asal Volume)</label>
             {(formData.overDistanceDiscountSchedule || []).map((s: any, i: number) => {
               const setStep = (patch: any) => setFormData({ ...formData, overDistanceDiscountSchedule: formData.overDistanceDiscountSchedule.map((x: any, j: number) => (j === i ? { ...x, ...patch } : x)) });
               return (
@@ -246,8 +235,8 @@ export function CustomerModal({ formData, setFormData }: CustomerModalProps) {
             })}
             <button type="button" className="text-xs font-bold text-cyan-800 hover:underline"
               onClick={() => setFormData({ ...formData, overDistanceDiscountSchedule: [...(formData.overDistanceDiscountSchedule || []), { fromPeriod: "", pct: 0 }] })}>+ Tambah periode diskon</button>
-            <span className="block text-[10px] text-slate-500">Mulai periode tersebut berlaku % diskon ini. Pending volume tetap memakai % diskon periode asalnya (mis. pending Jan-Mar 50% walau ditagih di April).</span>
-          </div>
+            <span className="block text-[10px] text-slate-500">Bulan di luar jadwal = {BGG_DEFAULT_OD_DISCOUNT_PCT}%. Pending volume memakai % bulan asalnya.</span>
+          </div>}
         </div>
       </div>
     </>

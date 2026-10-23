@@ -309,6 +309,7 @@ export interface BATracker {
   verifiedAt?: string | null;
   approvedBy?: string;
   approvedAt?: string | null;
+  pendingVolume?: { period: string; items: BAItem[]; amount: number; billedInvoiceId?: number; billedInvoiceNo?: string } | null;
   createdAt: string;
 }
 
@@ -363,6 +364,7 @@ export interface Invoice {
   approvedManagerAt?: string | null;
   approvedDirectorBy?: string;
   approvedDirectorAt?: string | null;
+  pendingBaIds?: number[];
   createdAt: string;
 }
 
@@ -400,21 +402,6 @@ export interface FinanceTemplate {
   label?: string;
   sortOrder: number;
   payload: any;
-}
-
-// â”€â”€â”€ Finance â€” Pending Volume â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-export interface PendingVolume {
-  id: number;
-  customerCode: string;
-  workPeriod: string;
-  volumeType: string;
-  initialVolume: number;
-  adjustedVolume: number;
-  rate: number;
-  status: string;
-  notes: string;
-  createdAt: string;
 }
 
 // â”€â”€â”€ Finance â€” Form Data Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

@@ -1,11 +1,11 @@
 import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, ChevronDown, ChevronRight, Receipt, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, TrendingUp, Archive, Scale, Truck, Loader2, StickyNote, Settings } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, ChevronDown, Receipt, TrendingUp, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, Archive, Scale, Truck, Loader2, StickyNote, Settings } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, getFinanceTemplates, User as UserType } from "../../lib/api";
 import { BANotesUpdateModal } from "./modals/BANotesUpdateModal";
-import { pendingAmount } from "./modals/PendingVolumeRecordModal";
+import { isUnbilledPending } from "./ba_calculations";
 import { companyScopeOf } from "../../lib/auth";
 import { MappingsModal } from "../tunai-po/shared";
 
@@ -15,7 +15,7 @@ import {
   generateBANumberPreview, generateInvoiceNumberPreview, getYearFromPeriod,
   generateInvoiceNumber, getBAInvoiceStatus, renderBAStatusBadge,
   getBAStatusForExport, renderInvoiceStatusBadge, parsePeriodToMonthIndex,
-  RupiahInput, generateAuditTimeline, getCustomerOfficialName, isBAApproved
+  RupiahInput, generateAuditTimeline, getCustomerOfficialName, isBAApproved, INVOICE_LOCKED
 } from "./helpers";
 
 const BA_SITES = [
@@ -29,11 +29,11 @@ const BA_SITES = [
 
 export function BATrackerView({ c }: { c: any }) {
   const {
-    baRows: rawBaRows, invoiceRows: rawInvoiceRows, pendingVolumeLedgers: rawPendingVolumeLedgers, setShowPendingVolumeDrawer, baFilter,
+    baRows: rawBaRows, invoiceRows: rawInvoiceRows, baFilter,
     setBaFilter, periodFilter, setPeriodFilter, showExportBADropdown, setShowExportBADropdown,
     showInputBADropdown, setShowInputBADropdown, baRowActionDropdownId, setBaRowActionDropdownId, setDetailViewItem,
     exportBAOnlyExcel, exportBAOnlyPDF, createInvoiceFromBA, openBAModal, openCreateModal,
-    handleGenerateInvoiceFromBA, handleDelete, handleVerifyBA, handleApproveBA, query = "", onNotice, handleAccrueBA, accountingJournals: rawAccountingJournals,
+    handleGenerateInvoiceFromBA, handleDelete, query = "", onNotice, handleAccrueBA, accountingJournals: rawAccountingJournals,
     deletingKey, actionLoadingKey, loadData, user, can = () => false, canVerifyBA, canApproveInvoice
   } = (c || {}) as Record<string, any>;
   // Site yang boleh dibuatkan BA mengikuti scope RBAC user (SITE hanya site miliknya).
@@ -43,7 +43,6 @@ export function BATrackerView({ c }: { c: any }) {
   const [showMappings, setShowMappings] = useState(false);
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
-  const pendingVolumeLedgers: any[] = Array.isArray(rawPendingVolumeLedgers) ? rawPendingVolumeLedgers : [];
   const accountingJournals: any[] = Array.isArray(rawAccountingJournals) ? rawAccountingJournals : [];
   const safeBaRows: any[] = baRows;
         const availablePeriods: any[] = Array.from(new Set(safeBaRows.map((r) => r?.workPeriod).filter(Boolean)));
@@ -80,16 +79,34 @@ export function BATrackerView({ c }: { c: any }) {
         const stageArsipRows = periodRows.filter((r) => (r.statusBA === "Ready to Invoice" || r.statusBA === "Approved" || r.statusBA === "Invoiced" || r.statusBA === "Arsip") && isBAInvoiced(r));
         const stageArsipNominal = stageArsipRows.reduce((sum, r) => sum + (r.workAmount || 0), 0);
 
-        // Top Summary Calculations
+        // Summary cards: posisi saat ini, tanpa filter periode
+        const sumAmount = (rows: any[]) => rows.reduce((acc, r) => acc + (r.workAmount || 0), 0);
+        const cardPendingRows = safeBaRows.filter((r) => !r.verifiedBy && !r.approvedBy && !isBAInvoiced(r));
+        const cardSiapRows = safeBaRows.filter((r) => r.verifiedBy && !r.approvedBy && !isBAInvoiced(r) && !(r.statusBA || "").startsWith("Arsip"));
+        // Routing keluar saat semua invoice terkirim / FP terlapor / lunas
+        const isInvoiceOut = (inv: any) => Boolean(inv?.invoiceSubmissionDate) || ["Tax_Reported", "Faktur Pajak Terlapor", "Paid", "Lunas"].includes(inv?.status);
+        const cardRoutingRows = safeBaRows.filter((r) => {
+          if (!r.approvedBy) return false;
+          const st = getBAInvoiceStatus(r, invoiceRows);
+          return !st.isFullyInvoiced || st.createdInvoices.some((inv: any) => !isInvoiceOut(inv));
+        });
+        // Card periode
+        const periodLabel = periodFilter === "All" ? "Semua Periode" : periodFilter;
+        const invPeriodTotal = invoiceRows
+          .filter((i) => (periodFilter === "All" || i.workPeriod === periodFilter) && INVOICE_LOCKED.has(i.status))
+          .reduce((acc, i) => acc + Number(i.subTotalDPP || 0), 0);
+        const estRevenuePeriod = sumAmount(periodRows.filter((r) => r.statusBA !== "Revisi" && !(r.statusBA || "").startsWith("Reject")));
+        // Pending Volume BGG: periode pending sendiri, hanya yang belum ditagih.
+        const isPendingInPeriod = (r: any) => isUnbilledPending(r) && (periodFilter === "All" || r.pendingVolume.period === periodFilter);
+        const pendingNominal = safeBaRows.filter(isPendingInPeriod).reduce((acc, r) => acc + Number(r.pendingVolume.amount || 0), 0);
+
         const nominalApprovedPeriod = stageReadyNominal;
         const baOnProgressNominal = stageDraftNominal + stageVerifNominal + stageRevisiNominal;
-        const baOnProgressCount = stageDraftRows.length + stageVerifRows.length + stageRevisiRows.length;
-
-        const estTotalRevPeriod = periodRows.reduce((acc, r) => acc + (r.workAmount || 0), 0);
 
         const filteredBARows = baRows.filter((r) => {
           const matchQ = JSON.stringify(r).toLowerCase().includes(query.toLowerCase());
           if (!matchQ) return false;
+          if (baFilter === "Pending Volume") return isPendingInPeriod(r);
           if (periodFilter !== "All" && r.workPeriod !== periodFilter) return false;
           if (baFilter === "Submit") return isStageDraft(r);
           if (baFilter === "Pending Berita Acara") return isStageVerif(r);
@@ -112,7 +129,7 @@ export function BATrackerView({ c }: { c: any }) {
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-slate-900 tracking-tight">
-                      Siklus & Proyeksi Berita Acara ({periodFilter === "All" ? "Semua Periode" : `Periode ${periodFilter}`})
+                      Siklus & Proyeksi Berita Acara
                     </h3>
                   </div>
                 </div>
@@ -203,14 +220,6 @@ export function BATrackerView({ c }: { c: any }) {
                           <span>Buat BA {s.code}</span>
                         </button>
                       ))}
-                      <button
-                        type="button"
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-[3px] bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 transition cursor-pointer shrink-0"
-                        onClick={() => openCreateModal("pending_volume")}
-                      >
-                        <Layers className="w-3.5 h-3.5 text-[#6E5033]" />
-                        <span>Input Pending Volume</span>
-                      </button>
                     </div>
                   ) : (
                   <div className="relative">
@@ -219,7 +228,7 @@ export function BATrackerView({ c }: { c: any }) {
                       className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:brightness-95 shrink-0 cursor-pointer"
                       style={{ background: "#A57C50", borderRadius: 3 }}
                       onClick={() => setShowInputBADropdown(!showInputBADropdown)}
-                      title="Tambah BA Baru atau Input Pending Volume"
+                      title="Tambah BA Baru"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>Input / Tambah BA</span>
@@ -244,17 +253,6 @@ export function BATrackerView({ c }: { c: any }) {
                               <span>Buat BA {s.label}</span>
                             </button>
                           ))}
-                          <button
-                            type="button"
-                            className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
-                            onClick={() => {
-                              openCreateModal("pending_volume");
-                              setShowInputBADropdown(false);
-                            }}
-                          >
-                            <Layers className="w-3.5 h-3.5 text-[#6E5033] shrink-0" />
-                            <span>Input Pending Volume</span>
-                          </button>
                         </div>
                       </>
                     )}
@@ -263,83 +261,58 @@ export function BATrackerView({ c }: { c: any }) {
                 </div>
               </div>
 
-              {/* TOP CALCULATION STAT CARDS (4 CARDS) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 pt-0.5">
-                {/* Card 1: Total BA Siap Invoice (Approved) */}
-                <div className="p-4 bg-white border border-slate-200 shadow-sm space-y-1 relative" style={{ borderRadius: 4 }}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Siap Invoice
-                    </span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-[3px] bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      {stageReadyRows.length} Dokumen
-                    </span>
-                  </div>
-                  <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
-                    {formatIDR(stageReadyNominal)}
-                  </div>
-                  <div className="text-[11px] text-slate-400">Total BA disetujui</div>
-                </div>
-
-                {/* Card 2: BA On Progress */}
-                <div className="p-4 bg-white border border-slate-200 shadow-sm space-y-1 relative" style={{ borderRadius: 4 }}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-amber-600" /> BA On Progress
-                    </span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-[3px] bg-amber-50 text-amber-800 border border-amber-200">
-                      {baOnProgressCount} Dokumen
-                    </span>
-                  </div>
-                  <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
-                    {formatIDR(baOnProgressNominal)}
-                  </div>
-                  <div className="text-[11px] text-slate-400">Draft, verifikasi & revisi</div>
-                </div>
-
-                {/* Card 3: Pending Volume */}
-                {(() => {
-                  const totalPendingDisplay = pendingVolumeLedgers.reduce((sum: number, l: any) => sum + pendingAmount(l.originalOBVolume || 0, l.ob1Rate || 0, l.ob2Rate || 0, l.customerCode), 0);
-                  const totalPendingCount = pendingVolumeLedgers.length;
-
-                  return (
-                    <div 
-                      onClick={() => setShowPendingVolumeDrawer(true)}
-                      className="p-4 bg-white border border-slate-200 shadow-sm hover:border-[#A57C50] transition cursor-pointer space-y-1 relative group"
-                      style={{ borderRadius: 4 }}
-                      title="Buka Kartu Pending Volume"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
-                          <Scale className="w-3.5 h-3.5 text-slate-600" /> Pending Volume
-                        </span>
-                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-[3px] bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-0.5">
-                          <span>{totalPendingCount} Catatan</span>
-                          <ChevronRight className="w-2.5 h-2.5" />
-                        </span>
-                      </div>
-                      <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
-                        {formatIDR(totalPendingDisplay)}
-                      </div>
-                      <div className="text-[11px] text-slate-400">Amount (IDR)</div>
+              {/* TOP CALCULATION STAT CARDS */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-0.5">
+                {[
+                  { label: "Pending BAI", rows: cardPendingRows, Icon: Clock, icon: "text-amber-600", badge: "bg-amber-50 text-amber-800 border-amber-200" },
+                  { label: "Siap Invoice", rows: cardSiapRows, Icon: CheckCircle2, icon: "text-emerald-600", badge: "bg-emerald-50 text-emerald-800 border-emerald-200" },
+                  { label: "Routing Internal & FP", rows: cardRoutingRows, Icon: Send, icon: "text-[#A57C50]", badge: "bg-[#FBF6F0] text-[#A57C50] border-[#E7D3BC]" },
+                ].map(({ label, rows, Icon, icon, badge }) => (
+                  <div key={label} className="p-4 bg-white border border-slate-200 shadow-sm space-y-1" style={{ borderRadius: 4 }}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
+                        <Icon className={`w-3.5 h-3.5 ${icon}`} /> {label}
+                      </span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-[3px] border ${badge}`}>
+                        {rows.length} Dokumen
+                      </span>
                     </div>
-                  );
-                })()}
+                    <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
+                      {formatIDR(sumAmount(rows))}
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-                {/* Card 4: Estimasi Total Revenue */}
-                <div className="p-4 bg-white border border-slate-200 shadow-sm space-y-1 relative" style={{ borderRadius: 4 }}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
-                      <TrendingUp className="w-3.5 h-3.5 text-[#A57C50]" /> Estimasi Revenue
-                    </span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-[3px] bg-[#FBF6F0] text-[#A57C50] border border-[#E7D3BC]">
-                      {periodFilter === "All" ? "Semua" : periodFilter}
-                    </span>
-                  </div>
+              {/* PERIOD STAT CARDS */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-4 bg-white border border-slate-200 shadow-sm space-y-1" style={{ borderRadius: 4 }}>
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
+                    <Receipt className="w-3.5 h-3.5 text-purple-700" /> Total Inv {periodLabel}
+                  </span>
                   <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
-                    {formatIDR(estTotalRevPeriod)}
+                    {formatIDR(invPeriodTotal)}
                   </div>
-                  <div className="text-[11px] text-slate-400">Nilai total pengerjaan</div>
+                </div>
+                <div
+                  onClick={() => setBaFilter(baFilter === "Pending Volume" ? "All" : "Pending Volume")}
+                  className={`p-4 bg-white border shadow-sm space-y-1 cursor-pointer transition hover:border-[#A57C50] ${baFilter === "Pending Volume" ? "border-[#A57C50]" : "border-slate-200"}`}
+                  style={{ borderRadius: 4 }}
+                >
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
+                    <Scale className="w-3.5 h-3.5 text-slate-600" /> Pending Volume {periodLabel}
+                  </span>
+                  <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
+                    {formatIDR(pendingNominal)}
+                  </div>
+                </div>
+                <div className="p-4 bg-white border border-slate-200 shadow-sm space-y-1" style={{ borderRadius: 4 }}>
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
+                    <TrendingUp className="w-3.5 h-3.5 text-[#A57C50]" /> Est. Pendapatan {periodLabel}
+                  </span>
+                  <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
+                    {formatIDR(estRevenuePeriod)}
+                  </div>
                 </div>
               </div>
             </div>
@@ -450,7 +423,7 @@ export function BATrackerView({ c }: { c: any }) {
                       </div>
                     </div>
 
-                    {/* Step 4: Siap Terbit Invoice */}
+                    {/* Step 4: Routing Internal & FP */}
                     <div
                       onClick={() => setBaFilter(baFilter === "Ready to Invoice" ? "All" : "Ready to Invoice")}
                       style={{
@@ -465,7 +438,7 @@ export function BATrackerView({ c }: { c: any }) {
                       <div className="flex items-center justify-between gap-1">
                         <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 whitespace-nowrap">
                           <FileCheck size={12} className={baFilter === "Ready to Invoice" ? "text-emerald-200" : "text-emerald-700"} />
-                          4. Siap Invoice
+                          4. Routing Internal & FP
                         </span>
                         <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full whitespace-nowrap ${
                           baFilter === "Ready to Invoice" ? "bg-emerald-900 text-emerald-100 border border-emerald-500" : "bg-emerald-100 text-emerald-900 border border-emerald-300"
@@ -594,6 +567,11 @@ export function BATrackerView({ c }: { c: any }) {
                                   <div className="font-mono font-bold text-emerald-700 text-xs">
                                     {formatIDR(row.workAmount || 0)}
                                   </div>
+                                  {row.pendingVolume && (
+                                    <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold font-mono bg-amber-50 text-amber-800 border border-amber-200">
+                                      {row.pendingVolume.billedInvoiceId ? `Pending ditagih ${row.pendingVolume.billedInvoiceNo || ""}` : `Pending ${formatIDR(row.pendingVolume.amount || 0)}`}
+                                    </span>
+                                  )}
                                   {row.initialWorkAmount && row.adjustedWorkAmount && row.initialWorkAmount !== row.adjustedWorkAmount && (() => {
                                     const diffVal = row.adjustedWorkAmount - row.initialWorkAmount;
                                     const devPct = row.initialWorkAmount > 0 ? (Math.abs(diffVal) / row.initialWorkAmount) * 100 : 0;
@@ -904,34 +882,11 @@ export function BATrackerView({ c }: { c: any }) {
                                     )}
 
                                     {/* Belum Diverifikasi (Belum Ready to Invoice) */}
+                                    {/* Verifikasi / Reject / Approve hanya di pratinjau BA */}
                                     {!isReady && !invStatus.isFullyInvoiced && !invStatus.isPartiallyInvoiced && (
-                                      !row.verifiedBy && !row.invoiceNoLinked && can("ba_tracker", "verify") ? (
-                                        <button
-                                          type="button"
-                                          disabled={actionLoadingKey === `verify-ba-${row.id}`}
-                                          className="px-2.5 py-1 rounded-lg bg-[#A57C50] hover:bg-[#8e6941] text-white font-extrabold text-[11px] shadow-xs flex items-center gap-1 transition cursor-pointer disabled:opacity-60"
-                                          onClick={() => handleVerifyBA(row.id)}
-                                          title="Verifikasi BA (Finance Specialist)"
-                                        >
-                                          <ShieldCheck size={13} />
-                                          <span>Verifikasi</span>
-                                        </button>
-                                      ) : row.verifiedBy && row.statusBA === "Ready to Invoice" && can("ba_tracker", "approve") ? (
-                                        <button
-                                          type="button"
-                                          disabled={actionLoadingKey === `approve-ba-${row.id}`}
-                                          className="px-2.5 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-[11px] shadow-xs flex items-center gap-1 transition cursor-pointer disabled:opacity-60"
-                                          onClick={() => handleApproveBA(row.id)}
-                                          title={`Approve Manager (diverifikasi oleh ${row.verifiedBy})`}
-                                        >
-                                          <CheckCircle2 size={13} />
-                                          <span>Approve</span>
-                                        </button>
-                                      ) : (
-                                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                                          {row.verifiedBy ? "Menunggu Approval Manager" : "Menunggu Verifikasi"}
-                                        </span>
-                                      )
+                                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                                        {row.verifiedBy ? "Menunggu Approval Manager" : "Menunggu Verifikasi"}
+                                      </span>
                                     )}
 
                                     <button
@@ -965,7 +920,7 @@ export function BATrackerView({ c }: { c: any }) {
                                          <button
                                            className={`p-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition cursor-pointer ${isDeletingBA ? "opacity-60 cursor-not-allowed" : ""}`}
                                            onClick={() => handleDelete("ba", row.id)}
-                                           disabled={isDeletingBA}
+                                           disabled={isDeletingBA || Boolean(row.pendingVolume?.billedInvoiceId)}
                                            title="Hapus BA"
                                          >
                                            {isDeletingBA ? <Loader2 size={14} className="animate-spin text-rose-600" /> : <Trash2 size={14} />}
@@ -1015,7 +970,7 @@ export function BATrackerView({ c }: { c: any }) {
                       <td colSpan={5} className="p-3 text-right">
                         <div className="flex justify-end items-center gap-4 font-mono text-xs">
                           <div className="bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                            <span className="text-emerald-800 font-sans uppercase font-bold text-[10.5px] mr-1.5">Ready to Invoice:</span>
+                            <span className="text-emerald-800 font-sans uppercase font-bold text-[10.5px] mr-1.5">Routing Internal & FP:</span>
                             <span className="text-emerald-950 font-black text-xs">{formatIDR(nominalApprovedPeriod)}</span>
                           </div>
                           <div className="bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">

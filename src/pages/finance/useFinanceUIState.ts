@@ -4,14 +4,13 @@ import { SBSPenaltyItem } from "../../lib/api";
 export function useFinanceUIState() {
   const [sbsPenaltyModalOpen, setSbsPenaltyModalOpen] = useState(false);
   const [sbsPenaltyEditItem, setSbsPenaltyEditItem] = useState<SBSPenaltyItem | null>(null);
-  const [rawShowPendingVolumeDrawer, setRawShowPendingVolumeDrawer] = useState(false);
   const [baFilter, setBaFilter] = useState("All");
   const [periodFilter, setPeriodFilter] = useState("All");
   const [invStatusFilter, setInvStatusFilter] = useState("All");
   const [invCardTab, setInvCardTab] = useState<"AR_ANDALAN" | "PENALTY_UNCUT" | "SUBJECT_TO_INVOICE">("AR_ANDALAN");
   const [invPeriodFilter, setInvPeriodFilter] = useState("All");
 
-  const [modalType, setRawModalType] = useState<"none" | "ba" | "invoice" | "payment" | "customer" | "pending_volume">("none");
+  const [modalType, setRawModalType] = useState<"none" | "ba" | "invoice" | "payment" | "customer">("none");
   const [editItem, setEditItem] = useState<any>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [formData, setFormData] = useState<any>({ customerCode: "", workPeriod: "" });
@@ -29,11 +28,11 @@ export function useFinanceUIState() {
     if (typeof item === "function") {
       setRawDetailViewItem((prev: any) => {
         const next = item(prev);
-        if (next) { setRawModalType("none"); setRawShowPendingVolumeDrawer(false); }
+        if (next) { setRawModalType("none"); }
         return next;
       });
     } else {
-      if (item) { setRawModalType("none"); setRawShowPendingVolumeDrawer(false); }
+      if (item) { setRawModalType("none"); }
       setRawDetailViewItem(item);
     }
   }, []);
@@ -42,28 +41,14 @@ export function useFinanceUIState() {
     if (typeof type === "function") {
       setRawModalType((prev: any) => {
         const next = type(prev);
-        if (next && next !== "none") { setRawDetailViewItem(null); setRawShowPendingVolumeDrawer(false); }
+        if (next && next !== "none") { setRawDetailViewItem(null); }
         return next;
       });
     } else {
-      if (type && type !== "none") { setRawDetailViewItem(null); setRawShowPendingVolumeDrawer(false); }
+      if (type && type !== "none") { setRawDetailViewItem(null); }
       setRawModalType(type);
     }
   }, []);
-
-  const showPendingVolumeDrawer = rawShowPendingVolumeDrawer;
-  const setShowPendingVolumeDrawer = useCallback((val: any) => {
-    if (typeof val === "function") {
-      setRawShowPendingVolumeDrawer((prev) => {
-        const next = val(prev);
-        if (next) { setRawModalType("none"); setRawDetailViewItem(null); }
-        return next;
-      });
-    } else {
-      if (val) { setRawModalType("none"); setDetailViewItem(null); }
-      setRawShowPendingVolumeDrawer(val);
-    }
-  }, [setDetailViewItem]);
 
   const [showAddPartialPayment, setShowAddPartialPayment] = useState(false);
   const [partialPaymentForm, setPartialPaymentForm] = useState({
@@ -127,8 +112,6 @@ export function useFinanceUIState() {
     setBaRowActionDropdownId,
     detailViewItem,
     setDetailViewItem,
-    showPendingVolumeDrawer,
-    setShowPendingVolumeDrawer,
     showAddPartialPayment,
     setShowAddPartialPayment,
     partialPaymentForm,
