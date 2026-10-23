@@ -9,7 +9,7 @@ import { formatIDR, parsePeriodToYYYYMM } from "./helpers";
 import { routes } from "../../router/routes";
 import {
   masterRegistry, customerKind, obSplitSOWs, contractParams, bankAccountForCustomer, RF_SCHEME_LABELS,
-  baseDistanceFor, coalTierForR3, isCoalIndexFinal, sowTierRate
+  baseDistanceFor, coalTierForR3, isCoalIndexFinal, sowTierRate, BGG_DEFAULT_OD_DISCOUNT_PCT
 } from "./masterRegistry";
 import { calculateBACommercialBreakdown, isDistanceItem, isOBMaterial } from "./ba_calculations";
 import { latestPeriodMRate, sowModel, SOW_MODEL_LABELS } from "../VariableSOWPage";
@@ -443,7 +443,7 @@ export function CustomerView({ c }: { c: any }) {
                     <Scale size={15} className="text-amber-700" /> Parameter Kontrak (Master Customer)
                   </h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
-                    <div><span className="text-slate-500 font-bold block">Diskon Overdistance</span><strong>{params.odDiscountPct > 0 ? `${params.odDiscountPct}%` : "Tidak berlaku"}{(record?.overDistanceDiscountSchedule || []).map((s: any) => ` → ${s.pct}% mulai ${s.fromPeriod}`).join("")}</strong></div>
+                    {customerKind(selected) === "BGG" && <div><span className="text-slate-500 font-bold block">Diskon Overdistance</span><strong>{`Default ${BGG_DEFAULT_OD_DISCOUNT_PCT}%`}{(record?.overDistanceDiscountSchedule || []).map((s: any) => `, ${s.fromPeriod}: ${s.pct}%`).join("")}</strong></div>}
                     <div><span className="text-slate-500 font-bold block">Toleransi Joint Survey</span><strong>{params.surveyTolerancePct > 0 ? `${params.surveyTolerancePct}%` : "Tidak berlaku"}</strong></div>
                     <div><span className="text-slate-500 font-bold block">Termin Pembayaran</span><strong>{record?.terminDays ?? "-"} Hari</strong></div>
                   </div>

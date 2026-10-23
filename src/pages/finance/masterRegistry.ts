@@ -50,25 +50,17 @@ export function contractParams(code?: string) {
   const c = customerByCode(code) || {};
   const bgg = hasJointSurveyQuota(code);
   return {
-    odDiscountPct: Number(c.overDistanceDiscountPct || 0),
     surveyTolerancePct: bgg ? Number(c.surveyTolerancePct || 0) : 0,
   };
 }
 
-/** Diskon OD (%) untuk volume periode asal `period` dari jadwal diskon Master Customer (sama dengan BE odDiscountPctFor). */
+export const BGG_DEFAULT_OD_DISCOUNT_PCT = 20;
+
+/** Diskon OD BGG (%) untuk volume periode asal `period`: bulan di jadwal Master Customer, selain itu default (sama dengan BE odDiscountPctFor). */
 export function odDiscountPctFor(code?: string, period?: string): number {
-  const c = customerByCode(code) || {};
   const k = period ? parsePeriodToMonthIndex(period) : 0;
-  let pct = Number(c.overDistanceDiscountPct || 0);
-  let best = 0;
-  for (const s of c.overDistanceDiscountSchedule || []) {
-    const sk = s.fromPeriod ? parsePeriodToMonthIndex(s.fromPeriod) : 0;
-    if (sk > 0 && sk <= k && sk >= best) {
-      pct = Number(s.pct || 0);
-      best = sk;
-    }
-  }
-  return pct;
+  const step = (customerByCode(code)?.overDistanceDiscountSchedule || []).find((s: any) => s.fromPeriod && parsePeriodToMonthIndex(s.fromPeriod) === k);
+  return step ? Number(step.pct || 0) : BGG_DEFAULT_OD_DISCOUNT_PCT;
 }
 
 export function bankAccountForCustomer(code?: string): any | undefined {

@@ -3,7 +3,6 @@ import { X, CheckCircle2, Loader2 } from "lucide-react";
 import { BATrackerModal } from "./modals/BATrackerModal";
 import { PaymentModal } from "./modals/PaymentModal";
 import { CustomerModal } from "./modals/CustomerModal";
-import { PendingVolumeRecordModal } from "./modals/PendingVolumeRecordModal";
 import { getSiteSOWList, SOWSelectDropdown } from "./modals/SOWSelectDropdown";
 import { getCompanies, type Company } from "../../lib/api";
 
@@ -59,9 +58,7 @@ export function FormModals({ c }: { c: any }) {
   };
 
   const title =
-    modalType === "pending_volume"
-      ? `${editItem ? "Edit Data" : "Tambah Data Baru"} — Pending Volume`
-      : modalType === "payment"
+    modalType === "payment"
       ? `${editItem ? "Edit Data" : "Tambah Data Baru"} — Payment Receipt`
       : `${editItem ? "Edit Data" : "Tambah Data Baru"} — Customer Master`;
 
@@ -101,13 +98,6 @@ export function FormModals({ c }: { c: any }) {
 
             {modalType === "customer" && (
               <CustomerModal
-                formData={formData}
-                setFormData={setFormData}
-              />
-            )}
-
-            {modalType === "pending_volume" && (
-              <PendingVolumeRecordModal
                 formData={formData}
                 setFormData={setFormData}
               />

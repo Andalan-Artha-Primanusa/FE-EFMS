@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X, Edit2, CheckCircle2, Loader2 } from "lucide-react";
-import { renderBAStatusBadge } from "../helpers";
+import { renderBAStatusBadge, formatIDR } from "../helpers";
 import { getBAAuditLogs } from "../../../lib/api";
 import {
   isDistanceItem,
@@ -8,6 +8,7 @@ import {
   getBAItemSubtotal,
   calculateBACommercialBreakdown,
   customerKind,
+  canEditPending,
 } from "../ba_calculations";
 import { BATrackerHeaderForm } from "./BATrackerHeaderForm";
 import { BATrackerSurveyItems } from "./BATrackerSurveyItems";
@@ -62,15 +63,21 @@ export function BATrackerModal({ c }: { c: any }) {
     minWageMasters = [],
     getBGGActiveCoalTier,
     getSowMasterRate,
+    openBAModal,
+    handleDeletePendingVolume,
   } = c || {};
 
   const [auditTab, setAuditTab] = useState<"flow" | "activity">("flow");
   const [baAuditLogs, setBaAuditLogs] = useState<any[]>([]);
+  const [askPending, setAskPending] = useState(false);
 
   const kind = customerKind(formData.customerCode);
   const isCustomerBGG = kind === "BGG";
   const isCustomerPOS = kind === "POS";
   const isCustomerDBK = kind === "PTRO";
+  const pending = Boolean(formData.pendingMode);
+  const pv = editItem?.pendingVolume;
+  const pendingEditable = canEditPending(editItem);
   const allBAItems = [...baOperatingItems, ...baMDOItems, ...(baDeductionItems || [])];
 
   useEffect(() => {
@@ -105,10 +112,10 @@ export function BATrackerModal({ c }: { c: any }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (typeof handleSave === "function") {
-      handleSave(e);
-    }
+    if (isCustomerBGG && !pending && !formData.pendingVolume) setAskPending(true);
+    else handleSave(e);
   };
+  const saveAnswer = (openPending: boolean) => { setAskPending(false); handleSave(undefined, openPending); };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-1.5 sm:p-3">
@@ -117,7 +124,7 @@ export function BATrackerModal({ c }: { c: any }) {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-200 p-4 sm:p-5 pb-3 bg-white shrink-0 sticky top-0 z-20">
           <div className="flex items-center gap-2.5 flex-wrap min-w-0">
             <h3 className="text-lg sm:text-xl font-black text-slate-900 truncate">
-              {editItem ? `Berita Acara: ${formData.baNumber || formData.signedBANumber || formData.draftBARefNo || "Draft BA"}` : "Input Berita Acara Baru"}
+              {pending ? `Pending Volume: ${editItem?.baNumber || ""}` : editItem ? `Berita Acara: ${formData.baNumber || formData.signedBANumber || formData.draftBARefNo || "Draft BA"}` : "Input Berita Acara Baru"}
             </h3>
             {editItem && (
               <div className="shrink-0">
@@ -143,6 +150,20 @@ export function BATrackerModal({ c }: { c: any }) {
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
               {/* Left Column: Forms */}
               <div className="xl:col-span-9 2xl:col-span-9 space-y-4 border-b xl:border-b-0 xl:border-r border-slate-200 pb-6 xl:pb-0 xl:pr-6">
+                {pv && !isInlineEditingBA && (
+                  <div className="flex gap-1 border-b border-slate-200 text-xs font-bold">
+                    {[{ label: "BA Utama", on: !pending }, { label: `Pending Volume · ${pv.period}`, on: pending }].map((t, i) => (
+                      <button
+                        key={t.label}
+                        type="button"
+                        onClick={() => !t.on && openBAModal(editItem, false, i === 1)}
+                        className={`px-3 py-2 -mb-px border-b-2 transition cursor-pointer ${t.on ? "border-[#A57C50] text-[#A57C50]" : "border-transparent text-slate-500 hover:text-slate-800"}`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <BATrackerHeaderForm
                   activeBAStep={activeBAStep}
                   setActiveBAStep={setActiveBAStep}
@@ -228,13 +249,14 @@ export function BATrackerModal({ c }: { c: any }) {
                   />
                 )}
 
-                {activeBAStep === 3 && (
+                {activeBAStep === 3 && !pending && (
                   <BATrackerFinancialRecap
                     formData={formData}
                     setFormData={setFormData}
                     editItem={editItem}
                     isInlineEditingBA={isInlineEditingBA}
                     canVerifyBA={canVerifyBA}
+                    canApproveBA={can("ba_tracker", "approve")}
                     user={user}
                     invoiceRows={invoiceRows}
                     setModalType={setModalType}
@@ -248,6 +270,16 @@ export function BATrackerModal({ c }: { c: any }) {
                     rfIndexCalculated={rfIndexCalculated}
                     latestKursBI={latestKursBI}
                   />
+                )}
+
+                {pv && (
+                  <table className="w-full max-w-md text-xs border border-slate-200 rounded-[4px]">
+                    <tbody className="divide-y divide-slate-100">
+                      <tr><td className="p-2 font-bold text-slate-600">BA Utama</td><td className="p-2 text-right font-mono font-bold">{formatIDR(editItem?.workAmount || 0)}</td></tr>
+                      <tr><td className="p-2 font-bold text-slate-600">Pending Volume</td><td className="p-2 text-right font-mono font-bold">{formatIDR(pv.amount || 0)}</td></tr>
+                      <tr className="bg-slate-50"><td className="p-2 font-black text-slate-900">Total JV Akrual</td><td className="p-2 text-right font-mono font-black">{formatIDR(Number(editItem?.workAmount || 0) + Number(pv.amount || 0))}</td></tr>
+                    </tbody>
+                  </table>
                 )}
               </div>
 
@@ -271,13 +303,22 @@ export function BATrackerModal({ c }: { c: any }) {
           {/* Form Action Buttons (Sticky Bottom) */}
           <div className="flex items-center justify-between p-4 sm:p-5 pt-3 border-t border-slate-200 bg-white shrink-0 sticky bottom-0 z-20">
             <div>
-              {editItem && !isInlineEditingBA && (
+              {editItem && !isInlineEditingBA && (!pending || pendingEditable) && (
                 <button
                   type="button"
                   onClick={() => setIsInlineEditingBA(true)}
                   className="px-5 py-2 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-black text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
-                  <Edit2 size={14} /> Ubah / Edit Data BA Ini
+                  <Edit2 size={14} /> {pending ? "Edit Pending Volume" : "Ubah / Edit Data BA Ini"}
+                </button>
+              )}
+              {pending && pv && !isInlineEditingBA && pendingEditable && (
+                <button
+                  type="button"
+                  onClick={() => handleDeletePendingVolume(editItem)}
+                  className="ml-2 px-4 py-2 rounded-[3px] border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition cursor-pointer"
+                >
+                  Hapus Pending Volume
                 </button>
               )}
             </div>
@@ -315,6 +356,18 @@ export function BATrackerModal({ c }: { c: any }) {
           </div>
         </form>
       </div>
+
+      {askPending && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40">
+          <div className="bg-white rounded-[4px] border border-slate-200 shadow-2xl p-5 w-full max-w-sm space-y-4">
+            <h4 className="text-sm font-black text-slate-900">Apakah Ada Pending Volume?</h4>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => saveAnswer(false)} className="px-5 py-2 rounded-[3px] border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs cursor-pointer">Tidak</button>
+              <button type="button" onClick={() => saveAnswer(true)} className="px-5 py-2 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-black text-xs cursor-pointer">Ya</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

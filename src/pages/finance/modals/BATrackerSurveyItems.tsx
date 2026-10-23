@@ -1425,7 +1425,7 @@ export function BATrackerSurveyItems({
       )}
 
       {/* Navigation Buttons */}
-      <div className="flex justify-end pt-2">
+      {!formData.pendingMode && <div className="flex justify-end pt-2">
         <button
           type="button"
           onClick={() => setActiveBAStep(2)}
@@ -1434,7 +1434,7 @@ export function BATrackerSurveyItems({
           <span>Lanjut ke Step 2 (Hasil Survey & Draft BA)</span>
           <ArrowRight size={14} />
         </button>
-      </div>
+      </div>}
     </div>
   );
 }

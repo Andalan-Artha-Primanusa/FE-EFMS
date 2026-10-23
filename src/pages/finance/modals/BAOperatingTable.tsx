@@ -505,7 +505,8 @@ export function BAOperatingTable({
                 </tr>
                 {obItems.map((item, idx) => renderItemRow(item, idx, obItems))}
 
-                {/* SEKSI B: COAL WINNING */}
+                {/* SEKSI B: COAL WINNING (pending volume: tampil bila ada baris) */}
+                {(!formData.pendingMode || coalItems.length > 0) && <>
                 <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
                   {isInlineEditingBA && <td className="p-2 text-center text-slate-400">#</td>}
                   <td colSpan={7} className="p-2 uppercase font-extrabold tracking-wider">
@@ -516,6 +517,7 @@ export function BAOperatingTable({
                   </td>
                 </tr>
                 {coalItems.map((item, idx) => renderItemRow(item, idx, coalItems))}
+                </>}
 
                 {/* SEKSI C: OVER DISTANCE */}
                 <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
@@ -596,7 +598,8 @@ export function BAOperatingTable({
                   </tr>
                 ))}
 
-                {/* SEKSI F: DP FUEL & TRANSPORT (DYNAMIC EDITABLE INPUT) */}
+                {/* SEKSI F: DP FUEL & TRANSPORT (DYNAMIC EDITABLE INPUT; pending volume: tampil bila ada baris) */}
+                {(!formData.pendingMode || dpFuelItems.length > 0) && <>
                 <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
                   {isInlineEditingBA && <td className="p-2 text-center text-slate-400">#</td>}
                   <td colSpan={7} className="p-2 uppercase font-extrabold tracking-wider">
@@ -763,6 +766,7 @@ export function BAOperatingTable({
                     <td className="p-2 text-right font-mono text-slate-400 font-bold">Rp 0</td>
                   </tr>
                 )}
+                </>}
 
                 {/* Other remaining items */}
                 {otherItems.map((item, idx) => renderItemRow(item, idx, otherItems))}

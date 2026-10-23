@@ -21,12 +21,12 @@ export function useFinanceInvoiceState({
   setInvoiceRows,
   setBaRows
 }: UseFinanceInvoiceStateProps) {
-  const handleGenerateInvoiceFromBA = async (baId: number, category?: "Operation & Mining" | "MDO") => {
+  const handleGenerateInvoiceFromBA = async (baId: number, category?: "Operation & Mining" | "MDO", pendingBaIds: number[] = []) => {
     const key = `generate-inv-${baId}`;
     if (setActionLoadingKey) setActionLoadingKey(key);
     onNotice("⏳ Sedang menerbitkan draft invoice dari Berita Acara...");
     try {
-      const newInv: any = await generateInvoiceFromBA(baId, category);
+      const newInv: any = await generateInvoiceFromBA(baId, category, pendingBaIds);
       onNotice(`✅ Draft Invoice No. ${newInv?.invoiceNo} diterbitkan dari Berita Acara.`);
       setDetailViewItem({ type: "invoice", data: newInv });
       if (setInvoiceRows && newInv) {

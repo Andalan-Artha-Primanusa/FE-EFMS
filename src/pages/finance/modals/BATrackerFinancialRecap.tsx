@@ -1,9 +1,9 @@
 import React from "react";
-import { UserCheck, CheckCircle, Clock, CheckCircle2, ExternalLink, Pickaxe, Building2, Zap } from "lucide-react";
+import { UserCheck, CheckCircle, Clock, CheckCircle2, ExternalLink, Pickaxe, Building2, Zap, XCircle } from "lucide-react";
 import { getBAInvoiceStatus, generateAuditTimeline, isBAApproved } from "../helpers";
 import { customerKind } from "../ba_calculations";
 import { BAGLJournalPreview } from "./BAGLJournalPreview";
-import { verifyBATracker } from "../../../lib/api";
+import { verifyBATracker, approveBATracker } from "../../../lib/api";
 
 interface BATrackerFinancialRecapProps {
   formData: any;
@@ -11,6 +11,7 @@ interface BATrackerFinancialRecapProps {
   editItem: any;
   isInlineEditingBA: boolean;
   canVerifyBA: boolean;
+  canApproveBA?: boolean;
   user: any;
   invoiceRows: any[];
   setModalType: (type: string) => void;
@@ -31,6 +32,7 @@ export function BATrackerFinancialRecap({
   editItem,
   isInlineEditingBA,
   canVerifyBA,
+  canApproveBA,
   user,
   invoiceRows = [],
   setModalType,
@@ -47,6 +49,15 @@ export function BATrackerFinancialRecap({
   const isPOS = customerKind(formData.customerCode || editItem?.customerCode) === "POS";
   const step3InvStatus = getBAInvoiceStatus(editItem || formData, invoiceRows);
   const isLinked = Boolean(formData.invoiceNoLinked || editItem?.invoiceNoLinked) || step3InvStatus.isFullyInvoiced;
+  // Verifikasi/Reject/Approve hanya di pratinjau BA; satu aksi berlaku untuk BA utama + pending volume.
+  const act = async (call: () => Promise<any>) => {
+    try {
+      const updated: any = await call();
+      setFormData({ ...formData, statusBA: updated?.statusBA, verifiedBy: updated?.verifiedBy, verifiedAt: updated?.verifiedAt, approvedBy: updated?.approvedBy, approvedAt: updated?.approvedAt });
+    } catch (err: any) {
+      alert(err?.message || "Gagal memproses Berita Acara");
+    }
+  };
   const displayInvNo = formData.invoiceNoLinked || editItem?.invoiceNoLinked || step3InvStatus.createdInvoices[0]?.invoiceNo || "Terbit";
 
   return (
@@ -124,28 +135,42 @@ export function BATrackerFinancialRecap({
                     {new Date(formData.verifiedAt).toLocaleString("id-ID")}
                   </span>
                 )}
+                {canApproveBA && !isInlineEditingBA && editItem && formData.statusBA === "Ready to Invoice" && !formData.approvedBy && (
+                  <button
+                    type="button"
+                    onClick={() => act(() => approveBATracker(editItem.id, "approve", "Disetujui oleh Manager"))}
+                    className="mt-1 inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-[3px] shadow-xs transition cursor-pointer"
+                  >
+                    <CheckCircle2 size={14} /> Approve
+                  </button>
+                )}
               </div>
             ) : (
               <div className="space-y-2">
                 <span className="text-xs text-slate-500 font-medium block">
                   Verifikasi draft Berita Acara ini untuk memvalidasi angka rekonsiliasi dan menerbitkan status penagihan.
                 </span>
-                {canVerifyBA && !isInlineEditingBA && editItem && (
-                  <button
-                    type="button"
-                    onClick={async () => {
+                {canVerifyBA && !isInlineEditingBA && editItem && !(formData.statusBA || "").startsWith("Reject") && (
+                  <div className="flex justify-center gap-2">
+                    <button
+                      type="button"
                       // Verifikasi lewat endpoint server (verifikator = user login, akrual GL diposting server).
-                      try {
-                        const updated: any = await verifyBATracker(editItem.id, "verify", "Verifikasi Berita Acara oleh Finance Specialist");
-                        setFormData({ ...formData, statusBA: updated?.statusBA, verifiedBy: updated?.verifiedBy, verifiedAt: updated?.verifiedAt });
-                      } catch (err: any) {
-                        alert(err?.message || "Gagal memverifikasi Berita Acara");
-                      }
-                    }}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs transition cursor-pointer"
-                  >
-                    <CheckCircle size={14} /> Verifikasi Berita Acara Ini
-                  </button>
+                      onClick={() => act(() => verifyBATracker(editItem.id, "verify", "Verifikasi Berita Acara oleh Finance Specialist"))}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs transition cursor-pointer"
+                    >
+                      <CheckCircle size={14} /> Verifikasi Berita Acara Ini
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const note = window.prompt("Alasan Reject");
+                        if (note) act(() => verifyBATracker(editItem.id, "reject", note));
+                      }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-[3px] transition cursor-pointer"
+                    >
+                      <XCircle size={14} /> Reject
+                    </button>
+                  </div>
                 )}
               </div>
             )}

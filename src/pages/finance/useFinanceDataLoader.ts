@@ -15,7 +15,6 @@ export function useFinanceDataLoader({ viewTitle, user, onNotice }: UseFinanceDa
   const [invoiceRows, setInvoiceRows] = useState<any[]>([]);
   const [paymentRows, setPaymentRows] = useState<any[]>([]);
   const [customerRows, setCustomerRows] = useState<any[]>([]);
-  const [pendingVolumeLedgers, setPendingVolumeLedgers] = useState<any[]>([]);
   const [sbsPenalties, setSbsPenalties] = useState<SBSPenaltyItem[]>([]);
   const [accountingJournals, setAccountingJournals] = useState<any[]>([]);
 
@@ -32,7 +31,7 @@ export function useFinanceDataLoader({ viewTitle, user, onNotice }: UseFinanceDa
     // Client Setup hanya membutuhkan Master Customer; dokumen transaksi tidak dimuat.
     const txn = <T,>(load: () => Promise<T[]>) => (viewTitle === "Client Setup" ? Promise.resolve([] as T[]) : load().catch(() => [] as T[]));
     try {
-      const [dashRes, baRes, invRes, payRes, custRes, pVolRes, sbsPenRes, jrnRes] = await Promise.all([
+      const [dashRes, baRes, invRes, payRes, custRes, sbsPenRes, jrnRes] = await Promise.all([
         (viewTitle === "Finance & AR Dashboard" || viewTitle === "Finance AR Dashboard" || viewTitle.includes("AR Dashboard"))
           ? api<any>(scopedEndpoint("/api/finance/dashboard", user || ({ role: userRole } as any))).catch(() => null)
           : Promise.resolve(null),
@@ -40,7 +39,6 @@ export function useFinanceDataLoader({ viewTitle, user, onNotice }: UseFinanceDa
         txn(() => api<any[]>("/api/finance/invoices")),
         txn(() => api<any[]>("/api/finance/payments")),
         api<any[]>("/api/finance/customers").catch(() => []),
-        txn(() => api<any[]>("/api/finance/pending-volumes")),
         txn(getSBSPenalties),
         txn(() => api<any[]>("/api/finance/journals"))
       ]);
@@ -68,7 +66,6 @@ export function useFinanceDataLoader({ viewTitle, user, onNotice }: UseFinanceDa
       if (Array.isArray(invRes)) setInvoiceRows(user ? filterRowsByCompanyScope(invRes, user) : invRes);
       if (Array.isArray(payRes)) setPaymentRows(user ? filterRowsByCompanyScope(payRes, user) : payRes);
       if (Array.isArray(custRes)) setCustomerRows(user ? filterRowsByCompanyScope(custRes, user) : custRes);
-      if (Array.isArray(pVolRes)) setPendingVolumeLedgers(user ? filterRowsByCompanyScope(pVolRes, user) : pVolRes);
       if (Array.isArray(sbsPenRes)) setSbsPenalties(sbsPenRes);
       if (Array.isArray(jrnRes)) setAccountingJournals(jrnRes);
     } catch (err: any) {
@@ -95,8 +92,6 @@ export function useFinanceDataLoader({ viewTitle, user, onNotice }: UseFinanceDa
     setPaymentRows,
     customerRows,
     setCustomerRows,
-    pendingVolumeLedgers,
-    setPendingVolumeLedgers,
     sbsPenalties,
     setSbsPenalties,
     accountingJournals,

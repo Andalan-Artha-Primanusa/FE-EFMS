@@ -6,8 +6,26 @@
 import { invoiceTaxes, getBGGRFIndexForPeriod } from "./ba_calculations";
 import { baseDistanceFor } from "./masterRegistry";
 import { ptroBaseMtr } from "./calculations";
-import { pendingAmount } from "./modals/PendingVolumeRecordModal";
+import { isUnbilledPending } from "./ba_calculations";
 import { formatIDR, getBAInvoiceStatus, getBAStatusForExport, getCustomerOfficialName, parsePeriodToMonthIndex } from "./helpers";
+
+// Blok TTD laporan monitoring (PDF & Excel)
+const SIGNATURE_HTML = `
+  <table style="width:100%; margin-top:28px; border:none; page-break-inside:avoid;">
+    <tr>
+      <td style="width:50%; border:none; text-align:center;">Dibuat Oleh,</td>
+      <td style="width:50%; border:none; text-align:center;">Diverifikasi Oleh,</td>
+    </tr>
+    <tr><td style="height:60px; border:none;"></td><td style="height:60px; border:none;"></td></tr>
+    <tr>
+      <td style="border:none; text-align:center; font-weight:bold;"><u>Lambang Hermawan</u></td>
+      <td style="border:none; text-align:center; font-weight:bold;"><u>M Axel Valentino</u></td>
+    </tr>
+    <tr>
+      <td style="border:none; text-align:center;">SPV Finance</td>
+      <td style="border:none; text-align:center;">FATB Manager</td>
+    </tr>
+  </table>`;
 
 export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
   const printWin = window.open("", "_blank", "width=1000,height=800");
@@ -779,6 +797,7 @@ export function exportARBAIMonitoringExcelImpl(ctx: any) {
             ${excelRowsBA}
           </tbody>
         </table>
+        ${SIGNATURE_HTML}
       </body>
       </html>
     `;
@@ -949,10 +968,6 @@ export function exportARBAIMonitoringPDFImpl(ctx: any) {
           .bg-rose { background: #ffe4e6; color: #9f1239; border: 1.2px solid #e11d48; }
           .bg-purple { background: #f3e8ff; color: #6b21a8; border: 1.2px solid #a855f7; }
 
-          .sig-table { width: 100%; border-collapse: collapse; margin-top: 15px; page-break-inside: avoid; border: 1.5px solid #0f172a; }
-          .sig-table th { background: #f1f5f9; color: #0f172a; border: 1.5px solid #0f172a; padding: 6px; font-size: 9px; font-weight: 800; }
-          .sig-table td { border: 1.5px solid #0f172a; padding: 8px; text-align: center; height: 55px; vertical-align: bottom; font-weight: 800; font-size: 9px; }
-
           .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 10px; font-size: 11px; transition: background 0.15s; }
           .btn-print:hover { background: #8e6941; }
           @media print { .btn-print { display: none; } }
@@ -1011,22 +1026,7 @@ export function exportARBAIMonitoringPDFImpl(ctx: any) {
           </tbody>
         </table>
 
-        <table class="sig-table">
-          <thead>
-            <tr>
-              <th width="33%">DISIAPKAN OLEH</th>
-              <th width="33%">DISETUJUI OLEH</th>
-              <th width="34%">DIKETAHUI OLEH</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><u>Lambang Hermawan</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Finance Supervisor</span></td>
-              <td><u>M Axel Valentino</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">FATB Manager</span></td>
-              <td><u>Direktur</u><br/><span style="font-size: 8.5px; color: #475569; font-weight: 700;">Board of Directors</span></td>
-            </tr>
-          </tbody>
-        </table>
+        ${SIGNATURE_HTML}
       </body>
       </html>
     `;
@@ -1105,7 +1105,7 @@ export function exportBAOnlyExcelImpl(ctx: any) {
       </head>
       <body>
         <div class="title">PT ANDALAN ARTHA PRIMANUSA — FATB DIVISION</div>
-        <div class="title">BERITA ACARA INVOICE (BAI) MONITORING REPORT</div>
+        <div class="title">Report Berita Acara Invoice (BAI) Monitoring</div>
         <div class="subtitle">Periode: ${periodFilter === "All" ? "Semua Periode" : periodFilter} | As of Date: ${formattedDate}</div>
 
         <table>
@@ -1127,6 +1127,7 @@ export function exportBAOnlyExcelImpl(ctx: any) {
             </tr>
           </tbody>
         </table>
+        ${SIGNATURE_HTML}
       </body>
       </html>
     `;
@@ -1143,11 +1144,10 @@ export function exportBAOnlyExcelImpl(ctx: any) {
 
 export function exportBAOnlyPDFImpl(ctx: any) {
   const {
-    baRows: rawBaRows, invoiceRows: rawInvoiceRows, pendingVolumeLedgers: rawLedgers, periodFilter = "All", query = ""
+    baRows: rawBaRows, invoiceRows: rawInvoiceRows, periodFilter = "All", query = ""
   } = ctx || {};
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
-  const ledgers: any[] = Array.isArray(rawLedgers) ? rawLedgers : [];
   const printWin = window.open("", "_blank", "width=1280,height=900");
   if (!printWin) return;
 
@@ -1201,17 +1201,17 @@ export function exportBAOnlyPDFImpl(ctx: any) {
     ? parsePeriodToMonthIndex(periodFilter)
     : Math.max(0, ...targetRows.map(({ ba }) => parsePeriodToMonthIndex(ba.workPeriod || "")).filter((i) => i % 100));
   const monthName = summaryIdx ? new Date(Math.floor(summaryIdx / 100), (summaryIdx % 100) - 1, 1).toLocaleDateString("en-US", { month: "long" }) : "";
-  // Outstanding s.d. periode ringkasan: semua BA belum terbit invoice + catatan pending volume
+  // Outstanding s.d. periode ringkasan: semua BA belum terbit invoice + pending volume BA BGG belum ditagih
   const totalInvoice = targetRows.reduce((s, { ba }) => s + withTax(ba.workAmount), 0);
-  const pendingVolume = withTax(ledgers
-    .filter((l) => parsePeriodToMonthIndex(l.sourcePeriod || "") <= summaryIdx)
-    .reduce((s, l) => s + pendingAmount(l.originalOBVolume || 0, l.ob1Rate || 0, l.ob2Rate || 0, l.customerCode), 0));
+  const pendingVolume = withTax(baRows
+    .filter((b) => isUnbilledPending(b) && parsePeriodToMonthIndex(b.pendingVolume.period || "") <= summaryIdx)
+    .reduce((s, b) => s + Number(b.pendingVolume.amount || 0), 0));
 
   const htmlContent = `<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="utf-8" />
-  <title>Berita Acara Invoice (BAI) Monitoring</title>
+  <title>Report Berita Acara Invoice (BAI) Monitoring</title>
   <style>
     @page { size: A4 landscape; margin: 10mm 12mm; }
     * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -1232,8 +1232,6 @@ export function exportBAOnlyPDFImpl(ctx: any) {
     .note li { margin: 1px 0; }
     .summary { margin-top: 16px; }
     .summary td { padding: 5px 6px; font-weight: bold; }
-    .notes { margin-top: 18px; font-size: 9px; }
-    .notes i { display: block; margin-top: 2px; }
     .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 12px; font-size: 11px; }
     @media print { .btn-print { display: none; } body { padding: 0; } }
   </style>
@@ -1242,7 +1240,7 @@ export function exportBAOnlyPDFImpl(ctx: any) {
   <button class="btn-print" onclick="window.print()">Cetak / Simpan PDF BAI Monitoring (A4 Landscape)</button>
   <div class="head">
     <div>
-      <h1>Berita Acara Invoice (BAI) Monitoring</h1>
+      <h1>Report Berita Acara Invoice (BAI) Monitoring</h1>
       <div class="meta">As of <b>${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</b>${periodFilter !== "All" ? ` &nbsp;·&nbsp; Periode <b>${esc(fmtPeriod(periodFilter))}</b>` : ""}</div>
     </div>
     <img src="${window.location.origin}/andalan-logo.png" alt="ANDALAN" class="logo" />
@@ -1283,7 +1281,7 @@ export function exportBAOnlyPDFImpl(ctx: any) {
     </tbody>
   </table>
 
-  <div class="notes">Notes :<i>Nilai Nominal sudah termasuk pajak. Status Nominal Final = nilai BA Joint Survey sudah diverifikasi Finance Specialist.</i></div>
+  ${SIGNATURE_HTML}
 </body>
 </html>`;
 
@@ -1397,6 +1395,7 @@ export function exportAROnlyExcelImpl(ctx: any) {
             </tr>
           </tbody>
         </table>
+        ${SIGNATURE_HTML}
       </body>
       </html>
     `;
@@ -1584,6 +1583,7 @@ export function exportAROnlyPDFImpl(ctx: any) {
           </tr>
         </tbody>
       </table>
+      ${SIGNATURE_HTML}
     </body>
     </html>
   `;

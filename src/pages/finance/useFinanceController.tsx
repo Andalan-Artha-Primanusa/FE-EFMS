@@ -13,6 +13,7 @@ import { useFinanceModalManager } from "./useFinanceModalManager";
 import { useFinanceSaveHandlers } from "./useFinanceSaveHandlers";
 import { useFinanceDataLoader } from "./useFinanceDataLoader";
 import { useFinanceUIState } from "./useFinanceUIState";
+import { customerKind, isUnbilledPending } from "./ba_calculations";
 
 export function useFinanceController({
   viewTitle,
@@ -29,12 +30,13 @@ export function useFinanceController({
   const {
     loading, setLoading, dashboardData, setDashboardData, baRows, setBaRows,
     invoiceRows, setInvoiceRows, paymentRows, setPaymentRows, customerRows, setCustomerRows,
-    pendingVolumeLedgers, setPendingVolumeLedgers, sbsPenalties, setSbsPenalties,
+    sbsPenalties, setSbsPenalties,
     accountingJournals, userRole, isSuper, canVerifyBA, canVerifyInvoice, canApproveInvoice, canApproveBA, can,
     loadData
   } = dataLoader;
 
   const uiState = useFinanceUIState();
+  const [invoicePick, setInvoicePick] = useState<any>(null);
   const {
     sbsPenaltyModalOpen, setSbsPenaltyModalOpen, sbsPenaltyEditItem, setSbsPenaltyEditItem,
     baFilter, setBaFilter, periodFilter, setPeriodFilter, invStatusFilter, setInvStatusFilter,
@@ -44,7 +46,7 @@ export function useFinanceController({
     showExportBADropdown, setShowExportBADropdown, showInputBADropdown, setShowInputBADropdown,
     showExportARDropdown, setShowExportARDropdown,
     baRowActionDropdownId, setBaRowActionDropdownId, detailViewItem, setDetailViewItem,
-    showPendingVolumeDrawer, setShowPendingVolumeDrawer, showAddPartialPayment, setShowAddPartialPayment,
+    showAddPartialPayment, setShowAddPartialPayment,
     partialPaymentForm, setPartialPaymentForm, deletingKey, setDeletingKey, actionLoadingKey, setActionLoadingKey,
     getCurrentMonthPeriod, getPreviousMonthPeriod
   } = uiState;
@@ -74,7 +76,7 @@ export function useFinanceController({
   const {
     baOperatingItems, setBaOperatingItems, baMDOItems, setBaMDOItems, baDeductionItems, setBaDeductionItems,
     activeBAStep, setActiveBAStep, isInlineEditingBA, setIsInlineEditingBA, showAddRowDropdown, setShowAddRowDropdown,
-    openBAModal, handleVerifyBA, handleApproveBA, handleAccrueBA, handleSaveBGGBA,
+    openBAModal, handleVerifyBA, handleApproveBA, handleAccrueBA, handleSaveBGGBA, handleDeletePendingVolume,
     reorderBAItems, moveBAItem, createBlankBGGBAItems, createBlankSBSBAItems
   } = baState;
 
@@ -105,7 +107,7 @@ export function useFinanceController({
   const exportCtx = {
     baRows, buildInvoiceItemsFromBA: buildInvItems, calculateItemRateAndAmount, customerContractMap,
     formData, getCustomerCalculations, getItemEffectiveOverhaulMtr, getItemEffectiveVolume,
-    invoiceRows, invPeriodFilter, onNotice, periodFilter, query, rfIndexCalculated, sbsPenalties, pendingVolumeLedgers
+    invoiceRows, invPeriodFilter, onNotice, periodFilter, query, rfIndexCalculated, sbsPenalties
   };
   const {
     exportPaymentDetailPDF, exportARBAIMonitoringExcel, exportARBAIMonitoringPDF,
@@ -120,7 +122,7 @@ export function useFinanceController({
     setIsInlineEditingBA, createBlankBGGBAItems, createBlankSBSBAItems, defaultDBKBAItems, defaultPTROBAItems,
     defaultPOSBAOperatingItems, defaultSBSBAMDOItems, defaultPOSBAMDOItems, defaultSBSBADeductionItems,
     setBaOperatingItems, setBaMDOItems, setBaDeductionItems, setActiveBAStep,
-    setShowPendingVolumeDrawer, openBAModal, getCurrentMonthPeriod, getPreviousMonthPeriod,
+    openBAModal, getCurrentMonthPeriod, getPreviousMonthPeriod,
     raiseFallMasters, minWageMasters, latestKursBI, mRate
   });
 
@@ -130,6 +132,9 @@ export function useFinanceController({
       onNotice("Berita Acara belum disetujui Manager. Invoice hanya dapat diterbitkan setelah BA diverifikasi Finance Specialist dan di-approve Manager.");
       return;
     }
+    // BGG: pilih pending volume BA lain (terverifikasi, belum ditagih) untuk ikut ditagih.
+    const pendingRows = customerKind(ba.customerCode) === "BGG" ? baRows.filter((r) => customerKind(r.customerCode) === "BGG" && isUnbilledPending(r) && r.verifiedBy && r.id !== ba.id && r.pendingVolume.period !== ba.workPeriod) : [];
+    if (pendingRows.length) { setModalType("none"); setInvoicePick({ ba, category, rows: pendingRows, ids: [] }); return; }
     if (!window.confirm(`Terbitkan Draft Invoice${category ? ` [${category}]` : ""} dari BA ${ba.baNumber}?`)) return;
     setModalType("none");
     await handleGenerateInvoiceFromBA(ba.id, category);
@@ -141,11 +146,11 @@ export function useFinanceController({
   } = useFinanceSaveHandlers({
     isSaving, setIsSaving, modalType, setModalType, formData, editItem, setEditItem,
     baOperatingItems, baMDOItems, baDeductionItems, baRows, setBaRows, loadData, reloadMasterData, onNotice,
-    setShowPendingVolumeDrawer, rfIndexCalculated, detailViewItem, setDetailViewItem,
+    rfIndexCalculated, detailViewItem, setDetailViewItem,
     partialPaymentForm, setPartialPaymentForm, setShowAddPartialPayment, setInvoiceRows,
-    setPaymentRows, setCustomerRows, setPendingVolumeLedgers, setSbsPenalties,
+    setPaymentRows, setCustomerRows, setSbsPenalties,
     setSbsPenaltyModalOpen, setSbsPenaltyEditItem,
-    deletingKey, setDeletingKey, actionLoadingKey, setActionLoadingKey
+    deletingKey, setDeletingKey, actionLoadingKey, setActionLoadingKey, openBAModal
   });
 
   // Draf input modal di localStorage: ditulis selama modal terbuka & ada perubahan, ditawarkan kembali saat
@@ -170,7 +175,7 @@ export function useFinanceController({
     let open: any = null;
     try { open = JSON.parse(localStorage.getItem(draftOpenKey) || "null"); } catch { /* penanda rusak diabaikan */ }
     if (!open || open.view !== viewTitle || !localStorage.getItem(draftKey(open.type, open.id))) return;
-    const rows: Record<string, any[]> = { ba: baRows, invoice: invoiceRows, payment: paymentRows, customer: customerRows, pending_volume: pendingVolumeLedgers };
+    const rows: Record<string, any[]> = { ba: baRows, invoice: invoiceRows, payment: paymentRows, customer: customerRows };
     const item = open.id == null ? null : rows[open.type]?.find((r: any) => r.id === open.id);
     if (open.id != null && !item) return;
     draftAutoReopened.current = true;
@@ -180,7 +185,7 @@ export function useFinanceController({
     draftBaseline.current = "";
     const auto = draftAutoReopened.current;
     draftAutoReopened.current = false;
-    if (!draftId) return;
+    if (!draftId || formData.pendingMode) return;
     let draft: any = null;
     try { draft = JSON.parse(localStorage.getItem(draftId) || "null"); } catch { /* draf rusak diabaikan */ }
     if (!draft?.data || Date.now() - draft.savedAt > DRAFT_TTL) return;
@@ -196,7 +201,7 @@ export function useFinanceController({
     onNotice("Draf input sebelumnya berhasil dipulihkan.");
   }, [draftId]);
   useEffect(() => {
-    if (!draftId) return;
+    if (!draftId || formData.pendingMode) return; // form pending tidak disimpan sebagai draf BA induk
     const timer = setTimeout(() => {
       const snap = JSON.stringify({ formData, baOperatingItems, baMDOItems, baDeductionItems, activeBAStep });
       if (!draftBaseline.current) { draftBaseline.current = snap; return; }
@@ -246,10 +251,10 @@ export function useFinanceController({
   return {
     loading, setLoading, dashboardData, setDashboardData, baRows, setBaRows, userRole, isSuper,
     canVerifyBA, canVerifyInvoice, canApproveInvoice, canApproveBA, can, invoiceRows, setInvoiceRows, paymentRows,
-    setPaymentRows, customerRows, setCustomerRows, pendingVolumeLedgers, setPendingVolumeLedgers,
+    setPaymentRows, customerRows, setCustomerRows,
     sbsPenalties, setSbsPenalties, sbsPenaltyModalOpen, setSbsPenaltyModalOpen, sbsPenaltyEditItem,
     setSbsPenaltyEditItem, handleSaveSBSPenalty, handleDeleteSBSPenalty, openSBSPenaltyModal,
-    closeSBSPenaltyModal, showPendingVolumeDrawer, setShowPendingVolumeDrawer, baFilter, setBaFilter,
+    closeSBSPenaltyModal, baFilter, setBaFilter,
     periodFilter, setPeriodFilter, invStatusFilter, setInvStatusFilter, invCardTab, setInvCardTab,
     invPeriodFilter, setInvPeriodFilter, modalType, setModalType, editItem, setEditItem, isSaving,
     formData, setFormData, showActivityGroupDropdown, setShowActivityGroupDropdown, showExportBADropdown,
@@ -273,8 +278,8 @@ export function useFinanceController({
     exportARBAIMonitoringExcel, exportARBAIMonitoringPDF, exportBAOnlyExcel, exportBAOnlyPDF,
     exportAROnlyExcel, exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV, loadData, reloadMasterData,
     handleSavePartialPayment, handleVerifyPartialPayment, buildInvoiceItemsFromBA: buildInvItems,
-    createInvoiceFromBA, openBAModal, openCreateModal, openEditModal, handleFileUpload,
-    handleSave, handleVerifyBA, handleApproveBA, handleAccrueBA, handleSaveBGGBA,
+    createInvoiceFromBA, invoicePick, setInvoicePick, openBAModal, openCreateModal, openEditModal, handleFileUpload,
+    handleSave, handleVerifyBA, handleApproveBA, handleAccrueBA, handleSaveBGGBA, handleDeletePendingVolume,
     handleGenerateInvoiceFromBA, handleVerifyInvoice, handleApproveInvoice, handleApproveInvoiceTier1,
     handleDelete, volPreview, ratePreview, grossPreview, solarPreview,
     subtotalDPPPreview, ppn11Preview, pph23Preview, totalNetInvoicePreview, totalAgingMatrix, viewTitle,

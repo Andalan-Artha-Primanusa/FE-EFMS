@@ -1,7 +1,6 @@
 import { uploadBADocument } from "../../lib/api";
 import { formatDateInput } from "./helpers";
 import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF } from "./ba_calculations";
-import { masterOBRates } from "./modals/PendingVolumeRecordModal";
 import { customerKind, rfMasterFor, computeRFIndex, ptroContractRates, baItemsFromSOW, kursForPeriod } from "./masterRegistry";
 
 interface UseFinanceModalManagerProps {
@@ -24,7 +23,6 @@ interface UseFinanceModalManagerProps {
   setBaMDOItems: React.Dispatch<React.SetStateAction<any[]>>;
   setBaDeductionItems: React.Dispatch<React.SetStateAction<any[]>>;
   setActiveBAStep: (val: number) => void;
-  setShowPendingVolumeDrawer: (val: boolean) => void;
   openBAModal: (item: any, isEditMode?: boolean) => void;
   getCurrentMonthPeriod: () => string;
   getPreviousMonthPeriod?: () => string;
@@ -54,7 +52,6 @@ export function useFinanceModalManager({
   setBaMDOItems,
   setBaDeductionItems,
   setActiveBAStep,
-  setShowPendingVolumeDrawer,
   openBAModal,
   getCurrentMonthPeriod,
   getPreviousMonthPeriod,
@@ -188,32 +185,12 @@ export function useFinanceModalManager({
         cust === "SBS" ? (defaultSBSBADeductionItems || []).map((it: any) => ({ ...it, area: "Pit E", period: defaultPeriod, notes: "", keterangan: "", rate: 0, subtotalInitial: 0, subtotalAdjusted: 0, material: it.material === "Denda ketidakcapaian Volume" ? `Denda ketidakcapaian Volume ${defaultPeriod}` : it.material })) : []
       );
       setActiveBAStep(1);
-    } else if (type === "pending_volume") {
-      const defaultCust = initialData?.customerCode || ((user?.companyCode && user.companyCode !== "HO") ? user.companyCode : "");
-      const { r1, r2 } = masterOBRates(defaultCust, initialData?.sourcePeriod || curMonth);
-      setFormData({
-        customerCode: defaultCust, sourcePeriod: initialData?.sourcePeriod || curMonth,
-        sourceBARef: "", originalOBVolume: 0, ob1Rate: r1, ob2Rate: r2, notes: "", ...initialData,
-      });
     }
     setModalType(type);
   };
 
   const openEditModal = (type: any, item: any) => {
     if (type === "ba") { openBAModal(item, true); return; }
-    if (type === "pending_volume") {
-      setEditItem(item);
-      const master = masterOBRates(item.customerCode, item.sourcePeriod);
-      const r1 = item.ob1Rate ?? master.r1;
-      const r2 = item.ob2Rate ?? master.r2;
-      setFormData({
-        ...item, customerCode: item.customerCode || "", sourcePeriod: item.sourcePeriod || "",
-        sourceBARef: item.sourceBaRef || "", originalOBVolume: item.originalOBVolume ?? 0, ob1Rate: r1, ob2Rate: r2, notes: item.notes || ""
-      });
-      setShowPendingVolumeDrawer(false);
-      setModalType("pending_volume");
-      return;
-    }
     setEditItem(item);
     setFormData({
       ...item,
