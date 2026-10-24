@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X, Edit2, CheckCircle2, Loader2 } from "lucide-react";
 import { renderBAStatusBadge, formatIDR } from "../helpers";
-import { getBAAuditLogs, verifyBATracker } from "../../../lib/api";
+import { api, getBAAuditLogs, verifyBATracker, approveBATracker } from "../../../lib/api";
+import { BAGLJournalPreview } from "./BAGLJournalPreview";
+import { AccuratePostingPanel } from "../details/AccuratePostingPanel";
 import {
   isDistanceItem,
   getBAEffectiveVolume,
@@ -75,6 +77,22 @@ export function BATrackerModal({ c }: { c: any }) {
   const [auditTab, setAuditTab] = useState<"flow" | "activity">("flow");
   const [baAuditLogs, setBaAuditLogs] = useState<any[]>([]);
   const [askPending, setAskPending] = useState(false);
+  const [baTab, setBaTab] = useState<"input" | "posting">("input");
+  const [accLogs, setAccLogs] = useState<any[] | null>([]);
+  const baId = editItem?.id;
+  const baNo = editItem?.baNumber;
+  useEffect(() => {
+    if (baTab !== "posting" || !baId) return;
+    // JV akrual bertag "[FEAST BA-<id>-<kategori>]"; JV pembalik invoice memuat "FEAST <no. BA>" di keterangannya.
+    const qs = [`FEAST BA-${baId}-`, ...(baNo ? [`FEAST ${baNo}`] : [])];
+    Promise.all(qs.map((q) => api<any[]>(`/api/accurate-logs?q=${encodeURIComponent(q)}`)))
+      .then((res) => {
+        const byId = new Map<number, any>();
+        res.flat().forEach((r) => r && byId.set(r.id, r));
+        setAccLogs([...byId.values()].sort((a, b) => b.id - a.id));
+      })
+      .catch(() => setAccLogs(null));
+  }, [baTab, baId, baNo, formData.accurate]);
 
   const kind = customerKind(formData.customerCode);
   const isCustomerBGG = kind === "BGG";
@@ -116,6 +134,22 @@ export function BATrackerModal({ c }: { c: any }) {
     else handleSave(e);
   };
   const saveAnswer = (openPending: boolean) => { setAskPending(false); handleSave(undefined, openPending); };
+  const act = async (call: () => Promise<any>) => {
+    try {
+      const updated: any = await call();
+      setFormData({ ...formData, statusBA: updated?.statusBA, verifiedBy: updated?.verifiedBy, verifiedAt: updated?.verifiedAt, approvedBy: updated?.approvedBy, approvedAt: updated?.approvedAt, accurate: updated?.accurate ?? formData.accurate });
+    } catch (err: any) {
+      alert(err?.message || "Gagal memproses Berita Acara");
+    }
+  };
+  const reject = (run: (note: string) => void) => {
+    const note = window.prompt("Alasan Reject");
+    if (note) run(note);
+  };
+  const viewOnly = Boolean(editItem) && !isInlineEditingBA;
+  const canVerifyMain = viewOnly && !pending && canVerifyBA && !formData.verifiedBy && !(formData.statusBA || "").startsWith("Reject");
+  const canApproveMain = viewOnly && !pending && can("ba_tracker", "approve") && formData.verifiedBy && formData.statusBA === "Ready to Invoice" && !formData.approvedBy;
+  const canVerifyPending = viewOnly && pending && pv && canVerifyBA && !pv.verifiedBy && !pv.billedInvoiceId;
   const actPending = async (action: "verify_pending" | "reject_pending", note: string) => {
     try {
       const updated = await verifyBATracker(editItem.id, action, note);
@@ -159,6 +193,65 @@ export function BATrackerModal({ c }: { c: any }) {
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
               {/* Left Column: Forms */}
               <div className="xl:col-span-9 2xl:col-span-9 space-y-4 border-b xl:border-b-0 xl:border-r border-slate-200 pb-6 xl:pb-0 xl:pr-6">
+                {editItem && (
+                  <div className="flex gap-1 text-[11px] font-bold">
+                    {([["input", "Input BA"], ["posting", "Posting Jurnal"]] as const).map(([k, label]) => (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => setBaTab(k)}
+                        className={`px-3 py-1 rounded-[3px] border transition cursor-pointer ${baTab === k ? "bg-[#1A1612] border-[#1A1612] text-white" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {baTab === "posting" && editItem ? (
+                  <div className="space-y-4">
+                    <BAGLJournalPreview customerCode={formData.customerCode || editItem.customerCode || ""} calc={calc} />
+                    <AccuratePostingPanel
+                      type="ba"
+                      data={{ ...editItem, accurate: formData.accurate ?? editItem.accurate }}
+                      canSync={Boolean(canVerifyBA && formData.verifiedBy)}
+                      onNotice={(msg) => alert(msg)}
+                      onSaved={(updated) => {
+                        if (updated) setFormData({ ...formData, accurate: updated.accurate });
+                        loadData?.();
+                      }}
+                    />
+                    <div className="rounded-[4px] border border-slate-200 bg-white overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-slate-50 text-slate-500 text-left">
+                          <tr>
+                            <th className="p-2">Waktu</th>
+                            <th className="p-2">Aksi</th>
+                            <th className="p-2">Endpoint</th>
+                            <th className="p-2">Status</th>
+                            <th className="p-2">Dokumen / Pesan</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {!accLogs ? (
+                            <tr><td colSpan={5} className="p-4 text-center text-rose-600">Log Accurate gagal dimuat.</td></tr>
+                          ) : accLogs.length === 0 ? (
+                            <tr><td colSpan={5} className="p-4 text-center text-slate-400">Belum ada log posting Accurate.</td></tr>
+                          ) : accLogs.map((r) => (
+                            <tr key={r.id} className="border-t border-slate-100">
+                              <td className="p-2 whitespace-nowrap">{new Date(r.createdAt).toLocaleString("id-ID")}</td>
+                              <td className="p-2 capitalize">{r.action}</td>
+                              <td className="p-2 font-mono">{r.method} {r.path}</td>
+                              <td className="p-2">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${r.success ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>{r.success ? "Sukses" : "Gagal"}</span>
+                              </td>
+                              <td className={`p-2 font-mono ${r.success ? "text-slate-700" : "text-rose-700"}`}>{r.success ? r.response : r.message}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (<>
                 {pv && !isInlineEditingBA && (
                   <div className="flex gap-1 border-b border-slate-200 text-xs font-bold">
                     {[{ label: "BA Utama", on: !pending }, { label: `Pending Volume · ${pv.period}`, on: pending }].map((t, i) => (
@@ -270,11 +363,7 @@ export function BATrackerModal({ c }: { c: any }) {
                 {activeBAStep === 3 && !pending && (
                   <BATrackerFinancialRecap
                     formData={formData}
-                    setFormData={setFormData}
                     editItem={editItem}
-                    isInlineEditingBA={isInlineEditingBA}
-                    canVerifyBA={canVerifyBA}
-                    canApproveBA={can("ba_tracker", "approve")}
                     user={user}
                     invoiceRows={invoiceRows}
                     setModalType={setModalType}
@@ -284,7 +373,6 @@ export function BATrackerModal({ c }: { c: any }) {
                     baAuditLogs={baAuditLogs}
                     auditTab={auditTab}
                     setAuditTab={setAuditTab}
-                    calc={calc}
                   />
                 )}
 
@@ -308,34 +396,15 @@ export function BATrackerModal({ c }: { c: any }) {
                       </span>
                     </div>
                     {pv.rejectNote && <div className="text-rose-700">{pv.rejectNote}</div>}
-                    {canVerifyBA && !pv.verifiedBy && !pv.billedInvoiceId && (
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => actPending("verify_pending", "Verifikasi Pending Volume oleh Finance Specialist")}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs transition cursor-pointer"
-                        >
-                          <CheckCircle2 size={14} /> Verifikasi Pending Volume
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const note = window.prompt("Alasan Reject");
-                            if (note) actPending("reject_pending", note);
-                          }}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-[3px] transition cursor-pointer"
-                        >
-                          <X size={14} /> Reject
-                        </button>
-                      </div>
-                    )}
                   </div>
                 )}
+                </>)}
               </div>
 
               {/* Right Column: Sidebar */}
               <BATrackerSidebar
                 formData={formData}
+                setFormData={setFormData}
                 editItem={editItem}
                 invoiceRows={invoiceRows}
                 calc={calc}
@@ -350,11 +419,11 @@ export function BATrackerModal({ c }: { c: any }) {
 
           {/* Form Action Buttons (Sticky Bottom) */}
           <div className="flex items-center justify-between p-4 sm:p-5 pt-3 border-t border-slate-200 bg-white shrink-0 sticky bottom-0 z-20">
-            <div>
+            <div className="flex items-center gap-2 flex-wrap">
               {editItem && !isInlineEditingBA && (!pending || pendingEditable) && (
                 <button
                   type="button"
-                  onClick={() => setIsInlineEditingBA(true)}
+                  onClick={() => { setBaTab("input"); setIsInlineEditingBA(true); }}
                   className="px-5 py-2 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-black text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   <Edit2 size={14} /> {pending ? "Edit Pending Volume" : "Ubah / Edit Data BA Ini"}
@@ -364,9 +433,39 @@ export function BATrackerModal({ c }: { c: any }) {
                 <button
                   type="button"
                   onClick={() => handleDeletePendingVolume(editItem)}
-                  className="ml-2 px-4 py-2 rounded-[3px] border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition cursor-pointer"
+                  className="px-4 py-2 rounded-[3px] border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition cursor-pointer"
                 >
                   Hapus Pending Volume
+                </button>
+              )}
+              {(canVerifyMain || canVerifyPending) && (
+                <>
+                  <button
+                    type="button"
+                    // Verifikasi lewat endpoint server (verifikator = user login, akrual GL diposting server).
+                    onClick={() => canVerifyPending
+                      ? actPending("verify_pending", "Verifikasi Pending Volume oleh Finance Specialist")
+                      : act(() => verifyBATracker(editItem.id, "verify", "Verifikasi Berita Acara oleh Finance Specialist"))}
+                    className="px-4 py-2 rounded-[3px] bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <CheckCircle2 size={14} /> {canVerifyPending ? "Verifikasi Pending Volume" : "Verifikasi"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => reject((note) => canVerifyPending ? actPending("reject_pending", note) : act(() => verifyBATracker(editItem.id, "reject", note)))}
+                    className="px-4 py-2 rounded-[3px] border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <X size={14} /> Reject
+                  </button>
+                </>
+              )}
+              {canApproveMain && (
+                <button
+                  type="button"
+                  onClick={() => act(() => approveBATracker(editItem.id, "approve", "Disetujui oleh Manager"))}
+                  className="px-4 py-2 rounded-[3px] bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <CheckCircle2 size={14} /> Approve
                 </button>
               )}
             </div>

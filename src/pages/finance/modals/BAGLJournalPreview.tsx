@@ -25,9 +25,6 @@ export function BAGLJournalPreview({ customerCode, calc }: BAGLJournalPreviewPro
             <h4 className="text-xs font-black uppercase tracking-wider text-stone-200">
               Pratinjau Ayat Jurnal Akrual General Ledger (GL Posting Preview)
             </h4>
-            <span className="text-[10px] text-stone-400">
-              Symmetric Journal: Ayat jurnal BA ini identik dengan jurnal posting Invoice
-            </span>
           </div>
         </div>
 

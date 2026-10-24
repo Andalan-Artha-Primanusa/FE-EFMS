@@ -14,7 +14,8 @@ import { slugify, treasuryTabs, viewPath } from "./data/navigation";
 
 const TunaiPOPage = lazy(() => import("./pages/tunai-po/TunaiPOPage").then((m) => ({ default: m.TunaiPOPage })));
 const TrackingTunaiPOPage = lazy(() => import("./pages/tunai-po/TrackingTunaiPOPage").then((m) => ({ default: m.TrackingTunaiPOPage })));
-const RekapVoucherView = lazy(() => import("./pages/treasury/views/RekapVoucherView"));
+const AccurateLogPage = lazy(() => import("./pages/AccurateLogPage").then((m) => ({ default: m.AccurateLogPage })));
+const RekapVoucherView =lazy(() => import("./pages/treasury/views/RekapVoucherView"));
 
 const VariableSOWFormPage = lazy(() => import("./pages/VariableSOWFormPage").then((m) => ({ default: m.VariableSOWFormPage })));
 const MasterDataFormRoute = lazy(() => import("./pages/MasterDataFormRoute").then((m) => ({ default: m.MasterDataFormRoute })));
@@ -68,6 +69,7 @@ export function AuthenticatedApp({ user, onLogout }: { user: User; onLogout: () 
         <Route path="close-period-lock" element={<ProtectedRoute requiredView="Close Period Lock"><ClosingPeriodRoute viewTitle="Close Period Lock" /></ProtectedRoute>} />
 
         <Route path="notification-center" element={<ProtectedRoute requiredView="Notification Center"><NotificationCenterRoute /></ProtectedRoute>} />
+        <Route path="accurate-api-log" element={<ProtectedRoute requiredView="Accurate API Log"><Suspense fallback={<FormLoadingFallback />}><AccurateLogPage /></Suspense></ProtectedRoute>} />
         
         <Route path="site-setup" element={<Navigate to="/client-setup" replace />} />
         <Route path="setup-parameter-site-klien" element={<Navigate to="/client-setup" replace />} />

@@ -8,6 +8,7 @@ import { BANotesUpdateModal } from "./modals/BANotesUpdateModal";
 import { isUnbilledPending, canEditPending, isRentalBA, isPOSMDOBA } from "./ba_calculations";
 import { companyScopeOf } from "../../lib/auth";
 import { MappingsModal } from "../tunai-po/shared";
+import { AccurateDocBadges } from "./details/AccuratePostingPanel";
 
 import {
   resolveDocumentUrl, formatIDR, parseNumber, formatThousand, formatDateInput,
@@ -538,7 +539,7 @@ export function BATrackerView({ c }: { c: any }) {
                     <tr className="bg-slate-100 text-slate-800 font-bold text-[10px] uppercase tracking-wider border-b border-slate-300">
                       <th className="p-2 whitespace-nowrap min-w-[190px]">Identitas BA & Customer</th>
                       <th className="p-2 whitespace-nowrap min-w-[95px]">Periode & SOW</th>
-                      <th className="p-2 text-right whitespace-nowrap min-w-[135px]">Nilai BA (DPP/Gross)</th>
+                      <th className="p-2 text-right whitespace-nowrap min-w-[135px]">Nilai BA (Nett)</th>
                       <th className="p-2 whitespace-nowrap min-w-[140px]">Alur Tanggal & Lead Time</th>
                       <th className="p-2 text-center whitespace-nowrap min-w-[140px]">Status Siklus BA</th>
                       <th className="p-2 whitespace-nowrap min-w-[100px]">Berkas PDF</th>
@@ -550,7 +551,7 @@ export function BATrackerView({ c }: { c: any }) {
                     {groupedCustomers.map((custCode) => {
                       const custRows = filteredBARows.filter((r) => (r.customerCode || "OTHER") === custCode)
                         .sort((a, b) => parsePeriodToMonthIndex(b.workPeriod || "") - parsePeriodToMonthIndex(a.workPeriod || ""));
-                      const custSubtotal = custRows.reduce((sum, r) => sum + baCalc(r).gross, 0);
+                      const custSubtotal = custRows.reduce((sum, r) => sum + baCalc(r).totalInvoice, 0);
 
                       return (
                         <Fragment key={custCode}>
@@ -588,6 +589,7 @@ export function BATrackerView({ c }: { c: any }) {
                                     <div className="font-mono font-bold text-slate-900 text-xs">
                                       {row.baNumber}
                                     </div>
+                                    <AccurateDocBadges accurate={row.accurate} />
                                     <div className="flex flex-wrap items-center gap-1 text-[10px]">
                                       <span className="px-1.5 py-0.2 rounded bg-cyan-100 text-cyan-900 font-bold text-[9px]" title={getCustomerOfficialName(row.customerCode)}>
                                         {row.customerCode || "—"} • {getCustomerOfficialName(row.customerCode)}
@@ -629,7 +631,7 @@ export function BATrackerView({ c }: { c: any }) {
                                 {/* Kolom 3: Nilai Klaim (Rp) */}
                                 <td className="p-2 text-right whitespace-nowrap">
                                   <div className="font-mono font-bold text-emerald-700 text-xs">
-                                    {formatIDR(baCalc(row).gross)}
+                                    {formatIDR(baCalc(row).totalInvoice)}
                                   </div>
                                   {row.initialWorkAmount && row.adjustedWorkAmount && row.initialWorkAmount !== row.adjustedWorkAmount && (() => {
                                     const diffVal = row.adjustedWorkAmount - row.initialWorkAmount;
@@ -1000,7 +1002,7 @@ export function BATrackerView({ c }: { c: any }) {
                                     <div className="font-bold text-slate-900 text-xs">{pv.period}</div>
                                     <div className="text-[10px] text-slate-500">{pv.items?.length || 0} Rincian Item</div>
                                   </td>
-                                  <td className="p-2 text-right whitespace-nowrap font-mono font-bold text-amber-800 text-xs">{formatIDR(pendingCalc(row).gross)}</td>
+                                  <td className="p-2 text-right whitespace-nowrap font-mono font-bold text-amber-800 text-xs">{formatIDR(pendingCalc(row).totalInvoice)}</td>
                                   <td className="p-2 text-[10px] text-slate-700 whitespace-nowrap">
                                     <span className="text-slate-400 font-medium">Diverifikasi: </span>
                                     <span className="font-semibold">{pv.verifiedAt ? new Date(pv.verifiedAt).toLocaleDateString("id-ID") : "-"}</span>

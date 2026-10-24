@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Pickaxe, Trash2, GripVertical, ChevronUp, ChevronDown, Plus } from "lucide-react";
 import { formatIDR, FormattedNumberInput, MonthPickerInput } from "../helpers";
 import { getSBSTarifByDistance } from "../calculations";
-import { isOBMaterial, customerKind, removeBAItem, calcIDR, calcSum, calcItemsAmount } from "../ba_calculations";
+import { isOBMaterial, customerKind, removeBAItem, calcIDR, calcSum, calcItemsAmount, getDistanceFactor } from "../ba_calculations";
 import type { BACalc } from "../../../types";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { BAAddRowDropdown } from "./BAAddRowDropdown";
@@ -393,7 +393,7 @@ export function BAOperatingTable({
         <td className="p-2 text-right font-mono align-top">
           {(() => {
             if (!isInlineEditingBA || (isDistance && Number(item.rate || 0) !== 0) || (isCustomerBGG && bggRateOf(item) > 0)) {
-              return <span className="pt-1 block font-mono font-bold">{formatIDR(item.rate)}</span>;
+              return <span className="pt-1 block font-mono font-bold">{formatIDR(isDistance ? Number(item.rate || 0) * getDistanceFactor(item, formData.customerCode, isCustomerDBK) : item.rate)}</span>;
             }
 
             return (

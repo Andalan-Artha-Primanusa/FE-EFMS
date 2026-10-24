@@ -56,6 +56,7 @@ const diffBASnapshots = (before: any, after: any): string[] => {
 
 interface BATrackerSidebarProps {
   formData: any;
+  setFormData: (data: any) => void;
   editItem: any;
   invoiceRows: any[];
   calc?: BACalc;
@@ -68,6 +69,7 @@ interface BATrackerSidebarProps {
 
 export function BATrackerSidebar({
   formData,
+  setFormData,
   editItem,
   invoiceRows,
   calc,
@@ -103,6 +105,45 @@ export function BATrackerSidebar({
 
   return (
     <div className="xl:col-span-3 2xl:col-span-3 space-y-4">
+      {!formData.pendingMode && (
+        <div className="p-3 bg-slate-50 border border-slate-200 rounded-[4px] space-y-2.5">
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">
+              No. BA Resmi Customer <span className="text-rose-600">*</span>
+            </label>
+            {!isInlineEditingBA ? (
+              <div className="p-2 bg-white border border-slate-200 rounded-[3px] font-mono font-bold text-xs text-slate-900">
+                {formData.signedBANumber || formData.baNumber || "-"}
+              </div>
+            ) : (
+              <input
+                className="w-full bg-white border border-slate-300 rounded-[3px] p-2 text-slate-900 font-mono font-bold text-xs focus:border-[#A57C50] outline-none"
+                placeholder="052/BA-POS-NIKEL/VII/2026"
+                value={formData.signedBANumber || formData.baNumber || ""}
+                onChange={(e) => setFormData({ ...formData, signedBANumber: e.target.value, baNumber: e.target.value })}
+              />
+            )}
+          </div>
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">
+              Tanggal Ditandatangani Customer
+            </label>
+            {!isInlineEditingBA ? (
+              <div className="p-2 bg-white border border-slate-200 rounded-[3px] text-xs text-slate-900 font-bold">
+                {formData.baSignedDate ? new Date(formData.baSignedDate).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}
+              </div>
+            ) : (
+              <input
+                type="date"
+                className="w-full bg-white border border-slate-300 rounded-[3px] p-2 text-slate-900 text-xs focus:border-[#A57C50] outline-none"
+                value={formData.baSignedDate || ""}
+                onChange={(e) => setFormData({ ...formData, baSignedDate: e.target.value })}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Ringkasan Dokumen Card */}
       <div className="p-4 bg-slate-50 border border-slate-200 rounded-[4px] space-y-3">
         <div className="flex items-center justify-between border-b border-slate-200 pb-2">

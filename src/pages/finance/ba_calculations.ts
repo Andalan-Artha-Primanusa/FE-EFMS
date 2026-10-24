@@ -528,8 +528,8 @@ export function generateBAGLJournalPreview(
     const acc = glRevenueAccount(l, cust);
     byAccount[acc] = (byAccount[acc] || 0) + l.amount;
   }
-  post("1103.101", `Piutang Usaha (PT ${customerCode || "Customer"})`, calc.total.totalDibayar, "Piutang atas Berita Acara");
-  post("1108.002", "PPh 23 Dibayar Dimuka", calc.total.pph23, "Potongan PPh 23 (2%)");
+  // PPh 23 tidak dijurnal di sini; diakui saat pembayaran customer.
+  post("1103.101", `Piutang Usaha (PT ${customerCode || "Customer"})`, calc.total.totalDibayar + calc.total.pph23, "Piutang atas Berita Acara");
   for (const [no, name, note] of GL_REVENUE) post(no, name, -Math.round(byAccount[no] || 0), no === "4120.000" ? `${note} (${calc.rfIndex.toFixed(3)}x)` : note);
   post("2102.100", "Hutang PPN Keluaran", -calc.total.vat12, "PPN Keluaran atas Berita Acara");
 
