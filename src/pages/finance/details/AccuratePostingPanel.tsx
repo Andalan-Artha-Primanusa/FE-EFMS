@@ -12,6 +12,24 @@ interface AccuratePostingPanelProps {
 
 const DOC_LABEL: Record<string, string> = { OP: "JV Akrual", MDO: "JV Akrual MDO", FAKTUR: "Faktur Penjualan", REV: "JV Pembalik" };
 
+// Nomor dokumen Accurate untuk baris list; gagal posting tampil merah dengan error di tooltip.
+export const AccurateDocBadges: React.FC<{ accurate?: any }> = ({ accurate }) => {
+  if (!accurate) return null;
+  const docs = Object.entries((accurate.docs || {}) as Record<string, { number: string }>);
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {docs.map(([k, d]) => (
+        <span key={k} title={DOC_LABEL[k] || k} className="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono font-bold text-[9px]">
+          {d.number}
+        </span>
+      ))}
+      {accurate.status === "Gagal" && (
+        <span title={accurate.error} className="px-1.5 py-0.2 rounded bg-red-50 text-red-700 border border-red-200 font-bold text-[9px]">Accurate Gagal</span>
+      )}
+    </div>
+  );
+};
+
 // Status posting dokumen ke Accurate (JV akrual BA / faktur penjualan + JV pembalik invoice).
 export const AccuratePostingPanel: React.FC<AccuratePostingPanelProps> = ({ type, data, canSync, onSaved, onNotice }) => {
   const [syncing, setSyncing] = useState(false);

@@ -1,18 +1,11 @@
 import React from "react";
-import { UserCheck, CheckCircle, Clock, CheckCircle2, ExternalLink, Pickaxe, Building2, Zap, XCircle } from "lucide-react";
-import { getBAInvoiceStatus, generateAuditTimeline, isBAApproved, isPOSDualBA } from "../helpers";
+import { UserCheck, CheckCircle2, ExternalLink, Pickaxe, Building2, Zap } from "lucide-react";
+import { getBAInvoiceStatus, isBAApproved, isPOSDualBA } from "../helpers";
 import { isRentalBA } from "../ba_calculations";
-import { BAGLJournalPreview } from "./BAGLJournalPreview";
-import { verifyBATracker, approveBATracker } from "../../../lib/api";
-import type { BACalc } from "../../../types";
 
 interface BATrackerFinancialRecapProps {
   formData: any;
-  setFormData: (data: any) => void;
   editItem: any;
-  isInlineEditingBA: boolean;
-  canVerifyBA: boolean;
-  canApproveBA?: boolean;
   user: any;
   invoiceRows: any[];
   setModalType: (type: string) => void;
@@ -22,16 +15,11 @@ interface BATrackerFinancialRecapProps {
   baAuditLogs: any[];
   auditTab: "flow" | "activity";
   setAuditTab: (tab: "flow" | "activity") => void;
-  calc?: BACalc;
 }
 
 export function BATrackerFinancialRecap({
   formData,
-  setFormData,
   editItem,
-  isInlineEditingBA,
-  canVerifyBA,
-  canApproveBA,
   user,
   invoiceRows = [],
   setModalType,
@@ -41,21 +29,11 @@ export function BATrackerFinancialRecap({
   baAuditLogs = [],
   auditTab,
   setAuditTab,
-  calc,
 }: BATrackerFinancialRecapProps) {
   const isRental = isRentalBA(formData) || isRentalBA(editItem);
   const isPOS = isPOSDualBA(editItem || formData);
   const step3InvStatus = getBAInvoiceStatus(editItem || formData, invoiceRows);
   const isLinked = Boolean(formData.invoiceNoLinked || editItem?.invoiceNoLinked) || step3InvStatus.isFullyInvoiced;
-  // Verifikasi/Reject/Approve hanya di pratinjau BA; pending volume diverifikasi terpisah (tab Pending Volume).
-  const act = async (call: () => Promise<any>) => {
-    try {
-      const updated: any = await call();
-      setFormData({ ...formData, statusBA: updated?.statusBA, verifiedBy: updated?.verifiedBy, verifiedAt: updated?.verifiedAt, approvedBy: updated?.approvedBy, approvedAt: updated?.approvedAt });
-    } catch (err: any) {
-      alert(err?.message || "Gagal memproses Berita Acara");
-    }
-  };
   const displayInvNo = formData.invoiceNoLinked || editItem?.invoiceNoLinked || step3InvStatus.createdInvoices[0]?.invoiceNo || "Terbit";
 
   return (
@@ -66,121 +44,6 @@ export function BATrackerFinancialRecap({
           <strong>Step 3 — Verifikasi & Final Signed BA:</strong> Verifikasi internal oleh Finance Specialist. Approval FATB Manager akan diproses saat Invoice digenerate oleh Finance site.
         </div>
       </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3 rounded-[4px] border border-slate-200">
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-            No. BA Resmi Customer <span className="text-rose-600">*</span>
-          </label>
-          {!isInlineEditingBA ? (
-            <div className="p-2 bg-white border border-slate-200 rounded-[3px] font-mono font-bold text-xs text-slate-900">
-              {formData.signedBANumber || formData.baNumber || "052/BA-POS-NIKEL/VII/2026"}
-            </div>
-          ) : (
-            <input
-              className="w-full bg-white border border-slate-300 rounded-[3px] p-2 text-slate-900 font-mono font-bold text-xs focus:border-[#A57C50] outline-none"
-              placeholder="052/BA-POS-NIKEL/VII/2026"
-              value={formData.signedBANumber || formData.baNumber || ""}
-              onChange={(e) => setFormData({ ...formData, signedBANumber: e.target.value, baNumber: e.target.value })}
-            />
-          )}
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
-            Tanggal Ditandatangani Customer
-          </label>
-          {!isInlineEditingBA ? (
-            <div className="p-2 bg-white border border-slate-200 rounded-[3px] text-xs text-slate-900 font-bold">
-              {formData.baSignedDate ? new Date(formData.baSignedDate).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}
-            </div>
-          ) : (
-            <input
-              type="date"
-              className="w-full bg-white border border-slate-300 rounded-[3px] p-2 text-slate-900 text-xs focus:border-[#A57C50] outline-none"
-              value={formData.baSignedDate || ""}
-              onChange={(e) => setFormData({ ...formData, baSignedDate: e.target.value })}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Single Verifikator Card: Finance Specialist */}
-      <div className="pt-1">
-        <div className={`p-4 rounded-[4px] border shadow-xs text-center space-y-2.5 transition ${formData.verifiedBy ? "bg-[#A57C50]/5 border-[#A57C50]/30" : "bg-white border-slate-200"}`}>
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <span className="text-[11px] font-black uppercase tracking-wider text-slate-700">Verifikator: Finance Specialist</span>
-            {formData.verifiedBy ? (
-              <span className="text-[10px] text-[#A57C50] font-bold flex items-center gap-1">
-                <CheckCircle size={12} /> Selesai Diverifikasi
-              </span>
-            ) : (
-              <span className="text-[10px] text-amber-700 font-bold flex items-center gap-1">
-                <Clock size={12} /> Menunggu Verifikasi
-              </span>
-            )}
-          </div>
-
-          <div className="py-1">
-            {formData.verifiedBy ? (
-              <div className="inline-flex flex-col items-center gap-1">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[3px] text-xs font-bold bg-[#A57C50]/10 text-[#A57C50] border border-[#A57C50]/30">
-                  <CheckCircle size={13} className="text-[#A57C50]" /> Digital Verified by Finance Specialist
-                </span>
-                <span className="text-[11px] font-bold text-[#1A1612]">{formData.verifiedBy}</span>
-                {formData.verifiedAt && (
-                  <span className="text-[10px] text-slate-500 font-mono">
-                    {new Date(formData.verifiedAt).toLocaleString("id-ID")}
-                  </span>
-                )}
-                {canApproveBA && !isInlineEditingBA && editItem && formData.statusBA === "Ready to Invoice" && !formData.approvedBy && (
-                  <button
-                    type="button"
-                    onClick={() => act(() => approveBATracker(editItem.id, "approve", "Disetujui oleh Manager"))}
-                    className="mt-1 inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-[3px] shadow-xs transition cursor-pointer"
-                  >
-                    <CheckCircle2 size={14} /> Approve
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <span className="text-xs text-slate-500 font-medium block">
-                  Verifikasi draft Berita Acara ini untuk memvalidasi angka rekonsiliasi dan menerbitkan status penagihan.
-                </span>
-                {canVerifyBA && !isInlineEditingBA && editItem && !(formData.statusBA || "").startsWith("Reject") && (
-                  <div className="flex justify-center gap-2">
-                    <button
-                      type="button"
-                      // Verifikasi lewat endpoint server (verifikator = user login, akrual GL diposting server).
-                      onClick={() => act(() => verifyBATracker(editItem.id, "verify", "Verifikasi Berita Acara oleh Finance Specialist"))}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs transition cursor-pointer"
-                    >
-                      <CheckCircle size={14} /> Verifikasi Berita Acara Ini
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const note = window.prompt("Alasan Reject");
-                        if (note) act(() => verifyBATracker(editItem.id, "reject", note));
-                      }}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-[3px] transition cursor-pointer"
-                    >
-                      <XCircle size={14} /> Reject
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Symmetric GL Journal Entry Preview */}
-      <BAGLJournalPreview
-        customerCode={formData.customerCode || editItem?.customerCode || ""}
-        calc={calc}
-      />
 
       {/* Invoice Generation & Linked Status */}
       {isLinked ? (

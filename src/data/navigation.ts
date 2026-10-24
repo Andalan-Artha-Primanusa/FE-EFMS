@@ -25,7 +25,7 @@ export const menu = [
   { group: "Reconciliation", icon: RefreshCw, items: ["Bank Reconciliation", "Vendor Reconciliation", "Customer Reconciliation", "Tax Reconciliation", "Intercompany Reconciliation"] },
   { group: "Period Closing", icon: LockKeyhole, items: ["Accrual and Adjustment Journal", "Depreciation Posting", "Review Trial Balance", "Financial Review and Approval", "Close Period Lock"] },
   { group: "Financial Reporting", icon: LineChart, items: ["Financial Statement", "AP and AR Aging", "Cash Flow Report", "Budget versus Actual Report", "Tax Report", "Project Profitability Report", "Management Reports"] },
-  { group: "Governance", icon: ShieldCheck, items: ["Approval Center", "Notification Center", "Audit Trail", "RBAC Management", "Role and Permission", "System Settings"] }
+  { group: "Governance", icon: ShieldCheck, items: ["Approval Center", "Notification Center", "Audit Trail", "Accurate API Log", "RBAC Management", "Role and Permission", "System Settings"] }
 ];
 
 // Hidden for every role, super admin included. The general ledger lives in Accurate Online (used fully by the
@@ -185,6 +185,7 @@ export const viewMap: Record<string, ViewConfig> = {
   "Approval Center": { title: "Approval Center", endpoint: "/api/transactions?status=Waiting Approval" },
   "Notification Center": { title: "Notification Center", endpoint: "/api/audit-logs" },
   "Audit Trail": { title: "Audit Trail", endpoint: "/api/audit-logs" },
+  "Accurate API Log": { title: "Accurate API Log", endpoint: "/api/accurate-logs" },
   "RBAC Management": { title: "RBAC Management", endpoint: "/api/roles" },
   "Role and Permission": { title: "Role and Permission", endpoint: "/api/roles" },
   "System Settings": { title: "System Settings", endpoint: "/api/finance-flow" }
@@ -266,6 +267,7 @@ export const menuPermissionMap: Record<string, string[]> = {
   "Approval Center": ["approval:act"],
   "Notification Center": ["audit_trail:read"],
   "Audit Trail": ["audit_trail:read"],
+  "Accurate API Log": ["audit_trail:read"],
   "RBAC Management": ["user_management:manage"],
   "Role and Permission": ["user_management:manage"],
   "System Settings": ["user_management:manage"],
