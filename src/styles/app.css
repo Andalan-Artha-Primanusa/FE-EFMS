@@ -19,7 +19,7 @@
 
 /* Global Proportional Ratio Scaling Engine */
 html {
-  font-size: 13.5px;
+  font-size: clamp(13px, calc(11.08px + 0.1923vw), 16px);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -34,9 +34,6 @@ html {
     --app-card-padding: 0.75rem;
     --app-control-height: 2.2rem;
   }
-  html {
-    font-size: 13px;
-  }
 }
 
 /* HD Screens (1024px - 1439px: 13"/14" Laptops / 1366x768 / 1080p @ 125%-150% scaling) */
@@ -47,9 +44,6 @@ html {
     --app-workspace-padding: 1rem;
     --app-card-padding: 0.875rem;
     --app-control-height: 2.25rem;
-  }
-  html {
-    font-size: 13.5px;
   }
 }
 
@@ -62,9 +56,6 @@ html {
     --app-card-padding: 1.1rem;
     --app-control-height: 2.45rem;
   }
-  html {
-    font-size: 14.5px;
-  }
 }
 
 /* 2K / QHD / Ultrawide Screens (>= 1921px s.d. 2560px+) */
@@ -75,9 +66,6 @@ html {
     --app-workspace-padding: 1.85rem;
     --app-card-padding: 1.35rem;
     --app-control-height: 2.65rem;
-  }
-  html {
-    font-size: 16px;
   }
 }
 
@@ -485,6 +473,7 @@ textarea { min-height: 80px; resize: vertical; }
 }
 .sidebar {
   @apply sticky top-0 h-screen overflow-y-auto border-r border-slate-200 bg-white px-3 py-3.5 shadow-[8px_0_26px_rgba(15,23,42,.045)] backdrop-blur-xl;
+  height: 100dvh;
   width: var(--app-sidebar-width, 270px);
   flex: 0 0 var(--app-sidebar-width, 270px);
   transition: width .22s ease, flex-basis .22s ease, padding .22s ease;
@@ -1065,7 +1054,7 @@ th { color: var(--ink-600); font-size: 0.7rem; text-transform: uppercase; letter
   max-height: none;
 }
 .record-grid {
-  @apply grid max-h-[62vh] gap-2 overflow-y-auto;
+  @apply grid max-h-[62dvh] gap-2 overflow-y-auto;
 }
 .record-grid div {
   @apply grid grid-cols-[180px_1fr] gap-3 rounded-enterprise border border-slate-100 bg-slate-50 px-3 py-2;
@@ -1452,6 +1441,45 @@ th { color: var(--ink-600); font-size: 0.7rem; text-transform: uppercase; letter
     padding-top: 16px;
   }
   .login-visual { display: none; }
+  .account-grid {
+    grid-template-columns: 1fr;
+  }
+  .account-activity-page {
+    grid-template-columns: 1fr;
+  }
+  .rbac-summary,
+  .rbac-grid {
+    grid-template-columns: 1fr;
+  }
+  .page-header {
+    @apply items-start;
+    flex-direction: column;
+  }
+  .page-header-side {
+    width: 100%;
+    align-items: stretch;
+  }
+  .kpi-grid { grid-template-columns: 1fr; }
+  .master-form-grid { @apply grid-cols-1; }
+  .daily-hero {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin: 0 calc(-1 * var(--app-workspace-padding));
+    border-radius: 0;
+  }
+  .daily-refresh {
+    width: 100%;
+    justify-content: center;
+  }
+  .daily-board {
+    padding-top: 10px;
+  }
+  .cost-matrix {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
   .sidebar {
     position: fixed;
     z-index: 30;
@@ -1459,7 +1487,7 @@ th { color: var(--ink-600); font-size: 0.7rem; text-transform: uppercase; letter
     transition: transform .2s ease;
   }
   .sidebar.open { transform: translateX(0); }
-  .workspace { padding: 16px; }
+  :root { --app-workspace-padding: 16px; }
   .mobile-only { display: inline-flex; }
   .desktop-toggle { display: none; }
   .sidebar-collapsed .sidebar {
@@ -1479,31 +1507,12 @@ th { color: var(--ink-600); font-size: 0.7rem; text-transform: uppercase; letter
   .sidebar-collapsed details button {
     display: block;
   }
-  .topbar { align-items: flex-start; }
-  .top-actions { margin-left: auto; }
-  .search, .user-pill { display: none; }
-  .account-grid {
-    grid-template-columns: 1fr;
-  }
-  .account-activity-page {
-    grid-template-columns: 1fr;
-  }
-  .rbac-summary,
-  .rbac-grid {
-    grid-template-columns: 1fr;
-  }
-  .page-header {
-    @apply items-start;
-    flex-direction: column;
-  }
-  .page-header-side {
-    width: 100%;
-    align-items: stretch;
-  }
   .topbar {
     align-items: flex-start;
     gap: 12px;
   }
+  .top-actions { margin-left: auto; }
+  .search, .user-pill { display: none; }
   .topbar-main {
     align-items: flex-start;
     gap: 10px;
@@ -1513,24 +1522,6 @@ th { color: var(--ink-600); font-size: 0.7rem; text-transform: uppercase; letter
   }
   .topbar .header-meta {
     max-width: 48vw;
-  }
-  .kpi-grid { grid-template-columns: 1fr; }
-  .master-form-grid { @apply grid-cols-1; }
-  .daily-hero {
-    align-items: flex-start;
-    flex-wrap: wrap;
-    margin: -16px -16px 0;
-    border-radius: 0;
-  }
-  .daily-refresh {
-    width: 100%;
-    justify-content: center;
-  }
-  .daily-board {
-    padding-top: 10px;
-  }
-  .cost-matrix {
-    grid-template-columns: 1fr;
   }
 }
 

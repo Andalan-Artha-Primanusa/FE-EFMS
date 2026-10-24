@@ -19,7 +19,7 @@ function InvoicePendingPick({ c }: { c: any }) {
   const toggle = (id: number) => setInvoicePick({ ...pick, ids: pick.ids.includes(id) ? pick.ids.filter((x: number) => x !== id) : [...pick.ids, id] });
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-3">
-      <div className="bg-white rounded-[4px] border border-slate-200 shadow-2xl p-5 w-full max-w-xl space-y-4 text-xs">
+      <div className="max-h-[90dvh] overflow-y-auto bg-white rounded-[4px] border border-slate-200 shadow-2xl p-5 w-full max-w-xl space-y-4 text-xs">
         <h4 className="text-sm font-black text-slate-900">Terbitkan Draft Invoice{pick.category ? ` [${pick.category}]` : ""} · {pick.ba.baNumber}</h4>
         <table className="w-full border border-slate-200">
           <caption className="text-left font-black uppercase tracking-wider text-slate-700 pb-1.5">Pending Volume</caption>

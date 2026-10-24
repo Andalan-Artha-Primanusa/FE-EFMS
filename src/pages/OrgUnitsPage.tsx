@@ -291,7 +291,7 @@ export function OrgUnitsPage({
       {/* Modal Create/Edit */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="bg-white rounded-[4px] max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+          <div className="max-h-[90dvh] overflow-y-auto bg-white rounded-[4px] max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
                 <Building2 size={18} className="text-[#A57C50]" />
@@ -377,7 +377,7 @@ export function OrgUnitsPage({
       {/* Modal Delete Confirm */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
-          <div className="bg-white rounded-[4px] max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4 text-center">
+          <div className="max-h-[90dvh] overflow-y-auto bg-white rounded-[4px] max-w-sm w-full p-5 shadow-2xl border border-slate-200 space-y-4 text-center">
             <div className="w-10 h-10 rounded-[3px] bg-rose-100 text-rose-600 flex items-center justify-center mx-auto"><Trash2 size={20} /></div>
             <div className="space-y-1">
               <h3 className="font-bold text-slate-900 text-base">Hapus Org Unit?</h3>

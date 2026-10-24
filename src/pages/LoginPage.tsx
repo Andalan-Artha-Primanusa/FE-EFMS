@@ -196,7 +196,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
         </div>
       </section>
       <section className="relative overflow-hidden bg-slate-950 min-h-full flex items-center justify-center p-4 sm:p-6 lg:p-8">
-        <div className="relative w-full h-full max-h-[94vh] rounded-[4px] overflow-hidden shadow-2xl border border-slate-800/80 group">
+        <div className="relative w-full h-full max-h-[94dvh] rounded-[4px] overflow-hidden shadow-2xl border border-slate-800/80 group">
           <img
             src={loginFinanceBg}
             alt="FEAST - Financial Enterprise Andalan System Workspace"
@@ -218,7 +218,7 @@ export function LoginPage({ onLogin }: { onLogin: (user: User) => void }) {
 
       {forgotOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-[4px] max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-sm">
+          <div className="max-h-[90dvh] overflow-y-auto bg-white rounded-[4px] max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-sm">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
                 <KeyRound size={18} className="text-[#a57c50]" /> Reset Password

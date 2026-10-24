@@ -52,7 +52,7 @@ export const Dialog: React.FC<DialogProps> = ({
 
       {/* Dialog Panel: 6px radius, warm border, 3px top brand rule */}
       <div
-        className={`relative z-10 w-full ${maxWidthStyles[maxWidth]} rounded-[6px] border border-ink-200 border-t-[3px] border-t-aap-500 bg-white shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-scale-in`}
+        className={`relative z-10 w-full ${maxWidthStyles[maxWidth]} rounded-[6px] border border-ink-200 border-t-[3px] border-t-aap-500 bg-white shadow-xl overflow-hidden flex flex-col max-h-[90dvh] animate-scale-in`}
       >
         {(title || eyebrow) && (
           <header className="flex items-start justify-between p-5 pb-3 border-b border-ink-200 bg-white">

@@ -238,7 +238,7 @@ export const BalanceSheetView: React.FC<BalanceSheetViewProps> = ({
       </div>
 
       {/* Two-Column Side-by-Side Balance Sheet Presentation */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,480px),1fr))] gap-4">
         {/* LEFT COLUMN: ASET (AKTIVA) */}
         <div className="bg-white rounded border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="p-3.5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">

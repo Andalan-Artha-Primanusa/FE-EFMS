@@ -131,7 +131,7 @@ export const JournalDetailModal: React.FC<JournalDetailModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm overflow-y-auto print:p-0 print:bg-white">
       <div
-        className="relative w-full max-w-4xl my-8 bg-white border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] shadow-2xl print:max-h-none print:border-none print:bg-white print:text-black"
+        className="relative w-full max-w-4xl my-8 bg-white border border-slate-200 overflow-hidden flex flex-col max-h-[90dvh] shadow-2xl print:max-h-none print:border-none print:bg-white print:text-black"
         style={{ borderRadius: 4 }}
       >
         {/* Header */}

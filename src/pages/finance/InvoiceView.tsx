@@ -109,7 +109,7 @@ export function InvoiceView({ c }: { c: any }) {
               <div className="space-y-4">
                 {/* 3 INTERACTIVE STAT CARDS CONTAINER WITH ACTIVITY GROUP TOGGLE — FEAST Enterprise Standard */}
                 <div className="bg-white border border-slate-200 p-3.5 sm:p-4 shadow-sm space-y-3" style={{ borderRadius: 4 }}>
-                  <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 border-b border-slate-200 pb-3">
+                  <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 border-b border-slate-200 pb-3">
                     <div className="flex items-center gap-2.5">
                       <div className="p-1.5 rounded-[3px] bg-[#FBF6F0] border border-[#E7D3BC] text-[#A57C50] shrink-0">
                         <Receipt className="w-4 h-4 text-[#A57C50]" />
@@ -121,7 +121,7 @@ export function InvoiceView({ c }: { c: any }) {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-between lg:justify-end">
+                    <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto justify-between xl:justify-end">
                       {/* Period Filter Dropdown for Invoice & AR Aging Cut-off */}
                       <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-[3px] border border-slate-200">
                         <span className="text-[11px] font-semibold text-slate-500">Periode:</span>

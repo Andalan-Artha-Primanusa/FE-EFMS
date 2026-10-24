@@ -147,7 +147,7 @@ export function ARDashboardView({ c }: { c: any }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,200px),1fr))] gap-3">
         {kpis.map((k) => (
           <div key={k.label} className="p-3.5 rounded-[4px] border border-slate-200 bg-white shadow-xs flex flex-col justify-between hover:border-slate-300 transition">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{k.label}</span>
@@ -157,7 +157,7 @@ export function ARDashboardView({ c }: { c: any }) {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,160px),1fr))] gap-3">
         {d.cycle.map((m: any) => (
           <div key={m.label} className="px-3.5 py-2.5 rounded-[4px] border border-slate-200 bg-white shadow-xs flex items-center justify-between gap-2">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{m.label}</span>
@@ -187,8 +187,8 @@ export function ARDashboardView({ c }: { c: any }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-2">
           <Panel title="Invoice vs Pembayaran (6 Bulan)">
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={d.months}>
@@ -259,7 +259,7 @@ export function ARDashboardView({ c }: { c: any }) {
         </div>
       </Panel>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,480px),1fr))] gap-6">
         <Panel title="BA Belum Ditagih">
           <div className="table-wrapper overflow-x-auto rounded-[4px] border border-slate-200 shadow-xs">
             <table className="data-table w-full text-xs text-left border-collapse font-sans">

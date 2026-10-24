@@ -748,7 +748,7 @@ export function MasterRaiseFallPage({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-3">
           <div className="bg-white p-3.5 rounded-[4px] border border-slate-200 shadow-xs space-y-1">
             <div className="flex justify-between items-center text-slate-500">
               <span className="text-[11px] font-bold uppercase tracking-wider">Index Raise & Fall (RF)</span>
@@ -1204,7 +1204,7 @@ export function MasterRaiseFallPage({
       {/* Modal Popup (Calculated RF / MRate / UMK) */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-[4px] shadow-2xl max-w-2xl sm:max-w-3xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-[4px] shadow-2xl max-w-2xl sm:max-w-3xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90dvh]">
             <div className="px-4 py-3 bg-slate-900 text-white flex justify-between items-center">
               <h3 className="font-bold text-xs uppercase tracking-wider flex items-center gap-2">
                 <Calculator size={15} className="text-[#A57C50]" />
@@ -1265,7 +1265,7 @@ export function MasterRaiseFallPage({
                   </div>
 
                   {/* Parameter kontrak rumus R&F (tersimpan di Master Raise & Fall) */}
-                  <div className="grid grid-cols-3 gap-3 p-3 bg-slate-50 border border-slate-200 rounded-[4px]">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-slate-50 border border-slate-200 rounded-[4px]">
                     <div>
                       <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Bobot Fuel (a)</label>
                       <IndoDecimalInput
@@ -1314,7 +1314,7 @@ export function MasterRaiseFallPage({
                         onChange={(val) => setRfForm((prev: any) => ({ ...prev, baseForexXo: val }))}
                       />
                     </div>
-                    <label className="col-span-3 flex items-center gap-2 text-xs font-bold text-slate-700">
+                    <label className="sm:col-span-3 flex items-center gap-2 text-xs font-bold text-slate-700">
                       <input type="checkbox" checked={Boolean(rfForm.allowFall)} onChange={(e) => setRfForm({ ...rfForm, allowFall: e.target.checked })} />
                       Allow Fall — indeks &lt; 1,000 menurunkan tagihan (tidak dicentang: indeks minimal 1,000)
                     </label>

@@ -1,8 +1,8 @@
 import React from "react";
-import { FileText, CheckCircle, ExternalLink, ShieldCheck, History, X, Clock, Upload } from "lucide-react";
+import { FileText, CheckCircle, ExternalLink, History, ChevronDown, Upload } from "lucide-react";
 import { isRentalBA, calcIDR } from "../ba_calculations";
 import type { BACalc } from "../../../types";
-import { formatIDR, resolveDocumentUrl, renderBAStatusBadge, generateAuditTimeline, isBAApproved } from "../helpers";
+import { resolveDocumentUrl, renderBAStatusBadge, generateAuditTimeline } from "../helpers";
 
 const BA_FIELD_LABELS: Record<string, string> = {
   baNumber: "No. BA", draftBARefNo: "No. Ref Draft", signedBANumber: "No. BA Signed",
@@ -18,6 +18,15 @@ const BA_ITEM_LABELS: Record<string, string> = {
 };
 const BA_ACTION_LABELS: Record<string, string> = {
   save: "Simpan", verify: "Verifikasi", approve: "Approval", update_notes: "Update Catatan", delete: "Hapus", generate_invoice: "Generate Invoice",
+};
+
+const BA_ACTION_TONES: Record<string, { dot: string; badge: string }> = {
+  save: { dot: "bg-sky-500", badge: "bg-sky-50 text-sky-800 border-sky-200" },
+  verify: { dot: "bg-emerald-500", badge: "bg-emerald-50 text-emerald-800 border-emerald-200" },
+  approve: { dot: "bg-emerald-600", badge: "bg-emerald-50 text-emerald-800 border-emerald-200" },
+  update_notes: { dot: "bg-amber-500", badge: "bg-amber-50 text-amber-800 border-amber-200" },
+  delete: { dot: "bg-rose-500", badge: "bg-rose-50 text-rose-800 border-rose-200" },
+  generate_invoice: { dot: "bg-purple-500", badge: "bg-purple-50 text-purple-800 border-purple-200" },
 };
 
 const fmtAuditValue = (v: any): string => {
@@ -60,8 +69,6 @@ interface BATrackerSidebarProps {
   editItem: any;
   invoiceRows: any[];
   calc?: BACalc;
-  auditTab: "flow" | "activity";
-  setAuditTab: (tab: "flow" | "activity") => void;
   baAuditLogs: any[];
   isInlineEditingBA?: boolean;
   handleFileUpload?: (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => void;
@@ -73,8 +80,6 @@ export function BATrackerSidebar({
   editItem,
   invoiceRows,
   calc,
-  auditTab,
-  setAuditTab,
   baAuditLogs,
   isInlineEditingBA,
   handleFileUpload,
@@ -270,154 +275,75 @@ export function BATrackerSidebar({
         </div>
       </div>
 
-      {/* AUDIT & WORKFLOW INTELLIGENCE (2 TABS: FLOW & ACTIVITY) */}
+      {/* ACTIVITY LOG */}
       <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-[4px] space-y-3">
-        {/* Tab Header */}
         <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-          <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-[3px] text-[11px] font-bold">
-            <button
-              type="button"
-              onClick={() => setAuditTab("flow")}
-              className={`px-2.5 py-1 rounded-[3px] transition flex items-center gap-1 cursor-pointer ${auditTab === "flow" ? "bg-white text-[#A57C50] shadow-xs font-black" : "text-slate-600 hover:text-slate-900"}`}
-            >
-              <ShieldCheck size={12} />
-              <span>Flow Alur</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setAuditTab("activity")}
-              className={`px-2.5 py-1 rounded-[3px] transition flex items-center gap-1 cursor-pointer ${auditTab === "activity" ? "bg-white text-[#A57C50] shadow-xs font-black" : "text-slate-600 hover:text-slate-900"}`}
-            >
-              <History size={12} />
-              <span>Activity Log</span>
-            </button>
-          </div>
-          <span className="text-[10px] font-mono font-bold text-slate-500">Live Audit</span>
+          <span className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-1.5">
+            <History size={13} className="text-[#A57C50]" /> Activity Log
+          </span>
+          {baAuditLogs.length > 0 && (
+            <span className="text-[10px] font-mono font-bold text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded-[3px]">{baAuditLogs.length}</span>
+          )}
         </div>
 
-        {/* TAB 1: FLOW ALUR */}
-        {auditTab === "flow" && (
-          <div className="space-y-2.5 text-xs">
-            <div className="p-2.5 bg-white border border-slate-200 rounded-xl space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                  <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 text-[10px] flex items-center justify-center font-black">1</span>
-                  <span>Draft BA Dibuat</span>
-                </div>
-                <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                  {formData.baSubmittedDate ? new Date(formData.baSubmittedDate).toLocaleDateString("id-ID") : "Tercatat"}
-                </span>
-              </div>
-              <p className="text-slate-600 text-[11px] leading-relaxed">
-                Dibuat oleh <strong>{formData.picAAP || "Operations / Site Engineer"}</strong> ({calcIDR(calc?.total.gross)}).
-              </p>
-            </div>
-
-            <div className="p-2.5 bg-white border border-slate-200 rounded-xl space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                  <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-black ${formData.verifiedBy ? "bg-emerald-100 text-emerald-800" : formData.statusBA === "Revisi" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}>2</span>
-                  <span>Verifikasi Finance Supervisor</span>
-                </div>
-                {formData.verifiedBy ? (
-                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-0.5">
-                    <CheckCircle size={10} /> Terverifikasi
-                  </span>
-                ) : formData.statusBA === "Revisi" ? (
-                  <span className="text-[10px] text-rose-700 font-bold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 flex items-center gap-0.5">
-                    <X size={10} /> Revisi
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 flex items-center gap-0.5">
-                    <Clock size={10} /> Menunggu
-                  </span>
-                )}
-              </div>
-              <p className="text-slate-600 text-[11px] leading-relaxed">
-                {formData.verifiedBy ? `Volume & nilai klaim diverifikasi oleh ${formData.verifiedBy}.` : "Menunggu verifikasi keabsahan volume bersama oleh Finance Supervisor."}
-              </p>
-            </div>
-
-            <div className="p-2.5 bg-white border border-slate-200 rounded-xl space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                  <span className={`w-4 h-4 rounded-full text-[10px] flex items-center justify-center font-black ${formData.invoiceNoLinked ? "bg-purple-100 text-purple-800" : isBAApproved(formData) ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>3</span>
-                  <span>Invoice & Approval FATB</span>
-                </div>
-                {formData.invoiceNoLinked ? (
-                  <span className="text-[10px] text-purple-800 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
-                    #{formData.invoiceNoLinked}
-                  </span>
-                ) : isBAApproved(formData) ? (
-                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                    Siap Terbit
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-slate-500 font-bold bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                    Menunggu BA
-                  </span>
-                )}
-              </div>
-              <p className="text-slate-600 text-[11px] leading-relaxed">
-                {formData.invoiceNoLinked
-                  ? `Invoice #${formData.invoiceNoLinked} telah diterbitkan dan diajukan ke FATB Manager.`
-                  : isBAApproved(formData)
-                  ? "BA telah diverifikasi Finance Specialist dan disetujui Manager. Finance Site dapat men-generate invoice."
-                  : formData.verifiedBy ? "Menunggu approval Manager atas BA sebelum invoice dapat digenerate." : "Invoice akan digenerate oleh Finance site setelah BA diverifikasi Finance Specialist dan disetujui Manager."}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: ACTIVITY LOG */}
-        {auditTab === "activity" && (
-          <div className="space-y-2 max-h-64 overflow-y-auto pr-1 text-xs">
-            {baAuditLogs.length > 0 ? (
-              baAuditLogs.map((log: any, lIdx: number) => {
-                const changes = diffBASnapshots(log.before, log.after);
-                const actionLabel = log.action === "save" && !log.before ? "Buat BA" : (BA_ACTION_LABELS[log.action] || log.action || "Activity");
-                return (
-                  <details key={log.id || lIdx} className="group p-2.5 bg-white border border-slate-200 rounded-xl">
-                    <summary className="list-none cursor-pointer space-y-1">
+        <ol className="max-h-80 overflow-y-auto pr-1 text-xs">
+          {baAuditLogs.length > 0 ? (
+            baAuditLogs.map((log: any, lIdx: number) => {
+              const changes = diffBASnapshots(log.before, log.after);
+              const actionLabel = log.action === "save" && !log.before ? "Buat BA" : (BA_ACTION_LABELS[log.action] || log.action || "Activity");
+              const tone = BA_ACTION_TONES[log.action] || BA_ACTION_TONES.save;
+              const hasDetail = changes.length > 0 || Boolean(log.ipAddress);
+              return (
+                <li key={log.id || lIdx} className="relative pl-5 pb-3 last:pb-0">
+                  {lIdx < baAuditLogs.length - 1 && <span className="absolute left-[5px] top-3 bottom-0 w-px bg-slate-200" />}
+                  <span className={`absolute left-0 top-3 w-[11px] h-[11px] rounded-full ring-2 ring-slate-50 ${tone.dot}`} />
+                  <details className="group bg-white border border-slate-200 rounded-[4px] open:border-[#A57C50]/40 transition">
+                    <summary className={`list-none p-2.5 space-y-1 [&::-webkit-details-marker]:hidden ${hasDetail ? "cursor-pointer" : "cursor-default pointer-events-none"}`}>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-bold text-slate-900 text-[11px] truncate">{log.user || "System"}</span>
-                        <span className="text-[10px] font-mono text-slate-500 shrink-0">{log.createdAt ? new Date(log.createdAt).toLocaleString("id-ID") : "-"}</span>
+                        <span className={`px-1.5 py-0.5 rounded-[3px] text-[9px] font-black uppercase tracking-wide border ${tone.badge}`}>{actionLabel}</span>
+                        <span className="text-[10px] font-mono text-slate-500 shrink-0">
+                          {log.createdAt ? new Date(log.createdAt).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "-"}
+                        </span>
                       </div>
-                      <div className="flex items-center justify-between gap-1.5">
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-cyan-50 text-cyan-800 border border-cyan-200">
-                          {actionLabel}
-                        </span>
-                        <span className="text-[10px] text-slate-500 group-open:text-[#A57C50]">
-                          {changes.length > 0 ? `${changes.length} perubahan ▾` : "Lihat detail ▾"}
-                        </span>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-slate-900 text-[11px] truncate" title={log.user}>{log.user || "System"}</span>
+                        {hasDetail && (
+                          <span className="text-[10px] font-bold text-slate-500 group-open:text-[#A57C50] shrink-0 flex items-center gap-0.5">
+                            {changes.length > 0 ? `${changes.length} perubahan` : "Detail"} <ChevronDown size={11} className="transition group-open:rotate-180" />
+                          </span>
+                        )}
                       </div>
                     </summary>
-                    <div className="mt-2 pt-2 border-t border-slate-100 space-y-1">
-                      {changes.length > 0 ? (
-                        <ul className="space-y-0.5 text-[10.5px] text-slate-700">
-                          {changes.map((line, i) => <li key={i} className="break-words">• {line}</li>)}
-                        </ul>
-                      ) : (
-                        <p className="text-[10.5px] text-slate-500 italic">Tidak ada perubahan data yang tercatat.</p>
-                      )}
-                      {log.ipAddress && <p className="text-[9.5px] font-mono text-slate-400">IP: {log.ipAddress}</p>}
-                    </div>
+                    {hasDetail && (
+                      <div className="px-2.5 pb-2.5 pt-2 border-t border-slate-100 space-y-1.5">
+                        {changes.length > 0 && (
+                          <ul className="space-y-1 text-[10.5px] text-slate-700">
+                            {changes.map((line, i) => <li key={i} className="break-words pl-2 border-l-2 border-slate-200">{line}</li>)}
+                          </ul>
+                        )}
+                        {log.ipAddress && <p className="text-[9.5px] font-mono text-slate-400">IP {log.ipAddress}</p>}
+                      </div>
+                    )}
                   </details>
-                );
-              })
-            ) : (
-              generateAuditTimeline("ba", formData).map((step: any) => (
-                <div key={step.step} className="p-2.5 bg-white border border-slate-200 rounded-xl space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-slate-900 text-[11px]">{step.user}</span>
-                    <span className="text-[10px] font-mono text-slate-500">{step.time}</span>
+                </li>
+              );
+            })
+          ) : (
+            generateAuditTimeline("ba", formData).map((step: any, i: number, arr: any[]) => (
+              <li key={step.step} className="relative pl-5 pb-3 last:pb-0">
+                {i < arr.length - 1 && <span className="absolute left-[5px] top-3 bottom-0 w-px bg-slate-200" />}
+                <span className="absolute left-0 top-3 w-[11px] h-[11px] rounded-full ring-2 ring-slate-50 bg-slate-400" />
+                <div className="p-2.5 bg-white border border-slate-200 rounded-[4px] space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-slate-900 text-[11px] truncate">{step.user}</span>
+                    <span className="text-[10px] font-mono text-slate-500 shrink-0">{step.time}</span>
                   </div>
                   <p className="text-slate-600 text-[11px]">{step.desc}</p>
                 </div>
-              ))
-            )}
-          </div>
-        )}
+              </li>
+            ))
+          )}
+        </ol>
       </div>
     </div>
   );

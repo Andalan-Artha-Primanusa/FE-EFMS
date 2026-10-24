@@ -83,7 +83,7 @@ export function TrackingTunaiPOPage() {
     `inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition cursor-pointer ${on ? tone : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"}`;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] max-w-[1600px] mx-auto p-2 gap-2 overflow-hidden text-xs">
+    <div className="flex flex-col h-[calc(100dvh-var(--app-topbar-min-height)-2.75rem)] max-w-[1600px] mx-auto p-2 gap-2 overflow-hidden text-xs">
       <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm flex flex-wrap items-center gap-2 shrink-0">
         <div className="relative w-72">
           <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />

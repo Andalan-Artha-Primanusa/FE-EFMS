@@ -226,7 +226,7 @@ export function CustomerView({ c }: { c: any }) {
       {viewMode === "setup" && (
         <div className="space-y-4">
           {/* Client Selector Cards (Master Customer) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,150px),1fr))] gap-3">
             {safeCustomerRows.map((cust) => {
               const isActive = customerKind(cust.code) === kind;
               return (

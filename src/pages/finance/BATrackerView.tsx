@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, CheckCircle, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, ChevronDown, Receipt, TrendingUp, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, Archive, Scale, Truck, Loader2, StickyNote, Settings } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, ChevronDown, Receipt, TrendingUp, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, Archive, Scale, Truck, Loader2, StickyNote, Settings } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, getFinanceTemplates, User as UserType } from "../../lib/api";
@@ -11,7 +11,7 @@ import { MappingsModal } from "../tunai-po/shared";
 import { AccurateDocBadges } from "./details/AccuratePostingPanel";
 
 import {
-  resolveDocumentUrl, formatIDR, parseNumber, formatThousand, formatDateInput,
+  formatIDR, parseNumber, formatThousand, formatDateInput,
   indonesianMonths, formatMonthLabel, formatMonthInput, getRomanMonth,
   generateBANumberPreview, generateInvoiceNumberPreview, getYearFromPeriod,
   generateInvoiceNumber, getBAInvoiceStatus, isPOSDualBA, renderBAStatusBadge,
@@ -125,7 +125,7 @@ export function BATrackerView({ c }: { c: any }) {
           <>
             {/* Header & Filter Periode Bar — FEAST Enterprise Standard */}
             <div className="bg-white border border-slate-200 p-3.5 sm:p-4 shadow-sm space-y-3" style={{ borderRadius: 4 }}>
-              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 border-b border-slate-200 pb-3">
+              <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 border-b border-slate-200 pb-3">
                 <div className="flex items-center gap-2.5">
                   <div className="p-1.5 rounded-[3px] bg-[#FBF6F0] border border-[#E7D3BC] text-[#A57C50] shrink-0">
                     <Calendar className="w-4 h-4 text-[#A57C50]" />
@@ -137,7 +137,7 @@ export function BATrackerView({ c }: { c: any }) {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-between lg:justify-end">
+                <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto justify-between xl:justify-end">
                   {/* Filter Periode Dropdown */}
                   <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-[3px] border border-slate-200">
                     <span className="text-[11px] font-semibold text-slate-500">
@@ -534,17 +534,16 @@ export function BATrackerView({ c }: { c: any }) {
                 </div>
               </div>
               <div className="table-wrapper overflow-x-auto rounded-xl border border-slate-200 shadow-xs">
-                <table className="data-table w-full min-w-[1100px] text-xs text-left border-collapse">
+                <table className="data-table w-full min-w-[1000px] text-xs text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-100 text-slate-800 font-bold text-[10px] uppercase tracking-wider border-b border-slate-300">
                       <th className="p-2 whitespace-nowrap min-w-[190px]">Identitas BA & Customer</th>
                       <th className="p-2 whitespace-nowrap min-w-[95px]">Periode & SOW</th>
                       <th className="p-2 text-right whitespace-nowrap min-w-[135px]">Nilai BA (Nett)</th>
                       <th className="p-2 whitespace-nowrap min-w-[140px]">Alur Tanggal & Lead Time</th>
-                      <th className="p-2 text-center whitespace-nowrap min-w-[140px]">Status Siklus BA</th>
-                      <th className="p-2 whitespace-nowrap min-w-[100px]">Berkas PDF</th>
-                      <th className="p-2 min-w-[180px]">Catatan / Bottleneck</th>
-                      <th className="p-2 text-right whitespace-nowrap min-w-[140px] bg-slate-100 text-slate-800">Aksi & Integrasi</th>
+                      <th className="p-2 text-center whitespace-nowrap min-w-[190px]">Status Siklus BA</th>
+                      <th className="p-2 min-w-[220px]">Catatan / Bottleneck</th>
+                      <th className="p-2 text-right whitespace-nowrap w-px bg-slate-100 text-slate-800">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white text-slate-900 font-medium">
@@ -557,7 +556,7 @@ export function BATrackerView({ c }: { c: any }) {
                         <Fragment key={custCode}>
                           {/* Client Header Row */}
                           <tr className="bg-slate-50/95 font-extrabold text-xs border-t border-b border-slate-200">
-                            <td colSpan={8} className="p-2 bg-slate-100/70 uppercase tracking-wider relative">
+                            <td colSpan={7} className="p-2 bg-slate-100/70 uppercase tracking-wider relative">
                               <div className="sticky left-3 flex items-center gap-2 z-10">
                                 <span className="w-2 h-2 rounded-full bg-cyan-700 inline-block"></span>
                                 <span className="font-extrabold text-slate-900 text-xs tracking-wide">{custCode} • {getCustomerOfficialName(custCode)}</span>
@@ -687,53 +686,20 @@ export function BATrackerView({ c }: { c: any }) {
                                   })()}
                                 </td>
 
-                                {/* Kolom 6: Berkas PDF */}
-                                <td className="p-2 whitespace-nowrap text-[10px]">
-                                  <div className="flex flex-col gap-0.5">
-                                    {row.draftBAPath && (
-                                      <a
-                                        href={resolveDocumentUrl(row.draftBAPath)}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 text-cyan-700 hover:text-cyan-900 hover:underline font-bold transition cursor-pointer"
-                                        title="Buka Draft PDF BA (New Tab)"
-                                      >
-                                        <FileText size={11} /> {isRentalBA(row) ? "Surat Permintaan" : "Draft PDF"}
-                                      </a>
-                                    )}
-                                    {row.finalBAPath && (
-                                      <a
-                                        href={resolveDocumentUrl(row.finalBAPath)}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 text-emerald-700 hover:text-emerald-900 hover:underline font-bold transition cursor-pointer"
-                                        title="Buka Final PDF BA (New Tab)"
-                                      >
-                                        <CheckCircle size={11} /> Final PDF
-                                      </a>
-                                    )}
-                                    {!row.draftBAPath && !row.finalBAPath && (
-                                      <span className="text-[9px] text-slate-400 italic">Belum Ada PDF</span>
-                                    )}
-                                  </div>
-                                </td>
-
-                                {/* Kolom 7: Catatan & Bottleneck (Click-to-Edit) */}
+                                {/* Kolom 6: Catatan & Bottleneck (Click-to-Edit) */}
                                 <td
-                                  className="p-2 min-w-[180px] cursor-pointer group/note hover:bg-amber-50/70 transition rounded-lg"
+                                  className="p-2 cursor-pointer hover:bg-amber-50/70 transition"
                                   onClick={() => setQuickNoteModalItem(row)}
-                                  title="Klik untuk cepat update Catatan & Bottleneck Harian"
+                                  title={[row.notesBottleneck, row.notes].filter(Boolean).join("\n") || "Klik untuk update Catatan & Bottleneck"}
                                 >
-                                  <div className="text-[10px] line-clamp-2">
-                                    {row.notesBottleneck && <span className="font-bold text-slate-800 block">{row.notesBottleneck}</span>}
-                                    <span className="text-slate-600 group-hover/note:text-amber-900">{row.notes || "-"}</span>
-                                    <span className="inline-flex items-center gap-0.5 text-[9px] text-amber-600 font-bold opacity-0 group-hover/note:opacity-100 transition mt-0.5 ml-1">
-                                      <StickyNote size={10} /> Edit Keterangan
-                                    </span>
+                                  <div className="text-[10px] space-y-0.5">
+                                    {row.notesBottleneck && <div className="font-bold text-slate-800 line-clamp-1">{row.notesBottleneck}</div>}
+                                    {row.notes && <div className="text-slate-500 line-clamp-1">{row.notes}</div>}
+                                    {!row.notesBottleneck && !row.notes && <span className="text-slate-300">—</span>}
                                   </div>
                                 </td>
 
-                                {/* Kolom 8: Aksi & Integrasi */}
+                                {/* Kolom 7: Aksi */}
                                 <td className={`p-2 text-right whitespace-nowrap bg-white group-hover:bg-slate-50 ${isDropdownOpen ? "relative z-30" : ""}`}>
                                   <div className="flex items-center justify-end gap-1.5">
                                     {/* POS: Kondisi 1 dari 2 Invoice Terbit (Parsial) */}
@@ -942,14 +908,6 @@ export function BATrackerView({ c }: { c: any }) {
                                       </div>
                                     )}
 
-                                    {/* Belum Diverifikasi (Belum Ready to Invoice) */}
-                                    {/* Verifikasi / Reject / Approve hanya di pratinjau BA */}
-                                    {!isReady && !invStatus.isFullyInvoiced && !invStatus.isPartiallyInvoiced && (
-                                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                                        {row.verifiedBy ? "Menunggu Approval Manager" : "Menunggu Verifikasi"}
-                                      </span>
-                                    )}
-
                                     <button
                                       className="p-1.5 rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 transition cursor-pointer"
                                       onClick={() => openBAModal(row, false)}
@@ -1012,13 +970,9 @@ export function BATrackerView({ c }: { c: any }) {
                                       {pv.billedInvoiceId ? `Ditagih ${pv.billedInvoiceNo || ""}` : pv.verifiedBy ? "Verified" : pv.rejectNote ? "Revisi" : "Submit"}
                                     </span>
                                   </td>
-                                  <td className="p-2" />
                                   <td className="p-2 text-[10px] text-slate-600">{pv.rejectNote || "-"}</td>
                                   <td className="p-2 text-right whitespace-nowrap">
                                     <div className="flex items-center justify-end gap-1.5">
-                                      {!pv.verifiedBy && (
-                                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">Menunggu Verifikasi</span>
-                                      )}
                                       <button
                                         className="p-1.5 rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 transition cursor-pointer"
                                         onClick={() => openBAModal(row, false, true)}
@@ -1051,9 +1005,7 @@ export function BATrackerView({ c }: { c: any }) {
                             <td className="p-2.5 text-right font-mono font-black text-slate-950 text-xs whitespace-nowrap">
                               {formatIDR(custSubtotal)}
                             </td>
-                            <td colSpan={5} className="p-2.5 text-right text-[10.5px] text-slate-500 font-medium italic">
-                              Subtotal Berita Acara site {custCode}
-                            </td>
+                            <td colSpan={4} />
                           </tr>
                         </Fragment>
                       );
@@ -1061,7 +1013,7 @@ export function BATrackerView({ c }: { c: any }) {
 
                     {filteredBARows.length === 0 && (
                       <tr>
-                        <td colSpan={8} className="p-8 text-center text-slate-500 font-medium">
+                        <td colSpan={7} className="p-8 text-center text-slate-500 font-medium">
                           Tidak ada data Berita Acara untuk filter status ({baFilter}) dan periode ({periodFilter}).
                         </td>
                       </tr>
@@ -1077,7 +1029,7 @@ export function BATrackerView({ c }: { c: any }) {
                       <td className="p-3 text-right font-mono text-sm text-slate-900 font-black">
                         {formatIDR(sumAmount(filteredBARows))}
                       </td>
-                      <td colSpan={5} className="p-3 text-right">
+                      <td colSpan={4} className="p-3 text-right">
                         <div className="flex justify-end items-center gap-4 font-mono text-xs">
                           <div className="bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
                             <span className="text-emerald-800 font-sans uppercase font-bold text-[10.5px] mr-1.5">Routing Internal & FP:</span>

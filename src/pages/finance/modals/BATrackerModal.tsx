@@ -19,7 +19,6 @@ import { BAPOSRentalTable } from "./BAPOSRentalTable";
 import { BATrackerHeaderForm } from "./BATrackerHeaderForm";
 import { BATrackerSurveyItems } from "./BATrackerSurveyItems";
 import { BATrackerSurveyMatrix } from "./BATrackerSurveyMatrix";
-import { BATrackerFinancialRecap } from "./BATrackerFinancialRecap";
 import { BATrackerSidebar } from "./BATrackerSidebar";
 
 export function BATrackerModal({ c }: { c: any }) {
@@ -46,8 +45,6 @@ export function BATrackerModal({ c }: { c: any }) {
     invoiceRows = [],
     canVerifyBA,
     can = () => false,
-    setDetailViewItem,
-    createInvoiceFromBA,
     handleFileUpload,
     handleSave,
     reorderBAItems,
@@ -74,7 +71,6 @@ export function BATrackerModal({ c }: { c: any }) {
     loadData,
   } = c || {};
 
-  const [auditTab, setAuditTab] = useState<"flow" | "activity">("flow");
   const [baAuditLogs, setBaAuditLogs] = useState<any[]>([]);
   const [askPending, setAskPending] = useState(false);
   const [baTab, setBaTab] = useState<"input" | "posting">("input");
@@ -162,7 +158,7 @@ export function BATrackerModal({ c }: { c: any }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-1.5 sm:p-3">
-      <div className="bg-white border border-slate-200 rounded-[4px] w-full max-w-[96vw] 2xl:max-w-[1550px] shadow-2xl flex flex-col max-h-[96vh] transition-all overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-[4px] w-full max-w-[96vw] 2xl:max-w-[1550px] shadow-2xl flex flex-col max-h-[96dvh] transition-all overflow-hidden">
         {/* Modal Header (Sticky Top) */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-200 p-4 sm:p-5 pb-3 bg-white shrink-0 sticky top-0 z-20">
           <div className="flex items-center gap-2.5 flex-wrap min-w-0">
@@ -308,7 +304,6 @@ export function BATrackerModal({ c }: { c: any }) {
                     setBaDeductionItems={setBaDeductionItems}
                     isInlineEditingBA={isInlineEditingBA}
                     activeSOWCatalog={activeSOWCatalog}
-                    setActiveBAStep={setActiveBAStep}
                     calc={calc}
                   />
                 )}
@@ -360,22 +355,6 @@ export function BATrackerModal({ c }: { c: any }) {
                   />
                 )}
 
-                {activeBAStep === 3 && !pending && (
-                  <BATrackerFinancialRecap
-                    formData={formData}
-                    editItem={editItem}
-                    user={user}
-                    invoiceRows={invoiceRows}
-                    setModalType={setModalType}
-                    setDetailViewItem={setDetailViewItem}
-                    createInvoiceFromBA={can("invoice", "write") ? createInvoiceFromBA : undefined}
-                    setActiveBAStep={setActiveBAStep}
-                    baAuditLogs={baAuditLogs}
-                    auditTab={auditTab}
-                    setAuditTab={setAuditTab}
-                  />
-                )}
-
                 {pv && (
                   <table className="w-full max-w-md text-xs border border-slate-200 rounded-[4px]">
                     <tbody className="divide-y divide-slate-100">
@@ -408,8 +387,6 @@ export function BATrackerModal({ c }: { c: any }) {
                 editItem={editItem}
                 invoiceRows={invoiceRows}
                 calc={calc}
-                auditTab={auditTab}
-                setAuditTab={setAuditTab}
                 baAuditLogs={baAuditLogs}
                 isInlineEditingBA={isInlineEditingBA}
                 handleFileUpload={can("ba_tracker", "upload") ? handleFileUpload : undefined}
@@ -506,7 +483,7 @@ export function BATrackerModal({ c }: { c: any }) {
 
       {askPending && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40">
-          <div className="bg-white rounded-[4px] border border-slate-200 shadow-2xl p-5 w-full max-w-sm space-y-4">
+          <div className="max-h-[90dvh] overflow-y-auto bg-white rounded-[4px] border border-slate-200 shadow-2xl p-5 w-full max-w-sm space-y-4">
             <h4 className="text-sm font-black text-slate-900">Apakah Ada Pending Volume?</h4>
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => saveAnswer(false)} className="px-5 py-2 rounded-[3px] border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs cursor-pointer">Tidak</button>

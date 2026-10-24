@@ -72,7 +72,7 @@ export function NonPOVoucherModal({ c, category, onClose }: Props) {
   return (
     <Modal title={`Voucher ${VOUCHER_CATEGORIES[category] || category}`} onClose={onClose} width="max-w-4xl">
       <form onSubmit={save} className="space-y-4 text-xs">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Rekening Sumber">
             <select value={form.companyBankId} onChange={(e) => set({ companyBankId: Number(e.target.value) })} className={inputCls}>
               {c.companyBanks.map((b) => (
@@ -90,7 +90,7 @@ export function NonPOVoucherModal({ c, category, onClose }: Props) {
           </Field>
         </div>
 
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Field label="Penerima">
             <input required value={form.payeeName} onChange={(e) => set({ payeeName: e.target.value })} className={inputCls} />
           </Field>
@@ -119,11 +119,11 @@ export function NonPOVoucherModal({ c, category, onClose }: Props) {
           </Field>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Periode Pengajuan">
             <PeriodInput value={form} onChange={set} />
           </Field>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <Field label="Keterangan">
               <input value={form.justification} onChange={(e) => set({ justification: e.target.value })} className={inputCls} />
             </Field>
@@ -173,7 +173,7 @@ export function NonPOVoucherModal({ c, category, onClose }: Props) {
           <Plus className="w-3.5 h-3.5" /> Baris
         </button>
 
-        <div className="grid grid-cols-3 gap-3 items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
           <Field label="Jenis PPh">
             <select value={form.pphType} onChange={(e) => set({ pphType: e.target.value, pphAmount: e.target.value ? form.pphAmount : "" })} className={inputCls}>
               <option value="">Tanpa PPh</option>

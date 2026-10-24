@@ -192,7 +192,7 @@ export const JournalEntryModal: React.FC<JournalEntryModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm overflow-y-auto">
       <div
-        className="relative w-full max-w-5xl my-8 bg-white border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] shadow-2xl"
+        className="relative w-full max-w-5xl my-8 bg-white border border-slate-200 overflow-hidden flex flex-col max-h-[90dvh] shadow-2xl"
         style={{ borderRadius: 4 }}
       >
         {/* Header */}

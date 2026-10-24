@@ -77,7 +77,7 @@ export const SBSPenaltyModal: React.FC<SBSPenaltyModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs font-sans">
-      <div className="bg-white rounded-[4px] shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="max-h-[90dvh] overflow-y-auto bg-white rounded-[4px] shadow-2xl border border-slate-200 w-full max-w-lg animate-in fade-in zoom-in-95 duration-150">
         {/* AAP Brand Ink Header */}
         <div className="px-6 py-4 bg-[#1A1612] text-white border-b border-amber-900/30 flex items-center justify-between">
           <div>

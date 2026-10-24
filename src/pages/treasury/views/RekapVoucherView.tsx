@@ -80,7 +80,7 @@ export default function RekapVoucherView() {
   const selectCls = "text-xs border border-slate-300 rounded px-2.5 py-1.5 bg-white text-slate-700";
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] max-w-[1600px] mx-auto p-2 gap-2 overflow-hidden font-sans text-xs">
+    <div className="flex flex-col h-[calc(100dvh-var(--app-topbar-min-height)-2.75rem)] max-w-[1600px] mx-auto p-2 gap-2 overflow-hidden font-sans text-xs">
       {/* Filters */}
       <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex flex-wrap items-center gap-2">
