@@ -19,3 +19,8 @@ Before writing any code, stop at the first rung that holds:
 - No boilerplate or unused scaffolding.
 - Deletion over addition. Boring over clever. Fewest files possible.
 - Bug fix = root cause, not symptom: fix shared functions at the source so all callers benefit.
+- Every UI change must be responsive: phone (portrait/landscape), tablet, laptop 1366, split-screen, 2K — in light and dark mode.
+  - Page content sits beside the sidebar, so prefer content-aware layouts (`grid-cols-[repeat(auto-fit,minmax(min(100%,Npx),1fr))]`, `flex-wrap`) over `lg:`/`xl:` grids; ratio layouts start at `xl:`.
+  - Heights use `dvh`, never `vh`; full-page views use `h-[calc(100dvh-var(--app-topbar-min-height)-2.75rem)]`.
+  - Modal panels always get `max-h-[90dvh] overflow-y-auto` (or a scrolling body); multi-column grids start at `grid-cols-1 sm:`; wide tables scroll in `overflow-x-auto`.
+  - No hard-coded colors that skip the dark-mode tokens.

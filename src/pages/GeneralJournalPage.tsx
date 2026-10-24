@@ -889,7 +889,7 @@ export function GeneralJournalPage({
   }, [activeTab, excelBundle]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] bg-white text-slate-900 relative overflow-hidden font-sans border-t border-slate-200">
+    <div className="flex flex-col h-[calc(100dvh-var(--app-topbar-min-height)-2.75rem)] bg-white text-slate-900 relative overflow-hidden font-sans border-t border-slate-200">
       {/* 🟢 TOP EXCEL RIBBON & BRANDING HEADER */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-[#107c41] text-white shrink-0 select-none shadow-sm">
         <div className="flex items-center gap-2.5">

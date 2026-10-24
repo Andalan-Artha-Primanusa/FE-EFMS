@@ -1,5 +1,5 @@
 import React from "react";
-import { Calculator, ArrowRight } from "lucide-react";
+import { Calculator } from "lucide-react";
 import { formatIDR, formatThousand, FormattedNumberInput } from "../helpers";
 
 interface BATrackerSurveyMatrixProps {
@@ -206,21 +206,13 @@ export function BATrackerSurveyMatrix({
       })()}
 
       {/* Navigation Buttons */}
-      <div className="flex justify-between items-center pt-2">
+      <div className="flex justify-start items-center pt-2">
         <button
           type="button"
           onClick={() => setActiveBAStep(1)}
           className="px-3.5 py-2 bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold rounded-[3px] transition text-xs cursor-pointer"
         >
           Kembali ke Step 1
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveBAStep(3)}
-          className="px-4 py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold rounded-[3px] flex items-center gap-1.5 transition text-xs shadow-xs cursor-pointer"
-        >
-          <span>Lanjut ke Step 3 (Tanda Tangan & Final)</span>
-          <ArrowRight size={14} />
         </button>
       </div>
     </div>

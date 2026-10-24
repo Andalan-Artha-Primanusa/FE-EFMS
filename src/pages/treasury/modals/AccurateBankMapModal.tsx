@@ -55,7 +55,7 @@ export function AccurateBankMapModal({ c, isOpen, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-[4px] shadow-2xl border border-stone-200 w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-[4px] shadow-2xl border border-stone-200 w-full max-w-2xl max-h-[90dvh] flex flex-col overflow-hidden">
         <div className="shrink-0 bg-[#1A1612] text-white p-4 flex items-center justify-between border-b border-amber-900/30">
           <div className="flex items-center gap-2">
             <Landmark className="w-5 h-5 text-[#A57C50]" />

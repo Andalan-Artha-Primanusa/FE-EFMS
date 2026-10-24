@@ -133,7 +133,7 @@ export function ApAgingView({ c }: Props) {
     <div className="flex-1 min-h-0 flex flex-col gap-2 font-sans text-xs overflow-hidden">
       {/* 1. Top Metrics Banner */}
       {agingSummary && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 shrink-0">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,160px),1fr))] gap-2 shrink-0">
           <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
             <div className="text-xs text-slate-500 font-medium">Total Outstanding</div>
             <div className="text-base font-bold text-slate-900 mt-1">

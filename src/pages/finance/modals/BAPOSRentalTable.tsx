@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowRight, Fuel, Plus, Trash2, Truck } from "lucide-react";
+import { Fuel, Plus, Trash2, Truck } from "lucide-react";
 import { formatIDR, FormattedNumberInput } from "../helpers";
 import { calcIDR, calcItemsAmount } from "../ba_calculations";
 import type { BACalc } from "../../../types";
@@ -15,7 +15,6 @@ interface BAPOSRentalTableProps {
   setBaDeductionItems: React.Dispatch<React.SetStateAction<any[]>>;
   isInlineEditingBA: boolean;
   activeSOWCatalog: any[];
-  setActiveBAStep: (step: number) => void;
   calc?: BACalc;
 }
 
@@ -34,7 +33,6 @@ export function BAPOSRentalTable({
   setBaDeductionItems,
   isInlineEditingBA,
   activeSOWCatalog,
-  setActiveBAStep,
   calc,
 }: BAPOSRentalTableProps) {
   const rental = formData.posData?.rental || { avgFuelPrice: 0, fuelLogs: [] };
@@ -256,15 +254,6 @@ export function BAPOSRentalTable({
           </tbody>
         </table>
       </div>
-
-      {!formData.pendingMode && (
-        <div className="flex justify-end pt-2">
-          <button type="button" onClick={() => setActiveBAStep(3)} className="px-4 py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold rounded-[3px] flex items-center gap-1.5 transition text-xs shadow-xs cursor-pointer">
-            <span>Lanjut</span>
-            <ArrowRight size={14} />
-          </button>
-        </div>
-      )}
     </div>
   );
 }

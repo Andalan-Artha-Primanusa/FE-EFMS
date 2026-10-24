@@ -628,7 +628,7 @@ export function PaymentPlanView({ c, category }: Props) {
       {/* 4. Reject Confirmation Modal */}
       {showRejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-md p-4 space-y-3">
+          <div className="max-h-[90dvh] overflow-y-auto bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-md p-4 space-y-3">
             <h3 className="text-base font-bold text-rose-700 flex items-center gap-1.5">
               <XCircle className="w-5 h-5" /> Tolak Voucher
             </h3>

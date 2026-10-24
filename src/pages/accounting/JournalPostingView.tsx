@@ -252,7 +252,7 @@ export const JournalPostingView: React.FC<JournalPostingViewProps> = ({
       {/* Reject Modal */}
       {rejectId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white border border-slate-200 p-5 space-y-4 shadow-xl" style={{ borderRadius: 4 }}>
+          <div className="max-h-[90dvh] overflow-y-auto w-full max-w-md bg-white border border-slate-200 p-5 space-y-4 shadow-xl" style={{ borderRadius: 4 }}>
             <div className="flex items-center gap-3">
               <div className="p-2 bg-rose-50 border border-rose-200" style={{ borderRadius: 3 }}>
                 <RotateCcw className="w-4 h-4 text-rose-600" />

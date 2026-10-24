@@ -33,7 +33,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   const [viewRows, setViewRows] = useState<any[]>([]);
   const [viewLoading, setViewLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => (typeof window !== "undefined" && window.innerWidth > 820 && window.innerWidth <= 1280));
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => (typeof window !== "undefined" && window.innerWidth > 767 && window.innerWidth <= 1280));
   const query = "";
   const [notifications, setNotifications] = useState<AuditLog[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -141,6 +141,16 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
   }, [activeView, outlet]);
 
   useEffect(() => {
+    const tablet = window.matchMedia("(min-width: 768px) and (max-width: 1280px)");
+    const mobile = window.matchMedia("(max-width: 767px)");
+    const onTablet = () => setSidebarCollapsed(tablet.matches);
+    const onMobile = () => { if (!mobile.matches) setSidebarOpen(false); };
+    tablet.addEventListener("change", onTablet);
+    mobile.addEventListener("change", onMobile);
+    return () => { tablet.removeEventListener("change", onTablet); mobile.removeEventListener("change", onMobile); };
+  }, []);
+
+  useEffect(() => {
     if (!notice) return;
     const timer = setTimeout(() => {
       setNoticeState(null);
@@ -201,7 +211,10 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
                   title={group.group} 
                   onClick={(e) => {
                     e.preventDefault();
-                    toggleGroup(group.group);
+                    if (sidebarCollapsed) {
+                      setSidebarCollapsed(false);
+                      setOpenGroups((prev) => ({ ...prev, [group.group]: true }));
+                    } else toggleGroup(group.group);
                   }}
                   className="cursor-pointer select-none"
                 >
@@ -224,6 +237,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
           })}
         </nav>
       </aside>
+      {sidebarOpen && <div className="fixed inset-0 z-[29] bg-black/40 md:hidden" onClick={() => setSidebarOpen(false)} />}
       <main className="workspace">
         <header className="sticky top-0 z-20 topbar">
           <div className="topbar-main">

@@ -22,7 +22,7 @@ export function DashboardView({ c }: { c: any }) {
   return (
         <>
           {/* Top KPI Cards - Neutral & Clean Corporate Style */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2k:grid-cols-5 gap-3">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,200px),1fr))] gap-3">
             {(dashboardData?.kpis ?? []).map((kpi: any, idx: number) => {
               const label = String(kpi?.Label || kpi?.label || "");
               const tone = String(kpi?.Tone || kpi?.tone || "");
@@ -153,8 +153,8 @@ export function DashboardView({ c }: { c: any }) {
           </Panel>
 
           {/* Top Overdue & BA Bottlenecks */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div className="xl:col-span-2">
               <Panel title="Top Invoice Overdue — Prioritas Collection Action">
                 <div className="table-wrapper overflow-x-auto rounded-[4px] border border-slate-200 shadow-xs">
                   <table className="data-table w-full text-xs text-left border-collapse font-sans">

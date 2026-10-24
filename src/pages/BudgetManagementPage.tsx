@@ -482,7 +482,7 @@ export function BudgetManagementPage({ viewTitle, onNotice }: { viewTitle: strin
       {/* Modal Form */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-[2px]">
-          <div className="bg-white max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4 text-sm" style={{ borderRadius: 4 }}>
+          <div className="max-h-[90dvh] overflow-y-auto bg-white max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4 text-sm" style={{ borderRadius: 4 }}>
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
                 <WalletCards className="w-4 h-4 text-[#A57C50]" />

@@ -444,7 +444,7 @@ function RejectForm({ busy, onCancel, onSubmit }: { busy: boolean; onCancel: () 
   const [reason, setReason] = useState("");
   return (
     <div className="border border-rose-200 bg-rose-50 rounded-[3px] p-3 space-y-3">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Field label="Kategori">
           <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls}>
             <option value="">—</option>
@@ -455,7 +455,7 @@ function RejectForm({ busy, onCancel, onSubmit }: { busy: boolean; onCancel: () 
             ))}
           </select>
         </Field>
-        <div className="col-span-2">
+        <div className="sm:col-span-2">
           <Field label="Alasan">
             <textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} className={inputCls} />
           </Field>

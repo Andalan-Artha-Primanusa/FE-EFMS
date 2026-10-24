@@ -71,7 +71,7 @@ export function FormModals({ c }: { c: any }) {
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white border border-slate-200 rounded-[4px] w-full max-w-3xl shadow-2xl flex flex-col max-h-[96vh] overflow-hidden transition-all"
+        className="bg-white border border-slate-200 rounded-[4px] w-full max-w-3xl shadow-2xl flex flex-col max-h-[96dvh] overflow-hidden transition-all"
       >
         {/* Modal Header (Sticky Top) */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-200 p-4 sm:p-5 pb-3 bg-white shrink-0 sticky top-0 z-20">

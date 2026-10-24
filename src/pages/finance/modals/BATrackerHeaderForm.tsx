@@ -1,5 +1,5 @@
 import React from "react";
-import { Layers, Calculator, UserCheck } from "lucide-react";
+import { Layers, Calculator } from "lucide-react";
 import { MonthPickerInput, matchPeriod } from "../helpers";
 import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF, customerKind, isRentalBA, isPOSMDOBA } from "../ba_calculations";
 import { obSplitSOWs, sowFor, sowTierRate, computeRFIndex, rfTemplateFor, ptroContractRates, baItemsFromSOW, kursForPeriod } from "../masterRegistry";
@@ -72,7 +72,7 @@ export function BATrackerHeaderForm({
   return (
     <div className="space-y-3">
       {/* Stepper Navigation Bar */}
-      {!formData.pendingMode && <div className={`grid grid-cols-1 ${isRental ? "sm:grid-cols-2" : "sm:grid-cols-3"} gap-2 bg-slate-100 p-1.5 rounded-[4px] border border-slate-200 text-xs font-bold`}>
+      {!formData.pendingMode && !isRental && <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-[4px] border border-slate-200 text-xs font-bold`}>
         <button
           type="button"
           onClick={() => setActiveBAStep(1)}
@@ -82,22 +82,13 @@ export function BATrackerHeaderForm({
           <span>1. SOW Operasi & Volume</span>
         </button>
 
-        {!isRental && <button
+        <button
           type="button"
           onClick={() => setActiveBAStep(2)}
           className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-[3px] transition cursor-pointer ${activeBAStep === 2 ? "bg-[#A57C50] text-white shadow-xs font-extrabold" : "text-slate-600 hover:bg-slate-200"}`}
         >
           <Calculator size={13} />
           <span>2. Survey & Delta BA</span>
-        </button>}
-
-        <button
-          type="button"
-          onClick={() => setActiveBAStep(3)}
-          className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-[3px] transition cursor-pointer ${activeBAStep === 3 ? "bg-[#A57C50] text-white shadow-xs font-extrabold" : "text-slate-600 hover:bg-slate-200"}`}
-        >
-          <UserCheck size={13} />
-          <span>{isRental ? "2" : "3"}. Tanda Tangan & Final</span>
         </button>
       </div>}
 

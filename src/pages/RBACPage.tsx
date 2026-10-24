@@ -905,8 +905,8 @@ export function RBACPage({
       {activeTab === "users" && (
         <div className="space-y-4">
           {/* Action & Filter Bar */}
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-3 bg-white p-3.5 rounded-lg border border-[#E6E1D9] shadow-xs">
-            <div className="flex flex-1 flex-wrap items-center gap-2.5 w-full lg:w-auto">
+          <div className="flex flex-col xl:flex-row items-center justify-between gap-3 bg-white p-3.5 rounded-lg border border-[#E6E1D9] shadow-xs">
+            <div className="flex flex-1 flex-wrap items-center gap-2.5 w-full xl:w-auto">
               <div className="relative flex-1 min-w-[200px] max-w-sm">
                 <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
@@ -956,7 +956,7 @@ export function RBACPage({
               </select>
             </div>
 
-            <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
+            <div className="flex items-center gap-2 w-full xl:w-auto justify-end">
               <button
                 onClick={loadAllUsers}
                 disabled={loadingUsers}
@@ -1118,7 +1118,7 @@ export function RBACPage({
               <Building2 size={15} className="text-[#a57c50]" />
               1. Head Office (HO) Management & Operational Roles
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))] gap-3.5">
               {unifiedRoleList
                 .filter((r) => {
                   const meta = OFFICIAL_ROLES_METADATA.find((m) => m.role === r.role);
@@ -1196,7 +1196,7 @@ export function RBACPage({
               <MapPin size={15} className="text-[#a57c50]" />
               2. Site-Specific Admin Presets (Restricted Scope)
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))] gap-3.5">
               {unifiedRoleList
                 .filter((r) => {
                   const meta = OFFICIAL_ROLES_METADATA.find((m) => m.role === r.role);
@@ -1558,7 +1558,7 @@ export function RBACPage({
       {/* MODAL: TAMBAH / EDIT USER & HAK AKSES ROLE (2-Column Side-by-Side) */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-xl max-w-5xl w-full p-5 sm:p-6 shadow-2xl border border-[#E6E1D9] max-h-[92vh] flex flex-col">
+          <div className="bg-white rounded-xl max-w-5xl w-full p-5 sm:p-6 shadow-2xl border border-[#E6E1D9] max-h-[92dvh] flex flex-col">
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3.5 border-b border-[#E6E1D9] flex-shrink-0">
               <div className="flex items-center gap-2.5">
@@ -1892,7 +1892,7 @@ export function RBACPage({
       {/* MODAL: RESET PASSWORD CONFIRMATION */}
       {resetTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-lg max-w-md w-full p-5 shadow-2xl border border-[#E6E1D9] space-y-3.5">
+          <div className="max-h-[90dvh] overflow-y-auto bg-white rounded-lg max-w-md w-full p-5 shadow-2xl border border-[#E6E1D9] space-y-3.5">
             <div className="text-center space-y-1">
               <h3 className="font-bold text-[#1e2b4d] text-base">Reset Password Pengguna</h3>
               <p className="text-xs text-[#6B6055]">
@@ -1969,7 +1969,7 @@ export function RBACPage({
       {/* MODAL: DELETE CONFIRMATION */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-lg max-w-md w-full p-5 shadow-2xl border border-[#E6E1D9] space-y-3.5">
+          <div className="max-h-[90dvh] overflow-y-auto bg-white rounded-lg max-w-md w-full p-5 shadow-2xl border border-[#E6E1D9] space-y-3.5">
             <div className="text-center space-y-1">
               <h3 className="font-bold text-[#1e2b4d] text-base">Konfirmasi Hapus Pengguna</h3>
               <p className="text-xs text-[#6B6055]">
@@ -1999,7 +1999,7 @@ export function RBACPage({
       {/* MODAL: EDIT ROLE & PERMISSIONS */}
       {roleModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-lg max-w-2xl w-full p-5 shadow-2xl border border-[#E6E1D9] max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-5 shadow-2xl border border-[#E6E1D9] max-h-[90dvh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-[#E6E1D9]">
               <h3 className="font-bold text-[#1e2b4d] text-sm flex items-center gap-1.5">
                 <ShieldCheck size={16} className="text-[#a57c50]" />
@@ -2118,7 +2118,7 @@ export function RBACPage({
       {/* MODAL: CREATE / EDIT T-CODE */}
       {tcodeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-lg max-w-md w-full p-5 shadow-2xl border border-[#E6E1D9] space-y-3.5">
+          <div className="max-h-[90dvh] overflow-y-auto bg-white rounded-lg max-w-md w-full p-5 shadow-2xl border border-[#E6E1D9] space-y-3.5">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-[#1e2b4d] text-sm flex items-center gap-1.5">
                 <Hash size={16} className="text-[#a57c50]" />
@@ -2249,7 +2249,7 @@ export function RBACPage({
       {/* MODAL: DELETE T-CODE CONFIRMATION */}
       {deleteTcodeTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-lg max-w-md w-full p-5 shadow-2xl border border-[#E6E1D9] space-y-3.5">
+          <div className="max-h-[90dvh] overflow-y-auto bg-white rounded-lg max-w-md w-full p-5 shadow-2xl border border-[#E6E1D9] space-y-3.5">
             <div className="text-center space-y-1">
               <h3 className="font-bold text-[#1e2b4d] text-base">Konfirmasi Hapus T-Code</h3>
               <p className="text-xs text-[#6B6055]">

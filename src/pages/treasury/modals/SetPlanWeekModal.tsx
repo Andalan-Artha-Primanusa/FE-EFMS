@@ -42,7 +42,7 @@ export function SetPlanWeekModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-[4px] shadow-2xl border border-stone-200 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="max-h-[90dvh] overflow-y-auto bg-white rounded-[4px] shadow-2xl border border-stone-200 w-full max-w-md animate-in fade-in zoom-in-95 duration-150">
         {/* Header Enterprise AAP Brand Ink */}
         <div className="bg-[#1A1612] text-white p-4 flex items-center justify-between border-b border-amber-900/30">
           <div className="flex items-center gap-2">

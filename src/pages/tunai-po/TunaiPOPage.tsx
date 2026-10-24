@@ -85,7 +85,7 @@ export function TunaiPOPage({ kind = "TUNAI_PO" }: { kind?: TPOKind }) {
   const sumPay = fromCents(filtered.reduce((s, r) => s + cents(r.payAmount), 0));
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] max-w-[1600px] mx-auto p-2 gap-2 overflow-hidden text-xs">
+    <div className="flex flex-col h-[calc(100dvh-var(--app-topbar-min-height)-2.75rem)] max-w-[1600px] mx-auto p-2 gap-2 overflow-hidden text-xs">
       <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative w-72">

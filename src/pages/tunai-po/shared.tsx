@@ -69,7 +69,7 @@ export function OverdueBadge() {
 export function Modal({ title, onClose, children, width = "max-w-2xl" }: { title: React.ReactNode; onClose: () => void; children: React.ReactNode; width?: string }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-      <div className={`bg-white rounded-[4px] shadow-2xl border border-slate-200 w-full ${width} max-h-[92vh] flex flex-col overflow-hidden`}>
+      <div className={`bg-white rounded-[4px] shadow-2xl border border-slate-200 w-full ${width} max-h-[92dvh] flex flex-col overflow-hidden`}>
         <div className="bg-[#1A1612] text-white px-4 py-3 flex items-center justify-between shrink-0">
           <h3 className="text-sm font-bold tracking-wide">{title}</h3>
           <button onClick={onClose} className="text-stone-400 hover:text-white p-1 rounded-[3px] transition cursor-pointer">
@@ -355,11 +355,11 @@ export function VendorBank({
 
   if (edit) {
     return (
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <input value={edit.bankName} onChange={(e) => setEdit({ ...edit, bankName: e.target.value })} placeholder="Bank" className={inputCls} />
         <input value={edit.accountNumber} onChange={(e) => setEdit({ ...edit, accountNumber: e.target.value })} placeholder="No. Rekening" className={`${inputCls} font-mono`} />
         <input value={edit.accountName} onChange={(e) => setEdit({ ...edit, accountName: e.target.value })} placeholder="Atas Nama" className={inputCls} />
-        <div className="col-span-3 flex justify-end gap-2">
+        <div className="sm:col-span-3 flex justify-end gap-2">
           <button type="button" onClick={() => setEdit(null)} className={btnSecondary}>
             Batal
           </button>

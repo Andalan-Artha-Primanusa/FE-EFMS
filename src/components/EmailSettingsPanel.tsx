@@ -42,8 +42,8 @@ export function EmailSettingsPanel({ notify }: { notify: (type: "success" | "err
       <h3 className="font-bold text-[#1e2b4d] text-sm flex items-center gap-1.5">
         <Mail size={15} className="text-[#a57c50]" /> Email Notifikasi (SMTP)
       </h3>
-      <div className="grid grid-cols-3 gap-3">
-        <div className="col-span-2">{field("SMTP Host", "host", { placeholder: "smtp.hostinger.com" })}</div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="sm:col-span-2">{field("SMTP Host", "host", { placeholder: "smtp.hostinger.com" })}</div>
         {field("Port", "port", { placeholder: "587" })}
       </div>
       {field("Email Pengirim", "user", { type: "email", placeholder: "feast@domain-kantor.co.id" })}

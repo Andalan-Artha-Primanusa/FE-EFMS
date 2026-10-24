@@ -179,7 +179,7 @@ export function useFinanceController({
     const d = draft.data;
     setFormData(d.formData);
     setBaOperatingItems(d.baOperatingItems); setBaMDOItems(d.baMDOItems); setBaDeductionItems(d.baDeductionItems);
-    setActiveBAStep(d.activeBAStep);
+    setActiveBAStep(d.activeBAStep === 2 ? 2 : 1);
     onNotice("Draf input sebelumnya berhasil dipulihkan.");
   }, [draftId]);
   useEffect(() => {

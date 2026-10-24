@@ -35,7 +35,7 @@ export function TreasuryShell({
   const lastSync = c.syncState?.last?.endedAt;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] max-w-[1600px] mx-auto p-2 gap-2 overflow-hidden">
+    <div className="flex flex-col h-[calc(100dvh-var(--app-topbar-min-height)-2.75rem)] max-w-[1600px] mx-auto p-2 gap-2 overflow-hidden">
       {/* Toolbar — the SOP steps are sidebar sub-menus of Treasury Management */}
       <div className="bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-2 overflow-x-auto shrink-0">
         {pendingBanks > 0 ? (

@@ -62,7 +62,7 @@ export function ImportAccurateModal({ c }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-      <div className="bg-white rounded-[4px] shadow-2xl border border-amber-900/30 w-full max-w-lg overflow-hidden flex flex-col">
+      <div className="max-h-[90dvh] overflow-y-auto bg-white rounded-[4px] shadow-2xl border border-amber-900/30 w-full max-w-lg flex flex-col">
         {/* Enterprise AAP Brand Ink Header */}
         <div className="bg-[#1A1612] px-5 py-3.5 border-b border-amber-900/30 flex items-center justify-between">
           <h3 className="text-sm font-extrabold text-white flex items-center gap-2.5 tracking-wide uppercase">

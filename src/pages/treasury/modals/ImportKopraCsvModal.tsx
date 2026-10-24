@@ -65,7 +65,7 @@ export function ImportKopraCsvModal({ c }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-lg overflow-hidden">
+      <div className="max-h-[90dvh] overflow-y-auto bg-white rounded-lg shadow-xl border border-slate-200 w-full max-w-lg">
         <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
           <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <FileText className="w-5 h-5 text-emerald-600" /> Import Mutasi Rekening CSV Kopra Mandiri
