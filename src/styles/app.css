@@ -502,28 +502,28 @@ textarea { min-height: 80px; resize: vertical; }
   max-width: 100%;
   flex: 0 0 auto;
 }
-details { @apply border-b border-slate-100 py-1.5; }
-summary {
+.sidebar details { @apply border-b border-slate-100 py-1.5; }
+.sidebar summary {
   @apply flex list-none items-center gap-2.5 rounded-enterprise px-2.5 py-1.5 font-bold text-finance-navy transition duration-150;
   min-height: calc(var(--app-control-height, 2.5rem) - 0.25rem);
   font-size: 0.85rem;
 }
-summary::-webkit-details-marker { display: none; }
-summary svg:first-child {
+.sidebar summary::-webkit-details-marker { display: none; }
+.sidebar summary svg:first-child {
   @apply text-finance-teal;
   width: 1.15rem;
   height: 1.15rem;
 }
-summary svg:last-child { margin-left: auto; width: 0.95rem; height: 0.95rem; }
-details button {
+.sidebar summary svg:last-child { margin-left: auto; width: 0.95rem; height: 0.95rem; }
+.sidebar details button {
   @apply ml-6 block rounded-enterprise border-0 bg-transparent px-2.5 py-1.5 text-left font-medium text-finance-muted transition duration-150;
   width: calc(100% - 24px);
   font-size: 0.8rem;
 }
-details button:hover, details button.active, summary:hover {
+.sidebar details button:hover, .sidebar details button.active, .sidebar summary:hover {
   @apply bg-cyan-50 text-finance-navy;
 }
-details button.active {
+.sidebar details button.active {
   font-weight: 850;
   background: var(--brand-soft);
   box-shadow: inset 4px 0 0 #a57c50;
@@ -553,16 +553,16 @@ details button.active {
   object-fit: cover;
   object-position: center;
 }
-.sidebar-collapsed summary span,
-.sidebar-collapsed summary svg:last-child,
-.sidebar-collapsed details button {
+.sidebar-collapsed .sidebar summary span,
+.sidebar-collapsed .sidebar summary svg:last-child,
+.sidebar-collapsed .sidebar details button {
   display: none;
 }
-.sidebar-collapsed details {
+.sidebar-collapsed .sidebar details {
   border-bottom: 0;
   padding: 4px 0;
 }
-.sidebar-collapsed summary {
+.sidebar-collapsed .sidebar summary {
   justify-content: center;
   padding: 8px;
 }
@@ -1499,12 +1499,12 @@ th { color: var(--ink-600); font-size: 0.7rem; text-transform: uppercase; letter
     justify-content: flex-start;
     margin-bottom: 22px;
   }
-  .sidebar-collapsed summary span,
-  .sidebar-collapsed summary svg:last-child,
-  .sidebar-collapsed details button {
+  .sidebar-collapsed .sidebar summary span,
+  .sidebar-collapsed .sidebar summary svg:last-child,
+  .sidebar-collapsed .sidebar details button {
     display: initial;
   }
-  .sidebar-collapsed details button {
+  .sidebar-collapsed .sidebar details button {
     display: block;
   }
   .topbar {

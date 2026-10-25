@@ -17,7 +17,7 @@ const BA_ITEM_LABELS: Record<string, string> = {
   area: "Area", material: "Material", unit: "Satuan", initialVolume: "Volume TC", adjustedVolume: "Vol Survey", distanceM: "Jarak (m)", rate: "Rate",
 };
 const BA_ACTION_LABELS: Record<string, string> = {
-  save: "Simpan", verify: "Verifikasi", approve: "Approval", update_notes: "Update Catatan", delete: "Hapus", generate_invoice: "Generate Invoice",
+  save: "Simpan", verify: "Verifikasi", approve: "Approval", update_notes: "Update Catatan", delete: "Hapus", generate_invoice: "Generate Invoice", accurate_sync: "Sync Accurate",
 };
 
 const BA_ACTION_TONES: Record<string, { dot: string; badge: string }> = {
@@ -27,6 +27,7 @@ const BA_ACTION_TONES: Record<string, { dot: string; badge: string }> = {
   update_notes: { dot: "bg-amber-500", badge: "bg-amber-50 text-amber-800 border-amber-200" },
   delete: { dot: "bg-rose-500", badge: "bg-rose-50 text-rose-800 border-rose-200" },
   generate_invoice: { dot: "bg-purple-500", badge: "bg-purple-50 text-purple-800 border-purple-200" },
+  accurate_sync: { dot: "bg-indigo-500", badge: "bg-indigo-50 text-indigo-800 border-indigo-200" },
 };
 
 const fmtAuditValue = (v: any): string => {
@@ -62,6 +63,13 @@ const diffBASnapshots = (before: any, after: any): string[] => {
   beforeItems.forEach((it) => lines.push(`− Hapus item ${itemName(it)}`));
   return lines;
 };
+
+// Log accurate_sync menyimpan AccuratePosting {status, error, docs{OP|MDO: {number}}} di `after`.
+const accuratePostingLines = (a: any): string[] => a ? [
+  `Status: ${a.status || "-"}`,
+  ...Object.entries(a.docs || {}).map(([k, d]: [string, any]) => `JV ${k}: ${d?.number || "-"}`),
+  ...(a.error ? [`Error: ${a.error}`] : []),
+] : [];
 
 interface BATrackerSidebarProps {
   formData: any;
@@ -289,29 +297,31 @@ export function BATrackerSidebar({
         <ol className="max-h-80 overflow-y-auto pr-1 text-xs">
           {baAuditLogs.length > 0 ? (
             baAuditLogs.map((log: any, lIdx: number) => {
-              const changes = diffBASnapshots(log.before, log.after);
+              const isSync = log.action === "accurate_sync";
+              const changes = isSync ? accuratePostingLines(log.after) : diffBASnapshots(log.before, log.after);
               const actionLabel = log.action === "save" && !log.before ? "Buat BA" : (BA_ACTION_LABELS[log.action] || log.action || "Activity");
-              const tone = BA_ACTION_TONES[log.action] || BA_ACTION_TONES.save;
+              const tone = isSync && log.after?.status === "Gagal" ? BA_ACTION_TONES.delete : (BA_ACTION_TONES[log.action] || BA_ACTION_TONES.save);
               const hasDetail = changes.length > 0 || Boolean(log.ipAddress);
               return (
                 <li key={log.id || lIdx} className="relative pl-5 pb-3 last:pb-0">
                   {lIdx < baAuditLogs.length - 1 && <span className="absolute left-[5px] top-3 bottom-0 w-px bg-slate-200" />}
                   <span className={`absolute left-0 top-3 w-[11px] h-[11px] rounded-full ring-2 ring-slate-50 ${tone.dot}`} />
                   <details className="group bg-white border border-slate-200 rounded-[4px] open:border-[#A57C50]/40 transition">
-                    <summary className={`list-none p-2.5 space-y-1 [&::-webkit-details-marker]:hidden ${hasDetail ? "cursor-pointer" : "cursor-default pointer-events-none"}`}>
+                    <summary className={`block list-none p-2.5 space-y-1 [&::-webkit-details-marker]:hidden ${hasDetail ? "cursor-pointer" : "cursor-default pointer-events-none"}`}>
                       <div className="flex items-center justify-between gap-2">
-                        <span className={`px-1.5 py-0.5 rounded-[3px] text-[9px] font-black uppercase tracking-wide border ${tone.badge}`}>{actionLabel}</span>
-                        <span className="text-[10px] font-mono text-slate-500 shrink-0">
-                          {log.createdAt ? new Date(log.createdAt).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "-"}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-bold text-slate-900 text-[11px] truncate" title={log.user}>{log.user || "System"}</span>
+                        <span className={`px-1.5 py-0.5 rounded-[3px] text-[9px] font-black uppercase tracking-wide border whitespace-nowrap ${tone.badge}`}>{actionLabel}</span>
                         {hasDetail && (
                           <span className="text-[10px] font-bold text-slate-500 group-open:text-[#A57C50] shrink-0 flex items-center gap-0.5">
-                            {changes.length > 0 ? `${changes.length} perubahan` : "Detail"} <ChevronDown size={11} className="transition group-open:rotate-180" />
+                            {isSync ? (log.after?.status || "Detail") : changes.length > 0 ? `${changes.length} perubahan` : "Detail"} <ChevronDown size={11} className="transition group-open:rotate-180" />
                           </span>
                         )}
+                      </div>
+                      <div className="flex items-center gap-1.5 min-w-0 text-[10px] text-slate-500">
+                        <span className="font-bold text-slate-900 text-[11px] truncate" title={log.user}>{log.user || "System"}</span>
+                        <span className="shrink-0">·</span>
+                        <span className="font-mono shrink-0">
+                          {log.createdAt ? new Date(log.createdAt).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-"}
+                        </span>
                       </div>
                     </summary>
                     {hasDetail && (
