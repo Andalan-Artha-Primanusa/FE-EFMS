@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Camera, KeyRound, ShieldCheck, UserRound, RefreshCw, CheckCircle2, AlertCircle, QrCode, Smartphone, History } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
-import { changePassword, disableTwoFactor, enableTwoFactor, generateTwoFactorSetup, getProfile, updateProfile, uploadAvatar, type TwoFactorSetup, type User } from "../lib/api";
+import { changePassword, setApprovalPin, disableTwoFactor, enableTwoFactor, generateTwoFactorSetup, getProfile, updateProfile, uploadAvatar, type TwoFactorSetup, type User } from "../lib/api";
 import type { AuditLog } from "../lib/api";
 import { isHeadOfficeUser } from "../lib/auth";
 
@@ -18,6 +18,10 @@ export function AccountSettingsPage({
   const [pwdForm, setPwdForm] = useState({ oldPassword: "", newPassword: "", confirm: "" });
   const [pwdSaving, setPwdSaving] = useState(false);
   const [pwdFeedback, setPwdFeedback] = useState<{ ok: boolean; message: string } | null>(null);
+  const [pinSet, setPinSet] = useState(false);
+  const [pinForm, setPinForm] = useState({ password: "", pin: "", confirm: "" });
+  const [pinSaving, setPinSaving] = useState(false);
+  const [pinFeedback, setPinFeedback] = useState<{ ok: boolean; message: string } | null>(null);
 
   // Profile state
   const [profile, setProfile] = useState<Partial<{
@@ -49,6 +53,7 @@ export function AccountSettingsPage({
         twoFactorOn: p.twoFactorOn
       });
       setTwoFactorOn(p.twoFactorOn);
+      setPinSet(p.approvalPinSet);
     } catch {
       setProfile(null);
     }
@@ -174,6 +179,29 @@ export function AccountSettingsPage({
     }
   }
 
+  async function submitPin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!/^\d{6}$/.test(pinForm.pin)) {
+      setPinFeedback({ ok: false, message: "PIN harus 6 digit angka." });
+      return;
+    }
+    if (pinForm.pin !== pinForm.confirm) {
+      setPinFeedback({ ok: false, message: "Konfirmasi PIN tidak sama." });
+      return;
+    }
+    setPinSaving(true);
+    try {
+      await setApprovalPin(pinForm.password, pinForm.pin);
+      setPinSet(true);
+      setPinFeedback({ ok: true, message: "PIN approval tersimpan." });
+      setPinForm({ password: "", pin: "", confirm: "" });
+    } catch (err: any) {
+      setPinFeedback({ ok: false, message: err?.message || "Gagal menyimpan PIN." });
+    } finally {
+      setPinSaving(false);
+    }
+  }
+
   const scope = isHeadOfficeUser(user) ? "All Company" : user.companyCode ?? "Company";
   const access = effectiveAccess(user);
 
@@ -200,6 +228,7 @@ export function AccountSettingsPage({
           <span>{user.role}</span>
           <span className={user.status === "active" ? "ok" : "warn"}>{user.status}</span>
           <span className={twoFactorOn ? "ok" : "warn"}>2FA {twoFactorOn ? "aktif" : "nonaktif"}</span>
+          <span className={pinSet ? "ok" : "warn"}>PIN {pinSet ? "aktif" : "belum dibuat"}</span>
           <span>{scope}</span>
         </div>
       </div>
@@ -301,6 +330,35 @@ export function AccountSettingsPage({
             <button type="submit" disabled={pwdSaving} className="account-btn">
               {pwdSaving ? <RefreshCw size={13} className="animate-spin" /> : <KeyRound size={13} />}
               Simpan Password
+            </button>
+          </footer>
+        </form>
+      </section>
+
+      <section>
+        <h4><KeyRound size={16} /> {pinSet ? "Ganti PIN Approval" : "Buat PIN Approval"}</h4>
+        <form data-enter-submit onSubmit={submitPin} className="account-form">
+          <label>
+            <span>Password Login</span>
+            <input type="password" required autoComplete="current-password" value={pinForm.password} onChange={(e) => setPinForm({ ...pinForm, password: e.target.value })} />
+          </label>
+          <label>
+            <span>PIN Baru</span>
+            <input type="password" required inputMode="numeric" autoComplete="off" maxLength={6} value={pinForm.pin} onChange={(e) => setPinForm({ ...pinForm, pin: e.target.value.replace(/\D/g, "") })} placeholder="6 digit" />
+          </label>
+          <label>
+            <span>Konfirmasi PIN</span>
+            <input type="password" required inputMode="numeric" autoComplete="off" maxLength={6} value={pinForm.confirm} onChange={(e) => setPinForm({ ...pinForm, confirm: e.target.value.replace(/\D/g, "") })} />
+          </label>
+          <footer>
+            {pinFeedback && (
+              <p className={`account-feedback ${pinFeedback.ok ? "ok" : ""}`}>
+                {pinFeedback.ok ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />} {pinFeedback.message}
+              </p>
+            )}
+            <button type="submit" disabled={pinSaving} className="account-btn">
+              {pinSaving ? <RefreshCw size={13} className="animate-spin" /> : <KeyRound size={13} />}
+              Simpan PIN
             </button>
           </footer>
         </form>

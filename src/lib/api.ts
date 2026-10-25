@@ -120,6 +120,18 @@ export type Dashboard = {
 
 export const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
+// Aksi verifikasi/approval ditolak BE (403 PIN_REQUIRED/PIN_INVALID) sampai request diulang dengan PIN approval.
+let pinPrompt: ((error: string) => Promise<string | null>) | null = null;
+let pinPending: Promise<string | null> | null = null;
+export function setPinPrompt(fn: typeof pinPrompt) {
+  pinPrompt = fn;
+}
+// Request paralel berbagi satu modal PIN.
+function askPin(error: string) {
+  pinPending ??= pinPrompt!(error).finally(() => { pinPending = null; });
+  return pinPending;
+}
+
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem("financeerp.token");
   const headers = new Headers(options.headers);
@@ -136,6 +148,12 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
+    if (pinPrompt && (err.code === "PIN_REQUIRED" || err.code === "PIN_INVALID")) {
+      const pin = await askPin(err.code === "PIN_INVALID" ? err.error : "");
+      if (!pin) throw new Error("Dibatalkan");
+      headers.set("X-Approval-PIN", pin);
+      return api<T>(path, { ...options, headers });
+    }
     throw new Error(err.message ?? err.error ?? "Request failed");
   }
   if (res.status === 204) return undefined as T;
@@ -402,6 +420,10 @@ export function saveFinanceTemplate(input: { id?: number; templateKey: string; c
 
 export function deleteFinanceTemplate(id: number) {
   return api<{ status: string }>(`/api/finance/templates/${id}`, { method: "DELETE" });
+}
+
+export function setApprovalPin(password: string, pin: string) {
+  return api<{ status: string }>("/api/auth/approval-pin", { method: "POST", body: JSON.stringify({ password, pin }) });
 }
 
 export function changePassword(oldPassword: string, newPassword: string) {
@@ -803,6 +825,7 @@ export type Profile = {
   avatarUrl?: string;
   twoFactorOn: boolean;
   lastLoginAt?: string | null;
+  approvalPinSet: boolean;
 };
 
 export function getProfile() {

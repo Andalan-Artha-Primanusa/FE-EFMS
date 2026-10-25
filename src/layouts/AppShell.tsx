@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate, useParams, useOutlet } from "react-ro
 import { Bell, ChevronDown, LogOut, Menu, Moon, Sun, UserCog, X } from "lucide-react";
 import { NotificationPanel } from "../components/NotificationPanel";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { ApprovalPinPrompt } from "../components/ConfirmDialog";
 import { ACCOUNT_SETTINGS_VIEW, menu, menuCodeFor, menuPermissionModuleFor, titleFromSlug, viewMap, viewPath } from "../data/navigation";
 import { api, getUnreadNotificationCount, type AuditLog, type Dashboard, type Permission, type RoleAccess, type TCode, type Transaction, type User } from "../lib/api";
 import { ModulePage } from "../pages/ModulePage";
@@ -286,6 +287,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
         </ErrorBoundary>
       </main>
       <NotificationPanel open={notificationOpen} onClose={() => setNotificationOpen(false)} onChange={refreshUnread} />
+      <ApprovalPinPrompt />
       {notice && (
         <div
           key={notice.id}
