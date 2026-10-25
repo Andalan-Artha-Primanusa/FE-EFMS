@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Save, Loader2, FileText, Edit2, Lock } from "lucide-react";
 import { api } from "../../../lib/api";
-import { formatIDR, formatDateInput, getCustomerOfficialName, invoiceOutstanding, RupiahInput } from "../helpers";
+import { formatIDR, formatDateInput, getCustomerOfficialName, invoiceOutstanding, RupiahInput, parsePeriodToYYYYMM } from "../helpers";
+import { ACCURATE_CUTOVER } from "./AccuratePostingPanel";
 
 interface InvoiceBillingPanelProps {
   data: any;
@@ -38,6 +39,19 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
   const refLocked = !canAlterPosted;
 
   const cancel = () => { setF(init()); setEditing(false); };
+  // Nomor kosong / sementara (INV-...) diisi usulan penomoran faktur Accurate; tetap bisa diubah.
+  const startEdit = async () => {
+    setEditing(true);
+    const cur = f.invoiceNo;
+    const ym = parsePeriodToYYYYMM(data.workPeriod || "");
+    if ((cur && !cur.startsWith("INV-")) || refLocked || data.invoiceCategory === "Rental" || (ym !== "" && ym < ACCURATE_CUTOVER)) return;
+    try {
+      const r = await api<{ invoiceNo?: string }>(`/api/finance/invoices/${data.id}/number-suggestion`);
+      if (r?.invoiceNo) setF((prev) => (prev.invoiceNo === cur ? { ...prev, invoiceNo: r.invoiceNo! } : prev));
+    } catch {
+      // Accurate tak terjangkau: nomor yang ada dipakai.
+    }
+  };
   const save = async () => {
     setSaving(true);
     try {
@@ -91,7 +105,7 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
         {canEdit && !editing && (
           <button
             type="button"
-            onClick={() => setEditing(true)}
+            onClick={startEdit}
             className="px-3 py-1 text-xs font-extrabold bg-[#A57C50] hover:bg-[#8e6941] text-white rounded-[3px] flex items-center gap-1 transition shadow-xs cursor-pointer"
           >
             <Edit2 size={13} /> Edit

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Pickaxe, Trash2, GripVertical, ChevronUp, ChevronDown, Plus } from "lucide-react";
 import { formatIDR, FormattedNumberInput, MonthPickerInput } from "../helpers";
 import { getSBSTarifByDistance } from "../calculations";
-import { isOBMaterial, customerKind, removeBAItem, calcIDR, calcSum, calcItemsAmount, getDistanceFactor } from "../ba_calculations";
+import { isOBMaterial, customerKind, removeBAItem, calcIDR, calcSum, calcItemsAmount, calcItemLines, getDistanceFactor } from "../ba_calculations";
 import type { BACalc } from "../../../types";
 import { SOWSelectDropdown } from "./SOWSelectDropdown";
 import { BAAddRowDropdown } from "./BAAddRowDropdown";
@@ -171,6 +171,7 @@ export function BAOperatingTable({
     const isDPFuel = item.category === "DP Fuel" || item.isDeduction || (item.material || "").toLowerCase().includes("dp fuel");
     const effVol = getBAEffectiveVolume(item, allBAItems, true);
     const subtotal = calcItemsAmount(calc, [item]);
+    const calcLine = calcItemLines(calc, [item])[0];
 
     return (
       <tr
@@ -346,7 +347,7 @@ export function BAOperatingTable({
         <td className="p-2 text-right font-mono align-top">
           {!isInlineEditingBA ? (
             <span className="pt-1 block font-bold">
-              {Number(effVol || 0).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {Number(calcLine?.volume ?? effVol ?? 0).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           ) : (
             <FormattedNumberInput
@@ -393,7 +394,7 @@ export function BAOperatingTable({
         <td className="p-2 text-right font-mono align-top">
           {(() => {
             if (!isInlineEditingBA || (isDistance && Number(item.rate || 0) !== 0) || (isCustomerBGG && bggRateOf(item) > 0)) {
-              return <span className="pt-1 block font-mono font-bold">{formatIDR(isDistance ? Number(item.rate || 0) * getDistanceFactor(item, formData.customerCode, isCustomerDBK) : item.rate)}</span>;
+              return <span className="pt-1 block font-mono font-bold">{formatIDR(isDistance ? calcLine?.rate ?? Number(item.rate || 0) * getDistanceFactor(item, formData.customerCode, isCustomerDBK) : item.rate)}</span>;
             }
 
             return (

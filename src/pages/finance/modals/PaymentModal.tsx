@@ -1,13 +1,18 @@
 import React from "react";
-import { RupiahInput } from "../helpers";
+import { RupiahInput, pph23Prefill } from "../helpers";
 
 interface PaymentModalProps {
   formData: any;
   setFormData: (data: any) => void;
   companyList: any[];
+  invoiceRows?: any[];
+  paymentRows?: any[];
 }
 
-export function PaymentModal({ formData, setFormData, companyList }: PaymentModalProps) {
+export function PaymentModal({ formData, setFormData, companyList, invoiceRows = [], paymentRows = [] }: PaymentModalProps) {
+  const inv = invoiceRows.find((i) => i.invoiceNo?.toLowerCase() === formData.invoiceNo?.trim().toLowerCase());
+  // Invoice yang fakturnya sudah di Accurate wajib nomor bukti penerimaan.
+  const needReceipt = Boolean(inv?.accurate?.docs?.FAKTUR);
   return (
     <>
       {/* Section 1: Target Invoice */}
@@ -61,9 +66,13 @@ export function PaymentModal({ formData, setFormData, companyList }: PaymentModa
           <RupiahInput
             label="Jumlah Uang Masuk Received (Rp)"
             value={formData.amountPaid || 0}
-            onChange={(val: number) => setFormData({ ...formData, amountPaid: val })}
+            onChange={(val: number) => setFormData({ ...formData, amountPaid: val, pph23Withheld: pph23Prefill(inv, val, paymentRows, formData.id) })}
             required={true}
-            helperText="Otomatis mengurangi sisa Outstanding & update status Lunas/Partial"
+          />
+          <RupiahInput
+            label="PPh 23 Dipotong Customer (Rp)"
+            value={formData.pph23Withheld || 0}
+            onChange={(val: number) => setFormData({ ...formData, pph23Withheld: val })}
           />
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
@@ -100,6 +109,19 @@ export function PaymentModal({ formData, setFormData, companyList }: PaymentModa
               placeholder="TRF-BRI-00129"
               value={formData.refNo || ""}
               onChange={(e) => setFormData({ ...formData, refNo: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+              No. Bukti Penerimaan Accurate {needReceipt && <span className="text-rose-600">*</span>}
+            </label>
+            <input
+              className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono focus:border-cyan-700 focus:bg-white outline-none"
+              placeholder="006/BBM-MDR OP/X/26"
+              value={formData.receiptNo || ""}
+              onChange={(e) => setFormData({ ...formData, receiptNo: e.target.value })}
+              onBlur={(e) => setFormData({ ...formData, receiptNo: e.target.value.trim() })}
+              required={needReceipt}
             />
           </div>
         </div>

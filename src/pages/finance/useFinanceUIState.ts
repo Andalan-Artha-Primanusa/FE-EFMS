@@ -53,9 +53,11 @@ export function useFinanceUIState() {
   const [showAddPartialPayment, setShowAddPartialPayment] = useState(false);
   const [partialPaymentForm, setPartialPaymentForm] = useState({
     amountPaid: "",
+    pph23Withheld: 0,
     paymentDate: new Date().toISOString().split("T")[0],
     receivingBank: "Bank Mandiri Escrow",
     refNo: "",
+    receiptNo: "",
     notes: ""
   });
 

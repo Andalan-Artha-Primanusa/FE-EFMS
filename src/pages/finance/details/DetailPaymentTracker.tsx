@@ -1,6 +1,7 @@
 import React from "react";
 import { Receipt, Plus, DollarSign, CheckCircle2 } from "lucide-react";
-import { formatIDR, invoiceOutstanding } from "../helpers";
+import { formatIDR, invoiceOutstanding, pph23Prefill } from "../helpers";
+import { PaymentAccurateStatus } from "./PaymentCustomerDetailSheet";
 
 interface DetailPaymentTrackerProps {
   detailData: any;
@@ -11,6 +12,9 @@ interface DetailPaymentTrackerProps {
   setPartialPaymentForm: (form: any) => void;
   handleSavePartialPayment: (e: React.FormEvent) => void;
   handleVerifyPartialPayment?: (id: number) => void;
+  canSyncAccurate?: boolean;
+  onNotice?: (msg: string) => void;
+  onAccurateSaved?: () => void;
 }
 
 export const DetailPaymentTracker: React.FC<DetailPaymentTrackerProps> = ({
@@ -21,7 +25,10 @@ export const DetailPaymentTracker: React.FC<DetailPaymentTrackerProps> = ({
   partialPaymentForm,
   setPartialPaymentForm,
   handleSavePartialPayment,
-  handleVerifyPartialPayment
+  handleVerifyPartialPayment,
+  canSyncAccurate,
+  onNotice,
+  onAccurateSaved
 }) => {
   const totalInv = detailData.totalReceipt || detailData.totalInvoice || 1;
   const paid = detailData.totalPaid || 0;
@@ -87,7 +94,19 @@ export const DetailPaymentTracker: React.FC<DetailPaymentTrackerProps> = ({
               placeholder="Contoh: 5000000000"
               className="w-full bg-slate-50 border border-slate-300 rounded-[3px] px-3 py-2 text-slate-900 font-extrabold focus:border-[#A57C50] focus:bg-white focus:ring-1 focus:ring-[#A57C50]/30 outline-none transition font-mono text-xs"
               value={partialPaymentForm.amountPaid}
-              onChange={(e) => setPartialPaymentForm({ ...partialPaymentForm, amountPaid: e.target.value })}
+              onChange={(e) => setPartialPaymentForm({ ...partialPaymentForm, amountPaid: e.target.value, pph23Withheld: pph23Prefill(detailData, Number(e.target.value), paymentRows) })}
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+              PPh 23 Dipotong Customer (Rp)
+            </label>
+            <input
+              type="number"
+              min={0}
+              className="w-full bg-slate-50 border border-slate-300 rounded-[3px] px-3 py-2 text-slate-900 font-extrabold focus:border-[#A57C50] focus:bg-white focus:ring-1 focus:ring-[#A57C50]/30 outline-none transition font-mono text-xs"
+              value={partialPaymentForm.pph23Withheld ?? 0}
+              onChange={(e) => setPartialPaymentForm({ ...partialPaymentForm, pph23Withheld: e.target.value })}
             />
           </div>
           <div className="grid grid-cols-2 gap-2.5">
@@ -142,6 +161,19 @@ export const DetailPaymentTracker: React.FC<DetailPaymentTrackerProps> = ({
               />
             </div>
           </div>
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+              No. Bukti Penerimaan Accurate {detailData.accurate?.docs?.FAKTUR && <span className="text-[#A57C50]">*</span>}
+            </label>
+            <input
+              type="text"
+              required={Boolean(detailData.accurate?.docs?.FAKTUR)}
+              placeholder="006/BBM-MDR OP/X/26"
+              className="w-full bg-slate-50 border border-slate-300 rounded-[3px] px-2.5 py-1.5 text-slate-900 font-medium focus:border-[#A57C50] focus:bg-white focus:ring-1 focus:ring-[#A57C50]/30 outline-none transition font-mono text-xs"
+              value={partialPaymentForm.receiptNo || ""}
+              onChange={(e) => setPartialPaymentForm({ ...partialPaymentForm, receiptNo: e.target.value })}
+            />
+          </div>
           <button
             type="submit"
             className="w-full py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-extrabold rounded-[3px] transition shadow-xs cursor-pointer flex items-center justify-center gap-1.5 text-xs mt-1"
@@ -171,6 +203,7 @@ export const DetailPaymentTracker: React.FC<DetailPaymentTrackerProps> = ({
                   <span>Tgl: {p.paymentDate ? new Date(p.paymentDate).toLocaleDateString("id-ID") : "-"}</span>
                   <span>{p.receivingBank || "-"}</span>
                 </div>
+                <PaymentAccurateStatus data={p} hasFaktur={Boolean(detailData.accurate?.docs?.FAKTUR)} canSync={canSyncAccurate} onNotice={onNotice} onSaved={onAccurateSaved} />
                 <div className="text-[10px] text-slate-500 flex justify-between items-center pt-1.5 border-t border-slate-100 font-medium">
                   <span>Inputter: <strong className="text-slate-800 font-bold">{p.createdBy || "AR Admin"}</strong></span>
                   {isVerified && p.verifiedBy && (

@@ -555,6 +555,18 @@ export const baUninvoicedCalc = (ba: any, invoices: any[]) => {
   return baCalc(ba, st.isPartiallyInvoiced ? (st.createdMiningInv ? "MDO" : "Operation & Mining") : undefined);
 };
 export const invoiceOutstanding = (inv: any) => Number(inv?.outstanding ?? (Number(inv?.totalReceipt || 0) - Number(inv?.totalPaid || 0)));
+// Prefill PPh 23 dipotong customer: proporsional cash / net payable x PPh 23 invoice, maks sisa; pelunasan = sisa persis.
+export const pph23Prefill = (inv: any, cash: number, payments: any[], selfId?: number) => {
+  const billed = Number(inv?.totalDibayar || inv?.totalReceipt || inv?.totalInvoice || 0); // kas yang dibayar (SBS: tanpa Section P)
+  const pph = Number(inv?.pph23 || 0);
+  if (!cash || billed <= 0 || pph <= 0) return 0;
+  const no = String(inv.invoiceNo || "").toLowerCase();
+  const others = payments.filter((p) => String(p.invoiceNo || "").toLowerCase() === no && p.id !== selfId && p.verificationStatus !== "Rejected");
+  const rest = Math.max(0, pph - others.reduce((s, p) => s + Number(p.pph23Withheld || 0), 0));
+  const restNet = billed - others.reduce((s, p) => s + Number(p.amountPaid || 0), 0);
+  if (Math.round(cash * 100) >= Math.round(restNet * 100)) return rest;
+  return Math.min(Math.round((cash / billed) * pph), rest);
+};
 export const isAROpen = (inv: any) => INVOICE_LOCKED.has(String(inv?.status || "").trim()) && invoiceOutstanding(inv) > 0;
 
 export function renderInvoiceStatusBadge(status: string) {

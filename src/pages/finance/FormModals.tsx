@@ -19,6 +19,8 @@ export function FormModals({ c }: { c: any }) {
     setFormData,
     handleSave,
     baRows = [],
+    invoiceRows = [],
+    paymentRows = [],
   } = c || {};
 
   const [companyList, setCompanyList] = useState<Company[]>([]);
@@ -93,6 +95,8 @@ export function FormModals({ c }: { c: any }) {
                 formData={formData}
                 setFormData={setFormData}
                 companyList={companyList}
+                invoiceRows={invoiceRows}
+                paymentRows={paymentRows}
               />
             )}
 
