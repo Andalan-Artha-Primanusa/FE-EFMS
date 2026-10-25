@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { Receipt, Plus, DollarSign, CheckCircle2, Edit2, XCircle } from "lucide-react";
-import { compensationSources, formatIDR, invoiceOutstanding, pph23Prefill } from "../helpers";
+import { RupiahInput, compensationSources, formatIDR, invoiceOutstanding, pph23Prefill } from "../helpers";
 import { PaymentAccurateStatus } from "./PaymentCustomerDetailSheet";
 
 interface DetailPaymentTrackerProps {
@@ -116,13 +116,11 @@ export const DetailPaymentTracker: React.FC<DetailPaymentTrackerProps> = ({
             <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-700 mb-1">
               Nominal Bayar (Rp) <span className="text-[#A57C50]">*</span>
             </label>
-            <input
-              type="number"
+            <RupiahInput
+              label=""
               required
-              placeholder="Contoh: 5000000000"
-              className="w-full bg-slate-50 border border-slate-300 rounded-[3px] px-3 py-2 text-slate-900 font-extrabold focus:border-[#A57C50] focus:bg-white focus:ring-1 focus:ring-[#A57C50]/30 outline-none transition font-mono text-xs"
               value={partialPaymentForm.amountPaid}
-              onChange={(e) => setPartialPaymentForm({ ...partialPaymentForm, amountPaid: e.target.value, pph23Withheld: pph23Prefill(detailData, Number(e.target.value) + comp, paymentRows, editing?.id) })}
+              onChange={(v) => setPartialPaymentForm({ ...partialPaymentForm, amountPaid: v, pph23Withheld: pph23Prefill(detailData, v + comp, paymentRows, editing?.id) })}
             />
           </div>
           {sources.length > 0 || compKey ? (
@@ -134,7 +132,7 @@ export const DetailPaymentTracker: React.FC<DetailPaymentTrackerProps> = ({
                   value={compKey}
                   onChange={(e) => {
                     const src = sources.find((s) => `${s.type}|${s.invoiceNo}` === e.target.value);
-                    const next = src ? Math.min(src.available, Math.max(0, totalInv - paid)) : 0;
+                    const next = src ? Math.min(src.available, Math.max(0, totalInv - paid - Number(partialPaymentForm.amountPaid || 0))) : 0;
                     setPartialPaymentForm({
                       ...partialPaymentForm, compensationType: src?.type || "", compensationInvoiceNo: src?.invoiceNo || "", compensation: next,
                       pph23Withheld: pph23Prefill(detailData, Number(partialPaymentForm.amountPaid || 0) + next, paymentRows, editing?.id)
@@ -157,16 +155,13 @@ export const DetailPaymentTracker: React.FC<DetailPaymentTrackerProps> = ({
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-700 mb-1">
                     Nominal Kompensasi (Rp) <span className="text-[#A57C50]">*</span>
                   </label>
-                  <input
-                    type="number"
+                  <RupiahInput
+                    label=""
                     required
-                    min={0.01}
-                    step="0.01"
-                    className="w-full bg-slate-50 border border-slate-300 rounded-[3px] px-3 py-2 text-slate-900 font-extrabold focus:border-[#A57C50] focus:bg-white focus:ring-1 focus:ring-[#A57C50]/30 outline-none transition font-mono text-xs"
                     value={partialPaymentForm.compensation ?? 0}
-                    onChange={(e) => setPartialPaymentForm({
-                      ...partialPaymentForm, compensation: e.target.value,
-                      pph23Withheld: pph23Prefill(detailData, Number(partialPaymentForm.amountPaid || 0) + Number(e.target.value || 0), paymentRows, editing?.id)
+                    onChange={(v) => setPartialPaymentForm({
+                      ...partialPaymentForm, compensation: v,
+                      pph23Withheld: pph23Prefill(detailData, Number(partialPaymentForm.amountPaid || 0) + v, paymentRows, editing?.id)
                     })}
                   />
                 </div>
@@ -177,12 +172,10 @@ export const DetailPaymentTracker: React.FC<DetailPaymentTrackerProps> = ({
             <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-700 mb-1">
               PPh 23 Dipotong Customer (Rp)
             </label>
-            <input
-              type="number"
-              min={0}
-              className="w-full bg-slate-50 border border-slate-300 rounded-[3px] px-3 py-2 text-slate-900 font-extrabold focus:border-[#A57C50] focus:bg-white focus:ring-1 focus:ring-[#A57C50]/30 outline-none transition font-mono text-xs"
+            <RupiahInput
+              label=""
               value={partialPaymentForm.pph23Withheld ?? 0}
-              onChange={(e) => setPartialPaymentForm({ ...partialPaymentForm, pph23Withheld: e.target.value })}
+              onChange={(v) => setPartialPaymentForm({ ...partialPaymentForm, pph23Withheld: v })}
             />
           </div>
           <div className="grid grid-cols-2 gap-2.5">
