@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Camera, KeyRound, ShieldCheck, UserRound, RefreshCw, CheckCircle2, AlertCircle, QrCode, Smartphone, History } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
-import { changePassword, setApprovalPin, disableTwoFactor, enableTwoFactor, generateTwoFactorSetup, getProfile, updateProfile, uploadAvatar, type TwoFactorSetup, type User } from "../lib/api";
+import { changePassword, setApprovalPin, disableTwoFactor, enableTwoFactor, generateTwoFactorSetup, getProfile, updateProfile, uploadAvatar, type TwoFactorSetup, type User, useReloadOnSave } from "../lib/api";
 import type { AuditLog } from "../lib/api";
 import { isHeadOfficeUser } from "../lib/auth";
 
@@ -147,6 +147,7 @@ export function AccountSettingsPage({
   useEffect(() => {
     loadProfile();
   }, []);
+  useReloadOnSave(loadProfile);
 
   const displayName = profile?.name ?? user.name;
   const displayPosition = profile?.position ?? user.role;

@@ -4,7 +4,7 @@ import * as XLSX from "xlsx";
 import DataEditor, { GridColumn, GridCell, GridCellKind, Item, CellClickedEventArgs } from "@glideapps/glide-data-grid";
 import "@glideapps/glide-data-grid/dist/index.css";
 import { COAAccount, GeneralLedgerView as GLData, GeneralLedgerRow } from "../../types";
-import { getGeneralLedger } from "../../lib/api";
+import { getGeneralLedger, useReloadOnSave } from "../../lib/api";
 import { feastGridTheme } from "./components/JournalGlideGrid";
 
 interface GeneralLedgerViewProps {
@@ -50,6 +50,7 @@ export const GeneralLedgerView: React.FC<GeneralLedgerViewProps> = ({
   useEffect(() => {
     loadGL();
   }, [loadGL]);
+  useReloadOnSave(loadGL);
 
   const currentAccount = useMemo(() => {
     return coaAccounts.find((a) => a.code === selectedAccount) || {

@@ -5,7 +5,7 @@ import { NotificationPanel } from "../components/NotificationPanel";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { ApprovalPinPrompt } from "../components/ConfirmDialog";
 import { ACCOUNT_SETTINGS_VIEW, menu, menuCodeFor, menuPermissionModuleFor, titleFromSlug, viewMap, viewPath } from "../data/navigation";
-import { api, getUnreadNotificationCount, type AuditLog, type Dashboard, type Permission, type RoleAccess, type TCode, type Transaction, type User } from "../lib/api";
+import { api, getUnreadNotificationCount, useReloadOnSave, type AuditLog, type Dashboard, type Permission, type RoleAccess, type TCode, type Transaction, type User } from "../lib/api";
 import { ModulePage } from "../pages/ModulePage";
 import { authorized, canAccessMenu, canViewAuditTrail, filterRowsByCompanyScope, scopedEndpoint } from "../lib/auth";
 import { routes } from "../router/routes";
@@ -140,6 +140,7 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
       loadView(activeView).catch((err) => setNotice(err instanceof Error ? err.message : "Gagal memuat data"));
     }
   }, [activeView, outlet]);
+  useReloadOnSave(() => { refreshUnread(); if (!outlet) loadView(activeView).catch(() => {}); });
 
   useEffect(() => {
     const tablet = window.matchMedia("(min-width: 768px) and (max-width: 1280px)");

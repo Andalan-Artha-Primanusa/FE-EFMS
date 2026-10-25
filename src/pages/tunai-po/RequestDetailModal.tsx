@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ChevronRight, Loader2, Paperclip } from "lucide-react";
-import { api } from "../../lib/api";
+import { api, useReloadOnSave } from "../../lib/api";
 import { formatCurrency, formatDate } from "../../lib/format";
 import type { AccountMapping, AuditLogRow, TPODocType, TPORequest } from "./types";
 import {
@@ -76,6 +76,7 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId]);
+  useReloadOnSave(load);
 
   const action = async (path: string, init: RequestInit = { method: "POST" }) => {
     setBusy(true);

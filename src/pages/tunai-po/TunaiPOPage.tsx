@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Plus, RefreshCw, Search, Settings } from "lucide-react";
-import { api } from "../../lib/api";
+import { api, useReloadOnSave } from "../../lib/api";
 import { authorized } from "../../lib/auth";
 import { formatCurrency, formatDate } from "../../lib/format";
 import type { POSyncStatus, TPOKind, TPORequest, TPOStatus } from "./types";
@@ -42,6 +42,7 @@ export function TunaiPOPage({ kind = "TUNAI_PO" }: { kind?: TPOKind }) {
   useEffect(() => {
     load();
   }, [load]);
+  useReloadOnSave(load);
 
   const loadSync = useCallback(
     () =>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Download, RefreshCw, Printer, TrendingUp, Building2, Calendar, FileSpreadsheet, Pickaxe, BarChart3, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import * as XLSX from "xlsx";
 import { ProfitLossData } from "../../types";
-import { getProfitLoss } from "../../lib/api";
+import { getProfitLoss, useReloadOnSave } from "../../lib/api";
 
 interface ProfitLossViewProps {
   initialSite?: string;
@@ -57,6 +57,7 @@ export const ProfitLossView: React.FC<ProfitLossViewProps> = ({
   useEffect(() => {
     loadData();
   }, [loadData]);
+  useReloadOnSave(loadData);
 
   // Derived KPI calculations
   const totalRevenue = data?.totalRevenue || 0;

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Download, RefreshCw, Printer, Layers, Building2, Calendar, FileSpreadsheet, CheckCircle2, AlertCircle, ShieldCheck, Scale } from "lucide-react";
 import * as XLSX from "xlsx";
 import { BalanceSheetData } from "../../types";
-import { getBalanceSheet } from "../../lib/api";
+import { getBalanceSheet, useReloadOnSave } from "../../lib/api";
 
 interface BalanceSheetViewProps {
   initialSite?: string;
@@ -52,6 +52,7 @@ export const BalanceSheetView: React.FC<BalanceSheetViewProps> = ({
   useEffect(() => {
     loadData();
   }, [loadData]);
+  useReloadOnSave(loadData);
 
   // Derived totals
   const totalCurAsset = data?.totalCurrentAsset || 0;

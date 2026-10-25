@@ -4,7 +4,7 @@ import * as XLSX from "xlsx";
 import DataEditor, { GridColumn, GridCell, GridCellKind, Item, CellClickedEventArgs } from "@glideapps/glide-data-grid";
 import "@glideapps/glide-data-grid/dist/index.css";
 import { TrialBalanceRow } from "../../types";
-import { getTrialBalance } from "../../lib/api";
+import { getTrialBalance, useReloadOnSave } from "../../lib/api";
 import { feastGridTheme } from "./components/JournalGlideGrid";
 
 interface TrialBalanceViewProps {
@@ -40,6 +40,7 @@ export const TrialBalanceView: React.FC<TrialBalanceViewProps> = ({
   useEffect(() => {
     loadData();
   }, [loadData]);
+  useReloadOnSave(loadData);
 
   const filteredRows = useMemo(() => {
     if (!rows) return [];

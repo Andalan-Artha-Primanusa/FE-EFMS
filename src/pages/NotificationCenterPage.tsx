@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bell, BellRing, CheckCheck, MailOpen, RefreshCw } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
-import { getNotifications, markAllNotificationsRead, markNotificationRead, type Notification } from "../lib/api";
+import { getNotifications, markAllNotificationsRead, markNotificationRead, type Notification, useReloadOnSave } from "../lib/api";
 import { useNavigate } from "react-router-dom";
 import { notificationView } from "../components/NotificationPanel";
 import { viewPath } from "../data/navigation";
@@ -25,6 +25,7 @@ export function NotificationCenterPage({ onNotice }: { onNotice?: (m: string) =>
   }, [unreadOnly]);
 
   useEffect(() => { load(); }, [load]);
+  useReloadOnSave(load);
 
   const unread = items.filter((n) => !n.isRead).length;
 

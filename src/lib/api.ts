@@ -1,4 +1,5 @@
-﻿export type User = {
+﻿import { useEffect, useRef } from "react";
+export type User = {
   id: number;
   name: string;
   email: string;
@@ -156,8 +157,24 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     }
     throw new Error(err.message ?? err.error ?? "Request failed");
   }
+  if (options.method && options.method !== "GET" && !path.includes("/collaboration/")) {
+    clearTimeout(savedTimer);
+    savedTimer = setTimeout(() => window.dispatchEvent(new Event("api:saved")), 300);
+  }
   if (res.status === 204) return undefined as T;
   return res.json();
+}
+
+// Simpan/ubah/hapus sukses → halaman yang terbuka memuat ulang datanya.
+let savedTimer: ReturnType<typeof setTimeout>;
+export function useReloadOnSave(reload: () => unknown) {
+  const ref = useRef(reload);
+  ref.current = reload;
+  useEffect(() => {
+    const onSaved = () => ref.current();
+    window.addEventListener("api:saved", onSaved);
+    return () => window.removeEventListener("api:saved", onSaved);
+  }, []);
 }
 export type LoginResult =
   | { token: string; user: User; requires2FA?: false }

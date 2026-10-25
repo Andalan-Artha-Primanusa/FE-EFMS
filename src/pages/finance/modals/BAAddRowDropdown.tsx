@@ -14,6 +14,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { isDistanceItem, isDistanceParent, isLandClearingItem } from "../ba_calculations";
+import { getCustomerOfficialName } from "../helpers";
 
 interface BAAddRowDropdownProps {
   formData: any;
@@ -155,6 +156,8 @@ export function BAAddRowDropdown({
   const handleAddSectionRow = (sectionType: string) => {
     setShowDropdown(false);
     const ts = Date.now();
+    // Di tabel MDO, setBaOperatingItems = setBaMDOItems; kategori MDO agar baris tetap di BA MDO saat dibuka ulang.
+    const tagMDO = (it: any) => (targetSection === "mdo" ? { ...it, category: "MDO", area: "Site POS" } : it);
 
     switch (sectionType) {
       // ================= BGG SITE PRESETS =================
@@ -296,32 +299,10 @@ export function BAAddRowDropdown({
         break;
 
       // ================= POS & DEFAULT SITE PRESETS =================
-      case "POS_RF":
-        setBaOperatingItems((prev) => [
-          ...prev,
-          {
-            id: `pos_rf_${ts}`,
-            section: "E",
-            category: "Raise & Fall",
-            area: "",
-            material: "Eskalasi Nilai Kontrak / Penyesuaian Harga BBM",
-            period: curPeriod,
-            notes: "Formula Eskalasi Raise & Fall (3-Faktor DLF)",
-            keterangan: "",
-            unit: "Lot",
-            initialVolume: 1,
-            adjustedVolume: 1,
-            rate: 0,
-            subtotalInitial: 0,
-            subtotalAdjusted: 0,
-          },
-        ]);
-        break;
-
       case "POS_DP_FUEL":
         setBaOperatingItems((prev) => [
           ...prev,
-          {
+          tagMDO({
             id: `pos_dpfuel_${ts}`,
             section: "E",
             category: "DP Fuel",
@@ -338,14 +319,14 @@ export function BAAddRowDropdown({
             isDeduction: true,
             subtotalInitial: 0,
             subtotalAdjusted: 0,
-          },
+          }),
         ]);
         break;
 
       case "POS_DEDUCTION":
         setBaOperatingItems((prev) => [
           ...prev,
-          {
+          tagMDO({
             id: `pos_ded_${ts}`,
             section: "F",
             category: "Discount",
@@ -361,7 +342,7 @@ export function BAAddRowDropdown({
             isDeduction: true,
             subtotalInitial: 0,
             subtotalAdjusted: 0,
-          },
+          }),
         ]);
         break;
 
@@ -398,12 +379,8 @@ export function BAAddRowDropdown({
     }
   };
 
-  const getSiteTitle = () => {
-    if (isCustomerBGG) return "Site BGG (PT Baramega Gawi Gawi)";
-    if (isCustomerSBS) return "Site SBS (PT Sarolangun Bara Prima)";
-    if (isCustomerPTRO) return "Site PTRO / DBK (Petrosea Dayaborneo)";
-    return `Site ${rawCust} (PT Paramitha Cipta Sarana)`;
-  };
+  const custName = getCustomerOfficialName(rawCust);
+  const siteTitle = custName === rawCust ? `Site ${rawCust}` : `Site ${rawCust} (${custName})`;
 
   return (
     <div className="relative inline-block text-left" ref={dropdownRef}>
@@ -426,7 +403,7 @@ export function BAAddRowDropdown({
           <div className="px-3 py-1.5 bg-slate-50 flex items-center justify-between text-[11px] font-bold text-slate-700">
             <span className="flex items-center gap-1.5 truncate">
               <MapPin size={12} className="text-[#A57C50] shrink-0" />
-              <span className="truncate">{getSiteTitle()}</span>
+              <span className="truncate">{siteTitle}</span>
             </span>
             <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-extrabold uppercase text-[9px] shrink-0">
               {rawCust}
@@ -563,24 +540,8 @@ export function BAAddRowDropdown({
           )}
 
           {/* ================= POS & DEFAULT DROPDOWN OPTIONS ================= */}
-          {!isCustomerBGG && !isCustomerSBS && !isCustomerPTRO && targetSection !== "mdo" && (
+          {!isCustomerBGG && !isCustomerSBS && !isCustomerPTRO && (
             <div className="py-1">
-              <button
-                type="button"
-                onClick={() => handleAddSectionRow("POS_RF")}
-                className="w-full text-left px-3.5 py-2 text-xs text-slate-800 hover:bg-slate-50 font-bold flex items-center gap-2.5 transition cursor-pointer"
-              >
-                <div className="w-6 h-6 rounded-[3px] bg-blue-50 flex items-center justify-center text-blue-700 shrink-0">
-                  <TrendingUp size={13} />
-                </div>
-                <div>
-                  <div className="font-bold text-slate-900">Raise & Fall (3-Faktor DLF)</div>
-                  <div className="text-[10px] text-slate-500 font-normal">
-                    Eskalasi Nilai Kontrak / Penyesuaian Harga BBM (Lot)
-                  </div>
-                </div>
-              </button>
-
               <button
                 type="button"
                 onClick={() => handleAddSectionRow("POS_DP_FUEL")}

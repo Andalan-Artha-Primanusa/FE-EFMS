@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircle2, Circle, Paperclip, X } from "lucide-react";
-import { api, API_BASE } from "../../lib/api";
+import { api, API_BASE, useReloadOnSave } from "../../lib/api";
 import type { AccountMapping, TPODocType, TPODocument, TPORequest, TPOStatus } from "./types";
 import type { TreasuryVendor } from "../treasury/types";
 
@@ -167,6 +167,7 @@ export function useAccountMappings(base = "/api/tunai-po") {
   useEffect(() => {
     reload();
   }, []);
+  useReloadOnSave(reload);
   return { mappings, reload };
 }
 

@@ -9,7 +9,8 @@ import {
   getCompanies,
   ORG_UNIT_TYPES,
   type OrgUnit,
-  type Company
+  type Company,
+  useReloadOnSave
 } from "../lib/api";
 import { authorized } from "../lib/auth";
 import type { User } from "../lib/api";
@@ -95,6 +96,7 @@ export function OrgUnitsPage({
   useEffect(() => {
     loadUnits();
   }, [typeFilter]);
+  useReloadOnSave(() => { loadUnits(); loadCompanies(); });
 
   useEffect(() => {
     if (feedback) {

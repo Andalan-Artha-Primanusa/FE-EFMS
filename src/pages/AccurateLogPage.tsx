@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
-import { api } from "../lib/api";
+import { api, useReloadOnSave } from "../lib/api";
 
 type AccurateLog = {
   id: number;
@@ -46,6 +46,7 @@ export function AccurateLogPage() {
     const t = setTimeout(load, 300);
     return () => clearTimeout(t);
   }, [load]);
+  useReloadOnSave(load);
 
   return (
     <section className="space-y-4">

@@ -24,7 +24,8 @@ import {
   lockClosingPeriod,
   getJournals,
   getTrialBalance,
-  type ClosingStep
+  type ClosingStep,
+  useReloadOnSave
 } from "../lib/api";
 
 const STEPS = [
@@ -83,6 +84,7 @@ export function ClosingPeriodPage({ viewTitle = "Period Closing" }: { viewTitle?
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useReloadOnSave(load);
 
   useEffect(() => {
     if (!selected && periods.length > 0) setSelected(periods[0].period);
