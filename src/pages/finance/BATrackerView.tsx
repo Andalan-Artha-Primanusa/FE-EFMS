@@ -59,10 +59,11 @@ export function BATrackerView({ c }: { c: any }) {
           return invStatus.isFullyInvoiced;
         };
 
-        // Stage 1: Draft / Joint Survey (belum diajukan)
-        const isStageDraft = (r: any) => r.statusBA === "Draft";
-        // Stage 2: diajukan (Submit) s.d. menunggu approval Manager
-        const isStageVerif = (r: any) => (r.statusBA || "").startsWith("Submit") || r.statusBA === "Pending Berita Acara" || r.statusBA === "Pending" || r.statusBA === "Pending BAI" || r.statusBA === "Verified" || (r.statusBA === "Ready to Invoice" && !isBAInvoiced(r));
+        // Stage 1: Draft (status "Submit", belum diverifikasi) — sama dengan badge "Draft"
+        const isStageDraft = (r: any) => /^(Submit|Draft|Siap)/.test(r.statusBA || "Submit") && !isBAInvoiced(r);
+        // Stage 2: menunggu verifikasi s.d. approval Manager
+        const isStageVerif = (r: any) => r.statusBA === "Pending Berita Acara" || r.statusBA === "Pending" || r.statusBA === "Pending BAI" || r.statusBA === "Verified" || (r.statusBA === "Ready to Invoice" && !isBAInvoiced(r));
+        const isStageArsip = (r: any) => (r.statusBA === "Ready to Invoice" || r.statusBA === "Approved" || r.statusBA === "Invoiced" || r.statusBA === "Arsip") && isBAInvoiced(r);
         const stageDraftRows = periodRows.filter(isStageDraft);
         const stageDraftNominal = stageDraftRows.reduce((sum, r) => sum + baCalc(r).gross, 0);
 
@@ -79,7 +80,7 @@ export function BATrackerView({ c }: { c: any }) {
         const stageReadyNominal = stageReadyRows.reduce((sum, r) => sum + baCalc(r).gross, 0);
 
         // Stage 5: Arsip (HANYA YANG BENAR-BENAR SUDAH ADA INVOICENYA)
-        const stageArsipRows = periodRows.filter((r) => (r.statusBA === "Ready to Invoice" || r.statusBA === "Approved" || r.statusBA === "Invoiced" || r.statusBA === "Arsip") && isBAInvoiced(r));
+        const stageArsipRows = periodRows.filter(isStageArsip);
         const stageArsipNominal = stageArsipRows.reduce((sum, r) => sum + baCalc(r).gross, 0);
 
         // Summary cards: posisi saat ini, tanpa filter periode
@@ -115,8 +116,8 @@ export function BATrackerView({ c }: { c: any }) {
           if (baFilter === "Pending Berita Acara") return isStageVerif(r);
           if (baFilter === "Revisi") return r.statusBA === "Revisi" || (r.statusBA || "").startsWith("Reject");
           if (baFilter === "Ready to Invoice") return isBAApproved(r) && !isBAInvoiced(r);
-          if (baFilter === "Arsip") return (r.statusBA === "Ready to Invoice" || r.statusBA === "Approved" || r.statusBA === "Invoiced" || r.statusBA === "Arsip") && isBAInvoiced(r);
-          return true;
+          if (baFilter === "Arsip") return isStageArsip(r);
+          return !isStageArsip(r);
         });
 
         const groupedCustomers: any[] = Array.from(new Set(filteredBARows.map((r) => r.customerCode || "OTHER")));

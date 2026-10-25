@@ -240,12 +240,12 @@ export function invoiceTaxes(dpp: number) {
 }
 
 /**
- * Excel invoice: semua baris PTRO, POS baris non-jarak & OB BGG = Vol x Rate tanpa ROUND; baris lain ROUND(...,0)
+ * Excel invoice: semua baris PTRO & SBS, POS baris non-jarak & OB BGG = Vol x Rate tanpa ROUND; baris lain ROUND(...,0)
  * (sama dengan BE excelExactLine).
  */
 export function excelLineAmount(value: number, customerCode: string | undefined, isDist: boolean, isCoal: boolean = false): number {
   const kind = customerKind(customerCode);
-  const exact = (kind === "PTRO" && !/DBK/i.test(customerCode || "")) || (!isDist && (kind === "POS" || (kind === "BGG" && !isCoal)));
+  const exact = kind === "PTRO" || kind === "SBS" || (!isDist && (kind === "POS" || (kind === "BGG" && !isCoal)));
   return exact ? value : Math.round(value);
 }
 

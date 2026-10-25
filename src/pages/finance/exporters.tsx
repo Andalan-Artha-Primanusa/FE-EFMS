@@ -1422,7 +1422,7 @@ export function exportAROnlyPDFImpl(ctx: any) {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>AR Outstanding - ANDALAN</title>
+      <title>Report AR Outstanding - ANDALAN</title>
       <style>
         @page { size: A4 landscape; margin: 8mm 10mm; }
         * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -1451,7 +1451,7 @@ export function exportAROnlyPDFImpl(ctx: any) {
       <button class="btn-print" onclick="window.print()">Cetak / Simpan PDF AR Outstanding (A4 Landscape)</button>
       <div class="head">
         <div>
-          <h1>AR Outstanding</h1>
+          <h1>Report AR Outstanding</h1>
           <p>As of <b>${today.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</b></p>
         </div>
         <img src="${window.location.origin}/andalan-logo.png" alt="ANDALAN" class="logo" />
