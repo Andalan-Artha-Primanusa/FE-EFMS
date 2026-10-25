@@ -30,7 +30,8 @@ const matchQuery = (r: any, query: string) => JSON.stringify(r).toLowerCase().in
 // AR = aturan AR Dashboard (invoice terkunci, outstanding > 0); periode s.d. filter.
 const arInvoices = (invoiceRows: any[], invPeriodFilter: string, query: string) => {
   const target = parsePeriodToMonthIndex(invPeriodFilter);
-  return invoiceRows.filter((r) => matchQuery(r, query) && isAROpen(r) && (invPeriodFilter === "All" || parsePeriodToMonthIndex(r.workPeriod || "") <= target));
+  return invoiceRows.filter((r) => matchQuery(r, query) && isAROpen(r) && (invPeriodFilter === "All" || parsePeriodToMonthIndex(r.workPeriod || "") <= target))
+    .sort((a, b) => parsePeriodToMonthIndex(a.workPeriod || "") - parsePeriodToMonthIndex(b.workPeriod || ""));
 };
 
 // BAI = BA belum terbit invoice, semua periode per hari ini; nominal = Total Invoice BE (POS 1/2: kategori yang belum terbit).
@@ -1387,6 +1388,8 @@ export function exportAROnlyPDFImpl(ctx: any) {
   const sti = { out: 0, ded: 0, nett: 0 };
   const stiRows = baRows
     .filter((ba) => inPeriod(ba.workPeriod) && isBAUninvoiced(ba, invoiceRows))
+    .sort((a, b) => String(a.customerCode || "POS").toUpperCase().localeCompare(String(b.customerCode || "POS").toUpperCase())
+      || parsePeriodToMonthIndex(a.workPeriod || "") - parsePeriodToMonthIndex(b.workPeriod || ""))
     .map((ba) => {
       const cust = (ba.customerCode || "POS").toUpperCase();
       const amount = baUninvoicedCalc(ba, invoiceRows).totalInvoice;
