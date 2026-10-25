@@ -1,6 +1,10 @@
 import React, { useState } from "react";
 import { RefreshCw, Loader2, Link2 } from "lucide-react";
 import { api } from "../../../lib/api";
+import { parsePeriodToYYYYMM } from "../helpers";
+
+// Periode kerja pertama yang diposting ke Accurate; sama dengan accurateCutover di BE.
+export const ACCURATE_CUTOVER = "2026-10";
 
 interface AccuratePostingPanelProps {
   type: "ba" | "invoice";
@@ -36,6 +40,8 @@ export const AccuratePostingPanel: React.FC<AccuratePostingPanelProps> = ({ type
   const acc = data.accurate;
   const docs = Object.entries((acc?.docs || {}) as Record<string, { id: number; number: string }>);
   const failed = acc?.status === "Gagal";
+  const ym = parsePeriodToYYYYMM(data.workPeriod || "");
+  const outOfScope = !acc && ym !== "" && ym < ACCURATE_CUTOVER;
 
   const sync = async () => {
     setSyncing(true);
@@ -62,7 +68,7 @@ export const AccuratePostingPanel: React.FC<AccuratePostingPanelProps> = ({ type
             !acc ? "bg-slate-100 text-slate-600 border-slate-200" : failed ? "bg-red-50 text-red-700 border-red-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
           }`}
         >
-          {acc?.status || "Belum Terposting"}
+          {acc?.status || (outOfScope ? "Di luar periode Accurate" : "Belum Terposting")}
         </span>
       </div>
 
@@ -79,7 +85,7 @@ export const AccuratePostingPanel: React.FC<AccuratePostingPanelProps> = ({ type
 
       {acc?.error && <p className={`text-xs font-bold ${failed ? "text-red-700" : "text-amber-700"}`}>{acc.error}</p>}
 
-      {canSync && (
+      {canSync && !outOfScope && (
         <div className="flex justify-end">
           <button
             type="button"

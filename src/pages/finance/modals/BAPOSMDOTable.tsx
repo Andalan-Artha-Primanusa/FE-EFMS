@@ -48,7 +48,8 @@ export function BAPOSMDOTable({
       ? getBAEffectiveVolume(item, allBAItems.length > 0 ? allBAItems : baMDOItems, false)
       : Number(item.initialVolume || 0);
     const actualDist = getItemDistanceM(item);
-    const deltaDist = actualDist - getBaseDistance(item, formData.customerCode);
+    const baseDist = getBaseDistance(item, formData.customerCode);
+    const deltaDist = actualDist - baseDist;
     const rowSubtotal = calcItemsAmount(calc, [item]);
 
     return (
@@ -90,7 +91,7 @@ export function BAPOSMDOTable({
               <span className="font-bold text-slate-900">{item.material}</span>
               {isDist && actualDist > 0 && (
                 <div className="text-[10px] text-slate-500 font-mono">
-                  {actualDist.toLocaleString("id-ID")} mtr - 1000 mtr ={" "}
+                  {actualDist.toLocaleString("id-ID")} mtr - {baseDist.toLocaleString("id-ID")} mtr ={" "}
                   <span className={deltaDist < 0 ? "text-rose-600 font-bold" : "text-emerald-700 font-bold"}>
                     {deltaDist < 0 ? `(${Math.abs(deltaDist).toLocaleString("id-ID")})` : deltaDist.toLocaleString("id-ID")} mtr
                   </span>
@@ -150,7 +151,7 @@ export function BAPOSMDOTable({
               />
               {isDist && actualDist > 0 && (
                 <div className="text-[10px] text-slate-500 font-mono">
-                  {actualDist.toLocaleString("id-ID")} mtr - 1000 mtr ={" "}
+                  {actualDist.toLocaleString("id-ID")} mtr - {baseDist.toLocaleString("id-ID")} mtr ={" "}
                   <span className={deltaDist < 0 ? "text-rose-600 font-bold" : "text-emerald-700 font-bold"}>
                     {deltaDist < 0 ? `(${Math.abs(deltaDist).toLocaleString("id-ID")})` : deltaDist.toLocaleString("id-ID")} mtr
                   </span>

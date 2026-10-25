@@ -114,7 +114,17 @@ export function DetailModal({ c }: { c: any }) {
               )}
 
               {(type === "payment" || type === "customer") && (
-                <PaymentCustomerDetailSheet type={type} data={data} />
+                <PaymentCustomerDetailSheet
+                  type={type}
+                  data={data}
+                  hasFaktur={type === "payment" && invoiceRows.some((i) => String(i.invoiceNo || "").toLowerCase() === String(data.invoiceNo || "").toLowerCase() && i.accurate?.docs?.FAKTUR)}
+                  canSync={can("payment", "verify")}
+                  onNotice={onNotice}
+                  onSaved={(updated) => {
+                    if (updated) setDetailViewItem({ type, data: { ...data, ...updated } });
+                    loadData?.();
+                  }}
+                />
               )}
             </div>
 
@@ -130,6 +140,9 @@ export function DetailModal({ c }: { c: any }) {
                   setPartialPaymentForm={setPartialPaymentForm}
                   handleSavePartialPayment={handleSavePartialPayment}
                   handleVerifyPartialPayment={can("payment", "verify") ? handleVerifyPartialPayment : undefined}
+                  canSyncAccurate={can("payment", "verify")}
+                  onNotice={onNotice}
+                  onAccurateSaved={() => loadData?.()}
                 />
               )}
 

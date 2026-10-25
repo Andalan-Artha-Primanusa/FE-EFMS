@@ -320,7 +320,7 @@ export function BATrackerView({ c }: { c: any }) {
                   { label: "Siap Invoice", rows: cardSiapRows, Icon: CheckCircle2, icon: "text-emerald-600", badge: "bg-emerald-50 text-emerald-800 border-emerald-200" },
                   { label: "Routing Internal & FP", rows: cardRoutingRows, Icon: Send, icon: "text-[#A57C50]", badge: "bg-[#FBF6F0] text-[#A57C50] border-[#E7D3BC]" },
                 ].map(({ label, rows, Icon, icon, badge }) => (
-                  <div key={label} className="p-4 bg-white border border-slate-200 shadow-sm space-y-1" style={{ borderRadius: 4 }}>
+                  <div key={label} className="p-4 bg-white border border-[#A57C50]/60 shadow-sm space-y-1" style={{ borderRadius: 4 }}>
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
                         <Icon className={`w-3.5 h-3.5 ${icon}`} /> {label}
@@ -338,7 +338,7 @@ export function BATrackerView({ c }: { c: any }) {
 
               {/* PERIOD STAT CARDS */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-4 bg-white border border-slate-200 shadow-sm space-y-1" style={{ borderRadius: 4 }}>
+                <div className="p-4 bg-white border border-[#A57C50]/60 shadow-sm space-y-1" style={{ borderRadius: 4 }}>
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
                     <Receipt className="w-3.5 h-3.5 text-purple-700" /> Total Invoice {periodLabel}
                   </span>
@@ -348,7 +348,7 @@ export function BATrackerView({ c }: { c: any }) {
                 </div>
                 <div
                   onClick={() => setBaFilter(baFilter === "Pending Volume" ? "All" : "Pending Volume")}
-                  className={`p-4 bg-white border shadow-sm space-y-1 cursor-pointer transition hover:border-[#A57C50] ${baFilter === "Pending Volume" ? "border-[#A57C50]" : "border-slate-200"}`}
+                  className={`p-4 bg-white border shadow-sm space-y-1 cursor-pointer transition hover:border-[#A57C50] ${baFilter === "Pending Volume" ? "border-[#A57C50] ring-1 ring-[#A57C50]" : "border-[#A57C50]/60"}`}
                   style={{ borderRadius: 4 }}
                 >
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
@@ -358,7 +358,7 @@ export function BATrackerView({ c }: { c: any }) {
                     {formatIDR(pendingNominal)}
                   </div>
                 </div>
-                <div className="p-4 bg-white border border-slate-200 shadow-sm space-y-1" style={{ borderRadius: 4 }}>
+                <div className="p-4 bg-white border border-[#A57C50]/60 shadow-sm space-y-1" style={{ borderRadius: 4 }}>
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
                     <TrendingUp className="w-3.5 h-3.5 text-[#A57C50]" /> Est. Pendapatan (DPP/Gross) {periodLabel}
                   </span>
@@ -1055,7 +1055,7 @@ export function BATrackerView({ c }: { c: any }) {
               }}
               onNotice={onNotice}
             />
-            {showMappings && <MappingsModal kinds={["ITEM", "CUSTOMER", "PROJECT", "KONTRAK", "SALES"]} base="/api/finance" onClose={() => setShowMappings(false)} onError={onNotice} />}
+            {showMappings && <MappingsModal kinds={["ITEM", "CUSTOMER", "PROJECT", "KONTRAK", "SALES", "BANK"]} base="/api/finance" onClose={() => setShowMappings(false)} onError={onNotice} />}
           </>
         );
 }

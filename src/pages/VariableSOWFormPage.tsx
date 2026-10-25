@@ -581,6 +581,7 @@ export function VariableSOWFormPage() {
                     <th className="p-3 border-r border-slate-800 text-right bg-amber-950 text-amber-300 w-40">RATE (USD)</th>
                     <th className="p-3 border-r border-slate-800 text-right bg-emerald-950 text-emerald-300 w-48">KONVERSI IDR (M-RATE)</th>
                     <th className="p-3 border-r border-slate-800 text-right w-28">FUEL (LTR/JAM)</th>
+                    <th className="p-3 border-r border-slate-800 text-center w-28">BASE DIST</th>
                     <th className="p-3 pr-4 text-center w-28">STATUS</th>
                   </tr>
                 </thead>
@@ -588,6 +589,7 @@ export function VariableSOWFormPage() {
                   {itemsGrid.map((item, idx) => {
                     const idrConverted = (Number(item.rateUSD) || 0) * mrateBi;
                     const isRentalRow = isRentalAlatSOW(item);
+                    const isDistRow = /overhaul|underhaul|over distance/i.test(item.itemName || "");
                     return (
                       <tr key={idx} className="hover:bg-amber-50/30 transition">
                         <td className="p-2 pl-4 border-r border-slate-200">
@@ -704,6 +706,19 @@ export function VariableSOWFormPage() {
                               value={item.fuelLtrPerHour ?? ""}
                               onChange={(e) => handleFieldChange(idx, "fuelLtrPerHour", parseFloat(e.target.value) || 0)}
                             />
+                          ) : "-"}
+                        </td>
+                        <td className="p-2 border-r border-slate-200 text-center whitespace-nowrap">
+                          {isDistRow ? (
+                            <>
+                              <input
+                                type="number"
+                                className={`w-20 text-center p-1.5 rounded-lg border font-mono font-bold text-xs outline-none ${Number(item.baseDistanceMeters) > 0 ? "bg-slate-50 border-slate-300" : "bg-rose-50 border-rose-400"}`}
+                                value={item.baseDistanceMeters || ""}
+                                placeholder="0"
+                                onChange={(e) => handleFieldChange(idx, "baseDistanceMeters", parseFloat(e.target.value) || 0)}
+                              /> m
+                            </>
                           ) : "-"}
                         </td>
                         <td className="p-2 pr-4 text-center">

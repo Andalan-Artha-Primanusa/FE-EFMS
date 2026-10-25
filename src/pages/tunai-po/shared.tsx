@@ -170,7 +170,7 @@ export function useAccountMappings(base = "/api/tunai-po") {
   return { mappings, reload };
 }
 
-const MAPPING_KIND: Record<string, string> = { DP: "Uang Muka", PPH: "PPh", TAX: "Pajak", ITEM: "Item Penjualan", CUSTOMER: "Pelanggan", PROJECT: "Proyek", KONTRAK: "Aset Kontrak", SALES: "Penjualan" };
+const MAPPING_KIND: Record<string, string> = { DP: "Uang Muka", PPH: "PPh", TAX: "Pajak", ITEM: "Item Penjualan", CUSTOMER: "Pelanggan", PROJECT: "Proyek", KONTRAK: "Aset Kontrak", SALES: "Penjualan", BANK: "Kas/Bank" };
 
 export function MappingsModal({ kinds, base = "/api/tunai-po", onClose, onSaved, onError }: { kinds?: string[]; base?: string; onClose: () => void; onSaved?: () => void; onError: (m: string) => void }) {
   const { mappings } = useAccountMappings(base);
