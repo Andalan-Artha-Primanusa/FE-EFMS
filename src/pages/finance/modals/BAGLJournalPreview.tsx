@@ -1,19 +1,12 @@
 import React from "react";
 import { BookOpen, CheckCircle2, AlertCircle } from "lucide-react";
 import { formatIDR } from "../helpers";
-import { generateBAGLJournalPreview } from "../ba_calculations";
-import type { BACalc } from "../../../types";
 
-interface BAGLJournalPreviewProps {
-  customerCode: string;
-  calc?: BACalc;
-}
-
-export function BAGLJournalPreview({ customerCode, calc }: BAGLJournalPreviewProps) {
-  if (!calc) return null;
-  const { lines, totalDebit, totalCredit, isBalanced } = generateBAGLJournalPreview(calc, customerCode);
-
-  if (lines.length === 0) return null;
+export function BAGLJournalPreview({ lines }: { lines?: { accountCode: string; accountName: string; debit: number; credit: number; description: string }[] }) {
+  if (!lines?.length) return null;
+  const totalDebit = lines.reduce((acc, l) => acc + l.debit, 0);
+  const totalCredit = lines.reduce((acc, l) => acc + l.credit, 0);
+  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
 
   return (
     <div className="bg-[#1A1612] border border-stone-800 rounded-[4px] p-4 text-stone-100 shadow-lg space-y-3">
@@ -56,7 +49,7 @@ export function BAGLJournalPreview({ customerCode, calc }: BAGLJournalPreviewPro
           <tbody className="divide-y divide-stone-800 font-mono text-[11px]">
             {lines.map((l, idx) => (
               <tr key={idx} className="hover:bg-stone-800/40 transition">
-                <td className="py-2 px-3 text-[#A57C50] font-bold">{l.accountNo}</td>
+                <td className="py-2 px-3 text-[#A57C50] font-bold">{l.accountCode}</td>
                 <td className="py-2 px-3 font-sans font-medium text-stone-200">
                   <span className={l.credit > 0 ? "pl-4 text-stone-300 block" : "font-bold text-white block"}>
                     {l.accountName}
@@ -69,7 +62,7 @@ export function BAGLJournalPreview({ customerCode, calc }: BAGLJournalPreviewPro
                   {l.credit > 0 ? formatIDR(l.credit) : "-"}
                 </td>
                 <td className="py-2 px-3 font-sans text-[10px] text-stone-400">
-                  {l.note}
+                  {l.description}
                 </td>
               </tr>
             ))}

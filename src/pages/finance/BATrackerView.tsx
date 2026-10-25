@@ -14,7 +14,7 @@ import {
   formatIDR, parseNumber, formatThousand, formatDateInput,
   indonesianMonths, formatMonthLabel, formatMonthInput, getRomanMonth,
   generateBANumberPreview, generateInvoiceNumberPreview, getYearFromPeriod,
-  generateInvoiceNumber, getBAInvoiceStatus, isPOSDualBA, renderBAStatusBadge,
+  getBAInvoiceStatus, isPOSDualBA, renderBAStatusBadge,
   getBAStatusForExport, renderInvoiceStatusBadge, parsePeriodToMonthIndex,
   RupiahInput, generateAuditTimeline, getCustomerOfficialName, isBAApproved, INVOICE_LOCKED, baCalc, pendingCalc
 } from "./helpers";
@@ -65,26 +65,26 @@ export function BATrackerView({ c }: { c: any }) {
         const isStageVerif = (r: any) => r.statusBA === "Pending Berita Acara" || r.statusBA === "Pending" || r.statusBA === "Pending BAI" || r.statusBA === "Verified" || (r.statusBA === "Ready to Invoice" && !isBAInvoiced(r));
         const isStageArsip = (r: any) => (r.statusBA === "Ready to Invoice" || r.statusBA === "Approved" || r.statusBA === "Invoiced" || r.statusBA === "Arsip") && isBAInvoiced(r);
         const stageDraftRows = periodRows.filter(isStageDraft);
-        const stageDraftNominal = stageDraftRows.reduce((sum, r) => sum + baCalc(r).gross, 0);
+        const stageDraftNominal = stageDraftRows.reduce((sum, r) => sum + baCalc(r).totalInvoice, 0);
 
         // Stage 2: Verifikasi Internal SPV
         const stageVerifRows = periodRows.filter(isStageVerif);
-        const stageVerifNominal = stageVerifRows.reduce((sum, r) => sum + baCalc(r).gross, 0);
+        const stageVerifNominal = stageVerifRows.reduce((sum, r) => sum + baCalc(r).totalInvoice, 0);
 
         // Stage 3: Revisi / Tertahan
         const stageRevisiRows = periodRows.filter((r) => r.statusBA === "Revisi" || (r.statusBA || "").startsWith("Reject"));
-        const stageRevisiNominal = stageRevisiRows.reduce((sum, r) => sum + baCalc(r).gross, 0);
+        const stageRevisiNominal = stageRevisiRows.reduce((sum, r) => sum + baCalc(r).totalInvoice, 0);
 
         // Stage 4: Siap Terbit Invoice (HANYA YANG BELUM TERBIT INVOICE)
         const stageReadyRows = periodRows.filter((r) => isBAApproved(r) && !isBAInvoiced(r));
-        const stageReadyNominal = stageReadyRows.reduce((sum, r) => sum + baCalc(r).gross, 0);
+        const stageReadyNominal = stageReadyRows.reduce((sum, r) => sum + baCalc(r).totalInvoice, 0);
 
         // Stage 5: Arsip (HANYA YANG BENAR-BENAR SUDAH ADA INVOICENYA)
         const stageArsipRows = periodRows.filter(isStageArsip);
-        const stageArsipNominal = stageArsipRows.reduce((sum, r) => sum + baCalc(r).gross, 0);
+        const stageArsipNominal = stageArsipRows.reduce((sum, r) => sum + baCalc(r).totalInvoice, 0);
 
         // Summary cards: posisi saat ini, tanpa filter periode
-        const sumAmount = (rows: any[]) => rows.reduce((acc, r) => acc + baCalc(r).gross, 0);
+        const sumAmount = (rows: any[]) => rows.reduce((acc, r) => acc + baCalc(r).totalInvoice, 0);
         const cardPendingRows = safeBaRows.filter((r) => !r.verifiedBy && !r.approvedBy && !isBAInvoiced(r));
         const cardSiapRows = safeBaRows.filter((r) => r.verifiedBy && !r.approvedBy && !isBAInvoiced(r) && !(r.statusBA || "").startsWith("Arsip"));
         // Routing keluar saat semua invoice terkirim / FP terlapor / lunas
@@ -102,7 +102,7 @@ export function BATrackerView({ c }: { c: any }) {
         const estRevenuePeriod = sumAmount(periodRows.filter((r) => r.statusBA !== "Revisi" && !(r.statusBA || "").startsWith("Reject")));
         // Pending Volume BGG: periode pending sendiri, hanya yang belum ditagih.
         const isPendingInPeriod = (r: any) => isUnbilledPending(r) && (periodFilter === "All" || r.pendingVolume.period === periodFilter);
-        const pendingNominal = safeBaRows.filter(isPendingInPeriod).reduce((acc, r) => acc + pendingCalc(r).gross, 0);
+        const pendingNominal = safeBaRows.filter(isPendingInPeriod).reduce((acc, r) => acc + pendingCalc(r).totalInvoice, 0);
 
         const nominalApprovedPeriod = stageReadyNominal;
         const baOnProgressNominal = stageDraftNominal + stageVerifNominal + stageRevisiNominal;

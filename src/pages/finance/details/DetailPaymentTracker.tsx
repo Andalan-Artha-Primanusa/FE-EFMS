@@ -30,9 +30,10 @@ export const DetailPaymentTracker: React.FC<DetailPaymentTrackerProps> = ({
   onNotice,
   onAccurateSaved
 }) => {
-  const totalInv = detailData.totalReceipt || detailData.totalInvoice || 1;
+  const totalInv = detailData.totalDibayar || detailData.totalReceipt || detailData.totalInvoice || 1;
   const paid = detailData.totalPaid || 0;
   const outstanding = invoiceOutstanding(detailData);
+  const overpaid = Math.max(0, paid - totalInv);
   const percent = Math.min(100, Math.round((paid / totalInv) * 100));
 
   const linkedPayments = paymentRows.filter((p: any) => p.invoiceNo === detailData.invoiceNo);
@@ -62,8 +63,8 @@ export const DetailPaymentTracker: React.FC<DetailPaymentTrackerProps> = ({
             <strong className="text-[#1A1612] text-sm font-black">{formatIDR(paid)}</strong>
           </div>
           <div className="bg-[#A57C50]/5 border border-[#A57C50]/20 p-2.5 rounded-[4px] shadow-xs">
-            <span className="text-[10px] text-[#A57C50] block uppercase font-bold tracking-wider">Sisa Tagihan</span>
-            <strong className="text-[#1A1612] text-sm font-black">{formatIDR(outstanding)}</strong>
+            <span className="text-[10px] text-[#A57C50] block uppercase font-bold tracking-wider">{overpaid > 0 ? "Lebih Bayar" : "Sisa Tagihan"}</span>
+            <strong className="text-[#1A1612] text-sm font-black">{formatIDR(overpaid || outstanding)}</strong>
           </div>
         </div>
 
@@ -174,6 +175,21 @@ export const DetailPaymentTracker: React.FC<DetailPaymentTrackerProps> = ({
               onChange={(e) => setPartialPaymentForm({ ...partialPaymentForm, receiptNo: e.target.value })}
             />
           </div>
+          {detailData.accurate?.docs?.FAKTUR && Number(partialPaymentForm.amountPaid || 0) > totalInv - paid && (
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                No. Bukti Kelebihan Bayar Accurate ({formatIDR(Number(partialPaymentForm.amountPaid) - (totalInv - paid))}) <span className="text-[#A57C50]">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="007/BBM-MDR OP/X/26"
+                className="w-full bg-slate-50 border border-slate-300 rounded-[3px] px-2.5 py-1.5 text-slate-900 font-medium focus:border-[#A57C50] focus:bg-white focus:ring-1 focus:ring-[#A57C50]/30 outline-none transition font-mono text-xs"
+                value={partialPaymentForm.excessReceiptNo || ""}
+                onChange={(e) => setPartialPaymentForm({ ...partialPaymentForm, excessReceiptNo: e.target.value })}
+              />
+            </div>
+          )}
           <button
             type="submit"
             className="w-full py-2 bg-[#A57C50] hover:bg-[#8e6941] text-white font-extrabold rounded-[3px] transition shadow-xs cursor-pointer flex items-center justify-center gap-1.5 text-xs mt-1"

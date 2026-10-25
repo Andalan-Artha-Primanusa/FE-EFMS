@@ -139,13 +139,13 @@ export function useFinanceSaveHandlers({
           invoiceNo: detailViewItem.data.invoiceNo, customerCode: detailViewItem.data.customerCode, amountPaid: amount,
           paymentDate: partialPaymentForm.paymentDate ? new Date(partialPaymentForm.paymentDate).toISOString() : new Date().toISOString(),
           receivingBank: partialPaymentForm.receivingBank || "Bank Mandiri Escrow", refNo: partialPaymentForm.refNo || "-",
-          receiptNo: (partialPaymentForm.receiptNo || "").trim(), pph23Withheld: Number(partialPaymentForm.pph23Withheld || 0),
+          receiptNo: (partialPaymentForm.receiptNo || "").trim(), excessReceiptNo: (partialPaymentForm.excessReceiptNo || "").trim(), pph23Withheld: Number(partialPaymentForm.pph23Withheld || 0),
           notes: partialPaymentForm.notes || "Cicilan Klien", verificationStatus: "Pending", createdBy: "AR Treasury Dept"
         })
       });
       onNotice("Pembayaran cicilan berhasil dicatat (Menunggu Verifikasi).");
       setShowAddPartialPayment(false);
-      setPartialPaymentForm({ amountPaid: "", pph23Withheld: 0, paymentDate: new Date().toISOString().split("T")[0], receivingBank: "Bank Mandiri Escrow", refNo: "", receiptNo: "", notes: "" });
+      setPartialPaymentForm({ amountPaid: "", pph23Withheld: 0, paymentDate: new Date().toISOString().split("T")[0], receivingBank: "Bank Mandiri Escrow", refNo: "", receiptNo: "", excessReceiptNo: "", notes: "" });
       const [invRes, payRes] = await Promise.all([api<any[]>("/api/finance/invoices"), api<any[]>("/api/finance/payments")]);
       setInvoiceRows(Array.isArray(invRes) ? invRes : []);
       setPaymentRows(Array.isArray(payRes) ? payRes : []);

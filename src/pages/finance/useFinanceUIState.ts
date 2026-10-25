@@ -58,6 +58,7 @@ export function useFinanceUIState() {
     receivingBank: "Bank Mandiri Escrow",
     refNo: "",
     receiptNo: "",
+    excessReceiptNo: "",
     notes: ""
   });
 

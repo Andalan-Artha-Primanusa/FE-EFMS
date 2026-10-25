@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2, Pickaxe, Layers, Calculator, Zap, TrendingUp, Scale,
@@ -11,7 +11,9 @@ import {
   masterRegistry, customerKind, obSplitSOWs, contractParams, bankAccountForCustomer, RF_SCHEME_LABELS,
   baseDistanceFor, coalTierForR3, isCoalIndexFinal, sowTierRate, BGG_DEFAULT_OD_DISCOUNT_PCT
 } from "./masterRegistry";
-import { calculateBACommercialBreakdown, isDistanceItem, isOBMaterial } from "./ba_calculations";
+import { calcSum, isDistanceItem, isOBMaterial } from "./ba_calculations";
+import { fetchServerBACalculation } from "./calculations";
+import type { BACalc } from "../../types";
 import { latestPeriodMRate, sowModel, SOW_MODEL_LABELS } from "../VariableSOWPage";
 
 interface SOWItem {
@@ -97,6 +99,34 @@ export function CustomerView({ c }: { c: any }) {
     .filter((r: any) => isCoalIndexFinal(r.status))
     .sort((a: any, b: any) => parsePeriodToYYYYMM(b.period).localeCompare(parsePeriodToYYYYMM(a.period)))[0];
   const activeTier = latestCoal ? (latestCoal.activeTier || coalTierForR3(Number(latestCoal.avgR3))) : "";
+
+  const kurs = latestPeriodMRate(masterRegistry.exchangeRates).rate;
+  const tier = isCoalModel ? activeTier : "";
+  const rateOf = (s: any) => { const idr = sowTierRate(s, tier); return idr > 0 ? idr : Number(s?.rateUSD || 0) * kurs; };
+  const mainSows = registrySows.filter((s) => !isDistanceItem({ ...s, material: s.itemName }));
+  const productSow = mainSows.find((s) => !isOBMaterial(s.itemName) && /coal|batubara|ore|limonite|saprolit|nikel|nickel/i.test(s.itemName || ""));
+  const obSows = obSplit.length > 1 ? obSplit : mainSows.filter((s) => isOBMaterial(s.itemName)).slice(0, 1);
+
+  const coalVol = simCoalVolume || 0;
+  const obVol = simOBVolume || 0;
+
+  const items = [
+    ...(productSow ? [{ id: "sim-product", category: "Operating & Mining", material: productSow.itemName, unit: productSow.unit, initialVolume: coalVol, rate: rateOf(productSow) }] : []),
+    ...obSows.map((s, i) => ({
+      id: `sim-ob-${i}`, category: "Operating & Mining", material: s.itemName, unit: s.unit,
+      initialVolume: obVol * (obSows.length > 1 ? Number(s.splitPercentage) : 100) / 100,
+      rate: rateOf(s),
+    })),
+  ];
+  const missingRate = items.length === 0 || items.some((it) => !(it.rate > 0));
+  const [simCalc, setSimCalc] = useState<BACalc>();
+  const simInput = setupSubTab === "simulation" ? JSON.stringify({ customerCode: selected, workPeriod: rf?.period || "", items }) : "";
+  useEffect(() => {
+    if (!simInput) return;
+    let live = true;
+    const t = setTimeout(async () => { const res = await fetchServerBACalculation(JSON.parse(simInput)); if (live) setSimCalc(res?.calc); }, 400);
+    return () => { live = false; clearTimeout(t); };
+  }, [simInput]);
 
   return (
     <>
@@ -513,29 +543,9 @@ export function CustomerView({ c }: { c: any }) {
               </div>
             )}
 
-            {/* SUB-TAB 3: PLAYGROUND SIMULATION — memakai mesin hitung BA yang sama (calculateBACommercialBreakdown) */}
+            {/* SUB-TAB 3: PLAYGROUND SIMULATION — /ba-trackers/calculate */}
             {setupSubTab === "simulation" && (() => {
-              const kurs = latestPeriodMRate(masterRegistry.exchangeRates).rate;
-              const tier = isCoalModel ? activeTier : "";
-              const rateOf = (s: any) => { const idr = sowTierRate(s, tier); return idr > 0 ? idr : Number(s?.rateUSD || 0) * kurs; };
-              const mainSows = registrySows.filter((s) => !isDistanceItem({ ...s, material: s.itemName }));
-              const productSow = mainSows.find((s) => !isOBMaterial(s.itemName) && /coal|batubara|ore|limonite|saprolit|nikel|nickel/i.test(s.itemName || ""));
-              const obSows = obSplit.length > 1 ? obSplit : mainSows.filter((s) => isOBMaterial(s.itemName)).slice(0, 1);
-
-              const coalVol = simCoalVolume || 0;
-              const obVol = simOBVolume || 0;
-              const rfIndex = hasEscalation && Number(rf?.rfIndexResult) > 0 ? Number(rf.rfIndexResult) : 1;
-
-              const items = [
-                ...(productSow ? [{ id: "sim-product", material: productSow.itemName, unit: productSow.unit, initialVolume: coalVol, rate: rateOf(productSow) }] : []),
-                ...obSows.map((s, i) => ({
-                  id: `sim-ob-${i}`, material: s.itemName, unit: s.unit,
-                  initialVolume: obVol * (obSows.length > 1 ? Number(s.splitPercentage) : 100) / 100,
-                  rate: rateOf(s),
-                })),
-              ];
-              const missingRate = items.length === 0 || items.some((it) => !(it.rate > 0));
-              const b = calculateBACommercialBreakdown(selected, items, rfIndex, false, false);
+              const t = simCalc?.total;
 
               return (
                 <div className="p-5 space-y-4 text-xs">
@@ -591,20 +601,20 @@ export function CustomerView({ c }: { c: any }) {
                             <strong className="tabular-nums">{Math.round(it.initialVolume).toLocaleString("id-ID")} × {formatIDR(it.rate, 2)}</strong>
                           </div>
                         ))}
-                        <div className="flex justify-between"><span className="text-slate-500">Faktor Raise & Fall:</span><strong className="tabular-nums">{b.rfRateFactor.toFixed(3)}x</strong></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Faktor Raise & Fall:</span><strong className="tabular-nums">{(simCalc?.rfIndex ?? 1).toFixed(3)}x</strong></div>
                       </div>
                     </div>
 
                     <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-[4px] space-y-2">
                       <h5 className="font-bold text-slate-900 uppercase tracking-wider text-[11px]">2. Proyeksi Nominal Tagihan (Invoice)</h5>
-                      <div className="flex justify-between"><span className="text-slate-500">Pokok (Produk + OB):</span><strong className="tabular-nums text-slate-900">{formatIDR(b.basePokok)}</strong></div>
-                      {b.rfAmount !== 0 && <div className="flex justify-between"><span className="text-slate-500">Eskalasi Raise & Fall:</span><strong className="tabular-nums text-slate-900">{formatIDR(b.rfAmount)}</strong></div>}
-                      <div className="flex justify-between"><span className="text-slate-500">Subtotal DPP (Gross):</span><strong className="tabular-nums text-slate-900">{formatIDR(b.totalGross)}</strong></div>
-                      <div className="flex justify-between"><span className="text-slate-500">PPN (12% × DPP 11/12):</span><strong className="tabular-nums text-emerald-700">+{formatIDR(b.ppnAmount)}</strong></div>
-                      <div className="flex justify-between"><span className="text-slate-500">PPh 23 (2% Kredit Pajak):</span><strong className="tabular-nums text-rose-700">-{formatIDR(b.pph23Amount)}</strong></div>
+                      <div className="flex justify-between"><span className="text-slate-500">Pokok (Produk + OB):</span><strong className="tabular-nums text-slate-900">{formatIDR(calcSum(simCalc, (l) => l.section !== "D") ?? 0)}</strong></div>
+                      {Boolean(calcSum(simCalc, (l) => l.section === "D")) && <div className="flex justify-between"><span className="text-slate-500">Eskalasi Raise & Fall:</span><strong className="tabular-nums text-slate-900">{formatIDR(calcSum(simCalc, (l) => l.section === "D") ?? 0)}</strong></div>}
+                      <div className="flex justify-between"><span className="text-slate-500">Subtotal DPP (Gross):</span><strong className="tabular-nums text-slate-900">{formatIDR(t?.gross ?? 0)}</strong></div>
+                      <div className="flex justify-between"><span className="text-slate-500">PPN (12% × DPP 11/12):</span><strong className="tabular-nums text-emerald-700">+{formatIDR(t?.vat12 ?? 0)}</strong></div>
+                      <div className="flex justify-between"><span className="text-slate-500">PPh 23 (2% Kredit Pajak):</span><strong className="tabular-nums text-rose-700">-{formatIDR(t?.pph23 ?? 0)}</strong></div>
                       <div className="flex justify-between border-t border-slate-300 pt-1.5 font-bold text-sm bg-white p-2 rounded-[3px] border">
                         <span className="text-slate-900">Estimasi Uang Masuk Bersih:</span>
-                        <strong className="tabular-nums text-emerald-800">{formatIDR(b.totalDibayar ?? b.netTotalInvoice)}</strong>
+                        <strong className="tabular-nums text-emerald-800">{formatIDR(t?.totalDibayar ?? 0)}</strong>
                       </div>
                     </div>
                   </div>

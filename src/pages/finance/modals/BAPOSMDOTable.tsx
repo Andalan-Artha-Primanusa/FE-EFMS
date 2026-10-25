@@ -132,6 +132,7 @@ export function BAPOSMDOTable({
                       updated[targetIdx].isCustom = false;
                       updated[targetIdx].material = sow.name;
                       updated[targetIdx].rateUSD = sow.rateUSD || 0;
+                      updated[targetIdx].isUSD = Number(sow.rateUSD) > 0;
                       updated[targetIdx].unit = sow.unit || updated[targetIdx].unit;
                       updated[targetIdx].rate = sow.defaultRate || updated[targetIdx].rate;
                       if (!sow.isDistanceVar) {
@@ -198,7 +199,7 @@ export function BAPOSMDOTable({
             ) : (
               <FormattedNumberInput
                 allowDecimals={true}
-                maxDecimals={3}
+                maxDecimals={15}
                 className="w-16 sm:w-20 bg-white border border-slate-300 rounded-[3px] p-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none"
                 placeholder="1000"
                 value={actualDist === 0 ? "" : actualDist}

@@ -56,13 +56,6 @@ export function contractParams(code?: string) {
 
 export const BGG_DEFAULT_OD_DISCOUNT_PCT = 25;
 
-/** Diskon OD BGG (%) untuk volume periode asal `period`: bulan di jadwal Master Customer, selain itu default (sama dengan BE odDiscountPctFor). */
-export function odDiscountPctFor(code?: string, period?: string): number {
-  const k = period ? parsePeriodToMonthIndex(period) : 0;
-  const step = (customerByCode(code)?.overDistanceDiscountSchedule || []).find((s: any) => s.fromPeriod && parsePeriodToMonthIndex(s.fromPeriod) === k);
-  return step ? Number(step.pct || 0) : BGG_DEFAULT_OD_DISCOUNT_PCT;
-}
-
 export function bankAccountForCustomer(code?: string): any | undefined {
   const id = customerByCode(code)?.bankAccountId;
   return id ? masterRegistry.bankAccounts.find((b) => b.id === id) : undefined;

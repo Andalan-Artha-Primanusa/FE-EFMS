@@ -14,7 +14,7 @@ interface AccuratePostingPanelProps {
   onNotice: (msg: string) => void;
 }
 
-const DOC_LABEL: Record<string, string> = { OP: "JV Akrual", MDO: "JV Akrual MDO", FAKTUR: "Faktur Penjualan", REV: "JV Pembalik" };
+const DOC_LABEL: Record<string, string> = { OP: "JV Akrual", MDO: "JV Akrual MDO", FAKTUR: "Faktur Penjualan", REV: "JV Pembalik", RECEIPT: "Penerimaan Penjualan", EXCESS: "Penerimaan Lain (Lebih Bayar)" };
 
 // Nomor dokumen Accurate untuk baris list; gagal posting tampil merah dengan error di tooltip.
 export const AccurateDocBadges: React.FC<{ accurate?: any }> = ({ accurate }) => {

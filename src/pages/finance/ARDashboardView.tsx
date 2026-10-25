@@ -8,7 +8,7 @@ import { baCalc, baUninvoicedCalc, formatIDR, invoiceOutstanding, isBAUninvoiced
 import { customerKind } from "./masterRegistry";
 
 const BA_STAGES = ["Submit", "Revisi", "Ready to Invoice", "Approved", "Arsip"];
-const baValue = (ba: any) => baCalc(ba).gross;
+const baValue = (ba: any) => baCalc(ba).totalInvoice;
 const billed = (i: any) => Number(i.totalInvoice || 0);
 const isVerified = (p: any) => !p.verificationStatus || p.verificationStatus === "Verified";
 const monthKey = (d: any) => (d ? String(d).slice(0, 7) : "");

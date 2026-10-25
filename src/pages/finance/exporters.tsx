@@ -134,7 +134,7 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
         ${byGroup(secDItems).map(([sub, items]) => subHdr(sub) + items.map((i: any) => valRow(sub.includes(label(i)) ? i.description : label(i), i, 22)).join("")).join("")}
 
         ${secHdr("E. DISCOUNT ON OVERDISTANCE", sum(secEItems))}
-        ${dedRows(secEItems)}
+        ${dedRows([...secEItems.reduce((m: Map<string, any>, i: any) => m.set(i.description, { ...i, amount: amt(m.get(i.description) || {}) + amt(i) }), new Map<string, any>()).values()])}
 
         ${secHdr("F. DP FUEL & TRANSPORT", sum(secFItems))}
         ${dedRows(secFItems)}
@@ -165,7 +165,7 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
     } else if (custCode === "PTRO" || custCode === "DBK") {
       // PTRO / DBK Table Layout (Petrosea "PAYMENT DETAIL" - Dual Currency USD & IDR)
       const num = (v: number, min: number, max = min) => v.toLocaleString("id-ID", { minimumFractionDigits: min, maximumFractionDigits: max });
-      const n0 = (v: number) => (v < 0 ? `(${Math.abs(v).toLocaleString("id-ID")})` : v.toLocaleString("id-ID"));
+      const n0 = (v: number) => { const r = Math.round(v || 0); return r < 0 ? `(${Math.abs(r).toLocaleString("id-ID")})` : r.toLocaleString("id-ID"); };
       const secAItems = bySection("A");
       const secBItems = bySection("B");
       const secCItems = bySection("C");
@@ -246,23 +246,23 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
       totalsFooterHTML = `
         <tr class="tot-row">
           <td colspan="6"><strong>TOTAL</strong></td>
-          <td class="text-right font-mono"><strong>${c.gross.toLocaleString("id-ID")}</strong></td>
+          <td class="text-right font-mono"><strong>${n0(c.gross)}</strong></td>
         </tr>
         <tr class="tot-row">
           <td colspan="6"><strong>DPP PPN 11/12</strong></td>
-          <td class="text-right font-mono"><strong>${c.dpp11_12.toLocaleString("id-ID")}</strong></td>
+          <td class="text-right font-mono"><strong>${n0(c.dpp11_12)}</strong></td>
         </tr>
         <tr class="tot-row">
           <td colspan="6"><strong>VAT ( 12%)</strong></td>
-          <td class="text-right font-mono"><strong>${c.vat12.toLocaleString("id-ID")}</strong></td>
+          <td class="text-right font-mono"><strong>${n0(c.vat12)}</strong></td>
         </tr>
         <tr class="tot-row">
           <td colspan="6"><strong>WITH HOLDING TAX ART 23 (2%)</strong></td>
-          <td class="text-right font-mono"><strong>(${c.pph23.toLocaleString("id-ID")})</strong></td>
+          <td class="text-right font-mono"><strong>(${n0(c.pph23)})</strong></td>
         </tr>
         <tr class="tot-row">
           <td colspan="6"><strong>TOTAL INVOICE</strong></td>
-          <td class="text-right font-mono"><strong>${c.totalInvoice.toLocaleString("id-ID")}</strong></td>
+          <td class="text-right font-mono"><strong>${n0(c.totalInvoice)}</strong></td>
         </tr>
       `;
     } else if (custCode === "SBS") {
@@ -323,12 +323,12 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
       const uom = (u: string) => /^bcm$/i.test(u || "") ? "Bcm" : (u || "");
       const desc = (i: any) => String(i.description || "").replace(/^[A-Z][0-9]*[.\s-]+\s*/i, "").trim();
       const withArea = (i: any) => i.subSection && !desc(i).includes(i.subSection) ? `${desc(i)} (${i.subSection})` : desc(i);
-      const row = (d: string, i: any, pad: number) =>
-        `<tr><td style="padding-left: ${pad}px;">${d}</td><td class="text-right">${v2(vol(i))}</td><td class="text-center">${uom(i.unit)}</td><td class="text-right">${n0(rate(i))}</td><td class="text-right">${n0(amt(i))}</td></tr>`;
+      const row = (d: string, i: any, pad: number, fr = n0) =>
+        `<tr><td style="padding-left: ${pad}px;">${d}</td><td class="text-right">${v2(vol(i))}</td><td class="text-center">${uom(i.unit)}</td><td class="text-right">${fr(rate(i))}</td><td class="text-right">${n0(amt(i))}</td></tr>`;
       const bold = (d: string, items: any[] = [], withTotals = false) =>
         `<tr style="font-weight: bold;"><td>${d}</td><td class="text-right">${withTotals ? v2(sum(items, vol)) : ""}</td><td class="text-center">${withTotals ? uom(items[0]?.unit) : ""}</td><td></td><td class="text-right">${withTotals ? n0(sum(items)) : ""}</td></tr>`;
       const dedRow = (L: string, i: any, n: number) =>
-        `<tr><td colspan="4" style="padding-left: 6px;">${L}${n + 1}. ${desc(i)}</td><td class="text-right">(${Math.abs(amt(i)).toLocaleString("id-ID")})</td></tr>`;
+        `<tr><td colspan="4" style="padding-left: 6px;">${L}${n + 1}. ${desc(i)}</td><td class="text-right">(${n0(Math.abs(amt(i)))})</td></tr>`;
       let letter = 0;
       const section = (title: string, items: any[], body: (L: string) => string, volItems?: any[]) => {
         const L = "ABCDEFGH"[letter++];
@@ -350,9 +350,9 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
       const parts: string[] = [];
       if (isRental) {
         // Rental POS — format sheet "SEP RENTAL": A sewa (Hrs), B BBM (Ltr), C potongan; tanpa R&F.
-        const list = (L: string, items: any[]) => items.map((i: any, n: number) => row(`${L}${n + 1}. ${i.description || ""}`, i, 6)).join("");
+        const list = (L: string, items: any[], fr = n0) => items.map((i: any, n: number) => row(`${L}${n + 1}. ${i.description || ""}`, i, 6, fr)).join("");
         parts.push(section("RENTAL", bySection("A"), (L) => list(L, bySection("A")), bySection("A")));
-        parts.push(section("BBM (FUEL)", bySection("B"), (L) => list(L, bySection("B")), bySection("B")));
+        parts.push(section("BBM (FUEL)", bySection("B"), (L) => list(L, bySection("B"), v2), bySection("B")));
         parts.push(section("RECONCILE - DEDUCTION", bySection("C"), (L) => bySection("C").map((i: any, n: number) => dedRow(L, i, n)).join("")));
       }
       if (prodItems.length) parts.push(section(isFacility ? "PEKERJAAN FASILITAS / KLAIM PROYEK" : "PRODUCTION", prodItems, (L) => byArea
@@ -381,7 +381,7 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
         <div class="note-box" style="font-weight: normal;">
           Note:<br/>
           <table style="border-collapse: collapse; font-size: 9.5px;">
-            <tr><td style="padding: 1px 0; width: 420px;">1. Harga solar rata-rata ${periodParts(itemData?.workPeriod || "-").monthYear} (Rp/Ltr)</td><td style="font-weight: bold;">${avgFuel.toLocaleString("id-ID", { maximumFractionDigits: 6 })}</td></tr>
+            <tr><td style="padding: 1px 0; width: 420px;">1. Harga solar rata-rata ${periodParts(itemData?.workPeriod || "-").monthYear} (Rp/Ltr)</td><td style="font-weight: bold;">${v2(avgFuel)}</td></tr>
           </table>
         </div>
       ` : rfItems.length && rf ? `
@@ -1546,7 +1546,7 @@ export function exportCoretaxEFakturCSVImpl(ctx: any, targetInvoices?: any[] | a
     const tahunPajak = invDate.getFullYear();
     const tglFaktur = `${String(invDate.getDate()).padStart(2, "0")}/${String(masaPajak).padStart(2, "0")}/${tahunPajak}`;
     const cleanInvNo = (inv.invoiceNo || "").replace(/[^0-9]/g, "").padEnd(16, "0").slice(0, 16);
-    const { gross, dpp11_12: dpp, vat12: ppn } = invoiceCalc(inv);
+    const c = invoiceCalc(inv), [gross, dpp, ppn] = [c.gross, c.dpp11_12, c.vat12].map(Math.round);
     const ref = `${inv.invoiceNo || "-"} (${inv.workPeriod || "-"})`;
 
     csvContent += `FK;04;0;${cleanInvNo};${masaPajak};${tahunPajak};${tglFaktur};${SELLER_NPWP};${SELLER_NAME};${buyer.npwp};${buyer.name};"${buyer.address}";${dpp};${ppn};0;DPP_NILAI_LAIN_11_12;0;0;0;0;"${ref}"\r\n`;
@@ -1570,7 +1570,7 @@ export function exportEBupotPPh23CSVImpl(ctx: any, targetInvoices?: any[] | any)
     const buyer = taxBuyer(ctx, (inv.customerCode || "").toUpperCase(), missing);
     const invDate = taxDate(inv);
     const tglDok = `${String(invDate.getDate()).padStart(2, "0")}/${String(invDate.getMonth() + 1).padStart(2, "0")}/${invDate.getFullYear()}`;
-    const { gross, pph23 } = invoiceCalc(inv);
+    const c = invoiceCalc(inv), [gross, pph23] = [c.gross, c.pph23].map(Math.round);
     csvContent += `24-104-01;${buyer.npwp};"${buyer.name}";${SELLER_NPWP};"${SELLER_NAME}";"${inv.invoiceNo || "-"}";${tglDok};${gross};2%;${pph23};DIPOTONG\r\n`;
   });
 
