@@ -393,7 +393,7 @@ export function InvoiceView({ c }: { c: any }) {
                                   </td>
                                 </tr>
                                   {clientRows.map((row: any) => {
-                                    const isImmutable = ["Approved", "Tax_Reported", "Faktur Pajak Terlapor", "Paid", "Lunas"].includes(row.status);
+                                    const isImmutable = ["Approved", "Tax_Reported", "Faktur Pajak Terlapor", "Paid", "Lunas"].includes(row.status) && !isSuper;
                                     return (
                                       <tr key={row.id} className="hover:bg-slate-50 transition group">
                                         <td className="p-2.5">
