@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Download, FileSpreadsheet, RefreshCw, Search } from "lucide-react";
 import * as XLSX from "xlsx";
-import { api } from "../../../lib/api";
+import { api, useReloadOnSave } from "../../../lib/api";
 import { formatCurrency, formatDate } from "../../../lib/format";
 import { downloadFile } from "../useTreasuryController";
 
@@ -48,6 +48,7 @@ export default function RekapVoucherView() {
 
   // Search is applied on Enter / refresh to avoid a request per keystroke.
   useEffect(load, [year, type, status]);
+  useReloadOnSave(load);
 
   const totals = useMemo(() => {
     const t: Record<string, number> = {};

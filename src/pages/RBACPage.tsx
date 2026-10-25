@@ -53,7 +53,8 @@ import {
   type RoleAccess,
   type TCode,
   type User as UserType,
-  type Company
+  type Company,
+  useReloadOnSave
 } from "../lib/api";
 import { authorized, companyOptionsForUser, isHeadOfficeUser, isSuperAdminRole, loadCompanies as loadAuthCompanies, roleScopeOf, rolesAssignableBy, userScopeType } from "../lib/auth";
 
@@ -482,6 +483,7 @@ export function RBACPage({
   useEffect(() => {
     if (activeTab === "tcodes") loadTcodes();
   }, [activeTab]);
+  useReloadOnSave(() => { loadAllUsers(); loadAllRoles(); loadCompanies(); if (activeTab === "tcodes") loadTcodes(); });
 
   const scopedCompanies = useMemo(() => {
     const map = new Map<string, { id: number; code: string; name: string; isHo: boolean }>();

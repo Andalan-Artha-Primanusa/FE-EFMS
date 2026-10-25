@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { treasuryTabs, viewPath, type TreasuryTab } from "../../data/navigation";
-import { api, API_BASE } from "../../lib/api";
+import { api, API_BASE, useReloadOnSave } from "../../lib/api";
 import { authorized } from "../../lib/auth";
 import type { User } from "../../types";
 import type {
@@ -203,6 +203,7 @@ export function useTreasuryController(onNotice?: (msg: string) => void, user?: U
   useEffect(() => {
     refreshAll();
   }, [refreshAll]);
+  useReloadOnSave(refreshAll);
 
   // Poll while a background Accurate sync runs, then reload everything once.
   useEffect(() => {

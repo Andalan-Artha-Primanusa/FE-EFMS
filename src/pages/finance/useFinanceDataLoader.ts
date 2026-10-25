@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { api, getSBSPenalties, SBSPenaltyItem, User as UserType } from "../../lib/api";
+import { api, getSBSPenalties, useReloadOnSave, SBSPenaltyItem, User as UserType } from "../../lib/api";
 import { authorized, filterRowsByCompanyScope, isHeadOfficeUser, companyScopeOf, scopedEndpoint, isSuperAdminRole } from "../../lib/auth";
 
 interface UseFinanceDataLoaderProps {
@@ -78,6 +78,7 @@ export function useFinanceDataLoader({ viewTitle, user, onNotice }: UseFinanceDa
   useEffect(() => {
     loadData(true);
   }, [viewTitle]);
+  useReloadOnSave(() => loadData());
 
   return {
     loading,

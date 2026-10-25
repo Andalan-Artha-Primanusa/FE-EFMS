@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { RefreshCw, Search } from "lucide-react";
-import { api } from "../../lib/api";
+import { api, useReloadOnSave } from "../../lib/api";
 import { authorized } from "../../lib/auth";
 import { formatCurrency, formatDate } from "../../lib/format";
 import type { TPORequest } from "./types";
@@ -43,6 +43,7 @@ export function TrackingTunaiPOPage() {
   useEffect(() => {
     load();
   }, [load]);
+  useReloadOnSave(load);
 
   const sites = useMemo(() => [...new Set(rows.map((r) => r.site).filter(Boolean))].sort(), [rows]);
   const filtered = rows.filter((r) => {

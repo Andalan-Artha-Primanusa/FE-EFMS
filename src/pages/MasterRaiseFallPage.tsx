@@ -25,7 +25,7 @@ import {
 import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { api } from "../lib/api";
+import { api, useReloadOnSave } from "../lib/api";
 import { MonthPickerInput, matchPeriod, parsePeriodToYYYYMM } from "./finance/helpers";
 import { computeRFIndex, forexRatio, kursForPeriod } from "./finance/masterRegistry";
 
@@ -233,6 +233,7 @@ export function MasterRaiseFallPage({
   useEffect(() => {
     loadData();
   }, []);
+  useReloadOnSave(loadData);
 
   // Load company list from backend API (/api/companies) for the dropdown.
   useEffect(() => {

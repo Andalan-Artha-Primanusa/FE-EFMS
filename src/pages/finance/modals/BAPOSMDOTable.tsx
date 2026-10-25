@@ -30,9 +30,10 @@ export function BAPOSMDOTable({
   getSowMasterRate,
 }: BAPOSMDOTableProps) {
   // Group into Production, Over Distance and Land Clearing
-  const prodItems = baMDOItems.filter((it) => !isDistanceItem(it) && !isLandClearingItem(it));
-  const distItems = baMDOItems.filter((it) => isDistanceItem(it));
-  const lcItems = baMDOItems.filter((it) => isLandClearingItem(it));
+  const dedItems = baMDOItems.filter((it) => it.isDeduction);
+  const prodItems = baMDOItems.filter((it) => !isDistanceItem(it) && !isLandClearingItem(it) && !it.isDeduction);
+  const distItems = baMDOItems.filter((it) => isDistanceItem(it) && !it.isDeduction);
+  const lcItems = baMDOItems.filter((it) => isLandClearingItem(it) && !it.isDeduction);
 
   const mdo = calc?.byCategory["MDO"];
   const rfRows = (calc?.lines || []).filter((l) => l.section === "D" && l.category === "MDO");
@@ -40,6 +41,7 @@ export function BAPOSMDOTable({
   const subtotalB = calcItemsAmount(calc, distItems);
   const subtotalC = calcItemsAmount(calc, lcItems);
   const subtotalD = calc ? rfRows.reduce((a, l) => a + l.amount, 0) : undefined;
+  const subtotalE = calcItemsAmount(calc, dedItems);
   const paren = (v: number | undefined) => (v !== undefined && v < 0 ? `(${formatIDR(-v)})` : calcIDR(v));
 
   const renderMDORow = (item: any, idx: number) => {
@@ -362,6 +364,22 @@ export function BAPOSMDOTable({
                 </td>
               </tr>
             )}
+
+            {/* SEKSI E: PENGURANG (DP FUEL / DEDUCTION) */}
+            {dedItems.length > 0 && (
+              <>
+                <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
+                  {isInlineEditingBA && <td className="p-2 text-center text-slate-400">#</td>}
+                  <td colSpan={6} className="p-2 uppercase font-extrabold tracking-wider">
+                    E. PENGURANG / DEDUCTION
+                  </td>
+                  <td className="p-2 text-right font-mono text-rose-700 font-extrabold">
+                    {paren(subtotalE)}
+                  </td>
+                </tr>
+                {dedItems.map((item, idx) => renderMDORow(item, idx))}
+              </>
+            )}
           </tbody>
         </table>
       </div>
@@ -370,9 +388,21 @@ export function BAPOSMDOTable({
       <div className="overflow-x-auto rounded-[4px] border border-slate-300 shadow-xs bg-slate-50/60 mt-2">
         <table className="w-full text-xs font-mono border-collapse">
           <tbody>
+            {!!subtotalE && mdo && (
+              <>
+                <tr className="border-b border-slate-200 hover:bg-slate-100/60 font-bold">
+                  <td className="p-2 text-slate-800 uppercase tracking-wider pl-3">TOTAL GROSS</td>
+                  <td className="p-2 text-right font-extrabold text-slate-950 w-48 sm:w-56 pr-3">{calcIDR(mdo.gross - subtotalE)}</td>
+                </tr>
+                <tr className="border-b border-slate-200 hover:bg-slate-100/60 font-bold text-rose-700">
+                  <td className="p-2 uppercase tracking-wider pl-3">POTONGAN / DEDUCTION</td>
+                  <td className="p-2 text-right font-extrabold w-48 sm:w-56 pr-3">{paren(subtotalE)}</td>
+                </tr>
+              </>
+            )}
             <tr className="border-b border-slate-200 hover:bg-slate-100/60 font-bold">
               <td className="p-2 text-slate-800 uppercase tracking-wider pl-3">
-                TOTAL
+                {subtotalE ? "TOTAL NETTO" : "TOTAL"}
               </td>
               <td className="p-2 text-right font-extrabold text-slate-950 w-48 sm:w-56 pr-3">
                 {calcIDR(mdo?.gross)}

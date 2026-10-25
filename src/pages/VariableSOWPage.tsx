@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
-import { api } from "../lib/api";
+import { api, useReloadOnSave } from "../lib/api";
 import { customerKind, kursForPeriod } from "./finance/masterRegistry";
 import { useNavigate, useLocation } from "react-router-dom";
 import { routes } from "../router/routes";
@@ -148,6 +148,7 @@ export function VariableSOWPage({
   useEffect(() => {
     loadData();
   }, []);
+  useReloadOnSave(loadData);
 
   const openCreateGridModal = () => navigate(routes.variableSOW.new);
   const openEditGridModal = (contractGroup: any) => navigate(routes.variableSOW.edit(contractGroup.companyCode));

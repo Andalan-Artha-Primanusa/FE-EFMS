@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Building, Plus, Edit2, Trash2, X, RefreshCw, Search, Check } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
-import { getCompanies, createCompany, updateCompany, deleteCompany, type Company } from "../lib/api";
+import { getCompanies, createCompany, updateCompany, deleteCompany, type Company, useReloadOnSave } from "../lib/api";
 import { authorized } from "../lib/auth";
 import type { User } from "../lib/api";
 
@@ -39,6 +39,7 @@ export function CompanyPage({
   };
 
   useEffect(() => { loadCompanies(); }, []);
+  useReloadOnSave(loadCompanies);
 
   useEffect(() => {
     if (feedback) {

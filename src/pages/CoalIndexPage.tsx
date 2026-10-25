@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import { Panel } from "../components/Panel";
-import { api, type User } from "../lib/api";
+import { api, type User, useReloadOnSave } from "../lib/api";
 import { canManageCoalIndex } from "../lib/auth";
 import { MonthPickerInput } from "./finance/helpers";
 import { coalTierForR3, customerKind, isCoalIndexFinal, sowTierRate } from "./finance/masterRegistry";
@@ -189,6 +189,7 @@ export function CoalIndexPage({
   useEffect(() => {
     loadData();
   }, []);
+  useReloadOnSave(loadData);
 
   // Tarif OB BGG per tier dari Master Variable SOW (porsi split terbesar = OB 1).
   const bggOB = sowRows

@@ -20,6 +20,7 @@ import {
   reverseJournal,
   getCOAAccounts,
   getSubLedgers,
+  useReloadOnSave
 } from "../../lib/api";
 import type { JournalEntry, COAAccount, SubLedgerCode } from "../../types";
 import { JournalEntryView } from "./JournalEntryView";
@@ -81,6 +82,7 @@ export const AccountingShell: React.FC<AccountingShellProps> = ({
   useEffect(() => {
     loadJournals();
   }, [loadJournals]);
+  useReloadOnSave(loadJournals);
 
   // Journal CRUD handlers
   const handleSaveJournal = async (entry: Partial<JournalEntry>, submitForApproval?: boolean) => {
