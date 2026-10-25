@@ -5,7 +5,7 @@
 
 import { getBGGRFIndexForPeriod, isUnbilledPending } from "./ba_calculations";
 import { baseDistanceFor, customerByCode } from "./masterRegistry";
-import { baCalc, baUninvoicedCalc, calcCategory, pendingCalc, formatIDR, getBAStatusForExport, getCustomerOfficialName, invoiceCalc, invoiceOutstanding, isAROpen, isBAUninvoiced, parsePeriodToMonthIndex } from "./helpers";
+import { baCalc, baUninvoicedCalc, calcCategory, pendingCalc, formatIDR, getBAStatusForExport, getCustomerOfficialName, invoiceCalc, invoiceNett, invoiceOutstanding, isAROpen, isBAUninvoiced, parsePeriodToMonthIndex } from "./helpers";
 
 // Blok TTD laporan monitoring (PDF & Excel)
 const SIGNATURE_HTML = `
@@ -1346,7 +1346,7 @@ export function exportAROnlyPDFImpl(ctx: any) {
     arRows += `<tr class="cust"><td colspan="11">${custCode}</td></tr>`;
     rows.forEach((r, i) => {
       const out = invoiceOutstanding(r);
-      const ded = Number(r.otherDeduction || 0);
+      const ded = out - invoiceNett(r);
       sub.out += out; sub.ded += ded; sub.nett += out - ded;
       arRows += `
         <tr>

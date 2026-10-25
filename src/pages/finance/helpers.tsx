@@ -537,6 +537,30 @@ export const baUninvoicedCalc = (ba: any, invoices: any[]) => {
   return baCalc(ba, st.isPartiallyInvoiced ? (st.createdMiningInv ? "MDO" : "Operation & Mining") : undefined);
 };
 export const invoiceOutstanding = (inv: any) => Number(inv?.outstanding ?? (Number(inv?.totalReceipt || 0) - Number(inv?.totalPaid || 0)));
+// Nett = Outstanding − backcharge yang belum dipotong customer; minus = hutang ke customer.
+export const invoiceNett = (inv: any) => invoiceOutstanding(inv) - Number(inv?.otherDeduction || 0) + Number(inv?.backchargeCut || 0);
+// Nilai yang melunasi invoice: kas + kompensasi.
+export const paySettled = (p: any) => Number(p?.amountPaid || 0) + Number(p?.compensation || 0);
+// Sumber kompensasi customer yang sama (sisa > 0, payment Pending ikut memesan): backcharge (termasuk invoice ini) &
+// lebih bayar terverifikasi invoice lain. Sama dengan checkCompensation BE.
+export const compensationSources = (inv: any, invoices: any[], payments: any[], selfId?: number) => {
+  const lc = (s: any) => String(s || "").toLowerCase();
+  const cust = lc(inv?.customerCode);
+  const reserved = (no: string, type: string) => payments
+    .filter((p) => p.id !== selfId && p.verificationStatus !== "Rejected" && p.compensationType === type && lc(p.compensationInvoiceNo) === lc(no))
+    .reduce((s, p) => s + Number(p.compensation || 0), 0);
+  return invoices
+    .filter((s) => lc(s.customerCode) === cust && INVOICE_LOCKED.has(String(s.status || "").trim()))
+    .flatMap((s) => {
+      const paid = payments.filter((p) => lc(p.invoiceNo) === lc(s.invoiceNo) && (!p.verificationStatus || p.verificationStatus === "Verified")).reduce((t, p) => t + paySettled(p), 0);
+      const excess = lc(s.invoiceNo) === lc(inv?.invoiceNo) ? 0 : paid - Number(s.totalDibayar || s.totalReceipt || s.totalInvoice || 0);
+      return [
+        { invoiceNo: s.invoiceNo, type: "BACKCHARGE", available: Number(s.otherDeduction || 0) - reserved(s.invoiceNo, "BACKCHARGE") },
+        { invoiceNo: s.invoiceNo, type: "LEBIH_BAYAR", available: excess - reserved(s.invoiceNo, "LEBIH_BAYAR") },
+      ];
+    })
+    .filter((c) => Math.round(c.available * 100) > 0);
+};
 // Prefill PPh 23 dipotong customer: proporsional cash / net payable x PPh 23 invoice, maks sisa; pelunasan = sisa persis.
 export const pph23Prefill = (inv: any, cash: number, payments: any[], selfId?: number) => {
   const billed = Number(inv?.totalDibayar || inv?.totalReceipt || inv?.totalInvoice || 0); // kas yang dibayar (SBS: tanpa Section P)
@@ -545,11 +569,12 @@ export const pph23Prefill = (inv: any, cash: number, payments: any[], selfId?: n
   const no = String(inv.invoiceNo || "").toLowerCase();
   const others = payments.filter((p) => String(p.invoiceNo || "").toLowerCase() === no && p.id !== selfId && p.verificationStatus !== "Rejected");
   const rest = Math.max(0, pph - others.reduce((s, p) => s + Number(p.pph23Withheld || 0), 0));
-  const restNet = billed - others.reduce((s, p) => s + Number(p.amountPaid || 0), 0);
+  const restNet = billed - others.reduce((s, p) => s + paySettled(p), 0);
   if (Math.round(cash * 100) >= Math.round(restNet * 100)) return rest;
   return Math.min(Math.round((cash / billed) * pph), rest);
 };
-export const isAROpen = (inv: any) => INVOICE_LOCKED.has(String(inv?.status || "").trim()) && invoiceOutstanding(inv) > 0;
+// AR terbuka: masih ada piutang, atau Nett ≠ 0 (lebih bayar / backcharge belum dipotong = hutang ke customer).
+export const isAROpen = (inv: any) => INVOICE_LOCKED.has(String(inv?.status || "").trim()) && (Math.round(invoiceOutstanding(inv)) !== 0 || Math.round(invoiceNett(inv)) !== 0);
 
 export function renderInvoiceStatusBadge(status: string) {
   const s = (status || "").trim();

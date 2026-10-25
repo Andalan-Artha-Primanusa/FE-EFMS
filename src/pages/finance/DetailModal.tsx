@@ -16,8 +16,9 @@ export function DetailModal({ c }: { c: any }) {
     detailViewItem, setDetailViewItem, showAddPartialPayment, setShowAddPartialPayment, partialPaymentForm,
     setPartialPaymentForm, customerContractMap, exportPaymentDetailPDF,
     handleSavePartialPayment, handleVerifyPartialPayment, createInvoiceFromBA, handleVerifyBA, handleApproveBA,
-    handleApproveInvoice, openEditModal, onNotice, loadData, can = () => false
+    handleApproveInvoice, openEditModal, onNotice, loadData, user, can = () => false
   } = (c || {}) as Record<string, any>;
+  const actor = user ? `${user.name} (${user.role})` : "";
 
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
   const paymentRows: any[] = Array.isArray(rawPaymentRows) ? rawPaymentRows : [];
@@ -133,6 +134,7 @@ export function DetailModal({ c }: { c: any }) {
               {type === "invoice" && (
                 <DetailPaymentTracker
                   detailData={data}
+                  invoiceRows={invoiceRows}
                   paymentRows={paymentRows}
                   showAddPartialPayment={showAddPartialPayment}
                   setShowAddPartialPayment={setShowAddPartialPayment}
@@ -140,6 +142,7 @@ export function DetailModal({ c }: { c: any }) {
                   setPartialPaymentForm={setPartialPaymentForm}
                   handleSavePartialPayment={handleSavePartialPayment}
                   handleVerifyPartialPayment={can("payment", "verify") ? handleVerifyPartialPayment : undefined}
+                  canEditPayment={(p: any) => can("payment", "write") && (isSuper || p.createdBy?.toLowerCase() === actor.toLowerCase())}
                   canSyncAccurate={can("payment", "verify")}
                   onNotice={onNotice}
                   onAccurateSaved={() => loadData?.()}

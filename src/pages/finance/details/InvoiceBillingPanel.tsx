@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Save, Loader2, FileText, Edit2, Lock } from "lucide-react";
 import { api } from "../../../lib/api";
-import { formatIDR, formatDateInput, getCustomerOfficialName, invoiceOutstanding, RupiahInput, parsePeriodToYYYYMM } from "../helpers";
+import { formatIDR, formatDateInput, getCustomerOfficialName, invoiceNett, invoiceOutstanding, RupiahInput, parsePeriodToYYYYMM } from "../helpers";
 import { ACCURATE_CUTOVER } from "./AccuratePostingPanel";
 
 interface InvoiceBillingPanelProps {
@@ -122,7 +122,7 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
             <RupiahInput label="" value={f.otherDeduction} onChange={(v) => set("otherDeduction", v)} />
           </div>
         ) : tile("Deduction Backcharge", f.otherDeduction)}
-        {tile("Nett", outstanding - f.otherDeduction, true)}
+        {tile("Nett", invoiceNett({ ...data, otherDeduction: f.otherDeduction }), true)}
       </div>
 
       <div className="grid grid-cols-1 gap-x-6 bg-white border border-slate-200 rounded-[4px] px-3 py-1">
