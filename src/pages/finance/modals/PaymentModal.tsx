@@ -1,5 +1,5 @@
 import React from "react";
-import { RupiahInput, formatIDR, pph23Prefill } from "../helpers";
+import { RupiahInput, formatIDR, paySettled, pph23Prefill } from "../helpers";
 
 interface PaymentModalProps {
   formData: any;
@@ -16,7 +16,7 @@ export function PaymentModal({ formData, setFormData, companyList, invoiceRows =
   // Lebih bayar atas faktur Accurate: Penerimaan Lain dengan nomor bukti kedua.
   const target = Number(inv?.totalDibayar || inv?.totalReceipt || inv?.totalInvoice || 0);
   const others = paymentRows.filter((p) => p.invoiceNo?.toLowerCase() === inv?.invoiceNo?.toLowerCase() && p.id !== formData.id && p.verificationStatus !== "Rejected");
-  const excess = Number(formData.amountPaid || 0) + others.reduce((s, p) => s + Number(p.amountPaid || 0), 0) - target;
+  const excess = paySettled(formData) + others.reduce((s, p) => s + paySettled(p), 0) - target;
   return (
     <>
       {/* Section 1: Target Invoice */}
@@ -70,7 +70,7 @@ export function PaymentModal({ formData, setFormData, companyList, invoiceRows =
           <RupiahInput
             label="Jumlah Uang Masuk Received (Rp)"
             value={formData.amountPaid || 0}
-            onChange={(val: number) => setFormData({ ...formData, amountPaid: val, pph23Withheld: pph23Prefill(inv, val, paymentRows, formData.id) })}
+            onChange={(val: number) => setFormData({ ...formData, amountPaid: val, pph23Withheld: pph23Prefill(inv, val + Number(formData.compensation || 0), paymentRows, formData.id) })}
             required={true}
           />
           <RupiahInput

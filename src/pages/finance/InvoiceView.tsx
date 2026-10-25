@@ -13,7 +13,7 @@ import {
   getBAInvoiceStatus, renderBAStatusBadge,
   getBAStatusForExport, renderInvoiceStatusBadge, parsePeriodToMonthIndex,
   RupiahInput, MonthPickerInput, generateAuditTimeline, getCustomerOfficialName,
-  baUninvoicedCalc, invoiceOutstanding, isAROpen, isBAUninvoiced
+  baUninvoicedCalc, invoiceOutstanding, invoiceNett, isAROpen, isBAUninvoiced
 } from "./helpers";
 
 export function InvoiceView({ c }: { c: any }) {
@@ -43,7 +43,9 @@ export function InvoiceView({ c }: { c: any }) {
               isAROpen(r) && (invPeriodFilter === "All" || parsePeriodToMonthIndex(r?.workPeriod || "") <= targetPeriodIndex)
             );
             const totalARAndalan = periodFilteredUnpaidInvoices.reduce((acc, r) => acc + outstandingOf(r), 0);
-            const totalBackcharge = periodFilteredUnpaidInvoices.reduce((acc, r) => acc + Number(r?.otherDeduction || 0), 0);
+            // Backcharge yang belum dipotong customer (Outstanding − Nett).
+            const backchargeOf = (r: any) => outstandingOf(r) - invoiceNett(r);
+            const totalBackcharge = periodFilteredUnpaidInvoices.reduce((acc, r) => acc + backchargeOf(r), 0);
 
             // Penalty & Section P deductions dataset dynamically derived from live SBS Penalty Ledger (Eksklusif SBS Project)
             const penaltyDataRows = sbsPenalties
@@ -374,7 +376,7 @@ export function InvoiceView({ c }: { c: any }) {
                             const clientRows = filteredInv.filter((r) => (r.customerCode || "OTHER") === custCode);
                             const clientTotalAmount = clientRows.reduce((sum, r) => sum + Number(r.totalInvoice || 0), 0);
                             const clientTotalOutstanding = clientRows.reduce((sum, r) => sum + outstandingOf(r), 0);
-                            const clientTotalBackcharge = clientRows.reduce((sum, r) => sum + Number(r.otherDeduction || 0), 0);
+                            const clientTotalBackcharge = clientRows.reduce((sum, r) => sum + backchargeOf(r), 0);
 
                             return (
                               <Fragment key={custCode}>
@@ -414,8 +416,8 @@ export function InvoiceView({ c }: { c: any }) {
                                         <td className="p-2.5 text-slate-700 whitespace-nowrap">{row.invoiceSubmissionDate ? new Date(row.invoiceSubmissionDate).toLocaleDateString("id-ID") : "-"}</td>
                                         <td className="p-2.5 text-slate-700 whitespace-nowrap">{row.dueDate ? new Date(row.dueDate).toLocaleDateString("id-ID") : "-"}</td>
                                         <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">{formatIDR(outstandingOf(row))}</td>
-                                        <td className="p-2.5 text-right font-mono text-slate-700 whitespace-nowrap">{formatIDR(Number(row.otherDeduction || 0))}</td>
-                                        <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">{formatIDR(outstandingOf(row) - Number(row.otherDeduction || 0))}</td>
+                                        <td className="p-2.5 text-right font-mono text-slate-700 whitespace-nowrap">{formatIDR(backchargeOf(row))}</td>
+                                        <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">{formatIDR(invoiceNett(row))}</td>
                                         <td className="p-2.5 text-right whitespace-nowrap sticky right-0 z-10 bg-white group-hover:bg-slate-50 transition-colors shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] border-l border-slate-200">
                                           <div className="flex items-center justify-end gap-1.5 flex-nowrap min-w-[150px]">
                                              {canVerifyInvoice && (row.status === "Draft" || !row.status || row.status === "Pending" || row.status === "Submitted") && (() => {
