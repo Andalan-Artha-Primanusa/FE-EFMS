@@ -10,11 +10,12 @@ import {
   customerKind,
   canEditPending,
   isRentalBA,
+  isMessBA,
 } from "../ba_calculations";
 import { fetchServerBACalculation } from "../calculations";
 import { buildBAPayload } from "../useFinanceSaveHandlers";
 import type { BACalc } from "../../../types";
-import { BAPOSRentalTable } from "./BAPOSRentalTable";
+import { BAPOSRentalTable, BAPOSMessTable } from "./BAPOSRentalTable";
 import { BATrackerHeaderForm } from "./BATrackerHeaderForm";
 import { BATrackerSurveyItems } from "./BATrackerSurveyItems";
 import { BATrackerSurveyMatrix } from "./BATrackerSurveyMatrix";
@@ -93,7 +94,8 @@ export function BATrackerModal({ c }: { c: any }) {
   const isCustomerBGG = kind === "BGG";
   const isCustomerPOS = kind === "POS";
   const pending = Boolean(formData.pendingMode);
-  const isRental = isRentalBA(formData);
+  const isMess = isMessBA(formData);
+  const isRental = isRentalBA(formData) || isMess;
   const pv = editItem?.pendingVolume;
   const pendingEditable = canEditPending(editItem);
   const allBAItems = [...baOperatingItems, ...baMDOItems, ...(baDeductionItems || [])];
@@ -292,7 +294,18 @@ export function BATrackerModal({ c }: { c: any }) {
                   getBGGActiveCoalTier={getBGGActiveCoalTier}
                 />
 
-                {activeBAStep === 1 && isRental && (
+                {isMess && (
+                  <BAPOSMessTable
+                    formData={formData}
+                    setFormData={setFormData}
+                    baOperatingItems={baOperatingItems}
+                    setBaOperatingItems={setBaOperatingItems}
+                    isInlineEditingBA={isInlineEditingBA}
+                    calc={calc}
+                  />
+                )}
+
+                {activeBAStep === 1 && isRental && !isMess && (
                   <BAPOSRentalTable
                     formData={formData}
                     setFormData={setFormData}

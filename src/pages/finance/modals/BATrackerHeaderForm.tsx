@@ -1,7 +1,7 @@
 import React from "react";
 import { Layers, Calculator } from "lucide-react";
 import { MonthPickerInput, matchPeriod } from "../helpers";
-import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF, customerKind, isRentalBA, isPOSMDOBA } from "../ba_calculations";
+import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF, customerKind, isRentalBA, isPOSMDOBA, isMessBA } from "../ba_calculations";
 import { obSplitSOWs, sowFor, sowTierRate, computeRFIndex, rfTemplateFor, ptroContractRates, baItemsFromSOW, kursForPeriod } from "../masterRegistry";
 import { isHeadOfficeUser } from "../../../lib/auth";
 
@@ -67,7 +67,7 @@ export function BATrackerHeaderForm({
 }: BATrackerHeaderFormProps) {
   const isCustomerDBK = customerKind(formData.customerCode) === "PTRO";
   const isCustomerSBS = customerKind(formData.customerCode) === "SBS";
-  const isRental = isRentalBA(formData);
+  const isRental = isRentalBA(formData) || isMessBA(formData);
 
   return (
     <div className="space-y-3">
@@ -289,8 +289,8 @@ export function BATrackerHeaderForm({
                   });
 
                   setFormData((prev: any) => {
-                    // BA Rental POS tanpa Raise & Fall.
-                    if (isRentalBA(prev)) return { ...prev, workPeriod: val };
+                    // BA Rental & Mess POS tanpa Raise & Fall.
+                    if (isRentalBA(prev) || isMessBA(prev)) return { ...prev, workPeriod: val };
                     if (custClean.includes("POS")) {
                       const curPOS = prev.posData || {};
                       const newFuelPeriods = { ...(curPOS.fuelPeriods || {}) };

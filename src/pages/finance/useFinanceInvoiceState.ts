@@ -21,7 +21,7 @@ export function useFinanceInvoiceState({
   setInvoiceRows,
   setBaRows
 }: UseFinanceInvoiceStateProps) {
-  const handleGenerateInvoiceFromBA = async (baId: number, category?: "Operation & Mining" | "MDO" | "Rental", pendingBaIds: number[] = []) => {
+  const handleGenerateInvoiceFromBA = async (baId: number, category?: "Operation & Mining" | "MDO" | "Rental" | "Mess", pendingBaIds: number[] = []) => {
     const key = `generate-inv-${baId}`;
     if (setActionLoadingKey) setActionLoadingKey(key);
     onNotice("⏳ Sedang menerbitkan draft invoice dari Berita Acara...");

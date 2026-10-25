@@ -1,11 +1,11 @@
 import { useEffect, useState, useMemo, useCallback, Fragment } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, ChevronDown, Receipt, TrendingUp, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, Archive, Scale, Truck, Loader2, StickyNote, Settings } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, ChevronDown, Receipt, TrendingUp, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, Archive, Scale, Truck, BedDouble, Loader2, StickyNote, Settings } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
 import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, getFinanceTemplates, User as UserType } from "../../lib/api";
 import { BANotesUpdateModal } from "./modals/BANotesUpdateModal";
-import { isUnbilledPending, canEditPending, isRentalBA, isPOSMDOBA } from "./ba_calculations";
+import { isUnbilledPending, canEditPending, isRentalBA, isPOSMDOBA, isMessBA } from "./ba_calculations";
 import { companyScopeOf } from "../../lib/auth";
 import { MappingsModal } from "../tunai-po/shared";
 import { AccurateDocBadges } from "./details/AccuratePostingPanel";
@@ -42,6 +42,7 @@ export function BATrackerView({ c }: { c: any }) {
   const baSiteOptions = BA_SITES.filter((s) => siteScope.all || siteScope.codes.includes(s.code));
   const openRentalBA = () => openCreateModal("ba", { customerCode: "POS", posData: { rental: { avgFuelPrice: 0, fuelLogs: [] } } });
   const openMDOBA = () => openCreateModal("ba", { customerCode: "POS", posData: { mdo: true } });
+  const openMessBA = () => openCreateModal("ba", { customerCode: "POS", posData: { mess: {} } });
   const [quickNoteModalItem, setQuickNoteModalItem] = useState<any | null>(null);
   const [showMappings, setShowMappings] = useState(false);
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
@@ -246,6 +247,17 @@ export function BATrackerView({ c }: { c: any }) {
                           <span>Buat BA Rental POS</span>
                         </button>
                       )}
+                      {baSiteOptions.some((s) => s.code === "POS") && (
+                        <button
+                          type="button"
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:brightness-95 shrink-0 cursor-pointer"
+                          style={{ background: "#A57C50", borderRadius: 3 }}
+                          onClick={openMessBA}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Buat BA Mess POS</span>
+                        </button>
+                      )}
                     </div>
                   ) : (
                   <div className="relative">
@@ -302,6 +314,19 @@ export function BATrackerView({ c }: { c: any }) {
                               >
                                 <Truck className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
                                 <span>Buat BA Rental POS (Daywork)</span>
+                              </button>
+                            )}
+                            {s.code === "POS" && (
+                              <button
+                                type="button"
+                                className="w-full px-3 py-2 text-left text-slate-800 hover:bg-[#FBF6F0] flex items-center gap-2 transition cursor-pointer"
+                                onClick={() => {
+                                  openMessBA();
+                                  setShowInputBADropdown(false);
+                                }}
+                              >
+                                <BedDouble className="w-3.5 h-3.5 text-[#A57C50] shrink-0" />
+                                <span>Buat BA Mess Facility POS</span>
                               </button>
                             )}
                             </Fragment>
@@ -596,6 +621,9 @@ export function BATrackerView({ c }: { c: any }) {
                                       </span>
                                       {isRental && (
                                         <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 font-bold text-[9px]">Rental</span>
+                                      )}
+                                      {isMessBA(row) && (
+                                        <span className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-900 font-bold text-[9px]">Mess</span>
                                       )}
                                       {isPOSMDOBA(row) && (
                                         <span className="px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-900 font-bold text-[9px]">MDO</span>

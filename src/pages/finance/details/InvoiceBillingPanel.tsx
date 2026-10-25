@@ -44,7 +44,7 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
     setEditing(true);
     const cur = f.invoiceNo;
     const ym = parsePeriodToYYYYMM(data.workPeriod || "");
-    if ((cur && !cur.startsWith("INV-")) || refLocked || data.invoiceCategory === "Rental" || (ym !== "" && ym < ACCURATE_CUTOVER)) return;
+    if ((cur && !cur.startsWith("INV-")) || refLocked || data.invoiceCategory === "Rental" || data.invoiceCategory === "Mess" || (ym !== "" && ym < ACCURATE_CUTOVER)) return;
     try {
       const r = await api<{ invoiceNo?: string }>(`/api/finance/invoices/${data.id}/number-suggestion`);
       if (r?.invoiceNo) setF((prev) => (prev.invoiceNo === cur ? { ...prev, invoiceNo: r.invoiceNo! } : prev));

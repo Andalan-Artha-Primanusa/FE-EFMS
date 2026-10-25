@@ -12,7 +12,7 @@ import { useFinanceModalManager } from "./useFinanceModalManager";
 import { useFinanceSaveHandlers } from "./useFinanceSaveHandlers";
 import { useFinanceDataLoader } from "./useFinanceDataLoader";
 import { useFinanceUIState } from "./useFinanceUIState";
-import { customerKind, isUnbilledPending, isRentalBA, isPOSMDOBA } from "./ba_calculations";
+import { customerKind, isUnbilledPending, isRentalBA, isPOSMDOBA, isMessBA } from "./ba_calculations";
 
 export function useFinanceController({
   viewTitle,
@@ -108,8 +108,8 @@ export function useFinanceController({
   });
 
   // Invoice hanya diterbitkan backend dari BA yang sudah di-approve; nilainya tidak diinput manual.
-  const createInvoiceFromBA = async (ba: any, cat?: "Operation & Mining" | "MDO" | "Rental") => {
-    const category = cat || (isRentalBA(ba) ? "Rental" : isPOSMDOBA(ba) ? "MDO" : undefined);
+  const createInvoiceFromBA = async (ba: any, cat?: "Operation & Mining" | "MDO" | "Rental" | "Mess") => {
+    const category = cat || (isRentalBA(ba) ? "Rental" : isMessBA(ba) ? "Mess" : isPOSMDOBA(ba) ? "MDO" : undefined);
     if (!isBAApproved(ba)) {
       onNotice("Berita Acara belum disetujui Manager. Invoice hanya dapat diterbitkan setelah BA diverifikasi Finance Specialist dan di-approve Manager.");
       return;
