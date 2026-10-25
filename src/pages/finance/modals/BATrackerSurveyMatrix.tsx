@@ -14,8 +14,7 @@ interface BATrackerSurveyMatrixProps {
   formData: any;
   isCustomerBGG: boolean;
   isDistanceItem: (item: any) => boolean;
-  getBAEffectiveVolume: (item: any, allItems: any[], isSurvey: boolean) => number;
-  getBAItemSubtotal: (item: any, volume: number) => number;
+  preview?: any;
   setActiveBAStep: (step: number) => void;
 }
 
@@ -31,10 +30,11 @@ export function BATrackerSurveyMatrix({
   formData,
   isCustomerBGG,
   isDistanceItem,
-  getBAEffectiveVolume,
-  getBAItemSubtotal,
+  preview,
   setActiveBAStep,
 }: BATrackerSurveyMatrixProps) {
+  const beItems: any[] = preview?.items || [];
+  const beItem = (it: any) => beItems.find((b) => String(b.id) === String(it.id)) || {};
   return (
     <div className="space-y-4">
       <div className="bg-amber-50/70 border border-amber-200/80 rounded-[4px] p-3 flex items-start gap-2.5 text-xs text-amber-950">
@@ -61,11 +61,12 @@ export function BATrackerSurveyMatrix({
             {allBAItems.map((item, idx) => {
               const isDistance = isDistanceItem(item);
               const isDPFuel = item.category === "DP Fuel" || item.isDeduction || (item.material || "").toLowerCase().includes("dp fuel");
-              const volAwal = getBAEffectiveVolume(item, allBAItems, false);
-              const volAdj = getBAEffectiveVolume(item, allBAItems, true);
-              const r = Number(item.rate || 0);
-              const subAwal = getBAItemSubtotal(item, volAwal);
-              const subAdj = getBAItemSubtotal(item, volAdj);
+              const be = beItem(item);
+              const volAwal = Number(be.initialVolume || 0);
+              const volAdj = Number(be.adjustedVolume || volAwal);
+              const r = Number(be.rate ?? item.rate ?? 0);
+              const subAwal = Number(be.subtotalInitial || 0);
+              const subAdj = Number(be.subtotalAdjusted || 0);
               const delta = subAdj - subAwal;
               const isOp = item.category === "Operating & Mining" || item.category === "Over Distance";
 
@@ -174,9 +175,8 @@ export function BATrackerSurveyMatrix({
 
       {/* Delta Summary Box */}
       {(() => {
-        const sumOf = (survey: boolean) => allBAItems.reduce((acc, it) => acc + getBAItemSubtotal(it, getBAEffectiveVolume(it, allBAItems, survey)), 0);
-        const dispInit = sumOf(false);
-        const dispAdj = sumOf(true);
+        const dispInit = Number(preview?.initialWorkAmount ?? beItems.reduce((acc, it) => acc + Number(it.subtotalInitial || 0), 0));
+        const dispAdj = Number(preview?.calc?.total?.gross || 0);
         const dispDelta = dispAdj - dispInit;
 
         return (

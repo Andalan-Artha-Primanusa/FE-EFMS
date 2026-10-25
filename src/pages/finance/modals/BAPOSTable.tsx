@@ -250,6 +250,7 @@ export function BAPOSTable({
                       updated[targetIdx].isCustom = false;
                       updated[targetIdx].material = sow.name;
                       updated[targetIdx].rateUSD = sow.rateUSD || 0;
+                      updated[targetIdx].isUSD = Number(sow.rateUSD) > 0;
                       updated[targetIdx].unit = sow.unit || updated[targetIdx].unit;
                       const dynamicRate = getSowMasterRate ? getSowMasterRate("POS", sow.name, sow.defaultRate || 0, false) : (sow.defaultRate || updated[targetIdx].rate);
                       updated[targetIdx].rate = dynamicRate > 0 ? dynamicRate : (sow.defaultRate || updated[targetIdx].rate);
@@ -316,7 +317,7 @@ export function BAPOSTable({
             ) : (
               <FormattedNumberInput
                 allowDecimals={true}
-                maxDecimals={3}
+                maxDecimals={15}
                 className="w-16 sm:w-20 bg-white border border-slate-300 rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none"
                 value={actualDist === 0 ? "" : actualDist}
                 placeholder="1000"

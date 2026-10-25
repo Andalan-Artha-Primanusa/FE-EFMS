@@ -1,5 +1,5 @@
 import React from "react";
-import { RupiahInput, pph23Prefill } from "../helpers";
+import { RupiahInput, formatIDR, pph23Prefill } from "../helpers";
 
 interface PaymentModalProps {
   formData: any;
@@ -13,6 +13,10 @@ export function PaymentModal({ formData, setFormData, companyList, invoiceRows =
   const inv = invoiceRows.find((i) => i.invoiceNo?.toLowerCase() === formData.invoiceNo?.trim().toLowerCase());
   // Invoice yang fakturnya sudah di Accurate wajib nomor bukti penerimaan.
   const needReceipt = Boolean(inv?.accurate?.docs?.FAKTUR);
+  // Lebih bayar atas faktur Accurate: Penerimaan Lain dengan nomor bukti kedua.
+  const target = Number(inv?.totalDibayar || inv?.totalReceipt || inv?.totalInvoice || 0);
+  const others = paymentRows.filter((p) => p.invoiceNo?.toLowerCase() === inv?.invoiceNo?.toLowerCase() && p.id !== formData.id && p.verificationStatus !== "Rejected");
+  const excess = Number(formData.amountPaid || 0) + others.reduce((s, p) => s + Number(p.amountPaid || 0), 0) - target;
   return (
     <>
       {/* Section 1: Target Invoice */}
@@ -124,6 +128,21 @@ export function PaymentModal({ formData, setFormData, companyList, invoiceRows =
               required={needReceipt}
             />
           </div>
+          {needReceipt && excess > 0 && (
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                No. Bukti Kelebihan Bayar Accurate ({formatIDR(excess)}) <span className="text-rose-600">*</span>
+              </label>
+              <input
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-900 font-mono focus:border-cyan-700 focus:bg-white outline-none"
+                placeholder="007/BBM-MDR OP/X/26"
+                value={formData.excessReceiptNo || ""}
+                onChange={(e) => setFormData({ ...formData, excessReceiptNo: e.target.value })}
+                onBlur={(e) => setFormData({ ...formData, excessReceiptNo: e.target.value.trim() })}
+                required
+              />
+            </div>
+          )}
         </div>
       </div>
 

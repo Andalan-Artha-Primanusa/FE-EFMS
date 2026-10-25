@@ -7,7 +7,6 @@ import { AccuratePostingPanel } from "../details/AccuratePostingPanel";
 import {
   isDistanceItem,
   getBAEffectiveVolume,
-  getBAItemSubtotal,
   customerKind,
   canEditPending,
   isRentalBA,
@@ -93,7 +92,6 @@ export function BATrackerModal({ c }: { c: any }) {
   const kind = customerKind(formData.customerCode);
   const isCustomerBGG = kind === "BGG";
   const isCustomerPOS = kind === "POS";
-  const isCustomerDBK = kind === "PTRO";
   const pending = Boolean(formData.pendingMode);
   const isRental = isRentalBA(formData);
   const pv = editItem?.pendingVolume;
@@ -110,19 +108,19 @@ export function BATrackerModal({ c }: { c: any }) {
 
   // Uang BA dihitung BE (/ba-trackers/calculate, tanpa simpan); respons usang diabaikan.
   const [calc, setCalc] = useState<BACalc | undefined>(pending ? pv?.calc : editItem?.calc);
+  const [preview, setPreview] = useState<any>();
+  const [glPreview, setGlPreview] = useState<any[]>();
   const calcSeq = useRef(0);
-  useEffect(() => setCalc(pending ? pv?.calc : editItem?.calc), [pending, editItem]);
+  useEffect(() => { setCalc(pending ? pv?.calc : editItem?.calc); setPreview(undefined); setGlPreview(undefined); }, [pending, editItem]);
   const calcInput = JSON.stringify(buildBAPayload(formData, editItem, allBAItems));
   useEffect(() => {
     const seq = ++calcSeq.current;
     const t = setTimeout(async () => {
       const res = await fetchServerBACalculation(JSON.parse(calcInput));
-      if (res && seq === calcSeq.current) setCalc(pending ? res.pendingVolume?.calc : res.calc);
+      if (res && seq === calcSeq.current) { setCalc(pending ? res.pendingVolume?.calc : res.calc); setPreview(pending ? res.pendingVolume : res); setGlPreview(res.glPreview); }
     }, 400);
     return () => clearTimeout(t);
   }, [calcInput, pending]);
-
-  const calcSubtotal = (it: any, vol: number) => getBAItemSubtotal(it, vol, isCustomerDBK, formData.customerCode);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,7 +203,7 @@ export function BATrackerModal({ c }: { c: any }) {
                 )}
                 {baTab === "posting" && editItem ? (
                   <div className="space-y-4">
-                    <BAGLJournalPreview customerCode={formData.customerCode || editItem.customerCode || ""} calc={calc} />
+                    <BAGLJournalPreview lines={glPreview} />
                     <AccuratePostingPanel
                       type="ba"
                       data={{ ...editItem, accurate: formData.accurate ?? editItem.accurate }}
@@ -349,8 +347,7 @@ export function BATrackerModal({ c }: { c: any }) {
                     formData={formData}
                     isCustomerBGG={isCustomerBGG}
                     isDistanceItem={isDistanceItem}
-                    getBAEffectiveVolume={getBAEffectiveVolume}
-                    getBAItemSubtotal={calcSubtotal}
+                    preview={preview ?? (pending ? pv : editItem)}
                     setActiveBAStep={setActiveBAStep}
                   />
                 )}

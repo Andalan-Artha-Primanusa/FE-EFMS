@@ -56,12 +56,13 @@ export const PaymentAccurateStatus: React.FC<PaymentAccurateStatusProps> = ({ da
 // Verifikator mengisi / mengganti nomor bukti payment terverifikasi yang belum terposting.
 const ReceiptNoFill: React.FC<PaymentAccurateStatusProps> = ({ data, onSaved, onNotice }) => {
   const [value, setValue] = useState(data.receiptNo || "");
+  const [excess, setExcess] = useState(data.excessReceiptNo || "");
   const [saving, setSaving] = useState(false);
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      const updated = await api<any>(`/api/finance/payments/${data.id}/receipt-no`, { method: "PUT", body: JSON.stringify({ receiptNo: value.trim() }) });
+      const updated = await api<any>(`/api/finance/payments/${data.id}/receipt-no`, { method: "PUT", body: JSON.stringify({ receiptNo: value.trim(), excessReceiptNo: excess.trim() }) });
       onSaved?.(updated);
       onNotice?.(updated?.accurate?.status === "Gagal" ? updated.accurate.error || "Posting ke Accurate gagal" : "Nomor bukti tersimpan");
     } catch (err: any) {
@@ -77,6 +78,13 @@ const ReceiptNoFill: React.FC<PaymentAccurateStatusProps> = ({ data, onSaved, on
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="006/BBM-MDR OP/X/26"
+        className="flex-1 min-w-0 basis-40 bg-white border border-slate-300 rounded-[3px] px-2.5 py-1.5 text-slate-900 font-mono text-xs focus:border-[#A57C50] outline-none"
+      />
+      <input
+        value={excess}
+        onChange={(e) => setExcess(e.target.value)}
+        placeholder="Lebih bayar: 007/BBM-MDR OP/X/26"
+        title="No. Bukti Kelebihan Bayar"
         className="flex-1 min-w-0 basis-40 bg-white border border-slate-300 rounded-[3px] px-2.5 py-1.5 text-slate-900 font-mono text-xs focus:border-[#A57C50] outline-none"
       />
       <button
@@ -122,7 +130,7 @@ export const PaymentCustomerDetailSheet: React.FC<PaymentCustomerDetailSheetProp
           {data.verificationStatus === "Verified" && accurate.canSync && (!data.receiptNo || data.accurate?.status !== "Terposting") ? (
             <ReceiptNoFill data={data} {...accurate} />
           ) : (
-            <strong className="font-mono break-all">{data.receiptNo || "-"}</strong>
+            <strong className="font-mono break-all">{data.receiptNo || "-"}{data.excessReceiptNo && ` · Lebih bayar: ${data.excessReceiptNo}`}</strong>
           )}
           <div className="mt-1"><PaymentAccurateStatus data={data} {...accurate} /></div>
         </div>

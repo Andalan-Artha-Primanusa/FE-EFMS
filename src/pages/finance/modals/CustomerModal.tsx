@@ -235,7 +235,7 @@ export function CustomerModal({ formData, setFormData }: CustomerModalProps) {
             })}
             <button type="button" className="text-xs font-bold text-cyan-800 hover:underline"
               onClick={() => setFormData({ ...formData, overDistanceDiscountSchedule: [...(formData.overDistanceDiscountSchedule || []), { fromPeriod: "", pct: 0 }] })}>+ Tambah periode diskon</button>
-            <span className="block text-[10px] text-slate-500">Bulan di luar jadwal = {BGG_DEFAULT_OD_DISCOUNT_PCT}%. Pending volume memakai % bulan asalnya.</span>
+            <span className="block text-[10px] text-slate-500">Sebelum periode pertama = {BGG_DEFAULT_OD_DISCOUNT_PCT}%. Pending volume memakai % periode asalnya.</span>
           </div>}
         </div>
       </div>

@@ -5,7 +5,7 @@ import { BAOperatingTable } from "./BAOperatingTable";
 import { BAMDOTable } from "./BAMDOTable";
 import { BADeductionTable } from "./BADeductionTable";
 import { calcIDR, resolveHOMasterLaborAndCurrency, calculateTripleFactorRF, customerKind, isPOSMDOBA } from "../ba_calculations";
-import { computeRFIndex, rfMasterFor, rfTemplateFor, ptroContractRates } from "../masterRegistry";
+import { computeRFIndex, rfMasterFor, rfTemplateFor } from "../masterRegistry";
 import type { BACalc } from "../../../types";
 
 interface BATrackerSurveyItemsProps {
@@ -245,58 +245,8 @@ export function BATrackerSurveyItems({
     };
   };
 
-  // State / PTRO Data (M-Rate / Kurs Transaksi USD to IDR) per period
-  const ptroData = formData.ptroData || {};
-  const ptroFuelPeriods = ptroData.fuelPeriods || {};
-
-  const getPeriodPTROData = (period: string) => {
-    if (ptroFuelPeriods[period]) {
-      const e = ptroFuelPeriods[period];
-      if (e.actualMRate > 0) return e;
-    }
-    const matchedKey = Object.keys(ptroFuelPeriods).find((k) => matchPeriod(k, period));
-    if (matchedKey && ptroFuelPeriods[matchedKey]) {
-      const e = ptroFuelPeriods[matchedKey];
-      if (e.actualMRate > 0) return e;
-    }
-
-    if (Number(ptroData.actualMRate ?? 0) > 0) {
-      return {
-        actualMRate: Number(ptroData.actualMRate),
-        obRateUSD: Number(ptroData.obRateUSD || ptroContractRates(formData.customerCode).obRateUSD),
-        cgRateUSD: Number(ptroData.cgRateUSD || ptroContractRates(formData.customerCode).cgRateUSD),
-        odObRateUSD: Number(ptroData.odObRateUSD || ptroContractRates(formData.customerCode).odObRateUSD),
-        odCgRateIDR: Number(ptroData.odCgRateIDR || ptroContractRates(formData.customerCode).odCgRateIDR),
-      };
-    }
-
-    if (Array.isArray(raiseFallMasters) && raiseFallMasters.length > 0) {
-      const matched = raiseFallMasters.find((r: any) => {
-        const rCust = (r.customerCode || "").trim().toUpperCase();
-        const custMatch = rCust.includes("PTRO") || rCust.includes("DBK") || rCust.includes("PETROSEA");
-        const periodMatch = matchPeriod(r.period, period);
-        return custMatch && periodMatch;
-      });
-      if (matched && matched.actualMRateXn) {
-        return {
-          actualMRate: Number(matched.actualMRateXn),
-          ...ptroContractRates(formData.customerCode),
-        };
-      }
-    }
-    const defaultM = Number(ptroData.actualMRate || latestKursBI || mRate || 0);
-    return {
-      actualMRate: defaultM,
-      obRateUSD: Number(ptroData.obRateUSD || ptroContractRates(formData.customerCode).obRateUSD),
-      cgRateUSD: Number(ptroData.cgRateUSD || ptroContractRates(formData.customerCode).cgRateUSD),
-      odObRateUSD: Number(ptroData.odObRateUSD || ptroContractRates(formData.customerCode).odObRateUSD),
-      odCgRateIDR: Number(ptroData.odCgRateIDR || ptroContractRates(formData.customerCode).odCgRateIDR),
-    };
-  };
-
   const activePeriodFuel = getPeriodFuelData(activeFuelPeriod);
   const activePeriodPOS = getPeriodPOSData(activeFuelPeriod);
-  const activePeriodPTRO = getPeriodPTROData(activeFuelPeriod);
 
   const fuelP1 = Number(activePeriodFuel.bggFuelP1 ?? 0);
   const transP1 = Number(activePeriodFuel.bggTransportP1 ?? 0);
@@ -327,9 +277,6 @@ export function BATrackerSurveyItems({
 
   const posRefills: any[] = activePeriodPOS.fuelRefills;
   const { l: posTotalLiters, c: posTotalCost, avg: posAvgPriceIDR } = posRefillSum(posRefills);
-
-  // PTRO Kurs M-Rate
-  const ptroKurs = Number(activePeriodPTRO.actualMRate || latestKursBI || mRate || 0);
 
   const effectiveRF = isBGG
     ? (activePeriodFuel.bggRfIndex || computedBggRf)
@@ -475,26 +422,6 @@ export function BATrackerSurveyItems({
 
       const isWorkPeriod = matchPeriod(activeFuelPeriod, prev.workPeriod) || uniquePeriods.length === 1;
 
-      if (setBaOperatingItems && isWorkPeriod) {
-        setBaOperatingItems((prevItems) => {
-          let modified = false;
-          const nextItems = prevItems.map((it) => {
-            const mLow = (it.material || "").toLowerCase();
-            const cLow = (it.category || "").toLowerCase();
-            if (it.section === "E" || cLow === "dp fuel" || mLow.includes("dp fuel") || mLow.includes("pengurang solar")) {
-              modified = true;
-              return {
-                ...it,
-                rate: totC,
-                subtotalInitial: totC,
-                subtotalAdjusted: totC,
-              };
-            }
-            return it;
-          });
-          return modified ? nextItems : prevItems;
-        });
-      }
 
       return {
         ...prev,
@@ -590,26 +517,6 @@ export function BATrackerSurveyItems({
       curPeriods[activeFuelPeriod] = curP;
       const isWorkPeriod = matchPeriod(activeFuelPeriod, prev.workPeriod) || uniquePeriods.length === 1;
 
-      if (setBaOperatingItems && isWorkPeriod) {
-        setBaOperatingItems((prevItems) => {
-          let modified = false;
-          const nextItems = prevItems.map((it) => {
-            const mLow = (it.material || "").toLowerCase();
-            const cLow = (it.category || "").toLowerCase();
-            if (it.section === "E" || cLow === "dp fuel" || mLow.includes("dp fuel") || mLow.includes("pengurang solar")) {
-              modified = true;
-              return {
-                ...it,
-                rate: totC,
-                subtotalInitial: totC,
-                subtotalAdjusted: totC,
-              };
-            }
-            return it;
-          });
-          return modified ? nextItems : prevItems;
-        });
-      }
 
       return {
         ...prev,
@@ -629,28 +536,6 @@ export function BATrackerSurveyItems({
     });
   };
 
-  const handlePTROParamChange = (field: string, val: number) => {
-    if (!setFormData) return;
-    setFormData((prev: any) => {
-      const curPTRO = prev.ptroData || {};
-      const curPeriods = { ...(curPTRO.fuelPeriods || {}) };
-      const curP = { ...(curPeriods[activeFuelPeriod] || getPeriodPTROData(activeFuelPeriod)), [field]: val };
-      
-      curPeriods[activeFuelPeriod] = curP;
-
-      const isWorkPeriod = matchPeriod(activeFuelPeriod, prev.workPeriod) || uniquePeriods.length === 1;
-
-      return {
-        ...prev,
-        ptroData: {
-          ...curPTRO,
-          actualMRate: isWorkPeriod && field === "actualMRate" ? val : (curPTRO.actualMRate ?? curP.actualMRate),
-          [field]: val,
-          fuelPeriods: curPeriods,
-        }
-      };
-    });
-  };
 
   // State / SBS Data (Denda / Deductions per period)
   const sbsData = formData.sbsData || {};
@@ -922,12 +807,12 @@ export function BATrackerSurveyItems({
                   <td className="p-1.5 border-r border-amber-100">
                     {!isInlineEditingBA ? (
                       <span className="block text-right font-mono font-bold text-slate-800 p-1">
-                        {fuelP1 > 0 ? Math.round(fuelP1).toLocaleString("id-ID") : "0"}
+                        {fuelP1 > 0 ? fuelP1.toLocaleString("id-ID", { maximumFractionDigits: 2 }) : "0"}
                       </span>
                     ) : (
                       <FormattedNumberInput
                         allowDecimals
-                        maxDecimals={0}
+                        maxDecimals={2}
                         placeholder="0,00"
                         className="w-full bg-white border border-slate-300 font-mono font-bold text-right p-1.5 rounded-[3px] outline-none focus:border-[#A57C50]"
                         value={fuelP1}
@@ -938,12 +823,12 @@ export function BATrackerSurveyItems({
                   <td className="p-1.5 border-r border-amber-100">
                     {!isInlineEditingBA ? (
                       <span className="block text-right font-mono font-bold text-slate-800 p-1">
-                        {transP1 > 0 ? Math.round(transP1).toLocaleString("id-ID") : "0"}
+                        {transP1 > 0 ? transP1.toLocaleString("id-ID", { maximumFractionDigits: 2 }) : "0"}
                       </span>
                     ) : (
                       <FormattedNumberInput
                         allowDecimals
-                        maxDecimals={0}
+                        maxDecimals={2}
                         placeholder="0,00"
                         className="w-full bg-white border border-slate-300 font-mono font-bold text-right p-1.5 rounded-[3px] outline-none focus:border-[#A57C50]"
                         value={transP1}
@@ -963,12 +848,12 @@ export function BATrackerSurveyItems({
                   <td className="p-1.5 border-r border-amber-100">
                     {!isInlineEditingBA ? (
                       <span className="block text-right font-mono font-bold text-slate-800 p-1">
-                        {fuelP2 > 0 ? Math.round(fuelP2).toLocaleString("id-ID") : "0"}
+                        {fuelP2 > 0 ? fuelP2.toLocaleString("id-ID", { maximumFractionDigits: 2 }) : "0"}
                       </span>
                     ) : (
                       <FormattedNumberInput
                         allowDecimals
-                        maxDecimals={0}
+                        maxDecimals={2}
                         placeholder="0,00"
                         className="w-full bg-white border border-slate-300 font-mono font-bold text-right p-1.5 rounded-[3px] outline-none focus:border-[#A57C50]"
                         value={fuelP2}
@@ -979,12 +864,12 @@ export function BATrackerSurveyItems({
                   <td className="p-1.5 border-r border-amber-100">
                     {!isInlineEditingBA ? (
                       <span className="block text-right font-mono font-bold text-slate-800 p-1">
-                        {transP2 > 0 ? Math.round(transP2).toLocaleString("id-ID") : "0"}
+                        {transP2 > 0 ? transP2.toLocaleString("id-ID", { maximumFractionDigits: 2 }) : "0"}
                       </span>
                     ) : (
                       <FormattedNumberInput
                         allowDecimals
-                        maxDecimals={0}
+                        maxDecimals={2}
                         placeholder="0,00"
                         className="w-full bg-white border border-slate-300 font-mono font-bold text-right p-1.5 rounded-[3px] outline-none focus:border-[#A57C50]"
                         value={transP2}

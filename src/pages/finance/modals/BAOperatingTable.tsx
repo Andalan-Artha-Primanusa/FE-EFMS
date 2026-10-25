@@ -288,6 +288,8 @@ export function BAOperatingTable({
                       material: sow.name,
                       unit: sow.unit || item.unit,
                       rate: dynamicRate > 0 ? dynamicRate : (sow.defaultRate || item.rate),
+                      rateUSD: sow.rateUSD || 0,
+                      isUSD: Number(sow.rateUSD) > 0,
                       ...(sow.isDistanceVar && { isDistanceVar: true, category: "Over Distance" }),
                       ...(sow.isDistanceVar && sow.baseDistanceMeters && { distanceBasis: sow.baseDistanceMeters }),
                       ...(sow.parentMaterial && { parentMaterial: sow.parentMaterial }),
@@ -347,7 +349,7 @@ export function BAOperatingTable({
         <td className="p-2 text-right font-mono align-top">
           {!isInlineEditingBA ? (
             <span className="pt-1 block font-bold">
-              {Number(calcLine?.volume ?? effVol ?? 0).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {Number(calcLine?.volume ?? effVol ?? 0).toLocaleString("id-ID", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
             </span>
           ) : (
             <FormattedNumberInput
@@ -371,7 +373,7 @@ export function BAOperatingTable({
             ) : (
               <FormattedNumberInput
                 allowDecimals={true}
-                maxDecimals={6}
+                maxDecimals={15}
                 className="w-16 sm:w-20 bg-white border border-slate-300 rounded-[3px] px-1.5 py-1 text-right font-mono font-bold text-xs focus:border-[#A57C50] outline-none"
                 value={Number(item.distanceM ?? item.distance ?? item.distanceWeightAvg ?? 0) === 0 ? "" : (item.distanceM ?? item.distance ?? item.distanceWeightAvg)}
                 placeholder="0"
@@ -394,7 +396,7 @@ export function BAOperatingTable({
         <td className="p-2 text-right font-mono align-top">
           {(() => {
             if (!isInlineEditingBA || (isDistance && Number(item.rate || 0) !== 0) || (isCustomerBGG && bggRateOf(item) > 0)) {
-              return <span className="pt-1 block font-mono font-bold">{formatIDR(isDistance ? calcLine?.rate ?? Number(item.rate || 0) * getDistanceFactor(item, formData.customerCode, isCustomerDBK) : item.rate)}</span>;
+              return <span className="pt-1 block font-mono font-bold">{formatIDR(calcLine?.rate ?? (isDistance ? Number(item.rate || 0) * getDistanceFactor(item, formData.customerCode, isCustomerDBK) : item.rate))}</span>;
             }
 
             return (

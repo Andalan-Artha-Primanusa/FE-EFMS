@@ -291,14 +291,6 @@ export function getYearFromPeriod(periodOrDateStr: string): string {
   return String(new Date().getFullYear());
 }
 
-export function generateInvoiceNumber(customerCode: string, workPeriod: string, existingRowsCount: number): string {
-  const code = (customerCode || "").toUpperCase();
-  const nextSeq = String(existingRowsCount + 1).padStart(3, "0");
-  const romanMonth = getRomanMonth(workPeriod);
-  const yearStr = getYearFromPeriod(workPeriod);
-  return `${nextSeq}/${code}-AAP/RF/${romanMonth}/${yearStr}`;
-}
-
 // Sama dengan isInvoiceLocked BE: piutang & jurnal diakui sejak approval Manager FATB; nilai & tanggal invoice beku.
 export const INVOICE_LOCKED = new Set(["Approved", "Tax_Reported", "Faktur Pajak Terlapor", "Paid", "Lunas"]);
 
@@ -352,18 +344,8 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
   const isPOS = isPOSDualBA(ba);
 
   if (isPOS) {
-    const createdMiningInv = matchedInvoices.find((inv) => 
-      inv.invoiceCategory === "Operation & Mining" ||
-      inv.activityGroup === "OPERATION & MINING" ||
-      (inv.invoiceNo || "").includes("MINING") ||
-      (inv.invoiceNo || "").includes("RF")
-    ) || null;
-
-    const createdMDOInv = matchedInvoices.find((inv) => 
-      inv.invoiceCategory === "MDO" ||
-      (inv.activityGroup || "").includes("MDO") ||
-      (inv.invoiceNo || "").includes("MDO")
-    ) || null;
+    const createdMiningInv = matchedInvoices.find((inv) => inv.invoiceCategory === "Operation & Mining") || null;
+    const createdMDOInv = matchedInvoices.find((inv) => inv.invoiceCategory === "MDO") || null;
 
     const isFullyInvoiced = Boolean(createdMiningInv && createdMDOInv);
     const isPartiallyInvoiced = Boolean((createdMiningInv || createdMDOInv) && !isFullyInvoiced);
