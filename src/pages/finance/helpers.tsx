@@ -519,7 +519,7 @@ export function getBAStatusForExport(ba: any, allInvoices: any[]) {
 
 // Angka BA = calc dari BE; FE hanya menampilkan.
 const CALC_ZERO = { gross: 0, dpp11_12: 0, vat12: 0, pph23: 0, totalInvoice: 0, sectionP: 0, totalDibayar: 0 };
-export const calcCategory = (cat?: string) => (cat === "MDO" || cat === "Rental" ? cat : "Operation & Mining");
+export const calcCategory = (cat?: string) => (cat === "MDO" || cat === "Rental" || cat === "Mess" ? cat : "Operation & Mining");
 export const baCalc = (ba: any, cat?: string): typeof CALC_ZERO => ({ ...CALC_ZERO, ...(cat ? ba?.calc?.byCategory?.[calcCategory(cat)] : ba?.calc?.total) });
 export const pendingCalc = (ba: any): typeof CALC_ZERO => ({ ...CALC_ZERO, ...ba?.pendingVolume?.calc?.total });
 export const invoiceCalc = (inv: any): typeof CALC_ZERO => ({

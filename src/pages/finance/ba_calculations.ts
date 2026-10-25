@@ -17,6 +17,9 @@ export const isRentalBA = (ba: any): boolean => Boolean(ba?.posData?.rental);
 /** BA MDO POS: posData.mdo terisi; BA Operation POS = BA POS tanpa penanda. */
 export const isPOSMDOBA = (ba: any): boolean => Boolean(ba?.posData?.mdo);
 
+/** BA Mess Facility POS: posData.mess terisi; 1 paket nominal final, tanpa SOW & RF. */
+export const isMessBA = (ba: any): boolean => Boolean(ba?.posData?.mess);
+
 // "OB" harus berdiri sendiri (OB, OB1, (OB)) agar "Mobilisasi" / "Job" tidak terbaca sebagai Overburden.
 const OB_MATERIAL_RE = /\bob(?![a-z])|overburden|over burden|waste/i;
 export const isOBMaterial = (material?: string): boolean => OB_MATERIAL_RE.test(material || "");

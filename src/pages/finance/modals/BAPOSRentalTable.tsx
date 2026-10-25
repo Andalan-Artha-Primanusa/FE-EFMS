@@ -257,3 +257,69 @@ export function BAPOSRentalTable({
     </div>
   );
 }
+
+// BA Mess Facility POS: 1 baris "MESS FACILITY" 1 Paket, nominal final; periode tanggal untuk cetak invoice.
+export function BAPOSMessTable({
+  formData,
+  setFormData,
+  baOperatingItems,
+  setBaOperatingItems,
+  isInlineEditingBA,
+  calc,
+}: Pick<BAPOSRentalTableProps, "formData" | "setFormData" | "baOperatingItems" | "setBaOperatingItems" | "isInlineEditingBA" | "calc">) {
+  const mess = formData.posData?.mess || {};
+  const setMess = (patch: any) => setFormData({ ...formData, posData: { ...(formData.posData || {}), mess: { ...mess, ...patch } } });
+  const item = baOperatingItems[0] || {};
+  const m = calc?.byCategory?.Mess;
+  const th = "p-2 text-[10px] font-extrabold uppercase tracking-wider";
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3 text-xs">
+        {(["periodStart", "periodEnd"] as const).map((k) => (
+          <label key={k} className="space-y-1">
+            <span className="block text-[10px] font-black uppercase tracking-wider text-slate-600">{k === "periodStart" ? "Periode Dari" : "Periode s.d."}</span>
+            <input type="date" disabled={!isInlineEditingBA} className={`${cell} w-40`} value={mess[k] || ""} onChange={(e) => setMess({ [k]: e.target.value })} />
+          </label>
+        ))}
+      </div>
+      <div className="overflow-x-auto rounded-[4px] border border-slate-200 bg-white">
+        <table className="w-full text-xs text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-100 text-slate-700 border-b border-slate-200">
+              <th className={th}>Description</th>
+              <th className={`${th} text-right`}>Qty</th>
+              <th className={`${th} text-right w-56`}>Amount (Rp)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="p-2 font-bold">{item.material || "MESS FACILITY"}</td>
+              <td className="p-2 text-right font-mono">1 {item.unit || "Paket"}</td>
+              <td className="p-2 text-right font-mono">
+                {isInlineEditingBA
+                  ? <FormattedNumberInput className={`${cell} text-right font-mono`} value={item.rate} onChange={(v) => setBaOperatingItems([{ ...item, initialVolume: 1, adjustedVolume: 1, rate: v }])} />
+                  : formatIDR(item.rate)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div className="overflow-x-auto rounded-[4px] border border-slate-200 bg-white">
+        <table className="w-full text-xs font-mono border-collapse">
+          <tbody className="divide-y divide-slate-200">
+            {([["Total", m?.gross], ["DPP PPN 11/12", m?.dpp11_12], ["VAT 12%", m?.vat12]] as [string, number | undefined][]).map(([label, v]) => (
+              <tr key={label}>
+                <td className="p-2 font-bold uppercase text-slate-700 tracking-wider">{label}</td>
+                <td className="p-2 text-right font-bold text-slate-900 w-44 sm:w-56">{calcIDR(v)}</td>
+              </tr>
+            ))}
+            <tr className="bg-slate-100/80">
+              <td className="p-2 font-black uppercase text-slate-900 tracking-wider">Total Invoice</td>
+              <td className="p-2 text-right font-black text-slate-950 w-44 sm:w-56 text-sm">{calcIDR(m?.totalInvoice)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

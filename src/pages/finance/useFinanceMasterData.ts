@@ -495,8 +495,8 @@ export function useFinanceMasterData(customerCode: string = "", customerRows: an
   const syncBARatesWithMasterData = useCallback((items: any[], cust: string, period?: string): any[] => {
     return (items || []).map((it) => {
       const mat = it.material || it.name || it.description || "";
-      // Baris Rental POS: tarif sewa & harga solar diatur tabel rental (baris BBM bermaterial sama dengan sewa).
-      if (!mat || it.isCustom || it.category === "Rental") return it;
+      // Baris Rental POS: tarif sewa & harga solar diatur tabel rental (baris BBM bermaterial sama dengan sewa); Mess = nominal final.
+      if (!mat || it.isCustom || it.category === "Rental" || it.category === "Mess") return it;
       // OB SBS tanpa tarif: ambil dari rentang Tarif Jarak Angkut (aturan sama dengan BE).
       const dist = Number(it.distanceM || it.distance || it.distanceWeightAvg || 0);
       if (customerKind(cust) === "SBS" && !it.isDeduction && !Number(it.rate) && dist > 0) {

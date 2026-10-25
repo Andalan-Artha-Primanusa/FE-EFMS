@@ -30,7 +30,8 @@ const matchQuery = (r: any, query: string) => JSON.stringify(r).toLowerCase().in
 // AR = aturan AR Dashboard (invoice terkunci, outstanding > 0); periode s.d. filter.
 const arInvoices = (invoiceRows: any[], invPeriodFilter: string, query: string) => {
   const target = parsePeriodToMonthIndex(invPeriodFilter);
-  return invoiceRows.filter((r) => matchQuery(r, query) && isAROpen(r) && (invPeriodFilter === "All" || parsePeriodToMonthIndex(r.workPeriod || "") <= target));
+  return invoiceRows.filter((r) => matchQuery(r, query) && isAROpen(r) && (invPeriodFilter === "All" || parsePeriodToMonthIndex(r.workPeriod || "") <= target))
+    .sort((a, b) => parsePeriodToMonthIndex(a.workPeriod || "") - parsePeriodToMonthIndex(b.workPeriod || ""));
 };
 
 // BAI = BA belum terbit invoice, semua periode per hari ini; nominal = Total Invoice BE (POS 1/2: kategori yang belum terbit).
@@ -69,11 +70,12 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
     const isPOS = !isBGG && !isPTRO && !isSBS;
     const isMDO = itemData?.invoiceCategory === "MDO" || /MDO/i.test(itemData?.activityGroup || "");
     const isRental = itemData?.invoiceCategory === "Rental" || /RENTAL/i.test(itemData?.activityGroup || "");
+    const isMess = itemData?.invoiceCategory === "Mess" || /^MESS/i.test(itemData?.activityGroup || "");
     const logoUrl = `${window.location.origin}/andalan-logo.png`;
 
     // Baris & total = angka BE: item invoice tersimpan; tanpa invoice/item, calc BA kategori tersebut.
     const targetBA = baRows?.find((b: any) => b.baNumber === itemData?.baNoReference || b.baNumber === itemData?.baNumber || b.id === (itemData?.baId ?? itemData?.baID)) || (itemData?.calc ? itemData : undefined);
-    const category = calcCategory(isRental ? "Rental" : isMDO ? "MDO" : itemData?.invoiceCategory);
+    const category = calcCategory(isRental ? "Rental" : isMess ? "Mess" : isMDO ? "MDO" : itemData?.invoiceCategory);
     const activeItems: any[] = [itemData?.items, itemData?.lineItems].find((l) => Array.isArray(l) && l.length)
       || (targetBA?.calc?.lines || []).filter((l: any) => l.category === category);
     const c = itemData?.totalInvoice !== undefined ? invoiceCalc(itemData) : baCalc(targetBA, category);
@@ -85,6 +87,13 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
     const mtrOf = (i: any) => Number(i.overhaulMtr ?? i.distanceM ?? i.distance ?? i.distanceWeightAvg ?? i.baseMtr ?? 0);
 
     const contractInfo = customerContractMap[custCode];
+    // Mess: "12 AGUSTUS - 24 SEPTEMBER 2026" dari periode tanggal BA; tanpa tanggal = bulan periode kerja.
+    const messPeriod = (() => {
+      const m = targetBA?.posData?.mess;
+      if (!m?.periodStart || !m?.periodEnd) return periodParts(itemData?.workPeriod || "-").monthYear;
+      const f = (s: string, y: boolean) => new Date(`${s}T00:00`).toLocaleDateString("id-ID", { day: "numeric", month: "long", ...(y ? { year: "numeric" } : {}) }).toUpperCase();
+      return `${f(m.periodStart, m.periodStart.slice(0, 4) !== m.periodEnd.slice(0, 4))} - ${f(m.periodEnd, true)}`;
+    })();
 
     let tableBodyHTML = "";
     let totalsFooterHTML = "";
@@ -337,7 +346,7 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
 
       const isFacility = ["mess", "mob", "facility"].some((k) => (itemData?.jobType || "").toLowerCase().includes(k)) || (itemData?.invoiceNo || "").toLowerCase().includes("bc-");
       const isLC = (i: any) => i.section === "C" || /land clearing/i.test(i.description || "");
-      const mining = isRental ? [] : activeItems;
+      const mining = isRental || isMess ? [] : activeItems;
       const prodItems = mining.filter((i: any) => i.section === "A" && !isLC(i));
       const distItems = mining.filter((i: any) => i.section === "B");
       const lcItems = mining.filter((i: any) => (i.section === "A" || i.section === "C") && isLC(i));
@@ -355,6 +364,7 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
         parts.push(section("BBM (FUEL)", bySection("B"), (L) => list(L, bySection("B"), v2), bySection("B")));
         parts.push(section("RECONCILE - DEDUCTION", bySection("C"), (L) => bySection("C").map((i: any, n: number) => dedRow(L, i, n)).join("")));
       }
+      if (isMess) parts.push(activeItems.map((i: any) => `<tr><td style="height: 200px;">${i.description || ""}</td><td colspan="2"></td><td></td><td class="text-right">${n0(amt(i))}</td></tr>`).join(""));
       if (prodItems.length) parts.push(section(isFacility ? "PEKERJAAN FASILITAS / KLAIM PROYEK" : "PRODUCTION", prodItems, (L) => byArea
         ? areas.map((a, n) => { const its = prodItems.filter((i: any) => (i.subSection || "") === a); return bold(`${L}${n + 1}. Area/${a || "-"}`, its, true) + its.map((i: any) => row(desc(i), i, 24)).join(""); }).join("")
         : prodItems.map((i: any, n: number) => row(`${L}${n + 1}. ${desc(i)}`, i, 6)).join(""), byArea ? prodItems : undefined));
@@ -371,8 +381,8 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
       totalsFooterHTML = `
         <tr class="tot-row"><td colspan="4">TOTAL</td><td class="text-right">${n0(c.gross)}</td></tr>
         <tr class="tot-row"><td colspan="4">DPP PPN 11/12</td><td class="text-right">${n0(c.dpp11_12)}</td></tr>
-        <tr class="tot-row"><td colspan="4">VAT ( 12%)</td><td class="text-right">${n0(c.vat12)}</td></tr>
-        <tr class="tot-row"><td colspan="4">WITH HOLDING TAX ART 23</td><td class="text-right">(${n0(c.pph23)})</td></tr>
+        <tr class="tot-row"><td colspan="4">${isMess ? "VAT 12%" : "VAT ( 12%)"}</td><td class="text-right">${n0(c.vat12)}</td></tr>
+        ${isMess ? "" : `<tr class="tot-row"><td colspan="4">WITH HOLDING TAX ART 23</td><td class="text-right">(${n0(c.pph23)})</td></tr>`}
         <tr class="tot-row"><td colspan="4">TOTAL INVOICE</td><td class="text-right">${n0(c.totalInvoice)}</td></tr>
       `;
 
@@ -501,14 +511,15 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
               <tr>
                 <td><strong>Contractor</strong></td>
                 <td>: <strong>PT. ANDALAN ARTHA PRIMANUSA</strong></td>
-                <td><strong>Activity Group</strong></td>
-                <td>: <strong>${isRental ? "RENTAL ALAT (DAYWORK)" : isMDO ? "MINE DEVELOPMENT (MDO)" : "OPERATION &amp; MINING"}</strong></td>
+                ${isMess ? `<td><strong>Period Covered</strong></td>
+                <td>: <strong>${messPeriod}</strong></td>` : `<td><strong>Activity Group</strong></td>
+                <td>: <strong>${isRental ? "RENTAL ALAT (DAYWORK)" : isMDO ? "MINE DEVELOPMENT (MDO)" : "OPERATION &amp; MINING"}</strong></td>`}
               </tr>
               <tr>
                 <td><strong>Project</strong></td>
-                <td>: <strong>${custCode} PROJECT</strong></td>
-                <td><strong>Period Covered</strong></td>
-                <td>: <strong>${periodParts(itemData?.workPeriod || "-").monthYear}</strong></td>
+                <td>: <strong>${isMess ? "SITE POSITION" : `${custCode} PROJECT`}</strong></td>
+                ${isMess ? "<td></td><td></td>" : `<td><strong>Period Covered</strong></td>
+                <td>: <strong>${periodParts(itemData?.workPeriod || "-").monthYear}</strong></td>`}
               </tr>
             </table>
             ` : `
@@ -536,7 +547,7 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
 
             <div class="title-box">
               <h2>PAYMENT DETAIL</h2>
-              ${isBGG ? "" : isPOS ? `
+              ${isBGG || isMess ? "" : isPOS ? `
                 <table style="margin: 4px auto 0; font-size: 9.5px; font-weight: 700; border-collapse: collapse;">
                   ${String(itemData?.contractNo || contractInfo?.contract || "-").split(/\s*[;\n]\s*/).map((k, n) => `<tr><td style="padding: 1px 6px; vertical-align: top;">${n ? "" : "NO KONTRAK :"}</td><td style="text-align: left; padding: 1px 0;">${k}</td></tr>`).join("")}
                 </table>
@@ -552,9 +563,9 @@ export function buildInvoiceHTML(ctx: any, itemData: any, preview = false) {
                 <tr>
                   ${!isPTRO ? `
                     <th width="48%">DESCRIPTION</th>
-                    <th width="22%" colspan="2" class="text-center">CLAIMED ${isSBS ? "UNIT" : "VOLUME"}</th>
-                    <th width="12%" class="text-center">UNIT RATE${isPOS ? "" : "<br/>(IDR)"}</th>
-                    <th width="18%" class="text-center">AMOUNT<br/>(IDR)</th>
+                    <th width="22%" colspan="2" class="text-center">${isMess ? "QUANTITY UNIT" : `CLAIMED ${isSBS ? "UNIT" : "VOLUME"}`}</th>
+                    <th width="12%" class="text-center">UNIT RATE${isMess ? "<br/>(Rp)" : isPOS ? "" : "<br/>(IDR)"}</th>
+                    <th width="18%" class="text-center">AMOUNT<br/>${isMess ? "(Rp)" : "(IDR)"}</th>
                   ` : `
                     <th width="38%" class="text-center">DESCRIPTION</th>
                     <th width="18%" colspan="2" class="text-center">CLAIMED VOLUME</th>
@@ -1377,6 +1388,8 @@ export function exportAROnlyPDFImpl(ctx: any) {
   const sti = { out: 0, ded: 0, nett: 0 };
   const stiRows = baRows
     .filter((ba) => inPeriod(ba.workPeriod) && isBAUninvoiced(ba, invoiceRows))
+    .sort((a, b) => String(a.customerCode || "POS").toUpperCase().localeCompare(String(b.customerCode || "POS").toUpperCase())
+      || parsePeriodToMonthIndex(a.workPeriod || "") - parsePeriodToMonthIndex(b.workPeriod || ""))
     .map((ba) => {
       const cust = (ba.customerCode || "POS").toUpperCase();
       const amount = baUninvoicedCalc(ba, invoiceRows).totalInvoice;
