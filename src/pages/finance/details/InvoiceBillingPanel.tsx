@@ -35,7 +35,7 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
   });
   const [f, setF] = useState(init);
   const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<"" | "save" | "send">("");
   const [uploading, setUploading] = useState(false);
   const [sendDate, setSendDate] = useState(() => new Date().toLocaleDateString("en-CA"));
   useEffect(() => { setF(init()); setEditing(false); }, [data]);
@@ -81,7 +81,7 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
   const save = async (extra: Partial<Form> = {}) => {
     const v = { ...f, ...extra };
     if (v.fpChecked && !v.fpDate) return onNotice("Tanggal Faktur Pajak wajib diisi");
-    setSaving(true);
+    setSaving(extra.invoiceSentDate ? "send" : "save");
     try {
       const updated = await api(`/api/finance/invoices/${data.id}`, {
         method: "PUT",
@@ -100,7 +100,7 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
     } catch (err: any) {
       onNotice(err?.message || "Gagal menyimpan data penagihan invoice");
     } finally {
-      setSaving(false);
+      setSaving("");
     }
   };
 
@@ -195,39 +195,41 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
             </span>
           ))}
           {row("Tgl Kirim", f.invoiceSentDate ? showDate(f.invoiceSentDate) : canEdit ? (
-            <span className="flex flex-wrap items-center gap-2">
-              <input type="date" className={`${inputCls} w-auto`} value={sendDate} onChange={(e) => setSendDate(e.target.value)} />
-              <button
-                type="button"
-                disabled={!canSend || !sendDate || saving}
-                onClick={() => save({ invoiceSentDate: sendDate })}
-                className="px-3 py-1 text-xs font-extrabold bg-[#A57C50] hover:bg-[#8e6941] text-white rounded-[3px] inline-flex items-center gap-1 transition shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Kirim
-              </button>
-            </span>
+            <input type="date" className={`${inputCls} w-auto`} min={f.directorSignedDate || undefined} value={sendDate} onChange={(e) => setSendDate(e.target.value)} />
           ) : "-", f.invoiceSentDate ? <input type="date" className={inputCls} value={f.invoiceSentDate} onChange={(e) => set("invoiceSentDate", e.target.value)} /> : undefined)}
         </div>
       </div>
 
-      {editing && (
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            disabled={saving}
-            onClick={cancel}
-            className="px-4 py-1.5 rounded-[3px] border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition shadow-xs cursor-pointer"
-          >
-            Batal
-          </button>
-          <button
-            type="button"
-            disabled={saving || !dirty}
-            onClick={() => save()}
-            className="px-4 py-1.5 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs inline-flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Simpan
-          </button>
+      {(editing || (canEdit && !f.invoiceSentDate)) && (
+        <div className="flex flex-wrap justify-end gap-2">
+          {editing && <>
+            <button
+              type="button"
+              disabled={!!saving}
+              onClick={cancel}
+              className="px-4 py-1.5 rounded-[3px] border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition shadow-xs cursor-pointer"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              disabled={!!saving || !dirty}
+              onClick={() => save()}
+              className="px-4 py-1.5 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs inline-flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving === "save" ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Simpan
+            </button>
+          </>}
+          {canEdit && !f.invoiceSentDate && (
+            <button
+              type="button"
+              disabled={!canSend || !sendDate || sendDate < f.directorSignedDate || !!saving || dirty}
+              onClick={() => save({ invoiceSentDate: sendDate })}
+              className="px-4 py-1.5 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs inline-flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving === "send" ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Kirim
+            </button>
+          )}
         </div>
       )}
     </div>

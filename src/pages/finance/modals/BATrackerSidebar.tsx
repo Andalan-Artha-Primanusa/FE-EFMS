@@ -6,7 +6,7 @@ import { resolveDocumentUrl, renderBAStatusBadge, generateAuditTimeline } from "
 
 const BA_FIELD_LABELS: Record<string, string> = {
   baNumber: "No. BA", draftBARefNo: "No. Ref Draft", signedBANumber: "No. BA Signed",
-  customerCode: "Customer", workPeriod: "Periode", picAAP: "PIC Site",
+  customerCode: "Customer", workPeriod: "Periode", picAAP: "PIC Site", estimatedDeduction: "Estimasi Deduction",
   statusBA: "Status BA", workAmount: "Nilai Klaim", initialWorkAmount: "Nilai Awal (TC)", adjustedWorkAmount: "Nilai Survey",
   draftBAPath: "Draft BA PDF", finalBAPath: "Final Signed BA PDF",
   baSubmittedDate: "Tgl Submit", internalRoutingDate: "Tgl Routing", baSentDate: "Tgl Kirim", baSignedDate: "Tgl TTD",

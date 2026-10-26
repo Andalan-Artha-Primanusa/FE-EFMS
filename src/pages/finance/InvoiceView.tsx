@@ -64,14 +64,28 @@ export function InvoiceView({ c }: { c: any }) {
                 claimRefNo: p.claimRefNo || "-",
                 remarks: p.description || p.notes || "Klaim Penalti Section P SBS",
                 amount: Number(p.claimAmount || 0),
-                deductedAmount: Number(p.deductedAmount || 0),
                 invoiceDate: p.createdAt ? p.createdAt.substring(0, 10) : "-",
                 invoiceSubmission: "-",
                 dueDate: "-",
                 outstanding: Number(p.outstandingAmount ?? (Number(p.claimAmount || 0) - Number(p.deductedAmount || 0))),
                 status: p.status || "Pending Cut",
                 rawItem: p
-              }));
+              }))
+              .concat(periodFilteredUnpaidInvoices.filter((r) => Math.round(invoiceNett(r)) < 0).map((r) => ({
+                id: `bc-${r.id}`,
+                customerCode: r.customerCode,
+                workPeriod: r.workPeriod || "-",
+                invoiceNo: r.invoiceNo || "-",
+                claimRefNo: r.invoiceNo || "-",
+                remarks: r.jobType || r.notes || "-",
+                amount: Number(r.otherDeduction || 0),
+                invoiceDate: r.invoiceDate,
+                invoiceSubmission: r.invoiceSubmissionDate,
+                dueDate: r.dueDate,
+                outstanding: -invoiceNett(r),
+                status: "Pending Cut",
+                rawItem: null
+              })));
             const totalPenaltyUncut = penaltyDataRows
               .filter((p) => p.status === "Pending Cut")
               .reduce((acc, r) => acc + (r.outstanding || 0), 0);
@@ -271,7 +285,7 @@ export function InvoiceView({ c }: { c: any }) {
                       <span className="text-xl font-bold font-tabular text-amber-900 mt-1 block truncate">
                         {formatIDR(totalPenaltyUncut)}
                       </span>
-                      <span className="text-[11px] text-slate-400 mt-0.5 block">Klaim denda Section P</span>
+                      <span className="text-[11px] text-slate-400 mt-0.5 block">Section P & Backcharge</span>
                     </div>
 
                     {/* Card 3: Total Subject To Invoice */}
@@ -297,7 +311,7 @@ export function InvoiceView({ c }: { c: any }) {
 
 
                 {/* Table Sajian Terkelompok Per Client */}
-                <Panel title={invCardTab === "AR_ANDALAN" ? "Tabel Outstandings AR — Total AR Andalan (Per Klien)" : invCardTab === "PENALTY_UNCUT" ? "Tabel Progress Penalti Belum Terpotong — Eksklusif PT SBS (Section P)" : "Tabel Subject To Invoice — BA Belum Terbit Invoice (Per Klien)"}>
+                <Panel title={invCardTab === "AR_ANDALAN" ? "Tabel Outstandings AR — Total AR Andalan (Per Klien)" : invCardTab === "PENALTY_UNCUT" ? "Tabel Penalti Belum Terpotong" : "Tabel Subject To Invoice — BA Belum Terbit Invoice (Per Klien)"}>
                   <div className="table-wrapper overflow-x-auto rounded-lg border border-slate-200 shadow-2xs">
                     <table className="data-table w-full min-w-[1500px] text-xs text-left border-collapse">
                       <thead>
@@ -515,7 +529,7 @@ export function InvoiceView({ c }: { c: any }) {
                             return (
                               <tr>
                                 <td colSpan={11} className="p-8 text-center text-slate-500 font-medium italic bg-slate-50/50 font-sans">
-                                  Tidak ada klaim progress penalti / Section P belum dipotong pada kontrak PT SBS untuk periode ini.
+                                  Tidak ada penalti belum dipotong.
                                 </td>
                               </tr>
                             );
@@ -523,6 +537,7 @@ export function InvoiceView({ c }: { c: any }) {
 
                           return groupedCust.map((custCode) => {
                             const clientRows = filteredPen.filter((r) => r.customerCode === custCode);
+                            const clientTotalAmount = clientRows.reduce((sum, r) => sum + r.amount, 0);
                             const clientTotalPenalty = clientRows.reduce((sum, r) => sum + r.outstanding, 0);
 
                             return (
@@ -548,9 +563,9 @@ export function InvoiceView({ c }: { c: any }) {
                                       <td className="p-2.5 text-slate-600 font-mono text-xs font-bold">{row.claimRefNo || row.invoiceNo}</td>
                                       <td className="p-2.5 text-slate-700 font-medium">{row.remarks}</td>
                                       <td className="p-2.5 text-right font-mono text-slate-900">{formatIDR(row.amount)}</td>
-                                      <td className="p-2.5 text-right font-mono text-slate-500">{formatIDR(row.deductedAmount || 0)}</td>
-                                      <td className="p-2.5 text-slate-400 font-mono text-xs">{row.invoiceDate || "-"}</td>
-                                      <td className="p-2.5 text-slate-400">-</td>
+                                      {[row.invoiceDate, row.invoiceSubmission, row.dueDate].map((d, i) => (
+                                        <td key={i} className="p-2.5 text-slate-700 whitespace-nowrap">{d && d !== "-" ? new Date(d).toLocaleDateString("id-ID") : "-"}</td>
+                                      ))}
                                       <td className="p-2.5 text-right font-mono font-bold text-amber-800">{formatIDR(row.outstanding)}</td>
                                       <td className="p-2.5 text-center">
                                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${row.status === "Deducted" ? "bg-emerald-100 text-emerald-900 border border-emerald-300" : "bg-amber-100 text-amber-900 border border-amber-300"}`}>
@@ -558,10 +573,10 @@ export function InvoiceView({ c }: { c: any }) {
                                         </span>
                                       </td>
                                       <td className="p-2.5 text-center sticky right-0 bg-white border-l border-slate-200 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.04)]">
-                                        <div className="flex items-center justify-center gap-1.5">
+                                        {row.rawItem && <div className="flex items-center justify-center gap-1.5">
                                           <button
                                             type="button"
-                                            onClick={() => openSBSPenaltyModal(row.rawItem || row)}
+                                            onClick={() => openSBSPenaltyModal(row.rawItem)}
                                             className="p-1 text-slate-500 hover:text-amber-700 hover:bg-amber-50 rounded transition cursor-pointer"
                                             title="Edit Klaim Penalti SBS"
                                           >
@@ -581,13 +596,13 @@ export function InvoiceView({ c }: { c: any }) {
                                               </button>
                                             );
                                           })()}
-                                        </div>
+                                        </div>}
                                       </td>
                                     </tr>
                                   ))}
                                   <tr className="bg-slate-50 font-bold text-slate-800 border-b border-slate-200 font-sans">
                                     <td colSpan={4} className="p-2.5 text-right uppercase tracking-wider text-xs font-extrabold text-slate-700 font-sans">TOTAL PROGRESS PINALTY {custCode}:</td>
-                                    <td className="p-2.5 text-right font-mono text-xs sm:text-sm font-black text-slate-900 font-sans">{formatIDR(clientTotalPenalty)}</td>
+                                    <td className="p-2.5 text-right font-mono text-xs sm:text-sm font-black text-slate-900 font-sans">{formatIDR(clientTotalAmount)}</td>
                                     <td colSpan={3}></td>
                                     <td className="p-2.5 text-right font-mono text-xs sm:text-sm font-black text-amber-800 font-sans">{formatIDR(clientTotalPenalty)}</td>
                                     <td colSpan={2} className="sticky right-0 bg-slate-50 border-l border-slate-200 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.04)]"></td>
@@ -679,7 +694,7 @@ export function InvoiceView({ c }: { c: any }) {
                               {invCardTab === "PENALTY_UNCUT" ? "TOTAL PROGRESS PINALTY" : "TOTAL SUBJECT TO INVOICE"}:
                             </td>
                             <td className="p-3 text-right font-mono font-black whitespace-nowrap text-xs sm:text-sm text-slate-900">
-                              {invCardTab === "PENALTY_UNCUT" ? formatIDR(totalPenaltyUncut) : formatIDR(totalSubjectToInvoice)}
+                              {invCardTab === "PENALTY_UNCUT" ? formatIDR(penaltyDataRows.reduce((s, r) => s + r.amount, 0)) : formatIDR(totalSubjectToInvoice)}
                             </td>
                             <td colSpan={3}></td>
                             <td className="p-3 text-right font-mono text-sm sm:text-base font-black text-rose-800 whitespace-nowrap">
