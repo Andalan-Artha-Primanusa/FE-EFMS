@@ -10,7 +10,7 @@ export function FinanceBATrackerPage(props: { viewTitle?: string; query?: string
       query={props.query ?? ""}
       onNotice={props.onNotice}
       user={props.user}
-      render={(c: any) => <BATrackerView c={c} />}
+      render={(c: any) => <BATrackerView c={c} archive={props.viewTitle === "Arsip BA"} />}
     />
   );
 }

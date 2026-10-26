@@ -228,10 +228,10 @@ export function AppShell({ user, onLogout }: { user: User; onLogout: () => void 
                   <button 
                     className={activeView === item ? "active" : ""} 
                     key={item} 
-                    title={item} 
+                    title={viewMap[item]?.title ?? item}
                     onClick={() => openView(item)}
                   >
-                    {item}
+                    {viewMap[item]?.title ?? item}
                   </button>
                 ))}
               </details>

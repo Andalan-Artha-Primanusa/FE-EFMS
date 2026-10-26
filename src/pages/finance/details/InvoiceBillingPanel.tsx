@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { Save, Loader2, FileText, Edit2, Lock } from "lucide-react";
+import { Save, Loader2, FileText, Edit2, Lock, Upload, ExternalLink, Send } from "lucide-react";
 import { api } from "../../../lib/api";
-import { formatIDR, formatDateInput, getCustomerOfficialName, invoiceNett, invoiceOutstanding, RupiahInput, parsePeriodToYYYYMM } from "../helpers";
+import { formatIDR, formatDateInput, getCustomerOfficialName, invoiceNett, invoiceOutstanding, RupiahInput, parsePeriodToYYYYMM, resolveDocumentUrl, INVOICE_LOCKED } from "../helpers";
 import { ACCURATE_CUTOVER } from "./AccuratePostingPanel";
 
 interface InvoiceBillingPanelProps {
@@ -12,7 +12,8 @@ interface InvoiceBillingPanelProps {
   onNotice: (msg: string) => void;
 }
 
-type Form = { invoiceNo: string; jobType: string; invoiceDate: string; invoiceSubmissionDate: string; otherDeduction: number };
+type DateKey = "invoiceDate" | "invoiceSubmissionDate" | "fpDate" | "directorSignedDate" | "invoiceSentDate";
+type Form = Record<DateKey, string> & { invoiceNo: string; jobType: string; otherDeduction: number; fpChecked: boolean; fpNumber: string };
 
 const isoOrNull = (d: string) => (d ? new Date(d).toISOString() : null);
 const showDate = (d: string) => (d ? new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) : "-");
@@ -26,11 +27,35 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
     invoiceDate: formatDateInput(data.invoiceDate),
     invoiceSubmissionDate: formatDateInput(data.invoiceSubmissionDate),
     otherDeduction: Number(data.otherDeduction || 0),
+    fpChecked: Boolean(data.fpChecked),
+    fpDate: formatDateInput(data.fpDate),
+    fpNumber: data.fpNumber || "",
+    directorSignedDate: formatDateInput(data.directorSignedDate),
+    invoiceSentDate: formatDateInput(data.invoiceSentDate),
   });
   const [f, setF] = useState(init);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [sendDate, setSendDate] = useState(() => new Date().toLocaleDateString("en-CA"));
   useEffect(() => { setF(init()); setEditing(false); }, [data]);
+
+  const uploadSigned = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      onSaved(await api(`/api/finance/invoices/${data.id}/signed-pdf`, { method: "POST", body: form }));
+      onNotice("Dokumen lampiran tersimpan");
+    } catch (err: any) {
+      onNotice(err?.message || "Gagal mengunggah dokumen lampiran");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const outstanding = invoiceOutstanding(data);
   const set = (key: keyof Form, val: any) => setF((prev) => ({ ...prev, [key]: val }));
@@ -52,15 +77,22 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
       // Accurate tak terjangkau: nomor yang ada dipakai.
     }
   };
-  const save = async () => {
+  const canSend = INVOICE_LOCKED.has(data.status) && data.fpChecked && Boolean(data.signedInvoicePath) && Boolean(data.directorSignedDate);
+  const save = async (extra: Partial<Form> = {}) => {
+    const v = { ...f, ...extra };
+    if (v.fpChecked && !v.fpDate) return onNotice("Tanggal Faktur Pajak wajib diisi");
     setSaving(true);
     try {
       const updated = await api(`/api/finance/invoices/${data.id}`, {
         method: "PUT",
         body: JSON.stringify({
-          ...f,
-          invoiceDate: isoOrNull(f.invoiceDate),
-          invoiceSubmissionDate: isoOrNull(f.invoiceSubmissionDate),
+          ...v,
+          invoiceDate: isoOrNull(v.invoiceDate),
+          invoiceSubmissionDate: isoOrNull(v.invoiceSubmissionDate),
+          fpDate: v.fpChecked ? isoOrNull(v.fpDate) : null,
+          fpNumber: v.fpChecked ? v.fpNumber : "",
+          directorSignedDate: isoOrNull(v.directorSignedDate),
+          invoiceSentDate: isoOrNull(v.invoiceSentDate),
         }),
       });
       onSaved(updated);
@@ -92,7 +124,7 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
       </div>
     </div>
   );
-  const dateRow = (label: string, key: "invoiceDate" | "invoiceSubmissionDate", locked = false) =>
+  const dateRow = (label: string, key: DateKey, locked = false) =>
     row(label, showDate(f[key]), <input type="date" className={inputCls} value={f[key]} onChange={(e) => set(key, e.target.value)} />, locked);
 
   return (
@@ -134,8 +166,47 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
         </div>
         <div>
           {dateRow("Invoice Date", "invoiceDate", refLocked)}
-          {dateRow("Invoice Submission", "invoiceSubmissionDate")}
+          {dateRow("Diterima Klien", "invoiceSubmissionDate", !f.invoiceSentDate && !data.invoiceSubmissionDate)}
           {row("Due Date", showDate(data.dueDate))}
+          {row("Dokumen Lampiran", (
+            <span className="flex flex-wrap items-center gap-2">
+              {data.signedInvoicePath ? (
+                <a href={resolveDocumentUrl(data.signedInvoicePath)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#A57C50] hover:underline">
+                  <ExternalLink size={12} /> Lihat PDF
+                </a>
+              ) : <span className="text-slate-400">-</span>}
+              {canEdit && (
+                <label className={`px-2 py-0.5 rounded-[3px] border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-[11px] inline-flex items-center gap-1 transition cursor-pointer ${uploading ? "opacity-60 pointer-events-none" : ""}`}>
+                  {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                  {data.signedInvoicePath ? "Ganti" : "Upload"}
+                  <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={uploadSigned} />
+                </label>
+              )}
+            </span>
+          ))}
+          {dateRow("TTD Direktur", "directorSignedDate")}
+          {row("Faktur Pajak", f.fpChecked ? <span>✓ {showDate(f.fpDate)} {f.fpNumber && <span className="font-mono">{f.fpNumber}</span>}</span> : "-", (
+            <span className="flex flex-wrap items-center gap-2">
+              <input type="checkbox" className="accent-[#A57C50]" checked={f.fpChecked} onChange={(e) => set("fpChecked", e.target.checked)} />
+              {f.fpChecked && <>
+                <input type="date" className={`${inputCls} w-auto`} value={f.fpDate} onChange={(e) => set("fpDate", e.target.value)} />
+                <input className={`${inputCls} w-auto flex-1 min-w-[140px] font-mono`} placeholder="No. FP" value={f.fpNumber} onChange={(e) => set("fpNumber", e.target.value)} />
+              </>}
+            </span>
+          ))}
+          {row("Tgl Kirim", f.invoiceSentDate ? showDate(f.invoiceSentDate) : canEdit ? (
+            <span className="flex flex-wrap items-center gap-2">
+              <input type="date" className={`${inputCls} w-auto`} value={sendDate} onChange={(e) => setSendDate(e.target.value)} />
+              <button
+                type="button"
+                disabled={!canSend || !sendDate || saving}
+                onClick={() => save({ invoiceSentDate: sendDate })}
+                className="px-3 py-1 text-xs font-extrabold bg-[#A57C50] hover:bg-[#8e6941] text-white rounded-[3px] inline-flex items-center gap-1 transition shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Kirim
+              </button>
+            </span>
+          ) : "-", f.invoiceSentDate ? <input type="date" className={inputCls} value={f.invoiceSentDate} onChange={(e) => set("invoiceSentDate", e.target.value)} /> : undefined)}
         </div>
       </div>
 
@@ -152,7 +223,7 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
           <button
             type="button"
             disabled={saving || !dirty}
-            onClick={save}
+            onClick={() => save()}
             className="px-4 py-1.5 bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs rounded-[3px] shadow-xs inline-flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Simpan

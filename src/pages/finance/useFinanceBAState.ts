@@ -237,22 +237,22 @@ export function useFinanceBAState({
     }
   };
 
-  const handleApproveBA = async (id: number) => {
+  const handleApproveBA = async (id: number, rejectNote?: string) => {
     const key = `approve-ba-${id}`;
     if (setActionLoadingKey) setActionLoadingKey(key);
-    onNotice("⏳ Sedang menyetujui Berita Acara...");
+    onNotice(rejectNote ? "⏳ Sedang menolak Berita Acara..." : "⏳ Sedang menyetujui Berita Acara...");
     try {
-      const updated: any = await approveBATracker(id, "approve", "Disetujui oleh Manager");
-      onNotice("✅ Berita Acara disetujui (Approved by Manager).");
+      const updated: any = await approveBATracker(id, rejectNote ? "reject" : "approve", rejectNote || "Disetujui oleh Manager");
+      onNotice(rejectNote ? "Berita Acara ditolak Manager (Revisi)." : "✅ Berita Acara disetujui (Approved by Manager).");
       if (setBaRows) {
-        setBaRows((prev) => prev.map((b) => b.id === id ? { ...b, ...(updated || {}), statusBA: updated?.statusBA || "Approved (Siap Invoice)" } : b));
+        setBaRows((prev) => prev.map((b) => b.id === id ? { ...b, ...(updated || {}) } : b));
       }
       if (detailViewItem && detailViewItem.type === "ba" && (detailViewItem.data?.id === id || detailViewItem.id === id)) {
-        setDetailViewItem({ type: "ba", data: { ...(detailViewItem.data || detailViewItem), ...(updated || {}), statusBA: updated?.statusBA || "Approved (Siap Invoice)" } });
+        setDetailViewItem({ type: "ba", data: { ...(detailViewItem.data || detailViewItem), ...(updated || {}) } });
       }
       await loadData();
     } catch (err: any) {
-      onNotice(err?.message || "Gagal menyetujui BA");
+      onNotice(err?.message || (rejectNote ? "Gagal menolak BA" : "Gagal menyetujui BA"));
     } finally {
       if (setActionLoadingKey) setActionLoadingKey(null);
     }

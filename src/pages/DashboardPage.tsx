@@ -311,11 +311,20 @@ export function DashboardPage({
               { header: "Status", accessorKey: "status", cell: (row) => <span className={`badge ${statusClass(row.status)}`}>{row.status}</span> },
               { header: "Budget", accessorKey: "budgetStatus", cell: (row) => <span className={`badge ${statusClass(row.budgetStatus)}`}>{row.budgetStatus}</span> },
               { header: "", align: "center", cell: (row) => (
-                <button className="ghost" onClick={async () => {
-                  await api(`/api/approvals/${row.id}/action`, { method: "POST", body: JSON.stringify({ action: "approve", note: "Approved from dashboard" }) });
-                  onNotice("Transaksi berhasil di-approve.");
-                  await onRefresh();
-                }}>Approve</button>
+                <div className="flex flex-wrap justify-center gap-1">
+                  <button className="ghost" onClick={async () => {
+                    await api(`/api/approvals/${row.id}/action`, { method: "POST", body: JSON.stringify({ action: "approve", note: "Approved from dashboard" }) });
+                    onNotice("Transaksi berhasil di-approve.");
+                    await onRefresh();
+                  }}>Approve</button>
+                  <button className="ghost" onClick={async () => {
+                    const note = window.prompt("Alasan Reject");
+                    if (!note) return;
+                    await api(`/api/approvals/${row.id}/action`, { method: "POST", body: JSON.stringify({ action: "reject", note }) });
+                    onNotice("Transaksi ditolak.");
+                    await onRefresh();
+                  }}>Reject</button>
+                </div>
               )}
             ]}
           />

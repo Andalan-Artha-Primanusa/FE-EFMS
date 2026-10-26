@@ -91,7 +91,7 @@ export function useFinanceController({
     baRows, customerContractMap, customerRows, invoiceRows, invPeriodFilter, onNotice, query, sbsPenalties
   };
   const {
-    exportPaymentDetailPDF, exportARBAIMonitoringExcel, exportARBAIMonitoringPDF,
+    exportPaymentDetailPDF, exportInvoiceExcel, exportARBAIMonitoringExcel, exportARBAIMonitoringPDF,
     exportBAOnlyExcel, exportBAOnlyPDF, exportAROnlyExcel, exportAROnlyPDF,
     exportCoretaxEFakturCSV, exportEBupotPPh23CSV
   } = createFinanceExporters(exportCtx);
@@ -243,7 +243,7 @@ export function useFinanceController({
     defaultSBSBAMDOItems, defaultSBSBADeductionItems, latestKursBI, coalIndexMaster, sowCatalog, getBGGActiveCoalTier,
     baOperatingItems, setBaOperatingItems, baMDOItems, setBaMDOItems, baDeductionItems, setBaDeductionItems,
     reorderBAItems, moveBAItem, activeBAStep, setActiveBAStep, showAddRowDropdown, setShowAddRowDropdown,
-    customerContractMap, getSBSTarifByDistance, exportPaymentDetailPDF,
+    customerContractMap, getSBSTarifByDistance, exportPaymentDetailPDF, exportInvoiceExcel,
     exportARBAIMonitoringExcel, exportARBAIMonitoringPDF, exportBAOnlyExcel, exportBAOnlyPDF,
     exportAROnlyExcel, exportAROnlyPDF, exportCoretaxEFakturCSV, exportEBupotPPh23CSV, loadData, reloadMasterData,
     handleSavePartialPayment, handleVerifyPartialPayment,

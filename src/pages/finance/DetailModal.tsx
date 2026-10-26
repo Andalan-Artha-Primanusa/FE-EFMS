@@ -1,5 +1,5 @@
 import React from "react";
-import { FileText, Edit2, X } from "lucide-react";
+import { FileText, FileSpreadsheet, Edit2, X } from "lucide-react";
 import { BADetailSheet } from "./details/BADetailSheet";
 import { InvoiceDetailSheet } from "./details/InvoiceDetailSheet";
 import { InvoiceBillingPanel } from "./details/InvoiceBillingPanel";
@@ -14,7 +14,7 @@ export function DetailModal({ c }: { c: any }) {
   const {
     isSuper, canVerifyBA, canVerifyInvoice, canApproveInvoice, canApproveBA, invoiceRows: rawInvoiceRows, paymentRows: rawPaymentRows, baRows: rawBaRows,
     detailViewItem, setDetailViewItem, showAddPartialPayment, setShowAddPartialPayment, partialPaymentForm,
-    setPartialPaymentForm, customerContractMap, exportPaymentDetailPDF,
+    setPartialPaymentForm, customerContractMap, exportPaymentDetailPDF, exportInvoiceExcel,
     handleSavePartialPayment, handleVerifyPartialPayment, createInvoiceFromBA, handleVerifyBA, handleApproveBA,
     handleApproveInvoice, openEditModal, onNotice, loadData, user, can = () => false
   } = (c || {}) as Record<string, any>;
@@ -87,12 +87,20 @@ export function DetailModal({ c }: { c: any }) {
                   </span>
                 </div>
                 {type === "invoice" && (
-                  <button
-                    onClick={() => exportPaymentDetailPDF(data)}
-                    className="px-3 py-1.5 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs transition flex items-center gap-1 shadow-xs cursor-pointer"
-                  >
-                    <FileText size={13} /> Cetak / Simpan PDF
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => exportInvoiceExcel(data)}
+                      className="px-3 py-1.5 rounded-[3px] bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-xs transition flex items-center gap-1 shadow-xs cursor-pointer"
+                    >
+                      <FileSpreadsheet size={13} className="text-emerald-600" /> Export Excel
+                    </button>
+                    <button
+                      onClick={() => exportPaymentDetailPDF(data)}
+                      className="px-3 py-1.5 rounded-[3px] bg-[#A57C50] hover:bg-[#8e6941] text-white font-bold text-xs transition flex items-center gap-1 shadow-xs cursor-pointer"
+                    >
+                      <FileText size={13} /> Cetak / Simpan PDF
+                    </button>
+                  </div>
                 )}
               </div>
 

@@ -184,6 +184,7 @@ const ALL_SYSTEM_PERMISSIONS: Array<{ module: string; action: string; descriptio
   { module: "ba_tracker", action: "verify", description: "Verifikasi Berita Acara oleh SPV / Specialist" },
   { module: "ba_tracker", action: "approve", description: "Approve Berita Acara oleh Manager" },
   { module: "ba_tracker", action: "upload", description: "Upload PDF Draft & Final Signed BA (Finance Site / Admin Finance)" },
+  { module: "ba_tracker", action: "reopen", description: "Revisi BA dari Arsip BA" },
   { module: "invoice", action: "read", description: "Melihat data invoice penagihan AR" },
   { module: "invoice", action: "write", description: "Membuat draft invoice penagihan" },
   { module: "invoice", action: "delete", description: "Menghapus draft invoice" },
@@ -1390,13 +1391,21 @@ export function RBACPage({
                     <span className="font-bold text-[#b3352b]">✕ Terkunci</span>
                   )}
                 </li>
+                <li className="flex items-center justify-between p-2 rounded bg-white border border-[#E6E1D9]">
+                  <span>Revisi dari Arsip BA</span>
+                  {simulatedRoleAccess.permissions.some((p) => p.module === "ba_tracker" && (p.action === "reopen" || p.action === "*")) || isSuperAdminRole(simulatedRole) ? (
+                    <span className="font-bold text-[#2e7d53]">✓ Diizinkan</span>
+                  ) : (
+                    <span className="font-bold text-[#b3352b]">✕ Terkunci</span>
+                  )}
+                </li>
               </ul>
             </div>
 
             {/* Invoice Actions */}
             <div className="p-3.5 rounded-lg border border-[#E6E1D9] bg-[#FAF8F4] space-y-2.5">
               <h4 className="font-bold text-xs text-[#1e2b4d] uppercase tracking-wider flex items-center gap-1.5">
-                <Receipt size={14} className="text-[#a57c50]" /> Invoice Management (AR)
+                <Receipt size={14} className="text-[#a57c50]" /> AR Management
               </h4>
               <ul className="space-y-1.5 text-xs">
                 <li className="flex items-center justify-between p-2 rounded bg-white border border-[#E6E1D9]">

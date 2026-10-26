@@ -435,7 +435,7 @@ export function BATrackerModal({ c }: { c: any }) {
                       : act(() => verifyBATracker(editItem.id, "verify", "Verifikasi Berita Acara oleh Finance Specialist"))}
                     className="px-4 py-2 rounded-[3px] bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer"
                   >
-                    <CheckCircle2 size={14} /> {canVerifyPending ? "Verifikasi Pending Volume" : "Verifikasi"}
+                    <CheckCircle2 size={14} /> {canVerifyPending ? "Post Pending Volume" : "Post"}
                   </button>
                   <button
                     type="button"
@@ -447,13 +447,22 @@ export function BATrackerModal({ c }: { c: any }) {
                 </>
               )}
               {canApproveMain && (
-                <button
-                  type="button"
-                  onClick={() => act(() => approveBATracker(editItem.id, "approve", "Disetujui oleh Manager"))}
-                  className="px-4 py-2 rounded-[3px] bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer"
-                >
-                  <CheckCircle2 size={14} /> Approve
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => act(() => approveBATracker(editItem.id, "approve", "Disetujui oleh Manager"))}
+                    className="px-4 py-2 rounded-[3px] bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <CheckCircle2 size={14} /> Approve
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => reject((note) => act(() => approveBATracker(editItem.id, "reject", note)))}
+                    className="px-4 py-2 rounded-[3px] border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <X size={14} /> Reject
+                  </button>
+                </>
               )}
             </div>
 
