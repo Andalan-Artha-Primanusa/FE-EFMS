@@ -3,9 +3,9 @@
 // Setiap fungsi menerima snapshot state (ctx) dari controller.
 // =============================================================
 
-import { getBGGRFIndexForPeriod } from "./ba_calculations";
-import { baseDistanceFor, customerByCode } from "./masterRegistry";
-import { baCalc, baUninvoicedCalc, calcCategory, formatIDR, getBAStatusForExport, getCustomerOfficialName, invoiceCalc, invoiceNett, invoiceOutstanding, isAROpen, isBAUninvoiced, parsePeriodToMonthIndex } from "./helpers";
+import { getBGGRFIndexForPeriod, isMessBA, isPOSMDOBA, isRentalBA } from "./ba_calculations";
+import { baseDistanceFor, customerByCode, customerKind } from "./masterRegistry";
+import { baCalc, baUninvoicedCalc, calcCategory, formatIDR, getBAInvoiceStatus, getBAStatusForExport, getCustomerOfficialName, invoiceCalc, invoiceNett, invoiceOutstanding, isAROpen, isBAUninvoiced, parsePeriodToMonthIndex } from "./helpers";
 
 // Blok TTD laporan monitoring (PDF & Excel)
 const SIGNATURE_HTML = `
@@ -1320,10 +1320,9 @@ const AR_DISPLAY_OVERRIDES: Record<string, any> = {
 };
 
 export function exportAROnlyPDFImpl(ctx: any) {
-  const { invoiceRows: rawInvoiceRows, baRows: rawBaRows, sbsPenalties: rawPenalties, invPeriodFilter = "All", query = "" } = ctx || {};
+  const { invoiceRows: rawInvoiceRows, baRows: rawBaRows, invPeriodFilter = "All", query = "" } = ctx || {};
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
-  const penalties: any[] = Array.isArray(rawPenalties) ? rawPenalties : [];
   const printWin = window.open("", "_blank", "width=1200,height=900");
   if (!printWin) return;
 
@@ -1388,20 +1387,27 @@ export function exportAROnlyPDFImpl(ctx: any) {
     .map((ba) => {
       const cust = (ba.customerCode || "POS").toUpperCase();
       const amount = baUninvoicedCalc(ba, invoiceRows).totalInvoice;
-      // Deduction SBS = penalti Section P yang belum dipotong pada periode yang sama
-      const ded = cust === "SBS"
-        ? penalties
-            .filter((p) => p.status !== "Deducted" && parsePeriodToMonthIndex(p.workPeriod || "") === parsePeriodToMonthIndex(ba.workPeriod || ""))
-            .reduce((s, p) => s + Number(p.outstandingAmount ?? (Number(p.claimAmount || 0) - Number(p.deductedAmount || 0))), 0)
-        : 0;
+      // Estimasi deduction BA dibawa invoice OP; sisa MDO setelah OP terbit = 0
+      const st = getBAInvoiceStatus(ba, invoiceRows);
+      const ded = st.isPartiallyInvoiced && st.createdMiningInv ? 0 : Number(ba.estimatedDeduction || 0);
+      // Remarks = jenis invoice yang akan terbit dari BA; teks mengikuti invoice terakhir customer & jenis yang sama
+      const cats = st.isPartiallyInvoiced ? [st.createdMiningInv ? "MDO" : "Operation & Mining"]
+        : isRentalBA(ba) ? ["Rental"] : isMessBA(ba) ? ["Mess"] : isPOSMDOBA(ba) ? ["MDO"]
+        : customerKind(cust) === "POS" ? ["Operation & Mining", "MDO"].filter((c) => baCalc(ba, c).totalInvoice) : ["Operation & Mining"];
+      const remarks = cats.map((c) => invoiceRows
+        // "Penambangan" = default generate BE, belum diganti user
+        .filter((inv) => customerKind(inv.customerCode) === customerKind(cust) && calcCategory(inv.invoiceCategory) === c && inv.jobType && inv.jobType !== "Penambangan")
+        .sort((a, b) => new Date(b.invoiceDate || 0).getTime() - new Date(a.invoiceDate || 0).getTime())[0]?.jobType
+        || (c === "Mess" ? "Mess Facility" : c)).join(" & ");
       sti.out += amount; sti.ded += ded; sti.nett += amount - ded;
       return `
         <tr>
           <td class="c b">${cust}</td>
           <td class="c">${fmtPeriod(ba.workPeriod)}</td>
-          <td>${ba.activityGroup || ba.jobType || "OB & CG"}</td>
+          <td>${remarks}</td>
           <td class="r">${fmtNum(amount)}</td>
-          <td class="r">${fmtNum(amount)}</td>
+          <td class="r">${fmtNum(ded)}</td>
+          <td class="r">${fmtNum(amount - ded)}</td>
         </tr>`;
     }).join("");
 
@@ -1474,20 +1480,23 @@ export function exportAROnlyPDFImpl(ctx: any) {
 
       <table style="margin-top: 18px; page-break-inside: avoid;">
         <thead>
-          <tr><th colspan="5" style="text-align:left">Subject To Invoice</th></tr>
+          <tr><th colspan="6" style="text-align:left">Subject To Invoice</th></tr>
           <tr>
             <th style="width:10%">Project</th>
             <th style="width:12%">Inv. Progress</th>
             <th>Remarks</th>
-            <th style="width:20%">Amount (Rp)</th>
-            <th style="width:20%">Outstanding (Rp)</th>
+            <th style="width:16%">Amount (Rp)</th>
+            <th style="width:16%">Estimasi Deduction (Rp)</th>
+            <th style="width:16%">Estimasi Nett (Rp)</th>
           </tr>
         </thead>
         <tbody>
-          ${stiRows || `<tr><td colspan="5" class="c">Tidak ada BA pending penagihan.</td></tr>`}
+          ${stiRows || `<tr><td colspan="6" class="c">Tidak ada BA pending penagihan.</td></tr>`}
           <tr class="sti-total">
-            <td colspan="4">Total Subject To Invoice</td>
+            <td colspan="3">Total Subject To Invoice</td>
             <td class="r">${fmtNum(sti.out)}</td>
+            <td class="r">${fmtNum(sti.ded)}</td>
+            <td class="r">${fmtNum(sti.nett)}</td>
           </tr>
         </tbody>
       </table>

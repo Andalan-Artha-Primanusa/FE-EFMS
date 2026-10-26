@@ -1,6 +1,6 @@
 import React from "react";
 import { Layers, Calculator } from "lucide-react";
-import { MonthPickerInput, matchPeriod } from "../helpers";
+import { MonthPickerInput, matchPeriod, RupiahInput, formatIDR } from "../helpers";
 import { resolveHOMasterLaborAndCurrency, calculateTripleFactorRF, customerKind, isRentalBA, isPOSMDOBA, isMessBA } from "../ba_calculations";
 import { obSplitSOWs, sowFor, sowTierRate, computeRFIndex, rfTemplateFor, ptroContractRates, baItemsFromSOW, kursForPeriod } from "../masterRegistry";
 import { isHeadOfficeUser } from "../../../lib/auth";
@@ -95,7 +95,7 @@ export function BATrackerHeaderForm({
       {/* Header Info Strip: Customer, Periode, PIC */}
       <div className="p-3 bg-slate-50 border border-slate-200 rounded-[4px]">
         {isInlineEditingBA ? (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))] gap-3 text-xs">
             <div>
               <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">
                 Customer / Project <span className="text-rose-600">*</span>
@@ -445,12 +445,19 @@ export function BATrackerHeaderForm({
                 onChange={(e) => setFormData({ ...formData, picAAP: e.target.value })}
               />
             </div>
+            {!formData.pendingMode && <div>
+              <label className="block text-[10px] font-black uppercase tracking-wider text-slate-600 mb-1">
+                Estimasi Deduction
+              </label>
+              <RupiahInput label="" value={formData.estimatedDeduction || 0} onChange={(v) => setFormData({ ...formData, estimatedDeduction: v })} />
+            </div>}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs text-slate-800">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,140px),1fr))] gap-3 text-xs text-slate-800">
             <div><span className="text-slate-500 block font-bold text-[10px] uppercase">Customer</span> <strong className="text-slate-900 font-bold">{formData.customerCode || ""}</strong></div>
             <div><span className="text-slate-500 block font-bold text-[10px] uppercase">Periode</span> <strong className="text-slate-800">{formData.workPeriod || "-"}</strong></div>
             <div><span className="text-slate-500 block font-bold text-[10px] uppercase">PIC Site</span> <strong className="text-slate-800">{formData.picAAP || "-"}</strong></div>
+            <div><span className="text-slate-500 block font-bold text-[10px] uppercase">Estimasi Deduction</span> <strong className="text-slate-800">{formatIDR(formData.estimatedDeduction || 0)}</strong></div>
           </div>
         )}
       </div>
