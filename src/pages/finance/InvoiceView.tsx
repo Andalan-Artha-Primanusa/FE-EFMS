@@ -438,6 +438,7 @@ export function InvoiceView({ c }: { c: any }) {
                                              {canApproveInvoice && row.status === "Verified" && (() => {
                                                const isApproving = actionLoadingKey === `approve-inv-${row.id}`;
                                                return (
+                                                 <>
                                                  <button
                                                    disabled={isApproving}
                                                    className={`px-2.5 py-1 bg-purple-700 hover:bg-purple-800 text-white font-bold text-[11px] rounded shadow-xs inline-flex items-center gap-1 transition shrink-0 whitespace-nowrap font-sans cursor-pointer ${isApproving ? "opacity-60 cursor-not-allowed" : ""}`}
@@ -445,8 +446,17 @@ export function InvoiceView({ c }: { c: any }) {
                                                    title="Setujui Invoice (Manager FATB)"
                                                  >
                                                    {isApproving ? <Loader2 size={12} className="animate-spin text-white" /> : <UserCheck size={12} />}
-                                                   <span>{isApproving ? "Menyetujui..." : "Approve FATB"}</span>
+                                                   <span>{isApproving ? "Memproses..." : "Approve FATB"}</span>
                                                  </button>
+                                                 <button
+                                                   disabled={isApproving}
+                                                   className={`px-2.5 py-1 border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[11px] rounded inline-flex items-center gap-1 transition shrink-0 whitespace-nowrap font-sans cursor-pointer ${isApproving ? "opacity-60 cursor-not-allowed" : ""}`}
+                                                   onClick={() => { const note = window.prompt("Alasan Reject"); if (note) handleApproveInvoice(row.id, note); }}
+                                                 >
+                                                   <X size={12} />
+                                                   <span>Reject</span>
+                                                 </button>
+                                                 </>
                                                );
                                              })()}
                                             <button className="p-1.5 rounded border border-cyan-200 bg-cyan-50 text-cyan-800 hover:bg-cyan-100 transition shrink-0 cursor-pointer" onClick={() => setDetailViewItem({ type: "invoice", data: row })} title="Lihat Detail & Tracking Log">

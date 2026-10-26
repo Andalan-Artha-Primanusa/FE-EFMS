@@ -123,6 +123,7 @@ export function canAccessMenu(item: string, role: string, permissions: Permissio
   if (item in treasuryTabs || item === "Rekap Voucher") item = "Treasury Management";
   // AR Dashboard shares the existing "Finance & AR Dashboard" grant (incl. its T-Code).
   if (item === "AR Dashboard") item = "Finance & AR Dashboard";
+  if (item === "Arsip BA") item = "Berita Acara (BA) Tracker";
   if (isSuperAdminRole(role)) return true;
 
   // Tunai PO pages (and Fuel, same flow) are permission-only (no T-Code), so SCM reaches them without any treasury grant.

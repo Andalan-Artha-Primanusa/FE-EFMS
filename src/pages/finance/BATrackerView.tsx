@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { AlertCircle, AlertTriangle, CheckCircle2, Clock, Edit2, FileSpreadsheet, FileText, Filter, Plus, Trash2, X, DollarSign, Calendar, Info, Layers, UserCheck, ShieldAlert, ShieldCheck, ArrowUpRight, BarChart3, Eye, User, FileCheck, History, Upload, FileCode, ExternalLink, Calculator, Pickaxe, RefreshCw, ChevronDown, Receipt, TrendingUp, Lock, Unlock, ArrowRight, Building2, Sparkles, Check, Send, Zap, Archive, Scale, Truck, BedDouble, Loader2, StickyNote, Settings } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Panel } from "../../components/Panel";
-import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, getFinanceTemplates, User as UserType } from "../../lib/api";
+import { api, API_BASE, uploadDocumentFile, verifyBATracker, approveBATracker, generateInvoiceFromBA, verifyInvoice, approveInvoiceTier1, getFinanceTemplates, reopenBATracker, User as UserType } from "../../lib/api";
 import { BANotesUpdateModal } from "./modals/BANotesUpdateModal";
 import { isUnbilledPending, canEditPending, isRentalBA, isPOSMDOBA, isMessBA } from "./ba_calculations";
 import { companyScopeOf } from "../../lib/auth";
@@ -16,7 +16,7 @@ import {
   generateBANumberPreview, generateInvoiceNumberPreview, getYearFromPeriod,
   getBAInvoiceStatus, isPOSDualBA, renderBAStatusBadge,
   getBAStatusForExport, renderInvoiceStatusBadge, parsePeriodToMonthIndex,
-  RupiahInput, generateAuditTimeline, getCustomerOfficialName, isBAApproved, INVOICE_LOCKED, baCalc, pendingCalc
+  RupiahInput, generateAuditTimeline, getCustomerOfficialName, isBAApproved, baCalc, pendingCalc, isBAUninvoiced, baUninvoicedCalc
 } from "./helpers";
 
 const BA_SITES = [
@@ -28,7 +28,7 @@ const BA_SITES = [
   { code: "BBA", label: "BBA" },
 ];
 
-export function BATrackerView({ c }: { c: any }) {
+export function BATrackerView({ c, archive = false }: { c: any; archive?: boolean }) {
   const {
     baRows: rawBaRows, invoiceRows: rawInvoiceRows, baFilter,
     setBaFilter, periodFilter, setPeriodFilter, showExportBADropdown, setShowExportBADropdown,
@@ -45,6 +45,20 @@ export function BATrackerView({ c }: { c: any }) {
   const openMessBA = () => openCreateModal("ba", { customerCode: "POS", posData: { mess: {} } });
   const [quickNoteModalItem, setQuickNoteModalItem] = useState<any | null>(null);
   const [showMappings, setShowMappings] = useState(false);
+  const [reopeningId, setReopeningId] = useState<number | null>(null);
+  const reopenBA = async (row: any) => {
+    if (!window.confirm(`Revisi BA ${row.baNumber}?`)) return;
+    setReopeningId(row.id);
+    try {
+      await reopenBATracker(row.id);
+      onNotice(`BA ${row.baNumber} dibuka untuk revisi`);
+      await loadData?.();
+    } catch (err: any) {
+      onNotice(err?.message || "Gagal membuka revisi BA");
+    } finally {
+      setReopeningId(null);
+    }
+  };
   const baRows: any[] = Array.isArray(rawBaRows) ? rawBaRows : [];
   const invoiceRows: any[] = Array.isArray(rawInvoiceRows) ? rawInvoiceRows : [];
   const accountingJournals: any[] = Array.isArray(rawAccountingJournals) ? rawAccountingJournals : [];
@@ -60,65 +74,53 @@ export function BATrackerView({ c }: { c: any }) {
           return invStatus.isFullyInvoiced;
         };
 
+        // Posisi invoice: arsip = semua invoice sudah diterima klien (legacy: lunas); dikirim = semua terkirim.
+        const isInvArchived = (inv: any) => Boolean(inv?.invoiceSubmissionDate) || ["Paid", "Lunas"].includes(inv?.status);
+        const isInvSent = (inv: any) => Boolean(inv?.invoiceSentDate) || isInvArchived(inv);
+        const invsOf = (r: any) => getBAInvoiceStatus(r, invoiceRows).createdInvoices;
+        const isStageArsip = (r: any) => isBAInvoiced(r) && invsOf(r).every(isInvArchived);
+        const isStageSent = (r: any) => isBAInvoiced(r) && !isStageArsip(r) && invsOf(r).every(isInvSent);
+        const isStageRouting = (r: any) => isBAInvoiced(r) && invsOf(r).some((inv: any) => !isInvSent(inv));
+        const isStageRevisi = (r: any) => r.statusBA === "Revisi" || (r.statusBA || "").startsWith("Reject");
+
         // Stage 1: Draft (status "Submit", belum diverifikasi) — sama dengan badge "Draft"
         const isStageDraft = (r: any) => /^(Submit|Draft|Siap)/.test(r.statusBA || "Submit") && !isBAInvoiced(r);
-        // Stage 2: menunggu verifikasi s.d. approval Manager
-        const isStageVerif = (r: any) => r.statusBA === "Pending Berita Acara" || r.statusBA === "Pending" || r.statusBA === "Pending BAI" || r.statusBA === "Verified" || (r.statusBA === "Ready to Invoice" && !isBAInvoiced(r));
-        const isStageArsip = (r: any) => (r.statusBA === "Ready to Invoice" || r.statusBA === "Approved" || r.statusBA === "Invoiced" || r.statusBA === "Arsip") && isBAInvoiced(r);
+        // Stage 2: menunggu verifikasi s.d. Siap Invoice
+        const isStageVerif = (r: any) => !isBAInvoiced(r) && (r.statusBA === "Pending Berita Acara" || r.statusBA === "Pending" || r.statusBA === "Pending BAI" || r.statusBA === "Verified" || r.statusBA === "Ready to Invoice" || isBAApproved(r));
+        const sumAmount = (rows: any[]) => rows.reduce((acc, r) => acc + baCalc(r).totalInvoice, 0);
         const stageDraftRows = periodRows.filter(isStageDraft);
-        const stageDraftNominal = stageDraftRows.reduce((sum, r) => sum + baCalc(r).totalInvoice, 0);
-
-        // Stage 2: Verifikasi Internal SPV
         const stageVerifRows = periodRows.filter(isStageVerif);
-        const stageVerifNominal = stageVerifRows.reduce((sum, r) => sum + baCalc(r).totalInvoice, 0);
-
-        // Stage 3: Revisi / Tertahan
-        const stageRevisiRows = periodRows.filter((r) => r.statusBA === "Revisi" || (r.statusBA || "").startsWith("Reject"));
-        const stageRevisiNominal = stageRevisiRows.reduce((sum, r) => sum + baCalc(r).totalInvoice, 0);
-
-        // Stage 4: Siap Terbit Invoice (HANYA YANG BELUM TERBIT INVOICE)
-        const stageReadyRows = periodRows.filter((r) => isBAApproved(r) && !isBAInvoiced(r));
-        const stageReadyNominal = stageReadyRows.reduce((sum, r) => sum + baCalc(r).totalInvoice, 0);
-
-        // Stage 5: Arsip (HANYA YANG BENAR-BENAR SUDAH ADA INVOICENYA)
-        const stageArsipRows = periodRows.filter(isStageArsip);
-        const stageArsipNominal = stageArsipRows.reduce((sum, r) => sum + baCalc(r).totalInvoice, 0);
+        const stageRevisiRows = periodRows.filter(isStageRevisi);
+        const stageRoutingRows = periodRows.filter(isStageRouting);
+        const stageSentRows = periodRows.filter(isStageSent);
 
         // Summary cards: posisi saat ini, tanpa filter periode
-        const sumAmount = (rows: any[]) => rows.reduce((acc, r) => acc + baCalc(r).totalInvoice, 0);
-        const cardPendingRows = safeBaRows.filter((r) => !r.verifiedBy && !r.approvedBy && !isBAInvoiced(r));
-        const cardSiapRows = safeBaRows.filter((r) => r.verifiedBy && !r.approvedBy && !isBAInvoiced(r) && !(r.statusBA || "").startsWith("Arsip"));
-        // Routing keluar saat semua invoice terkirim / FP terlapor / lunas
-        const isInvoiceOut = (inv: any) => Boolean(inv?.invoiceSubmissionDate) || ["Tax_Reported", "Faktur Pajak Terlapor", "Paid", "Lunas"].includes(inv?.status);
-        const cardRoutingRows = safeBaRows.filter((r) => {
-          if (!r.approvedBy) return false;
-          const st = getBAInvoiceStatus(r, invoiceRows);
-          return !st.isFullyInvoiced || st.createdInvoices.some((inv: any) => !isInvoiceOut(inv));
-        });
+        const cardPendingRows = safeBaRows.filter((r) => !r.approvedBy && !isBAInvoiced(r));
+        const cardSiapRows = safeBaRows.filter((r) => r.approvedBy && !isBAInvoiced(r));
+        const cardRoutingRows = safeBaRows.filter(isStageRouting);
+        const cardSentRows = safeBaRows.filter(isStageSent);
         // Card periode
         const periodLabel = periodFilter === "All" ? "Semua Periode" : periodFilter;
-        const invPeriodTotal = invoiceRows
-          .filter((i) => (periodFilter === "All" || i.workPeriod === periodFilter) && INVOICE_LOCKED.has(i.status))
-          .reduce((acc, i) => acc + Number(i.totalInvoice || 0), 0);
-        const estRevenuePeriod = sumAmount(periodRows.filter((r) => r.statusBA !== "Revisi" && !(r.statusBA || "").startsWith("Reject")));
+        // Sama dengan summary export BAI: BA belum ter-invoice + pending volume belum ditagih
+        const uninvoicedTotal = periodRows.filter((r) => isBAUninvoiced(r, invoiceRows)).reduce((acc, r) => acc + baUninvoicedCalc(r, invoiceRows).totalInvoice, 0);
         // Pending Volume BGG: periode pending sendiri, hanya yang belum ditagih.
         const isPendingInPeriod = (r: any) => isUnbilledPending(r) && (periodFilter === "All" || r.pendingVolume.period === periodFilter);
         const pendingNominal = safeBaRows.filter(isPendingInPeriod).reduce((acc, r) => acc + pendingCalc(r).totalInvoice, 0);
 
-        const nominalApprovedPeriod = stageReadyNominal;
-        const baOnProgressNominal = stageDraftNominal + stageVerifNominal + stageRevisiNominal;
 
         const filteredBARows = baRows.filter((r) => {
           const matchQ = JSON.stringify(r).toLowerCase().includes(query.toLowerCase());
           if (!matchQ) return false;
           if (baFilter === "Pending Volume") return isPendingInPeriod(r);
           if (periodFilter !== "All" && r.workPeriod !== periodFilter) return false;
+          if (archive) return isStageArsip(r);
+          if (isStageArsip(r)) return false;
           if (baFilter === "Submit") return isStageDraft(r);
           if (baFilter === "Pending Berita Acara") return isStageVerif(r);
-          if (baFilter === "Revisi") return r.statusBA === "Revisi" || (r.statusBA || "").startsWith("Reject");
-          if (baFilter === "Ready to Invoice") return isBAApproved(r) && !isBAInvoiced(r);
-          if (baFilter === "Arsip") return isStageArsip(r);
-          return !isStageArsip(r);
+          if (baFilter === "Revisi") return isStageRevisi(r);
+          if (baFilter === "Routing") return isStageRouting(r);
+          if (baFilter === "Dikirim") return isStageSent(r);
+          return true;
         });
 
         const groupedCustomers: any[] = Array.from(new Set(filteredBARows.map((r) => r.customerCode || "OTHER")));
@@ -211,7 +213,7 @@ export function BATrackerView({ c }: { c: any }) {
                   )}
 
                   {/* Input / Tambah BA: user SITE hanya site miliknya (tanpa dropdown), HO semua site */}
-                  {!can("ba_tracker", "write") ? null : !siteScope.all ? (
+                  {archive || !can("ba_tracker", "write") ? null : !siteScope.all ? (
                     <div className="flex items-center gap-1.5">
                       {baSiteOptions.map((s) => (
                         <button
@@ -339,12 +341,14 @@ export function BATrackerView({ c }: { c: any }) {
                 </div>
               </div>
 
+              {!archive && (<>
               {/* TOP CALCULATION STAT CARDS */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-0.5">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-3 pt-0.5">
                 {[
                   { label: "Pending BAI", rows: cardPendingRows, Icon: Clock, icon: "text-amber-600", badge: "bg-amber-50 text-amber-800 border-amber-200" },
-                  { label: "Siap Invoice", rows: cardSiapRows, Icon: CheckCircle2, icon: "text-emerald-600", badge: "bg-emerald-50 text-emerald-800 border-emerald-200" },
-                  { label: "Routing Internal & FP", rows: cardRoutingRows, Icon: Send, icon: "text-[#A57C50]", badge: "bg-[#FBF6F0] text-[#A57C50] border-[#E7D3BC]" },
+                  { label: "BAI Siap Invoice", rows: cardSiapRows, Icon: CheckCircle2, icon: "text-emerald-600", badge: "bg-emerald-50 text-emerald-800 border-emerald-200" },
+                  { label: "Routing Internal & FP", rows: cardRoutingRows, Icon: FileCheck, icon: "text-[#A57C50]", badge: "bg-[#FBF6F0] text-[#A57C50] border-[#E7D3BC]" },
+                  { label: "Invoice Dikirim", rows: cardSentRows, Icon: Send, icon: "text-purple-700", badge: "bg-purple-50 text-purple-800 border-purple-200" },
                 ].map(({ label, rows, Icon, icon, badge }) => (
                   <div key={label} className="p-4 bg-white border border-[#A57C50]/60 shadow-sm space-y-1" style={{ borderRadius: 4 }}>
                     <div className="flex items-center justify-between">
@@ -369,7 +373,7 @@ export function BATrackerView({ c }: { c: any }) {
                     <Receipt className="w-3.5 h-3.5 text-purple-700" /> Total Invoice {periodLabel}
                   </span>
                   <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
-                    {formatIDR(invPeriodTotal)}
+                    {formatIDR(uninvoicedTotal)}
                   </div>
                 </div>
                 <div
@@ -378,7 +382,7 @@ export function BATrackerView({ c }: { c: any }) {
                   style={{ borderRadius: 4 }}
                 >
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
-                    <Scale className="w-3.5 h-3.5 text-slate-600" /> Pending Volume (DPP) {periodLabel}
+                    <Scale className="w-3.5 h-3.5 text-slate-600" /> Pending Volume {periodLabel}
                   </span>
                   <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
                     {formatIDR(pendingNominal)}
@@ -386,19 +390,20 @@ export function BATrackerView({ c }: { c: any }) {
                 </div>
                 <div className="p-4 bg-white border border-[#A57C50]/60 shadow-sm space-y-1" style={{ borderRadius: 4 }}>
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
-                    <TrendingUp className="w-3.5 h-3.5 text-[#A57C50]" /> Est. Pendapatan (DPP/Gross) {periodLabel}
+                    <TrendingUp className="w-3.5 h-3.5 text-[#A57C50]" /> Est Total {periodLabel}
                   </span>
                   <div className="text-xl font-bold font-tabular text-slate-900 pt-0.5 truncate">
-                    {formatIDR(estRevenuePeriod)}
+                    {formatIDR(uninvoicedTotal + pendingNominal)}
                   </div>
                 </div>
               </div>
+              </>)}
             </div>
 
             {/* Grouped Table Panel */}
-            <Panel title="Daftar Berita Acara Pekerjaan">
+            <Panel title={archive ? "Arsip BA" : "Daftar Berita Acara Pekerjaan"}>
               {/* CHEVRON / ARROW PROCESS STEPPER FILTER */}
-              <div className="space-y-1.5 mb-2.5">
+              {!archive && <div className="space-y-1.5 mb-2.5">
                 <div className="flex justify-between items-center px-0.5">
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 flex items-center gap-1">
                     <Layers className="w-3.5 h-3.5 text-[#A57C50]" /> Alur Siklus Dokumen
@@ -441,7 +446,7 @@ export function BATrackerView({ c }: { c: any }) {
                         </span>
                       </div>
                       <div className={`mt-0.5 font-mono font-bold text-xs whitespace-nowrap ${baFilter === "Submit" ? "text-white" : "text-slate-900"}`}>
-                        {formatIDR(stageDraftNominal)}
+                        {formatIDR(sumAmount(stageDraftRows))}
                       </div>
                     </div>
 
@@ -469,7 +474,7 @@ export function BATrackerView({ c }: { c: any }) {
                         </span>
                       </div>
                       <div className={`mt-0.5 font-mono font-bold text-xs whitespace-nowrap ${baFilter === "Pending Berita Acara" ? "text-white" : "text-amber-900"}`}>
-                        {formatIDR(stageVerifNominal)}
+                        {formatIDR(sumAmount(stageVerifRows))}
                       </div>
                     </div>
 
@@ -497,68 +502,68 @@ export function BATrackerView({ c }: { c: any }) {
                         </span>
                       </div>
                       <div className={`mt-0.5 font-mono font-bold text-xs whitespace-nowrap ${baFilter === "Revisi" ? "text-white" : "text-rose-900"}`}>
-                        {formatIDR(stageRevisiNominal)}
+                        {formatIDR(sumAmount(stageRevisiRows))}
                       </div>
                     </div>
 
                     {/* Step 4: Routing Internal & FP */}
                     <div
-                      onClick={() => setBaFilter(baFilter === "Ready to Invoice" ? "All" : "Ready to Invoice")}
+                      onClick={() => setBaFilter(baFilter === "Routing" ? "All" : "Routing")}
                       style={{
                         clipPath: "polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%)",
                       }}
                       className={`flex-1 min-w-[170px] py-1.5 pl-6 pr-6 transition-all cursor-pointer select-none relative ${
-                        baFilter === "Ready to Invoice"
+                        baFilter === "Routing"
                           ? "bg-emerald-600 text-white shadow-md z-10 brightness-105"
                           : "bg-white hover:bg-emerald-50/70 text-slate-800"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-1">
                         <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 whitespace-nowrap">
-                          <FileCheck size={12} className={baFilter === "Ready to Invoice" ? "text-emerald-200" : "text-emerald-700"} />
+                          <FileCheck size={12} className={baFilter === "Routing" ? "text-emerald-200" : "text-emerald-700"} />
                           4. Routing Internal & FP
                         </span>
                         <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full whitespace-nowrap ${
-                          baFilter === "Ready to Invoice" ? "bg-emerald-900 text-emerald-100 border border-emerald-500" : "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                          baFilter === "Routing" ? "bg-emerald-900 text-emerald-100 border border-emerald-500" : "bg-emerald-100 text-emerald-900 border border-emerald-300"
                         }`}>
-                          {stageReadyRows.length} BA
+                          {stageRoutingRows.length} BA
                         </span>
                       </div>
-                      <div className={`mt-0.5 font-mono font-bold text-xs whitespace-nowrap ${baFilter === "Ready to Invoice" ? "text-white" : "text-emerald-900"}`}>
-                        {formatIDR(stageReadyNominal)}
+                      <div className={`mt-0.5 font-mono font-bold text-xs whitespace-nowrap ${baFilter === "Routing" ? "text-white" : "text-emerald-900"}`}>
+                        {formatIDR(sumAmount(stageRoutingRows))}
                       </div>
                     </div>
 
-                    {/* Step 5: Arsip (Sudah Terbit Invoice) */}
+                    {/* Step 5: Invoice Dikirim */}
                     <div
-                      onClick={() => setBaFilter(baFilter === "Arsip" ? "All" : "Arsip")}
+                      onClick={() => setBaFilter(baFilter === "Dikirim" ? "All" : "Dikirim")}
                       style={{
                         clipPath: "polygon(0 0, 100% 0, 100% 100%, 0 100%, 14px 50%)",
                       }}
                       className={`flex-1 min-w-[170px] py-1.5 pl-6 pr-3.5 transition-all cursor-pointer select-none relative ${
-                        baFilter === "Arsip"
+                        baFilter === "Dikirim"
                           ? "bg-purple-800 text-white shadow-md z-10 brightness-105"
                           : "bg-white hover:bg-purple-50/70 text-slate-800"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-1">
                         <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 whitespace-nowrap">
-                          <Archive size={12} className={baFilter === "Arsip" ? "text-purple-200" : "text-purple-700"} />
-                          5. Arsip
+                          <Send size={12} className={baFilter === "Dikirim" ? "text-purple-200" : "text-purple-700"} />
+                          5. Invoice Dikirim
                         </span>
                         <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full whitespace-nowrap ${
-                          baFilter === "Arsip" ? "bg-purple-950 text-purple-200 border border-purple-600" : "bg-purple-100 text-purple-900 border border-purple-300"
+                          baFilter === "Dikirim" ? "bg-purple-950 text-purple-200 border border-purple-600" : "bg-purple-100 text-purple-900 border border-purple-300"
                         }`}>
-                          {stageArsipRows.length} BA
+                          {stageSentRows.length} BA
                         </span>
                       </div>
-                      <div className={`mt-0.5 font-mono font-bold text-xs whitespace-nowrap ${baFilter === "Arsip" ? "text-white" : "text-purple-900"}`}>
-                        {formatIDR(stageArsipNominal)}
+                      <div className={`mt-0.5 font-mono font-bold text-xs whitespace-nowrap ${baFilter === "Dikirim" ? "text-white" : "text-purple-900"}`}>
+                        {formatIDR(sumAmount(stageSentRows))}
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              </div>}
               <div className="table-wrapper overflow-x-auto rounded-xl border border-slate-200 shadow-xs">
                 <table className="data-table w-full min-w-[1000px] text-xs text-left border-collapse">
                   <thead>
@@ -613,6 +618,7 @@ export function BATrackerView({ c }: { c: any }) {
                                   <div className="space-y-0.5">
                                     <div className="font-mono font-bold text-slate-900 text-xs">
                                       {row.baNumber}
+                                      {row.revisionCount > 0 && <span className="ml-1 px-1.5 py-0.2 rounded bg-rose-100 text-rose-800 font-bold text-[9px]">Rev {row.revisionCount}</span>}
                                     </div>
                                     <AccurateDocBadges accurate={row.accurate} />
                                     <div className="flex flex-wrap items-center gap-1 text-[10px]">
@@ -937,6 +943,17 @@ export function BATrackerView({ c }: { c: any }) {
                                       </div>
                                     )}
 
+                                    {archive && can("ba_tracker", "reopen") && !invsOf(row).some((inv: any) => Number(inv.totalPaid) > 0) && (
+                                      <button
+                                        type="button"
+                                        disabled={reopeningId === row.id}
+                                        className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-800 font-bold text-[11px] shadow-xs flex items-center gap-1 transition cursor-pointer disabled:opacity-60"
+                                        onClick={() => reopenBA(row)}
+                                      >
+                                        {reopeningId === row.id ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                                        <span>Revisi</span>
+                                      </button>
+                                    )}
                                     <button
                                       className="p-1.5 rounded-lg border border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 transition cursor-pointer"
                                       onClick={() => openBAModal(row, false)}
@@ -1053,23 +1070,12 @@ export function BATrackerView({ c }: { c: any }) {
                   <tfoot className="border-t-2 border-slate-200 bg-slate-50/95 text-slate-800 font-bold text-xs uppercase">
                     <tr>
                       <td colSpan={2} className="p-3 font-black text-slate-800 tracking-wider">
-                        TOTAL KLAIM BA {periodFilter === "All" ? "SEMUA PERIODE" : periodFilter} — ALL SITE
+                        {baFilter === "Submit" ? "TOTAL OUTSTANDING KLAIM — ALL SITE" : `TOTAL KLAIM BA ${periodFilter === "All" ? "SEMUA PERIODE" : periodFilter} — ALL SITE`}
                       </td>
                       <td className="p-3 text-right font-mono text-sm text-slate-900 font-black">
                         {formatIDR(sumAmount(filteredBARows))}
                       </td>
-                      <td colSpan={4} className="p-3 text-right">
-                        <div className="flex justify-end items-center gap-4 font-mono text-xs">
-                          <div className="bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                            <span className="text-emerald-800 font-sans uppercase font-bold text-[10.5px] mr-1.5">Routing Internal & FP:</span>
-                            <span className="text-emerald-950 font-black text-xs">{formatIDR(nominalApprovedPeriod)}</span>
-                          </div>
-                          <div className="bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
-                            <span className="text-amber-800 font-sans uppercase font-bold text-[10.5px] mr-1.5">BA On Progress:</span>
-                            <span className="text-amber-950 font-extrabold text-xs">{formatIDR(baOnProgressNominal)}</span>
-                          </div>
-                        </div>
-                      </td>
+                      <td colSpan={4} />
                     </tr>
                   </tfoot>
                 </table>

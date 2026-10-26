@@ -294,6 +294,10 @@ export function approveBATracker(id: number, action: "approve" | "reject", note:
   return api(`/api/finance/ba-trackers/${id}/approve`, { method: "POST", body: JSON.stringify({ action, note }) });
 }
 
+export function reopenBATracker(id: number) {
+  return api(`/api/finance/ba-trackers/${id}/reopen`, { method: "POST" });
+}
+
 // pendingBaIds: BA BGG lain yang pending volume-nya ikut ditagih di invoice ini.
 export function generateInvoiceFromBA(id: number, category?: "Operation & Mining" | "MDO" | "Rental" | "Mess", pendingBaIds: number[] = []) {
   const q = [category && `category=${encodeURIComponent(category)}`, pendingBaIds.length && `pendingBaIds=${pendingBaIds.join(",")}`].filter(Boolean).join("&");

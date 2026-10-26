@@ -84,6 +84,7 @@ export function AuthenticatedApp({ user, onLogout }: { user: User; onLogout: () 
         
         <Route path="finance-ar-dashboard" element={<ProtectedRoute requiredView="Finance & AR Dashboard"><FinanceDashboardRoute /></ProtectedRoute>} />
         <Route path="berita-acara-ba-tracker" element={<ProtectedRoute requiredView="Berita Acara (BA) Tracker"><FinanceBATrackerRoute /></ProtectedRoute>} />
+        <Route path="arsip-ba" element={<ProtectedRoute key="arsip-ba" requiredView="Arsip BA"><FinanceBATrackerRoute viewTitle="Arsip BA" /></ProtectedRoute>} />
         
         <Route path="invoice-management" element={<ProtectedRoute requiredView="Invoice Management"><FinanceInvoiceRoute /></ProtectedRoute>} />
         

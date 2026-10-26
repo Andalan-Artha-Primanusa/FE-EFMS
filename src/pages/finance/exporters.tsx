@@ -3,9 +3,9 @@
 // Setiap fungsi menerima snapshot state (ctx) dari controller.
 // =============================================================
 
-import { getBGGRFIndexForPeriod, isUnbilledPending } from "./ba_calculations";
+import { getBGGRFIndexForPeriod } from "./ba_calculations";
 import { baseDistanceFor, customerByCode } from "./masterRegistry";
-import { baCalc, baUninvoicedCalc, calcCategory, pendingCalc, formatIDR, getBAStatusForExport, getCustomerOfficialName, invoiceCalc, invoiceNett, invoiceOutstanding, isAROpen, isBAUninvoiced, parsePeriodToMonthIndex } from "./helpers";
+import { baCalc, baUninvoicedCalc, calcCategory, formatIDR, getBAStatusForExport, getCustomerOfficialName, invoiceCalc, invoiceNett, invoiceOutstanding, isAROpen, isBAUninvoiced, parsePeriodToMonthIndex } from "./helpers";
 
 // Blok TTD laporan monitoring (PDF & Excel)
 const SIGNATURE_HTML = `
@@ -21,7 +21,7 @@ const SIGNATURE_HTML = `
     </tr>
     <tr>
       <td style="border:none; text-align:center;">SPV Finance</td>
-      <td style="border:none; text-align:center;">FATB Manager</td>
+      <td style="border:none; text-align:center;">Manager</td>
     </tr>
   </table>`;
 
@@ -44,6 +44,15 @@ export function exportPaymentDetailPDFImpl(ctx: any, itemData: any) {
   if (!printWin) return;
   printWin.document.write(buildInvoiceHTML(ctx, itemData));
   printWin.document.close();
+}
+
+// Excel: HTML invoice yang sama dengan cetak, disimpan sebagai .xls.
+export function exportInvoiceExcelImpl(ctx: any, itemData: any) {
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([buildInvoiceHTML(ctx, itemData, true)], { type: "application/vnd.ms-excel;charset=utf-8" }));
+  link.download = `Invoice_${String(itemData?.invoiceNo || itemData?.id || "").replace(/[\\/:*?"<>|]/g, "_")}.xls`;
+  link.click();
+  URL.revokeObjectURL(link.href);
 }
 
 // HTML invoice dipakai bersama oleh preview (DetailModal) dan cetak agar tampilannya identik.
@@ -1132,10 +1141,6 @@ export function exportBAOnlyPDFImpl(ctx: any) {
         </tr>`;
   }).join("");
 
-  // Outstanding per hari ini: semua BA belum terbit invoice + pending volume BA BGG belum ditagih
-  const totalInvoice = targetRows.reduce((s, { nominal }) => s + nominal, 0);
-  const pendingVolume = baRows.filter(isUnbilledPending).reduce((s, b) => s + pendingCalc(b).totalInvoice, 0);
-
   const htmlContent = `<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -1159,8 +1164,6 @@ export function exportBAOnlyPDFImpl(ctx: any) {
     .sub td { background: #F5EFE6; font-weight: bold; }
     .note ul { margin: 0; padding-left: 13px; }
     .note li { margin: 1px 0; }
-    .summary { margin-top: 16px; }
-    .summary td { padding: 5px 6px; font-weight: bold; }
     .btn-print { background: #A57C50; color: white; border: none; padding: 7px 18px; font-weight: bold; border-radius: 3px; cursor: pointer; margin-bottom: 12px; font-size: 11px; }
     @media print { .btn-print { display: none; } body { padding: 0; } }
   </style>
@@ -1188,25 +1191,6 @@ export function exportBAOnlyPDFImpl(ctx: any) {
     </thead>
     <tbody>
       ${bodyHTML || `<tr><td colspan="6" class="c">Tidak ada Berita Acara aktif untuk periode ini.</td></tr>`}
-    </tbody>
-  </table>
-
-  <table class="summary">
-    <thead>
-      <tr>
-        <th style="width:19%">Total Invoice</th>
-        <th style="width:14%">Nominal (Rp)</th>
-        <th style="width:28%">Pending Volume (Rp)</th>
-        <th style="width:39%">Est Total (Rp)</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td class="c">All Site</td>
-        <td class="r">${fmtNum(totalInvoice)}</td>
-        <td class="r">${fmtNum(pendingVolume)}</td>
-        <td class="r">${fmtNum(totalInvoice + pendingVolume)}</td>
-      </tr>
     </tbody>
   </table>
 
@@ -1602,6 +1586,7 @@ export function exportEBupotPPh23CSVImpl(ctx: any, targetInvoices?: any[] | any)
 export function createFinanceExporters(exportCtx: any) {
   return {
     exportPaymentDetailPDF: (itemData: any) => exportPaymentDetailPDFImpl(exportCtx, itemData),
+    exportInvoiceExcel: (itemData: any) => exportInvoiceExcelImpl(exportCtx, itemData),
     exportARBAIMonitoringExcel: () => exportARBAIMonitoringExcelImpl(exportCtx),
     exportARBAIMonitoringPDF: () => exportARBAIMonitoringPDFImpl(exportCtx),
     exportBAOnlyExcel: () => exportBAOnlyExcelImpl(exportCtx),

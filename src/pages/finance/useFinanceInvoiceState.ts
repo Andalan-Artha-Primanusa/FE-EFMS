@@ -64,23 +64,23 @@ export function useFinanceInvoiceState({
     }
   };
 
-  const handleApproveInvoice = async (id: number) => {
+  const handleApproveInvoice = async (id: number, rejectNote?: string) => {
     const key = `approve-inv-${id}`;
     if (setActionLoadingKey) setActionLoadingKey(key);
-    onNotice("⏳ Sedang memproses persetujuan invoice & penerbitan jurnal piutang...");
+    onNotice(rejectNote ? "⏳ Sedang menolak invoice..." : "⏳ Sedang memproses persetujuan invoice & penerbitan jurnal piutang...");
     try {
       // Jurnal piutang diposting server saat approval Manager FATB.
-      const updated: any = await approveInvoice(id, "approve", "Persetujuan Invoice oleh Manager FATB");
-      onNotice("✅ Invoice berhasil disetujui oleh Manager FATB. Status: Disetujui & Jurnal Piutang AR Terbit.");
+      const updated: any = await approveInvoice(id, rejectNote ? "reject" : "approve", rejectNote || "Persetujuan Invoice oleh Manager FATB");
+      onNotice(rejectNote ? "Invoice ditolak Manager." : "✅ Invoice berhasil disetujui oleh Manager FATB. Status: Disetujui & Jurnal Piutang AR Terbit.");
       if (setInvoiceRows) {
-        setInvoiceRows((prev) => prev.map((i) => i.id === id ? { ...i, ...(updated || {}), status: updated?.status || "Unpaid" } : i));
+        setInvoiceRows((prev) => prev.map((i) => i.id === id ? { ...i, ...(updated || {}) } : i));
       }
       if (detailViewItem && detailViewItem.type === "invoice" && (detailViewItem.data?.id === id || detailViewItem.id === id)) {
-        setDetailViewItem({ type: "invoice", data: { ...(detailViewItem.data || detailViewItem), ...(updated || {}), status: updated?.status || "Unpaid" } });
+        setDetailViewItem({ type: "invoice", data: { ...(detailViewItem.data || detailViewItem), ...(updated || {}) } });
       }
       await loadData();
     } catch (err: any) {
-      onNotice(err?.message || "Gagal menyetujui Invoice");
+      onNotice(err?.message || (rejectNote ? "Gagal menolak Invoice" : "Gagal menyetujui Invoice"));
     } finally {
       if (setActionLoadingKey) setActionLoadingKey(null);
     }

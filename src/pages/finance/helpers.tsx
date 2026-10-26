@@ -329,7 +329,9 @@ export function getBAInvoiceStatus(ba: any, allInvoices: any[]) {
   };
 
   // Find all invoices that reference this BA or whose invoiceNo matches linkedNo OR matches baID
+  // Invoice "Revisi BA" (BA dibuka dari Arsip) dianggap belum ada sampai diterbitkan ulang.
   const matchedInvoices = (allInvoices || []).filter((inv) => {
+    if (inv?.status === "Revisi BA") return false;
     const invBaId = inv.baId ?? inv.baID;
     if (invBaId && ba.id && Number(invBaId) === Number(ba.id)) return true;
     const invCust = (inv.customerCode || "").trim().toUpperCase();
@@ -583,6 +585,7 @@ export function renderInvoiceStatusBadge(status: string) {
   if (s === "Overdue") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-block whitespace-nowrap">Overdue</span>;
   if (s === "Verified") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-100 text-cyan-800 border border-cyan-300 inline-block whitespace-nowrap">Verified Finance</span>;
   if (s === "Approved" || s === "Issued" || s === "Approved_Tier1" || s === "Approved_Tier2") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-900 border border-purple-300 font-extrabold inline-block whitespace-nowrap">Disetujui Manager FATB</span>;
+  if (s === "Revisi BA") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-block whitespace-nowrap">Revisi BA</span>;
   if (s === "Rejected") return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 inline-block whitespace-nowrap">Rejected</span>;
   if (s === "Draft" || s === "Draft Invoice" || !s || s === "Pending" || s === "Submitted") {
     return <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 inline-block whitespace-nowrap">Draft (Menunggu Approval FATB)</span>;
