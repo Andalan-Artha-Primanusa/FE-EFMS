@@ -80,6 +80,8 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
   const canSend = INVOICE_LOCKED.has(data.status) && data.fpChecked && Boolean(data.signedInvoicePath) && Boolean(data.directorSignedDate);
   const save = async (extra: Partial<Form> = {}) => {
     const v = { ...f, ...extra };
+    // Diterima Klien diubah sebelum invoice terkirim: Tgl Kirim di form ikut disimpan.
+    if (!v.invoiceSentDate && v.invoiceSubmissionDate && v.invoiceSubmissionDate !== formatDateInput(data.invoiceSubmissionDate)) v.invoiceSentDate = sendDate;
     if (v.fpChecked && !v.fpDate) return onNotice("Tanggal Faktur Pajak wajib diisi");
     setSaving(extra.invoiceSentDate ? "send" : "save");
     try {
@@ -195,7 +197,7 @@ export const InvoiceBillingPanel: React.FC<InvoiceBillingPanelProps> = ({ data, 
             </span>
           ))}
           {row("Tgl Kirim", f.invoiceSentDate ? showDate(f.invoiceSentDate) : canEdit ? (
-            <input type="date" className={`${inputCls} w-auto`} min={f.directorSignedDate || undefined} value={sendDate} onChange={(e) => setSendDate(e.target.value)} />
+            <input type="date" className={`${inputCls} w-auto`} min={f.directorSignedDate || undefined} max={f.invoiceSubmissionDate || undefined} value={sendDate} onChange={(e) => setSendDate(e.target.value)} />
           ) : "-", f.invoiceSentDate ? <input type="date" className={inputCls} value={f.invoiceSentDate} onChange={(e) => set("invoiceSentDate", e.target.value)} /> : undefined)}
         </div>
       </div>
