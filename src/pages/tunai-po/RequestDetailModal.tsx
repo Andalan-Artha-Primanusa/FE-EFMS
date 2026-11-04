@@ -1,16 +1,22 @@
 import React, { useEffect, useState } from "react";
-import { ChevronRight, Loader2, Paperclip } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Check, ChevronRight, Loader2, Paperclip } from "lucide-react";
 import { api, useReloadOnSave } from "../../lib/api";
+import { viewPath } from "../../data/navigation";
 import { formatCurrency, formatDate } from "../../lib/format";
-import type { AccountMapping, AuditLogRow, TPODocType, TPORequest } from "./types";
+import type { AccountMapping, AuditLogRow, TPODocType, TPORequest, TPOStatus } from "./types";
 import {
   AmountInput,
+  DOC_ACCEPT,
   DOC_LABEL,
   DOC_TYPES,
   Field,
   Modal,
   OverdueBadge,
+  PaidDateModal,
   REJECT_CATEGORIES,
+  STATUS_LABEL,
+  SUBMIT_DOCS,
   StatusBadge,
   VendorBank,
   btnDanger,
@@ -18,12 +24,15 @@ import {
   btnSecondary,
   cents,
   docOf,
+  docProgress,
   fromCents,
   inputCls,
   isDocRequired,
   openDocumentFile,
+  openRefundFile,
   periodLabel,
   saveDocument,
+  submitDocsReady,
 } from "./shared";
 import { Info } from "./RequestFormModal";
 
@@ -38,15 +47,44 @@ const LOG_LABEL: Record<string, string> = {
   in_voucher: "Masuk Voucher",
   paid: "Lunas",
   posted: "Diposting",
+  refund: "Refund",
 };
 
 const scrollIntoView = (el: HTMLElement | null) => el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+const DOC_SECTIONS: [string, TPODocType[]][] = [
+  ["Wajib", SUBMIT_DOCS],
+  ["Susulan", DOC_TYPES.filter((t) => !SUBMIT_DOCS.includes(t))],
+];
+
+const FLOW: TPOStatus[] = ["draft", "submitted", "verified", "in_voucher", "paid", "posted"];
+
+function StatusSteps({ status }: { status: TPOStatus }) {
+  const at = FLOW.indexOf(status === "rejected" ? "draft" : status);
+  return (
+    <ol className="flex flex-wrap gap-1">
+      {FLOW.map((s, i) => (
+        <li
+          key={s}
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold ${
+            i === at ? "border-[#A57C50] bg-[#A57C50] text-white" : i < at ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-400"
+          }`}
+        >
+          {i < at && <Check className="w-3 h-3" />}
+          {STATUS_LABEL[s]}
+        </li>
+      ))}
+    </ol>
+  );
+}
 
 type Props = {
   requestId: number;
   userId?: number;
   canSubmit: boolean;
   canVerify: boolean;
+  canDocs: boolean;
+  canVoucher: boolean;
   mappings: AccountMapping[];
   onClose: () => void;
   onChanged: () => void;
@@ -54,10 +92,12 @@ type Props = {
   onError: (msg: string) => void;
 };
 
-export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, mappings, onClose, onChanged, onEdit, onError }: Props) {
+export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, canDocs, canVoucher, mappings, onClose, onChanged, onEdit, onError }: Props) {
+  const navigate = useNavigate();
   const [req, setReq] = useState<TPORequest | null>(null);
   const [logs, setLogs] = useState<AuditLogRow[]>([]);
-  const [mode, setMode] = useState<"" | "verify" | "reject">("");
+  const [mode, setMode] = useState<"" | "verify" | "reject" | "refund">("");
+  const [paying, setPaying] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
@@ -96,7 +136,7 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
 
   if (!req) {
     return (
-      <Modal title="Detail Tunai PO" onClose={onClose}>
+      <Modal title="Detail" onClose={onClose}>
         <div className="flex justify-center p-8">
           <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
         </div>
@@ -106,8 +146,10 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
 
   const isOwner = !!userId && req.createdBy === userId;
   const ownerEditable = canSubmit && isOwner && (req.status === "draft" || req.status === "rejected");
-  const canDocs = canVerify || (canSubmit && isOwner);
-  const dpName = (code?: string) => mappings.find((m) => m.kind === "DP" && m.code === code)?.name || code || "-";
+  const bankReady = !!req.vendor?.bankVerifiedAt && !req.vendor.pendingAccountNumber && !!req.vendor.accountNumber?.trim();
+  const progress = docProgress(req);
+  const refundable = cents(req.payAmount) - cents(req.refundAmount);
+  const dpName =(code?: string) => mappings.find((m) => m.kind === "DP" && m.code === code)?.name || code || "-";
 
   const accTotal = cents(req.accSubtotal) + cents(req.accVat);
   const amountRows: [string, number, number][] = [
@@ -128,6 +170,7 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
       width="max-w-4xl"
     >
       <div className="space-y-4">
+        <StatusSteps status={req.status} />
         {req.status === "rejected" && (
           <div className="border border-rose-200 bg-rose-50 rounded-[3px] p-3 text-rose-800">
             <div className="font-bold">
@@ -137,7 +180,7 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-[3px] p-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-[3px] p-3">
           <Info label="Vendor" value={req.vendor?.name || "-"} />
           <Info label="Site" value={req.site || "-"} />
           <Info label="Periode" value={periodLabel(req)} />
@@ -147,11 +190,12 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
           <Info label="No. Voucher" value={req.voucherNo || "-"} />
           <Info label="Tanggal Bayar" value={formatDate(req.paidAt)} />
           <Info label="Jatuh Tempo Dokumen" value={<span className={req.docsOverdue ? "text-rose-700" : ""}>{formatDate(req.docsDueAt)}</span>} />
-          <div className="col-span-2 md:col-span-4">
+          {req.accurateDpNo && <Info label="No. DP Accurate" value={req.accurateDpNo} />}
+          <div className="col-span-full">
             <Info label="Keterangan" value={req.description || "-"} />
           </div>
           {req.vendor && (
-            <div className="col-span-2 md:col-span-4">
+            <div className="col-span-full">
               <Info
                 label="Rekening Vendor"
                 value={
@@ -195,6 +239,17 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
               <td className="p-2"></td>
               <td className="p-2 text-right font-mono font-bold">{formatCurrency(req.payAmount)}</td>
             </tr>
+            {req.refunds?.map((r) => (
+              <tr key={r.id} className="border-t border-slate-200">
+                <td className="p-2 font-semibold text-slate-700">Refund {formatDate(r.refundDate)}</td>
+                <td className="p-2 text-right">
+                  <button type="button" onClick={() => openRefundFile(r).catch((e) => onError(e.message))} className="inline-flex items-center gap-1 text-blue-700 hover:underline cursor-pointer max-w-[180px] truncate">
+                    <Paperclip className="w-3 h-3 shrink-0" /> {r.fileName}
+                  </button>
+                </td>
+                <td className="p-2 text-right font-mono text-rose-700">{formatCurrency(r.amount)}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
 
@@ -202,12 +257,17 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
           <div className="font-bold text-slate-700 mb-1">
             Checklist Dokumen{" "}
             <span className="font-normal text-slate-400">
-              ({DOC_TYPES.filter((t) => isDocRequired(req, t) && docOf(req, t)?.checked).length}/{DOC_TYPES.filter((t) => isDocRequired(req, t)).length})
+              ({progress.done}/{progress.total})
             </span>
           </div>
-          <div className="border border-slate-200 rounded-[3px] divide-y divide-slate-200">
-            {DOC_TYPES.map((t) => (
-              <DocRow key={t} req={req} docType={t} canEdit={canDocs} onSaved={() => { load(); onChanged(); }} onError={onError} />
+          <div className="space-y-2">
+            {DOC_SECTIONS.map(([label, types]) => (
+              <div key={label} className="border border-slate-200 rounded-[3px] divide-y divide-slate-200">
+                <div className="px-2 py-1 bg-slate-50 font-semibold text-slate-600">{label}</div>
+                {types.map((t) => (
+                  <DocRow key={t} req={req} docType={t} canEdit={canDocs} onSaved={() => { load(); onChanged(); }} onError={onError} />
+                ))}
+              </div>
             ))}
           </div>
         </div>
@@ -216,6 +276,7 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
           <div ref={scrollIntoView} key={mode}>
             {mode === "verify" && <VerifyForm req={req} mappings={mappings} busy={busy} onCancel={() => setMode("")} onSubmit={(body) => action("/verify", { method: "POST", body: JSON.stringify(body) })} />}
             {mode === "reject" && <RejectForm busy={busy} onCancel={() => setMode("")} onSubmit={(body) => action("/reject", { method: "POST", body: JSON.stringify(body) })} />}
+            {mode === "refund" && <RefundForm max={refundable} busy={busy} onCancel={() => setMode("")} onSubmit={(body) => action("/refund", { method: "POST", body })} />}
           </div>
         )}
 
@@ -239,7 +300,7 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
               </button>
             )}
             {ownerEditable && (
-              <button disabled={busy} className={btnPrimary} onClick={() => action("/submit")}>
+              <button disabled={busy || !submitDocsReady(req)} className={btnPrimary} onClick={() => action("/submit")}>
                 Ajukan
               </button>
             )}
@@ -249,24 +310,37 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
               </button>
             )}
             {canVerify && req.status === "submitted" && (
-              <button disabled={busy} className={btnPrimary} onClick={() => setMode("verify")}>
+              <button disabled={busy || !submitDocsReady(req) || !bankReady} className={btnPrimary} onClick={() => setMode("verify")}>
                 Verifikasi
               </button>
             )}
+            {canVoucher && req.status === "verified" && !req.paymentPlanId && (
+              <button className={btnPrimary} onClick={() => navigate(`${viewPath("Voucher Payment")}?create=${req.kind}`)}>
+                Buat Voucher
+              </button>
+            )}
             {canVerify && req.status === "in_voucher" && req.voucherHasProof && (
-              <button
-                disabled={busy}
-                className={btnPrimary}
-                onClick={() => {
-                  // Marks the whole voucher paid; the transfer date is posted to Accurate.
-                  const d = window.prompt(`Tanggal transfer ${req.voucherNo || ""} (YYYY-MM-DD):`, new Date().toLocaleDateString("sv-SE"))?.trim();
-                  if (d) action("/paid", { method: "POST", body: JSON.stringify({ paidDate: d }) });
-                }}
-              >
+              <button disabled={busy} className={btnPrimary} onClick={() => setPaying(true)}>
                 Tandai Lunas
               </button>
             )}
+            {canVerify && (req.status === "paid" || req.status === "posted") && refundable > 0 && (
+              <button disabled={busy} className={btnDanger} onClick={() => setMode("refund")}>
+                Refund
+              </button>
+            )}
           </div>
+        )}
+        {/* Marks the whole voucher paid. */}
+        {paying && (
+          <PaidDateModal
+            voucherNo={req.voucherNo}
+            onClose={() => setPaying(false)}
+            onSubmit={(paidDate) => {
+              setPaying(false);
+              action("/paid", { method: "POST", body: JSON.stringify({ paidDate }) });
+            }}
+          />
         )}
 
         <details className="group border border-slate-200 rounded-[3px]">
@@ -277,7 +351,7 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
           <div className="border-t border-slate-200 divide-y divide-slate-100 max-h-60 overflow-y-auto">
             {logs.length === 0 && <div className="p-2 text-slate-400">-</div>}
             {logs.map((l) => (
-              <div key={l.id} className="px-3 py-1.5 grid grid-cols-[130px_120px_1fr] gap-3">
+              <div key={l.id} className="px-3 py-1.5 grid grid-cols-1 sm:grid-cols-[130px_120px_1fr] gap-x-3">
                 <span className="text-slate-500 whitespace-nowrap">{new Date(l.createdAt).toLocaleString("id-ID")}</span>
                 <span className="font-semibold text-slate-800">{LOG_LABEL[l.action] || l.action}</span>
                 <span className="text-slate-600 truncate">
@@ -290,6 +364,7 @@ export function RequestDetailModal({ requestId, userId, canSubmit, canVerify, ma
                     </span>
                   )}
                   {l.action === "reject" && l.after?.rejectReason && <span className="text-rose-700"> · {l.after.rejectReason}</span>}
+                  {l.action === "refund" && l.after?.amount && <span className="text-rose-700"> · {formatCurrency(l.after.amount)}</span>}
                 </span>
               </div>
             ))}
@@ -320,8 +395,8 @@ function DocRow({ req, docType, canEdit, onSaved, onError }: { req: TPORequest; 
   };
 
   return (
-    <div className={`flex items-center gap-3 p-2 ${required ? "" : "opacity-50"}`}>
-      <label className="flex items-center gap-2 w-36 font-semibold text-slate-700">
+    <div className={`flex flex-wrap items-center gap-2 sm:gap-3 p-2 ${required ? "" : "opacity-50"}`}>
+      <label className="flex items-center gap-2 w-36 shrink-0 font-semibold text-slate-700">
         <input type="checkbox" checked={!!doc?.checked} disabled={!canEdit || busy || !required} onChange={(e) => save(e.target.checked)} />
         {DOC_LABEL[docType]}
       </label>
@@ -333,7 +408,7 @@ function DocRow({ req, docType, canEdit, onSaved, onError }: { req: TPORequest; 
             onChange={(e) => setNote(e.target.value)}
             onBlur={() => note !== (doc?.note || "") && save(!!doc?.checked)}
             placeholder="Catatan"
-            className={`${inputCls} flex-1`}
+            className={`${inputCls} flex-1 min-w-40`}
           />
           {doc?.fileName && (
             <button type="button" onClick={() => openDocumentFile(doc).catch((e) => onError(e.message))} className="inline-flex items-center gap-1 text-blue-700 hover:underline cursor-pointer max-w-[180px] truncate">
@@ -343,10 +418,10 @@ function DocRow({ req, docType, canEdit, onSaved, onError }: { req: TPORequest; 
           {canEdit && (
             <label className={`${btnSecondary} ${busy ? "opacity-50" : ""}`}>
               {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Paperclip className="w-3 h-3" />} Upload
-              <input type="file" className="hidden" disabled={busy} onChange={(e) => e.target.files?.[0] && save(true, e.target.files[0])} />
+              <input type="file" accept={DOC_ACCEPT} className="hidden" disabled={busy} onChange={(e) => e.target.files?.[0] && save(true, e.target.files[0])} />
             </label>
           )}
-          <span className="w-28 text-right text-slate-500">{doc?.checkedAt ? formatDate(doc.checkedAt) : ""}</span>
+          <span className="sm:w-28 sm:text-right text-slate-500">{doc?.checkedAt ? formatDate(doc.checkedAt) : ""}</span>
         </>
       ) : (
         <span className="text-slate-400">—</span>
@@ -365,14 +440,25 @@ function VerifyForm({ req, mappings, busy, onCancel, onSubmit }: { req: TPOReque
     isPkp: req.isPkp,
   });
   const set = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }));
-  // Adjustable PPN, none when non-PKP. Accurate computes the Uang Muka PPN itself (11% DPP); a differing total stops posting.
+  const [vendorOverdue, setVendorOverdue] = useState(0);
+  useEffect(() => {
+    api<{ requests: TPORequest[] }>(`/api/tunai-po/requests?vendorId=${req.vendorId}&overdue=1`)
+      .then((r) => setVendorOverdue(r.requests?.length || 0))
+      .catch(() => setVendorOverdue(0));
+  }, [req.vendorId]);
+  // Adjustable PPN, none when non-PKP. Accurate computes the Uang Muka PPN itself (11% DPP); a total off by more than Rp 1 stops posting.
   const vat = f.isPkp ? cents(f.vatAmount) : 0;
   const total = cents(f.subtotalAmount) + vat;
   const pph = f.pphType ? cents(f.pphAmount) : 0;
+  const expectedVat = Math.round(cents(f.subtotalAmount) * 0.11);
 
   return (
     <div className="border border-emerald-200 bg-emerald-50 rounded-[3px] p-3 space-y-3">
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      {f.isPkp && Math.abs(vat - expectedVat) > 100 && (
+        <div className="border border-amber-200 bg-amber-50 text-amber-700 font-semibold rounded-[3px] px-2 py-1.5">PPN ≠ 11% DPP ({formatCurrency(fromCents(expectedVat))}): posting Accurate akan berhenti</div>
+      )}
+      {vendorOverdue > 0 && <div className="border border-rose-200 bg-rose-50 text-rose-700 font-semibold rounded-[3px] px-2 py-1.5">Vendor: {vendorOverdue} pengajuan dokumennya terlambat</div>}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         <Field label="DPP">
           <AmountInput value={f.subtotalAmount} onChange={(v) => set({ subtotalAmount: v })} />
         </Field>
@@ -408,7 +494,7 @@ function VerifyForm({ req, mappings, busy, onCancel, onSubmit }: { req: TPOReque
             ))}
           </select>
         </Field>
-        <label className="flex items-center gap-2 mt-5 font-semibold text-slate-700">
+        <label className="flex items-center gap-2 sm:mt-5 font-semibold text-slate-700">
           <input type="checkbox" checked={f.isPkp} onChange={(e) => set({ isPkp: e.target.checked })} /> PKP
         </label>
       </div>
@@ -434,6 +520,47 @@ function VerifyForm({ req, mappings, busy, onCancel, onSubmit }: { req: TPOReque
           }}
         >
           {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Verifikasi
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RefundForm({ max, busy, onCancel, onSubmit }: { max: number; busy: boolean; onCancel: () => void; onSubmit: (body: FormData) => void }) {
+  const today = new Date().toLocaleDateString("sv-SE");
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(today);
+  const [file, setFile] = useState<File | null>(null);
+  const value = cents(amount);
+  return (
+    <div className="border border-rose-200 bg-rose-50 rounded-[3px] p-3 space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Field label={`Nominal (maks. ${formatCurrency(fromCents(max))})`}>
+          <AmountInput value={amount} onChange={setAmount} />
+        </Field>
+        <Field label="Tanggal Refund">
+          <input type="date" required max={today} value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="Bukti">
+          <input type="file" accept={DOC_ACCEPT} onChange={(e) => setFile(e.target.files?.[0] || null)} className={inputCls} />
+        </Field>
+      </div>
+      <div className="flex justify-end gap-2">
+        <button className={btnSecondary} onClick={onCancel} disabled={busy}>
+          Batal
+        </button>
+        <button
+          className={btnDanger}
+          disabled={busy || value <= 0 || value > max || !date || !file}
+          onClick={() => {
+            const body = new FormData();
+            body.append("amount", fromCents(value));
+            body.append("refundDate", date);
+            body.append("file", file!);
+            onSubmit(body);
+          }}
+        >
+          {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Simpan Refund
         </button>
       </div>
     </div>

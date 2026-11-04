@@ -1,22 +1,33 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, BellRing, CheckCheck, X } from "lucide-react";
-import { getNotifications, markAllNotificationsRead, markNotificationRead, type Notification } from "../lib/api";
+import { api, getNotifications, markAllNotificationsRead, markNotificationRead, type Notification } from "../lib/api";
 import { viewPath } from "../data/navigation";
+import type { TPORequest } from "../pages/tunai-po/types";
 
 // Halaman tujuan per jenis dokumen notifikasi (refType dari backend).
 const refView: Record<string, string> = {
   ba: "Berita Acara (BA) Tracker",
   ba_pending: "Berita Acara (BA) Tracker",
   invoice: "Invoice Management",
-  tunai_po: "Tracking Tunai PO",
   voucher: "Voucher Payment",
   vendor_bank: "Master Vendor"
 };
 
-// vendor_bank dari modul tunai_po diverifikasi di detail Tunai PO, bukan Master Vendor.
-export const notificationView = (n: Notification): string | undefined =>
-  n.refType === "vendor_bank" && n.module === "tunai_po" ? "Tracking Tunai PO" : refView[n.refType ?? ""];
+// Tunai PO mengikuti status terkini: tugas voucher (modul payment) ke Voucher Payment, selain itu detailnya dibuka via ?open=id.
+export async function notificationPath(n: Notification): Promise<string | undefined> {
+  // vendor_bank dari modul tunai_po diverifikasi di detail Tunai PO, bukan Master Vendor.
+  if (n.refType === "vendor_bank" && n.module === "tunai_po") return viewPath("Pengajuan Tunai PO");
+  if (n.refType === "tunai_po") {
+    const r = await api<{ request: TPORequest }>(`/api/tunai-po/requests/${n.refId}`).then((x) => x.request).catch(() => null);
+    if (n.module === "payment") return viewPath("Voucher Payment") + (r?.status === "verified" ? `?create=${r.kind}` : "");
+    if (!r) return viewPath("Pengajuan Tunai PO");
+    const view = r.status === "paid" || r.status === "posted" ? "Tracking Tunai PO" : r.kind === "FUEL" ? "Fuel" : "Pengajuan Tunai PO";
+    return `${viewPath(view)}?open=${r.id}`;
+  }
+  const view = refView[n.refType ?? ""];
+  return view && viewPath(view);
+}
 
 export function NotificationPanel({
   open,
@@ -43,9 +54,9 @@ export function NotificationPanel({
   const unread = items.filter((n) => !n.isRead).length;
 
   async function read(n: Notification) {
-    const view = notificationView(n);
-    if (view) {
-      navigate(viewPath(view));
+    const path = await notificationPath(n);
+    if (path) {
+      navigate(path);
       onClose();
     }
     if (n.isRead) return;

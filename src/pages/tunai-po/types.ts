@@ -17,6 +17,13 @@ export interface TPODocument {
   fileName?: string;
 }
 
+export interface TPORefund {
+  id: number;
+  amount: string;
+  refundDate: string;
+  fileName: string;
+}
+
 // Amounts arrive as decimal strings (shopspring/decimal), like the treasury types.
 export interface TPORequest {
   id: number;
@@ -64,6 +71,9 @@ export interface TPORequest {
   missingDocs?: TPODocType[];
   poRemaining?: string;
   poSettled?: boolean;
+  refundAmount?: string;
+  refunds?: TPORefund[];
+  dpOutstanding?: string;
 }
 
 export type TPOPurchaseOrder = TreasuryPurchaseOrder & {
@@ -74,6 +84,7 @@ export type TPOPurchaseOrder = TreasuryPurchaseOrder & {
   currencyCode?: string;
   closed?: boolean;
   vendor?: TreasuryVendor;
+  remaining?: string;
 };
 
 export interface TPOLookup {

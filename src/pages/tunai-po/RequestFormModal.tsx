@@ -114,7 +114,7 @@ export function RequestFormModal({ kind, editing, onClose, onSaved, onError }: P
               <datalist id="tpo-po-options">
                 {options.map((o) => (
                   <option key={o.id} value={o.poNo}>
-                    {[o.vendor?.name, o.site, formatCurrency(o.totalAmount)].filter(Boolean).join(" · ")}
+                    {[o.vendor?.name, o.site, `Sisa ${formatCurrency(o.remaining)}`].filter(Boolean).join(" · ")}
                   </option>
                 ))}
               </datalist>
@@ -128,7 +128,7 @@ export function RequestFormModal({ kind, editing, onClose, onSaved, onError }: P
         </div>
 
         {po && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-[3px] p-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-[3px] p-3">
             <Info label="Vendor" value={vendor?.name || "-"} />
             <Info label="Site" value={po.site || "-"} />
             <Info label="DPP PO" value={formatCurrency(po.subtotalAmount)} />
@@ -137,7 +137,7 @@ export function RequestFormModal({ kind, editing, onClose, onSaved, onError }: P
             <Info label="Sudah Diajukan" value={formatCurrency(lookup!.requestedTotal)} />
             <Info label="Sisa" value={formatCurrency(fromCents(remaining))} strong />
             {vendor && (
-              <div className="col-span-2 md:col-span-4">
+              <div className="col-span-full">
                 <Info
                   label="Rekening Vendor"
                   value={<VendorBank vendor={vendor} canEdit onChanged={(v) => v && setLookup((l) => l && { ...l, vendor: v })} onError={onError} />}
@@ -148,8 +148,8 @@ export function RequestFormModal({ kind, editing, onClose, onSaved, onError }: P
         )}
 
         {po && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
               <Field label="Periode Pengajuan">
                 <PeriodInput value={period} onChange={setPeriod} />
               </Field>
@@ -157,7 +157,7 @@ export function RequestFormModal({ kind, editing, onClose, onSaved, onError }: P
             <Field label="No. Proforma">
               <input value={form.proformaNo} onChange={(e) => set({ proformaNo: e.target.value })} className={inputCls} />
             </Field>
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <Field label="Keterangan">
                 <textarea rows={2} value={form.description} onChange={(e) => set({ description: e.target.value })} className={inputCls} />
               </Field>
@@ -180,7 +180,7 @@ export function RequestFormModal({ kind, editing, onClose, onSaved, onError }: P
           <button type="button" onClick={onClose} className={btnSecondary}>
             Batal
           </button>
-          <button type="button" disabled={!po || saving || total <= 0 || total > remaining || !hasPeriod} onClick={save} className={btnPrimary}>
+          <button type="button" disabled={!po || saving || total <= 0 || total > remaining || !hasPeriod || !form.proformaNo.trim()} onClick={save} className={btnPrimary}>
             {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />} {editing && editing.status !== "draft" ? "Simpan" : "Simpan Draft"}
           </button>
         </div>
