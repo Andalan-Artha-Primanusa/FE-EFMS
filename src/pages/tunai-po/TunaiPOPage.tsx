@@ -5,7 +5,7 @@ import { api, useReloadOnSave } from "../../lib/api";
 import { authorized } from "../../lib/auth";
 import { formatCurrency, formatDate } from "../../lib/format";
 import type { POSyncStatus, TPOKind, TPORequest, TPOStatus } from "./types";
-import { MappingsModal, OverdueBadge, STATUS_LABEL, StatusBadge, btnPrimary, btnSecondary, cents, fromCents, inputCls, periodLabel, useAccountMappings } from "./shared";
+import { MappingsModal, OverdueBadge, STATUS_LABEL, StatusBadge, btnPrimary, btnSecondary, canEditDocs, cents, fromCents, inputCls, periodLabel, useAccountMappings, useOpenParam } from "./shared";
 import { RequestFormModal } from "./RequestFormModal";
 import { RequestDetailModal } from "./RequestDetailModal";
 
@@ -20,10 +20,11 @@ export function TunaiPOPage({ kind = "TUNAI_PO" }: { kind?: TPOKind }) {
 
   const [rows, setRows] = useState<TPORequest[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<TPOStatus | "">("");
+  const [tab, setTab] = useState<TPOStatus | "" | "action">(canSubmit || canVerify ? "action" : "");
   const [search, setSearch] = useState("");
   const [site, setSite] = useState("");
   const [detailId, setDetailId] = useState<number | null>(null);
+  useOpenParam(setDetailId);
   const [form, setForm] = useState<{ editing: TPORequest | null } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [sync, setSync] = useState<POSyncStatus | null>(null);
@@ -71,9 +72,7 @@ export function TunaiPOPage({ kind = "TUNAI_PO" }: { kind?: TPOKind }) {
   };
 
   const sites = useMemo(() => [...new Set(rows.map((r) => r.site).filter(Boolean))].sort(), [rows]);
-  const counts = useMemo(() => rows.reduce<Record<string, number>>((m, r) => ((m[r.status] = (m[r.status] || 0) + 1), m), {}), [rows]);
-  const filtered = rows.filter((r) => {
-    if (tab && r.status !== tab) return false;
+  const scoped = rows.filter((r) => {
     if (site && r.site !== site) return false;
     if (search) {
       const q = search.toLowerCase();
@@ -81,15 +80,21 @@ export function TunaiPOPage({ kind = "TUNAI_PO" }: { kind?: TPOKind }) {
     }
     return true;
   });
+  const needsAction = (r: TPORequest) =>
+    (canSubmit && r.createdBy === user?.id && (r.status === "draft" || r.status === "rejected")) ||
+    (canVerify && (r.status === "submitted" || (r.status === "in_voucher" && !!r.voucherHasProof)));
+  const inTab = (r: TPORequest, t: typeof tab) => (t === "action" ? needsAction(r) : !t || r.status === t);
+  const filtered = scoped.filter((r) => inTab(r, tab));
+  const tabs: (typeof tab)[] = [...(canSubmit || canVerify ? (["action"] as const) : []), "", ...TABS];
 
   const sumTotal = fromCents(filtered.reduce((s, r) => s + cents(r.totalAmount), 0));
   const sumPay = fromCents(filtered.reduce((s, r) => s + cents(r.payAmount), 0));
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-var(--app-topbar-min-height)-2.75rem)] max-w-[1600px] mx-auto p-2 gap-2 overflow-hidden text-xs">
+    <div className="flex flex-col h-[calc(100dvh-var(--app-topbar-min-height)-2.75rem)] max-w-[1600px] mx-auto p-2 gap-2 overflow-y-auto text-xs">
       <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative w-72">
+          <div className="relative w-full sm:w-72">
             <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="PO / Vendor / Proforma" className={`${inputCls} pl-8`} />
           </div>
@@ -132,9 +137,9 @@ export function TunaiPOPage({ kind = "TUNAI_PO" }: { kind?: TPOKind }) {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+      <div className="flex-1 min-h-64 flex flex-col bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
         <div className="flex gap-1 overflow-x-auto border-b border-slate-200 px-2 shrink-0">
-          {(["", ...TABS] as (TPOStatus | "")[]).map((t) => (
+          {tabs.map((t) => (
             <button
               key={t || "all"}
               onClick={() => setTab(t)}
@@ -142,9 +147,9 @@ export function TunaiPOPage({ kind = "TUNAI_PO" }: { kind?: TPOKind }) {
                 tab === t ? "border-[#A57C50] text-[#A57C50]" : "border-transparent text-slate-500 hover:text-slate-800"
               }`}
             >
-              {t ? STATUS_LABEL[t] : "Semua"}
+              {t === "action" ? "Perlu Tindakan" : t ? STATUS_LABEL[t] : "Semua"}
               <span className={`min-w-[20px] px-1.5 rounded-full text-[10px] font-bold text-center ${tab === t ? "bg-[#A57C50] text-white" : "bg-slate-100 text-slate-600"}`}>
-                {t ? counts[t] || 0 : rows.length}
+                {scoped.filter((r) => inTab(r, t)).length}
               </span>
             </button>
           ))}
@@ -232,6 +237,8 @@ export function TunaiPOPage({ kind = "TUNAI_PO" }: { kind?: TPOKind }) {
           userId={user?.id}
           canSubmit={canSubmit}
           canVerify={canVerify}
+          canDocs={canEditDocs(user)}
+          canVoucher={authorized(user, "payment", "write") || authorized(user, "treasury", "write")}
           mappings={mappings}
           onClose={() => setDetailId(null)}
           onChanged={load}

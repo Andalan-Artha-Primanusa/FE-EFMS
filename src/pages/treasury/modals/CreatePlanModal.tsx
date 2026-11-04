@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Plus, ShieldCheck, X } from "lucide-react";
 import { formatCurrency } from "../../../lib/format";
 import { api } from "../../../lib/api";
@@ -21,7 +22,16 @@ export function CreatePlanModal({ c }: Props) {
     showCreatePlanModal,
     setShowCreatePlanModal,
     handleCreatePlan,
+    canWrite,
   } = c;
+
+  // ?create=TUNAI_PO|FUEL (from a verified request or its notification) opens the modal on that category.
+  const [params, setParams] = useSearchParams();
+  const createKind = ["TUNAI_PO", "FUEL"].find((k) => k === params.get("create"));
+  useEffect(() => {
+    if (createKind && canWrite) setShowCreatePlanModal(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createKind, canWrite]);
 
   const [companyBankId, setCompanyBankId] = useState<number>(
     companyBanks[0]?.id || 1
@@ -35,7 +45,8 @@ export function CreatePlanModal({ c }: Props) {
 
   useEffect(() => {
     if (!showCreatePlanModal) return;
-    setCategory(selectedInvoiceIds.length ? "AP" : "TUNAI_PO");
+    setCategory(createKind || (selectedInvoiceIds.length ? "AP" : "TUNAI_PO"));
+    if (createKind) setParams((p) => (p.delete("create"), p), { replace: true });
     if (companyBanks[0]) setCompanyBankId((id) => (companyBanks.some((b) => b.id === id) ? id : companyBanks[0].id));
     setTpoSelected([]);
     // Default to the planned period of the first selected invoice.
@@ -72,13 +83,11 @@ export function CreatePlanModal({ c }: Props) {
         return sum + (isNaN(amt) ? 0 : amt);
       }, 0);
 
-  // 1 vendor + 1 site per voucher: picking a request of another vendor/site restarts the selection.
+  // The backend splits the selection into one voucher per vendor + site; the first pick sets the period.
   const toggleTpo = (r: TunaiPORequest) => {
-    const first = tpoRequests.find((x) => x.id === tpoSelected[0]);
     if (tpoSelected.includes(r.id)) return setTpoSelected(tpoSelected.filter((id) => id !== r.id));
-    const restart = !first || first.vendorId !== r.vendorId || first.site !== r.site;
-    if (restart && r.planMonth && r.planWeek) setPeriod({ planMonth: r.planMonth, planWeek: r.planWeek });
-    setTpoSelected(restart ? [r.id] : [...tpoSelected, r.id]);
+    if (!tpoSelected.length && r.planMonth && r.planWeek) setPeriod({ planMonth: r.planMonth, planWeek: r.planWeek });
+    setTpoSelected([...tpoSelected, r.id]);
   };
 
   const onSubmit = (e: React.FormEvent) => {
@@ -133,7 +142,7 @@ export function CreatePlanModal({ c }: Props) {
           </div>
 
           {/* Row 1: Bank & Category */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Company Bank */}
             <div>
               <label className="block font-semibold text-stone-700 mb-1">
@@ -189,7 +198,7 @@ export function CreatePlanModal({ c }: Props) {
                     tpoSelected.includes(r.id) ? "bg-amber-50 border-[#A57C50]/50" : "bg-white border-stone-200"
                   }`}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 min-w-0">
                     <input
                       type="checkbox"
                       checked={tpoSelected.includes(r.id)}

@@ -20,7 +20,7 @@ import { VOUCHER_CATEGORIES, type PaymentPlan } from "../types";
 import { VoucherPaymentOfficialPrint } from "../components/VoucherPaymentOfficialPrint";
 import { PrintableSummaryModal } from "../components/PrintableSummaryModal";
 import { NonPOVoucherModal } from "../modals/NonPOVoucherModal";
-import { periodLabel } from "../../tunai-po/shared";
+import { PaidDateModal, periodLabel } from "../../tunai-po/shared";
 
 type Props = {
   c: ReturnType<typeof useTreasuryController>;
@@ -71,6 +71,7 @@ export function PaymentPlanView({ c, category }: Props) {
     if (text) then(text);
   };
 
+  const [payingPlan, setPayingPlan] = useState<PaymentPlan | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [bankFilter, setBankFilter] = useState<number>(0);
@@ -454,11 +455,7 @@ export function PaymentPlanView({ c, category }: Props) {
 
                             {awaitingPaid(plan) && canApprove && !isMaker(plan) && (
                               <button
-                                onClick={() => {
-                                  // Transfer date = payment date posted to Accurate.
-                                  const d = window.prompt(`Tanggal transfer ${plan.voucherNo} (YYYY-MM-DD):`, new Date().toLocaleDateString("sv-SE"))?.trim();
-                                  if (d) handleMarkPlanPaid(plan.id, d);
-                                }}
+                                onClick={() => setPayingPlan(plan)}
                                 disabled={syncing}
                                 className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 disabled:opacity-50 transition"
                               >
@@ -669,6 +666,16 @@ export function PaymentPlanView({ c, category }: Props) {
       )}
       {summaryPlans && <PrintableSummaryModal plans={summaryPlans} onClose={() => setSummaryPlans(null)} />}
       {showNonPO && category && <NonPOVoucherModal c={c} category={category} onClose={() => setShowNonPO(false)} />}
+      {payingPlan && (
+        <PaidDateModal
+          voucherNo={payingPlan.voucherNo}
+          onClose={() => setPayingPlan(null)}
+          onSubmit={(paidDate) => {
+            handleMarkPlanPaid(payingPlan.id, paidDate);
+            setPayingPlan(null);
+          }}
+        />
+      )}
 
       {printPlan && <VoucherPaymentOfficialPrint plan={printPlan} onClose={() => setPrintPlan(null)} />}
     </div>

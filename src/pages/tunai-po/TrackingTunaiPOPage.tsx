@@ -5,21 +5,13 @@ import { api, useReloadOnSave } from "../../lib/api";
 import { authorized } from "../../lib/auth";
 import { formatCurrency, formatDate } from "../../lib/format";
 import type { TPORequest } from "./types";
-import { DOC_LABEL, DOC_SHORT, DOC_TYPES, DocToggle, OverdueBadge, StatusBadge, btnSecondary, cents, docOf, fromCents, inputCls, isDocRequired, periodLabel, useAccountMappings } from "./shared";
+import { DOC_LABEL, DOC_SHORT, DOC_TYPES, DocToggle, OverdueBadge, StatusBadge, btnSecondary, canEditDocs, cents, docProgress, fromCents, inputCls, periodLabel, useAccountMappings, useOpenParam } from "./shared";
 import { RequestDetailModal } from "./RequestDetailModal";
-
-const docProgress = (r: TPORequest) => {
-  const req = DOC_TYPES.filter((t) => isDocRequired(r, t));
-  return { req, done: req.filter((t) => docOf(r, t)?.checked).length };
-};
 
 export function TrackingTunaiPOPage() {
   const { user, setNotice } = useOutletContext<any>();
-  const canSubmit = authorized(user, "tunai_po", "submit");
   const canVerify = authorized(user, "tunai_po", "verify");
-  const canFuel = canSubmit || authorized(user, "payment", "write");
-  // FUEL is entered by SCM or Finance Admin (payment:write), TUNAI_PO by SCM (tunai_po:submit); BE lets only the owner or finance edit docs.
-  const submitOf = (r?: TPORequest) => (r?.kind === "FUEL" ? canFuel : canSubmit);
+  const canDocs = canEditDocs(user);
   const { mappings } = useAccountMappings();
 
   const [rows, setRows] = useState<TPORequest[]>([]);
@@ -28,6 +20,7 @@ export function TrackingTunaiPOPage() {
   const [search, setSearch] = useState("");
   const [site, setSite] = useState("");
   const [detailId, setDetailId] = useState<number | null>(null);
+  useOpenParam(setDetailId);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -56,16 +49,16 @@ export function TrackingTunaiPOPage() {
     return true;
   });
 
-  const overdueCount = rows.filter((r) => r.docsOverdue).length;
   const sumPay = fromCents(filtered.reduce((s, r) => s + cents(r.payAmount), 0));
+  const sumRefund = fromCents(filtered.reduce((s, r) => s + cents(r.refundAmount), 0));
+  const sumDp = fromCents(filtered.reduce((s, r) => s + cents(r.dpOutstanding), 0));
 
   const stats = useMemo(() => {
     const scope = rows.filter((r) => !site || r.site === site);
     const soon = Date.now() + 7 * 864e5;
     const s = { total: 0, done: 0, open: 0, dueSoon: 0, late: 0, pay: 0, latePay: 0, pending: {} as Record<string, number> };
     for (const r of scope) {
-      const { req, done } = docProgress(r);
-      const complete = done === req.length;
+      const complete = !!r.docsComplete;
       s.total++;
       s.pay += cents(r.payAmount);
       if (complete) s.done++;
@@ -74,7 +67,7 @@ export function TrackingTunaiPOPage() {
         s.late++;
         s.latePay += cents(r.payAmount);
       } else if (!complete && r.docsDueAt && new Date(r.docsDueAt).getTime() <= soon) s.dueSoon++;
-      for (const t of req) if (!docOf(r, t)?.checked) s.pending[t] = (s.pending[t] || 0) + 1;
+      for (const t of r.missingDocs || []) s.pending[t] = (s.pending[t] || 0) + 1;
     }
     return s;
   }, [rows, site]);
@@ -84,9 +77,9 @@ export function TrackingTunaiPOPage() {
     `inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition cursor-pointer ${on ? tone : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"}`;
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-var(--app-topbar-min-height)-2.75rem)] max-w-[1600px] mx-auto p-2 gap-2 overflow-hidden text-xs">
+    <div className="flex flex-col h-[calc(100dvh-var(--app-topbar-min-height)-2.75rem)] max-w-[1600px] mx-auto p-2 gap-2 overflow-y-auto text-xs">
       <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm flex flex-wrap items-center gap-2 shrink-0">
-        <div className="relative w-72">
+        <div className="relative w-full sm:w-72">
           <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="PO / Vendor / Voucher" className={`${inputCls} pl-8`} />
         </div>
@@ -102,14 +95,14 @@ export function TrackingTunaiPOPage() {
         </div>
         <button onClick={() => setOverdue(!overdue)} className={chip(overdue, "border-rose-300 bg-rose-50 text-rose-700")}>
           Terlambat
-          <span className={`px-1.5 rounded-full text-[10px] font-bold ${overdue ? "bg-rose-600 text-white" : "bg-slate-100 text-slate-600"}`}>{overdueCount}</span>
+          <span className={`px-1.5 rounded-full text-[10px] font-bold ${overdue ? "bg-rose-600 text-white" : "bg-slate-100 text-slate-600"}`}>{stats.late}</span>
         </button>
         <button onClick={load} className={btnSecondary} title="Refresh">
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-2 shrink-0">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,150px),1fr))] gap-2 shrink-0">
         <div className="bg-[#1A1612] rounded-lg p-2.5">
           <div className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Total Pengajuan</div>
           <div className="text-lg font-bold text-white leading-tight">{stats.total}</div>
@@ -148,7 +141,7 @@ export function TrackingTunaiPOPage() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-auto bg-white rounded-lg border border-slate-200 shadow-sm">
+      <div className="flex-1 min-h-64 overflow-auto bg-white rounded-lg border border-slate-200 shadow-sm">
         <table className="w-full text-left text-xs border-collapse">
           <thead className="sticky top-0 z-10 text-slate-600">
             <tr className="bg-slate-50">
@@ -157,7 +150,10 @@ export function TrackingTunaiPOPage() {
               <th rowSpan={2} className="p-2.5 border-b border-slate-200">Site</th>
               <th rowSpan={2} className="p-2.5 border-b border-slate-200">Periode</th>
               <th rowSpan={2} className="p-2.5 text-right whitespace-nowrap border-b border-slate-200">Total Bayar</th>
+              <th rowSpan={2} className="p-2.5 text-right whitespace-nowrap border-b border-slate-200">Refund</th>
               <th rowSpan={2} className="p-2.5 text-right whitespace-nowrap border-b border-slate-200">Sisa PO</th>
+              <th rowSpan={2} className="p-2.5 text-right whitespace-nowrap border-b border-slate-200">DP Belum Terpotong</th>
+              <th rowSpan={2} className="p-2.5 text-right whitespace-nowrap border-b border-slate-200">Umur DP</th>
               <th rowSpan={2} className="p-2.5 border-b border-slate-200">Voucher</th>
               <th rowSpan={2} className="p-2.5 text-center border-b border-slate-200">Status</th>
               <th rowSpan={2} className="p-2.5 whitespace-nowrap border-b border-slate-200">Tgl Bayar</th>
@@ -177,7 +173,8 @@ export function TrackingTunaiPOPage() {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {filtered.map((r) => {
-              const { req, done } = docProgress(r);
+              const { total, done } = docProgress(r);
+              const dpOpen = cents(r.dpOutstanding) > 0;
               return (
                 <tr key={r.id} className={`hover:bg-slate-50 ${r.docsOverdue ? "bg-rose-50/60 shadow-[inset_3px_0_0_#e11d48]" : ""}`}>
                   <td className="p-2.5 whitespace-nowrap">
@@ -192,9 +189,12 @@ export function TrackingTunaiPOPage() {
                   </td>
                   <td className="p-2.5 whitespace-nowrap">{periodLabel(r)}</td>
                   <td className="p-2.5 text-right font-mono font-bold text-slate-900 whitespace-nowrap">{formatCurrency(r.payAmount)}</td>
+                  <td className="p-2.5 text-right font-mono text-rose-700 whitespace-nowrap">{cents(r.refundAmount) > 0 ? formatCurrency(r.refundAmount) : "-"}</td>
                   <td className="p-2.5 text-right font-mono whitespace-nowrap">
                     {r.poSettled ? <span className="px-1.5 py-0.5 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 text-[10px] font-bold">PO Lunas</span> : formatCurrency(r.poRemaining)}
                   </td>
+                  <td className="p-2.5 text-right font-mono whitespace-nowrap">{dpOpen ? formatCurrency(r.dpOutstanding) : "-"}</td>
+                  <td className="p-2.5 text-right whitespace-nowrap">{dpOpen && r.paidAt ? `${Math.floor((Date.now() - new Date(r.paidAt).getTime()) / 864e5)} hari` : "-"}</td>
                   <td className="p-2.5 font-mono whitespace-nowrap">{r.voucherNo || "-"}</td>
                   <td className="p-2.5 text-center">
                     <StatusBadge status={r.status} />
@@ -207,14 +207,14 @@ export function TrackingTunaiPOPage() {
                   </td>
                   {DOC_TYPES.map((t, i) => (
                     <td key={t} className={`p-2 text-center ${i ? "" : "border-l border-slate-100"}`}>
-                      <DocToggle request={r} docType={t} canEdit={canVerify || (submitOf(r) && r.createdBy === user?.id)} onSaved={load} onError={setNotice} />
+                      <DocToggle request={r} docType={t} canEdit={canDocs} onSaved={load} onError={setNotice} />
                     </td>
                   ))}
                   <td className="p-2 text-center">
                     <span
-                      className={`px-1.5 py-0.5 rounded font-mono text-[10px] font-bold ${done === req.length ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}
+                      className={`px-1.5 py-0.5 rounded font-mono text-[10px] font-bold ${done === total ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}
                     >
-                      {done}/{req.length}
+                      {done}/{total}
                     </span>
                   </td>
                 </tr>
@@ -222,7 +222,7 @@ export function TrackingTunaiPOPage() {
             })}
             {!filtered.length && (
               <tr>
-                <td colSpan={11 + DOC_TYPES.length} className="p-10 text-center text-slate-400">
+                <td colSpan={14 + DOC_TYPES.length} className="p-10 text-center text-slate-400">
                   {loading ? "Memuat…" : "Tidak ada data"}
                 </td>
               </tr>
@@ -235,6 +235,9 @@ export function TrackingTunaiPOPage() {
                   {filtered.length} pengajuan
                 </td>
                 <td className="p-2.5 text-right font-mono whitespace-nowrap">{formatCurrency(sumPay)}</td>
+                <td className="p-2.5 text-right font-mono whitespace-nowrap">{formatCurrency(sumRefund)}</td>
+                <td />
+                <td className="p-2.5 text-right font-mono whitespace-nowrap">{formatCurrency(sumDp)}</td>
                 <td colSpan={6 + DOC_TYPES.length} />
               </tr>
             </tfoot>
@@ -246,8 +249,10 @@ export function TrackingTunaiPOPage() {
         <RequestDetailModal
           requestId={detailId}
           userId={user?.id}
-          canSubmit={submitOf(rows.find((r) => r.id === detailId))}
+          canSubmit={false}
           canVerify={canVerify}
+          canDocs={canDocs}
+          canVoucher={false}
           mappings={mappings}
           onClose={() => setDetailId(null)}
           onChanged={load}

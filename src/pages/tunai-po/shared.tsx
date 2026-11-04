@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircle2, Circle, Paperclip, X } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { api, API_BASE, useReloadOnSave } from "../../lib/api";
-import type { AccountMapping, TPODocType, TPODocument, TPORequest, TPOStatus } from "./types";
+import { authorized } from "../../lib/auth";
+import type { AccountMapping, TPODocType, TPODocument, TPORefund, TPORequest, TPOStatus } from "./types";
 import type { TreasuryVendor } from "../treasury/types";
 
 export const STATUS_LABEL: Record<TPOStatus, string> = {
@@ -34,6 +36,29 @@ export const DOC_LABEL: Record<TPODocType, string> = {
   GR: "GR",
 };
 export const DOC_SHORT: Record<TPODocType, string> = { ...DOC_LABEL, FAKTUR_PAJAK: "FP" };
+// Mirrors tunaiPODocGroups in the backend: any one document satisfies its group. The first two are needed to submit.
+const DOC_GROUPS: TPODocType[][] = [["PO"], ["PI_SOFT", "PI_ASLI"], ["BAST", "GR"], ["FAKTUR_PAJAK"]];
+export const SUBMIT_DOCS = DOC_GROUPS.slice(0, 2).flat();
+export const DOC_ACCEPT = ".pdf,.jpg,.jpeg,.png";
+const groupDone = (r: TPORequest, group: TPODocType[]) => group.some((t) => r.documents?.some((d) => d.docType === t && d.checked));
+export const submitDocsReady = (r: TPORequest) => DOC_GROUPS.slice(0, 2).every((g) => groupDone(r, g));
+export const docProgress = (r: TPORequest) => {
+  const groups = DOC_GROUPS.filter((g) => g[0] !== "FAKTUR_PAJAK" || r.isPkp);
+  return { total: groups.length, done: groups.filter((g) => groupDone(r, g)).length };
+};
+export const canEditDocs = (user: any) => authorized(user, "tunai_po", "submit") || authorized(user, "tunai_po", "verify") || authorized(user, "payment", "write");
+
+// Opens a request's detail from a notification link (?open=id).
+export function useOpenParam(open: (id: number) => void) {
+  const [params, setParams] = useSearchParams();
+  const id = Number(params.get("open"));
+  useEffect(() => {
+    if (!id) return;
+    open(id);
+    setParams((p) => (p.delete("open"), p), { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+}
 
 export const REJECT_CATEGORIES = [
   { value: "ALOKASI", label: "Alokasi" },
@@ -69,7 +94,7 @@ export function OverdueBadge() {
 export function Modal({ title, onClose, children, width = "max-w-2xl" }: { title: React.ReactNode; onClose: () => void; children: React.ReactNode; width?: string }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-      <div className={`bg-white rounded-[4px] shadow-2xl border border-slate-200 w-full ${width} max-h-[92dvh] flex flex-col overflow-hidden`}>
+      <div className={`bg-white rounded-[4px] shadow-2xl border border-slate-200 w-full ${width} max-h-[90dvh] flex flex-col overflow-hidden`}>
         <div className="bg-[#1A1612] text-white px-4 py-3 flex items-center justify-between shrink-0">
           <h3 className="text-sm font-bold tracking-wide">{title}</h3>
           <button onClick={onClose} className="text-stone-400 hover:text-white p-1 rounded-[3px] transition cursor-pointer">
@@ -88,6 +113,35 @@ export function Field({ label, children }: { label: string; children: React.Reac
       <span className="block font-semibold text-slate-600 mb-1">{label}</span>
       {children}
     </label>
+  );
+}
+
+// Asks the transfer date of a voucher; it is posted to Accurate as the payment date.
+export function PaidDateModal({ voucherNo, onClose, onSubmit }: { voucherNo?: string; onClose: () => void; onSubmit: (paidDate: string) => void }) {
+  const today = new Date().toLocaleDateString("sv-SE");
+  const [date, setDate] = useState(today);
+  return (
+    <Modal title={`Tandai Lunas${voucherNo ? ` — ${voucherNo}` : ""}`} onClose={onClose} width="max-w-sm">
+      <form
+        className="space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit(date);
+        }}
+      >
+        <Field label="Tanggal Transfer">
+          <input type="date" required max={today} value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
+        </Field>
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} className={btnSecondary}>
+            Batal
+          </button>
+          <button type="submit" className={btnPrimary}>
+            Tandai Lunas
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -140,7 +194,7 @@ export function MonthInput({ value, onChange, className = inputCls }: { value: s
 export function PeriodInput({ value, onChange }: { value: Period; onChange: (p: Period) => void }) {
   const weeks = planWeeksOf(value.planMonth);
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap sm:flex-nowrap gap-2">
       <MonthInput
         value={value.planMonth}
         onChange={(planMonth) => onChange({ planMonth, planWeek: value.planWeek <= planWeeksOf(planMonth).length ? value.planWeek : 0 })}
@@ -248,19 +302,22 @@ export async function saveDocument(requestId: number, docType: TPODocType, check
   return res.document;
 }
 
-export async function openDocumentFile(doc: TPODocument) {
+async function downloadFile(path: string, fileName: string) {
   const token = localStorage.getItem("financeerp.token") || "";
-  const res = await fetch(`${API_BASE}/api/tunai-po/documents/${doc.id}/file`, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch(`${API_BASE}/api/tunai-po/${path}`, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) throw new Error("Gagal mengunduh dokumen");
   const url = URL.createObjectURL(await res.blob());
   const a = document.createElement("a");
   a.href = url;
-  a.download = doc.fileName || `${doc.docType}`;
+  a.download = fileName;
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+export const openDocumentFile = (doc: TPODocument) => downloadFile(`documents/${doc.id}/file`, doc.fileName || doc.docType);
+export const openRefundFile = (r: TPORefund) => downloadFile(`refunds/${r.id}/file`, r.fileName);
 
 // Compact per-document toggle used by the tracking table: click = check/uncheck, clip = upload.
 export function DocToggle({
@@ -309,7 +366,7 @@ export function DocToggle({
         canEdit && (
           <label title="Upload" className="cursor-pointer">
             <Paperclip className="w-3 h-3 text-slate-300 hover:text-slate-500" />
-            <input type="file" className="hidden" disabled={busy} onChange={(e) => e.target.files?.[0] && run(true, e.target.files[0])} />
+            <input type="file" accept={DOC_ACCEPT} className="hidden" disabled={busy} onChange={(e) => e.target.files?.[0] && run(true, e.target.files[0])} />
           </label>
         )
       )}
